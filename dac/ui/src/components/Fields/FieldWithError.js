@@ -21,6 +21,8 @@ import PropTypes from 'prop-types';
 import { Tooltip } from 'components/Tooltip';
 import HoverHelp from 'components/HoverHelp';
 
+import { FormValidationMessage } from 'dremio-ui-lib';
+
 import forms from 'uiTheme/radium/forms';
 import classNames from 'classnames';
 
@@ -35,7 +37,7 @@ export default class FieldWithError extends Component {
     label: PropTypes.string,
     touched: PropTypes.bool,
     error: PropTypes.string,
-    errorPlacement: PropTypes.string,
+    errorPlacement: PropTypes.string, // Todo: Remove this prop and all the references to it
     style: PropTypes.object,
     labelStyle: PropTypes.object,
     labelClass: PropTypes.string,
@@ -64,7 +66,7 @@ export default class FieldWithError extends Component {
   }
 
   render() {
-    const {style, children, touched, error, errorPlacement, name, className} = this.props;
+    const {style, children, touched, error, name, className} = this.props;
 
     const showError = Boolean(touched && error);
 
@@ -77,15 +79,9 @@ export default class FieldWithError extends Component {
         data-qa={name} style={{...style, position:'relative'}}>
         {this.renderLabel()}
         {React.cloneElement(React.Children.only(children), {ref: 'target'})}
-        <Tooltip
-          container={this}
-          target={() => showError ? this.refs.target : null}
-          placement={errorPlacement}
-          type='error'
-          dataQa='error'
-        >
+        {showError && <FormValidationMessage className='margin-top-half' dataQa='error'>
           {error}
-        </Tooltip>
+        </FormValidationMessage>}
       </div>
     );
   }

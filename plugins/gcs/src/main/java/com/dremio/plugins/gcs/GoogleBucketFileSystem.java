@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -43,6 +44,7 @@ import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.gcs.GCSConf.AuthMode;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.dremio.plugins.util.ContainerNotFoundException;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
@@ -279,12 +281,18 @@ public class GoogleBucketFileSystem extends ContainerFileSystem implements MayPr
   @Override
   protected ContainerHolder getUnknownContainer(String bucket) throws IOException {
     // run this to ensure we don't fail.
-    storage.list(bucket, BlobListOption.pageSize(1));
+    try {
+      storage.list(bucket, BlobListOption.pageSize(1));
+    } catch (StorageException e) {
+      int status = e.getCode();
+      throw new ContainerNotFoundException(String.format("Unable to find container %s - [%d %s]", bucket,
+        status, e.getMessage()));
+    }
     return new ContainerFileSystem.ContainerHolder(bucket, new FileSystemSupplierImpl(getConf(), bucket));
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(Path path, String version) throws IOException {
+  public AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options) throws IOException {
     return client.newByteReader(path, version);
   }
 

@@ -26,11 +26,15 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
@@ -38,6 +42,8 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.HashAggregate;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
@@ -49,6 +55,9 @@ import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggSpillStats;
+import com.dremio.sabot.op.common.ht2.FieldVectorPair;
+import com.dremio.sabot.op.common.ht2.PivotBuilder;
+import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.UserExceptionMatcher;
 
@@ -709,4 +718,49 @@ public class TestSpillingHashAgg extends BaseTestOperator {
       }
     }
   }
+
+  private PivotDef createPivotAndPopulateData(final int numUniqueKeys, final int inputRecords,
+                                              final String minKey, final String maxKey,
+                                              final BatchSchema schema, final VectorContainer incoming)
+  {
+    IntVector col1     = incoming.addOrGet(CompleteType.INT.toField("col1"));
+    VarCharVector col2 = incoming.addOrGet(CompleteType.VARCHAR.toField("col2"));
+    IntVector m1       = incoming.addOrGet(CompleteType.INT.toField("m1"));
+    VarCharVector m2   = incoming.addOrGet(CompleteType.VARCHAR.toField("m2"));
+    VarCharVector m3   = incoming.addOrGet(CompleteType.VARCHAR.toField("m3"));
+
+    int counter = 0;
+    for (int i = 0; i < inputRecords; i += 2, ++counter) {
+      final String v1 = RandomStringUtils.randomAlphanumeric(2) + String.format("%05d", i);
+      col1.setSafe(i, counter);
+      col1.setSafe((i + 1), counter);
+      col2.setSafe(i, v1.getBytes());
+      col2.setSafe((i + 1), v1.getBytes());
+    } //populate keys
+
+    for (int i = 0; i < inputRecords; i += 2) {
+      m1.setSafe(i, 1);
+    }
+
+    // Measure column 2: min varchar accumulator
+    for (int i = 0; i < (inputRecords); i += 2) {
+      m2.setSafe(i, maxKey.getBytes());
+      m2.setSafe(i + 1, minKey.getBytes());
+    }
+
+    // Measure column 3: max varchar accumulator
+    for (int i = 0; i < inputRecords; i += 2) {
+      m3.setSafe(i, minKey.getBytes());
+      m3.setSafe(i + 1, maxKey.getBytes());
+    }
+    final int records = incoming.setAllCount(inputRecords);
+
+    final PivotDef pivot = PivotBuilder.getBlockDefinition(
+      new FieldVectorPair(col1, col1),
+      new FieldVectorPair(col2, col2)
+    );
+
+    return pivot;
+  }
+
 }

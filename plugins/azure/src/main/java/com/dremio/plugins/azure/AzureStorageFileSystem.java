@@ -19,6 +19,7 @@ import static com.dremio.plugins.azure.AzureAuthenticationType.ACCESS_KEY;
 import static com.dremio.plugins.azure.AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -224,7 +225,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(Path path, String version) {
+  public AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options) {
     return new AzureAsyncReader(azureEndpoint, account, path, authProvider, version, secure, asyncHttpClient);
   }
 }

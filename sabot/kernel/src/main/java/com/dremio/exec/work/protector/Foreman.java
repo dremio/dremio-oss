@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.work.protector;
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -431,10 +433,9 @@ public class Foreman {
       if (data != null) {
         try {
           NamespaceKey datasetKey = new NamespaceKey(data.getOriginTablePath());
-          final String queryUserName = session.getCredentials().getUserName();
           final DatasetCatalog datasetCatalog =
               context.getCatalogService()
-                  .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(queryUserName).build()));
+                  .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(SYSTEM_USERNAME).build()));
           datasetCatalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
 
           // Update successful, populate return exception.

@@ -96,6 +96,8 @@ import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.datastore.DatastoreException;
+import com.dremio.datastore.EnumSearchValueNotFoundException;
+import com.dremio.datastore.IndexedSearchQueryConverterUtil;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
@@ -125,6 +127,7 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.SearchProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
@@ -249,7 +252,6 @@ import io.grpc.stub.StreamObserver;
 import io.opentelemetry.api.trace.Span;
 import io.protostuff.ByteString;
 
-
 /**
  * Submit and monitor jobs from DAC.
  */
@@ -314,6 +316,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   private Cancellable abandonLocalJobsTask;
   private QueryObserverFactory queryObserverFactory;
   private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub jobTelemetryServiceStub;
+
 
   private final RemoteJobServiceForwarder forwarder;
 
@@ -855,7 +858,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         }
         if (!completionListener.isCompleted()) {
           logger.info("Submitted job (JobID {}) was cancelled", submittedJobId);
-          throw new IllegalStateException(String.format("Submitted job (JobID %s) was cancelled", submittedJobId));
+          throw new IllegalStateException(String.format("Submitted job (JobID %s) was cancelled. %s", submittedJobId, completionListener.getCancelledReason()));
         } else {
           logger.info("Submitted job (JobID {}) has completed successfully", submittedJobId);
         }
@@ -1072,6 +1075,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
   }
 
+
    LegacyFindByCondition createCondition(SearchJobsRequest searchJobsRequest) {
 
     final LegacyFindByCondition condition = new LegacyFindByCondition();
@@ -1116,10 +1120,28 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     return searchJobs(condition);
   }
 
-  LegacyFindByCondition createActiveJobCondition(ActiveJobsRequest searchJobsRequest) {
+  LegacyFindByCondition createActiveJobCondition(ActiveJobsRequest activeJobsRequest) throws EnumSearchValueNotFoundException {
     String filterString = "(jst==RUNNING,jst==QUEUED,jst==ENQUEUED,jst==PLANNING,jst==STARTING,jst==PENDING,jst==METADATA_RETRIEVAL,jst==ENGINE_START,jst==EXECUTION_PLANNING)";
+    if (!activeJobsRequest.getUserName().equals("")) {
+      filterString = filterString + ";usr==" + activeJobsRequest.getUserName();
+    }
     final LegacyFindByCondition condition = new LegacyFindByCondition();
     condition.setCondition(filterString, JobIndexKeys.MAPPING);
+    condition.setPageSize(SEARCH_JOBS_PAGE_SIZE);
+
+    SearchProtos.SearchQuery query = activeJobsRequest.getQuery();
+    if(query != null && query.getQueryCase() != SearchProtos.SearchQuery.QueryCase.QUERY_NOT_SET){
+      SearchQuery filterQuery = condition.getCondition();
+      SearchQuery pushDownQuery = IndexedSearchQueryConverterUtil.toSearchQuery(query, ActiveJobSearchUtils.FIELDS);
+      SearchQuery finalQuery;
+      if(pushDownQuery != null) {
+        finalQuery = SearchQueryUtils.and(filterQuery, pushDownQuery);
+      } else{
+        finalQuery = filterQuery;
+      }
+      condition.setCondition(finalQuery);
+    }
+
     return condition;
   }
 
@@ -1130,7 +1152,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       .transform(job -> JobsServiceUtil.toActiveJobSummary(job));
   }
 
-  Iterable<ActiveJobSummary> getActiveJobs(ActiveJobsRequest request) {
+  Iterable<ActiveJobSummary> getActiveJobs(ActiveJobsRequest request) throws EnumSearchValueNotFoundException {
     LegacyFindByCondition condition = createActiveJobCondition(request);
     return getActiveJobs(condition);
   }

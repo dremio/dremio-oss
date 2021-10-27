@@ -201,6 +201,11 @@ public class ClassProducerImpl implements ClassProducer {
     }
 
     @Override
+    public int getFunctionErrorContextSize() {
+      return errorContexts.size();
+    }
+
+    @Override
     public ValueHolder getConstantValueHolder(String value, MinorType type,
         Function<ArrowBuf, ValueHolder> holderInitializer) {
       if (!constantValueHolderCache.containsKey(value)) {

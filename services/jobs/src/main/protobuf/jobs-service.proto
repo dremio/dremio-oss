@@ -27,6 +27,7 @@ package dremio.job;
 import "jobs-metadata.proto";
 import "job.proto";
 import "UserBitShared.proto";
+import "Search.proto";
 import "Coordination.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
@@ -147,13 +148,21 @@ message JobSummary {
 message ActiveJobSummary {
   string job_id = 1;
   string status = 2;
-  string error_msg = 3;
+  string query_type = 3;
   string user_name = 4;
-  int64 start = 5;
-  int64 finish = 6;
-  string query_type = 7;
-  bool accelerated = 8;
-  int64 row_count = 9;
+  bool accelerated = 5;
+  google.protobuf.Timestamp submit = 6;
+  google.protobuf.Timestamp queue = 7;
+  google.protobuf.Timestamp start = 8;
+  google.protobuf.Timestamp finish = 9;
+  string queue_name = 10;
+  string engine = 17;
+  int64 query_planning_time = 11;
+  int64 queue_time = 12;
+  int64 execution_planning_time = 13;
+  int64 execution_time = 14;
+  int64 row_count = 15;
+  string error_msg = 16;
 }
 
 //proto2 enums cannot be used directly in proto3 syntax
@@ -309,6 +318,7 @@ message SearchJobsRequest {
 
 message ActiveJobsRequest {
   string user_name = 1;
+  exec.search.SearchQuery query = 2;
 }
 
 message JobsWithParentDatasetRequest {

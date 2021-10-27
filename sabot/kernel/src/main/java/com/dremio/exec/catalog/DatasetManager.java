@@ -269,8 +269,7 @@ class DatasetManager {
     final String accessUserName = getAccessUserName(plugin, schemaConfig);
 
     final Stopwatch stopwatch = Stopwatch.createStarted();
-    if (plugin.isCompleteAndValid(datasetConfig, options)) {
-      plugin.checkAccess(key, datasetConfig, accessUserName, options);
+    if (plugin.isCompleteAndValid(datasetConfig, options, userNamespaceService)) {
       final NamespaceKey canonicalKey = new NamespaceKey(datasetConfig.getFullPathList());
       final NamespaceTable namespaceTable = getTableFromNamespace(key, datasetConfig, plugin, accessUserName, options);
       options.getStatsCollector()
@@ -330,7 +329,7 @@ class DatasetManager {
 
       try {
         datasetConfig = userNamespaceService.getDataset(canonicalKey);
-        if (datasetConfig != null && plugin.isCompleteAndValid(datasetConfig, options)) {
+        if (datasetConfig != null && plugin.isCompleteAndValid(datasetConfig, options, userNamespaceService)) {
           // if the dataset config is complete and unexpired, we'll recurse because we don't need the just retrieved
           // SourceTableDefinition. Since they're lazy, little harm done.
           // Otherwise, we'll fall through and use the found accessor.

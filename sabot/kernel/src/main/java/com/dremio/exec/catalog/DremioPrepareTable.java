@@ -31,6 +31,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.schema.Schema;
+import org.apache.calcite.schema.Table;
 import org.apache.calcite.sql.SqlAccessType;
 import org.apache.calcite.sql.validate.SqlModality;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
@@ -109,22 +110,17 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
     return false;
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public <T> T unwrap(Class<T> paramClass) {
     if(paramClass == DremioPrepareTable.class) {
-      return (T) this;
+      return paramClass.cast(this);
+    } else if(paramClass == DremioTable.class
+        || paramClass == table.getClass()
+        || paramClass == Table.class) {
+      return paramClass.cast(table);
+    } else {
+      return null;
     }
-
-    if(paramClass == DremioTable.class) {
-      return (T) table;
-    }
-
-    if(paramClass == table.getClass()) {
-      return (T) table;
-    }
-
-    return null;
   }
 
   @Override

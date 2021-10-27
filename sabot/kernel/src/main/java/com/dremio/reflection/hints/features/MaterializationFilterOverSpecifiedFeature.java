@@ -17,6 +17,7 @@ package com.dremio.reflection.hints.features;
 
 import java.util.Objects;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 
@@ -31,13 +32,19 @@ import org.apache.calcite.rex.RexUtil;
  */
 public class MaterializationFilterOverSpecifiedFeature implements HintFeature {
   private RexNode materializationFilter;
+  private RelDataType datasetRowType;
 
-  public MaterializationFilterOverSpecifiedFeature(RexNode materializationFilter) {
+  public MaterializationFilterOverSpecifiedFeature(RexNode materializationFilter, RelDataType datasetRowType) {
     this.materializationFilter = materializationFilter;
+    this.datasetRowType = datasetRowType;
   }
 
   public RexNode getMaterializationFilter() {
     return materializationFilter;
+  }
+
+  public RelDataType getDatasetRowType() {
+    return datasetRowType;
   }
 
   @Override

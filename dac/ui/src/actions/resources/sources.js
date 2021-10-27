@@ -151,7 +151,7 @@ function fetchSourceListData(includeDatasetCount = false) {
 export function loadSourceListData() {
   return (dispatch) => {
     return dispatch(fetchSourceListData())
-      .then(() => dispatch(fetchSourceListData(true)));
+      .then(dispatch(fetchSourceListData(true)));
   };
 }
 

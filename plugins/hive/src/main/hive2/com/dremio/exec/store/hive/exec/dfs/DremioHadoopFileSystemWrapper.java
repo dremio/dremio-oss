@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Predicate;
@@ -551,15 +552,20 @@ public class DremioHadoopFileSystemWrapper
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
+  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
     final org.apache.hadoop.fs.Path path = toHadoopPath(fileKey.getPath());
     if (underlyingFs instanceof MayProvideAsyncStream) {
-      return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion());
+      return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion(),options);
     } else if (underlyingFs instanceof DremioFileSystem) {
-      return ((DremioFileSystem) underlyingFs).getAsyncByteReader(fileKey, operatorStats);
+      return ((DremioFileSystem) underlyingFs).getAsyncByteReader(fileKey, operatorStats, options);
     } else {
       throw new UnsupportedOperationException("Unsupported path in Hive Parquet readers");
     }
+  }
+
+  @Override
+  public boolean supportsPathsWithScheme() {
+    return !supportsAsync();
   }
 
   private static final class ArrayDirectoryStream implements DirectoryStream<FileAttributes> {

@@ -68,6 +68,16 @@ public interface UserService {
     throw new UnsupportedOperationException();
   }
 
+  /**
+   * Delete a user with corresponding UID and version
+   * @param uid UID of user to delete
+   * @param version version of user to delete
+   * @throws UserNotFoundException if no user with UID and version is found
+   */
+  default void deleteUser(UID uid, String version) throws UserNotFoundException, IOException {
+    throw new UnsupportedOperationException();
+  }
+
   // TODO(DX-33891): use @CheckReturnValue
   AuthResult authenticate(String userName, String password) throws UserLoginException;
 

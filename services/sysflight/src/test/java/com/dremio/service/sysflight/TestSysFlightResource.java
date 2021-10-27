@@ -18,11 +18,19 @@ package com.dremio.service.sysflight;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 
+import java.util.Map;
+
+import org.apache.arrow.flight.FlightProducer.ServerStreamListener;
+import org.apache.arrow.memory.BufferAllocator;
 import org.junit.rules.ExternalResource;
 
+import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.ChronicleGrpc;
+import com.dremio.service.sysflight.SystemTableManager.TABLES;
+import com.google.common.collect.Maps;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -38,8 +46,6 @@ public class TestSysFlightResource extends ExternalResource {
   private ManagedChannel channel;
 
   // mock ChronicleGrpc service
-  //TODO: Change chronicleService to test for zero fields
-
   private final ChronicleGrpc.ChronicleImplBase chronicleService =
     mock(ChronicleGrpc.ChronicleImplBase.class,
        delegatesTo(
@@ -74,13 +80,40 @@ public class TestSysFlightResource extends ExternalResource {
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
   }
 
-  public ChronicleGrpc.ChronicleBlockingStub getChronicleBlockingStub(){
-    return  ChronicleGrpc.newBlockingStub(channel);
+  private ChronicleGrpc.ChronicleStub getChronicleStub(){
+    return  ChronicleGrpc.newStub(channel);
+  }
+
+  public Map<TABLES, SysFlightDataProvider> getTablesProvider() {
+    Map<TABLES, SysFlightDataProvider> tablesMap = Maps.newHashMap();
+    tablesMap.put(TABLES.JOBS, new JobsTableProvider(getChronicleStub()));
+    return tablesMap;
   }
 
   @Override
   public void after() {
     channel.shutdownNow();
     server.shutdownNow();
+  }
+
+  private static class JobsTableProvider implements SysFlightDataProvider {
+    private final ChronicleGrpc.ChronicleStub jobsStub;
+
+    JobsTableProvider(ChronicleGrpc.ChronicleStub jobsStub) {
+      this.jobsStub = jobsStub;
+    }
+
+    @Override
+    public void streamData(
+      SysFlightTicket ticket, ServerStreamListener listener, BufferAllocator allocator, int recordBatchSize) {
+      ActiveJobsRequest searchJobsRequest = ActiveJobsRequest.newBuilder().setQuery(ticket.getQuery()).build();
+      jobsStub.getActiveJobs(searchJobsRequest, new SysFlightStreamObserver<>(allocator, listener,
+        ActiveJobSummary.getDescriptor(), recordBatchSize));
+    }
+
+    @Override
+    public BatchSchema getSchema() {
+      return ProtobufRecordReader.getSchema(ActiveJobSummary.getDescriptor());
+    }
   }
 }

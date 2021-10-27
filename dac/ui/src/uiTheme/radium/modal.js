@@ -29,7 +29,10 @@ export const modalContent = {
   flexDirection: 'column',
   margin: '0 auto',
   padding: 0,
-  flexGrow: 1
+  flexGrow: 1,
+  top: '10%',
+  bottom: '10%',
+  maxHeight: '80%'
 };
 
 export const smallModal = {
@@ -40,8 +43,7 @@ export const smallModal = {
     width: 670,
     height: 480,
 
-    top: '50%',
-    marginTop: -480 / 2
+    top: '10%'
   }
 };
 
@@ -51,10 +53,7 @@ export const smallestModal = {
     ...modalContent,
     overflow: 'visible',
     width: 450,
-    height: 200,
-
-    top: '50%',
-    marginTop: -200 / 2
+    height: 200
   }
 };
 
@@ -62,9 +61,7 @@ export const mediumModal = {
   overlay,
   content: {
     ...modalContent,
-    width: 840,
-    top: null,
-    bottom: null
+    width: 840
   }
 };
 
@@ -73,8 +70,6 @@ export const largeModal = {
   content: {
     ...modalContent,
     width: '90%',
-    top: null,
-    bottom: null,
     maxWidth: 1200
   }
 };
@@ -84,8 +79,6 @@ export const tallModal = {
   content: {
     ...modalContent,
     width: '50%',
-    top: null,
-    bottom: null,
     maxWidth: 440
   }
 };

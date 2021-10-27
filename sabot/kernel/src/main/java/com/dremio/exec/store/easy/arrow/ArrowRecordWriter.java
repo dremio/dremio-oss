@@ -59,7 +59,7 @@ public class ArrowRecordWriter implements RecordWriter {
   private Path location;
   private String prefix;
   private String extension;
-  private FileSystem fs;
+  private FileSystem fs = null;
 
   private int nextFileIndex = 0;
 
@@ -73,7 +73,7 @@ public class ArrowRecordWriter implements RecordWriter {
   private String relativePath;
 
   public ArrowRecordWriter(OperatorContext context, final EasyWriter writerConfig,
-                           ArrowFormatPluginConfig formatConfig) {
+                           ArrowFormatPluginConfig formatConfig) throws IOException {
     final FragmentHandle handle = context.getFragmentHandle();
 
     this.writerConfig = writerConfig;
@@ -85,15 +85,28 @@ public class ArrowRecordWriter implements RecordWriter {
     this.extension = formatConfig.outputExtension;
   }
 
+  public ArrowRecordWriter(OperatorContext context, String fileLocation, ArrowFormatPluginConfig formatConfig, FileSystem fs) {
+    this.context = context;
+    this.listOfFilesCreated = Lists.newArrayList();
+    this.footerBuilder = ArrowFileFooter.newBuilder();
+    this.currentFile = Path.of(fileLocation);
+    this.extension = formatConfig.outputExtension;
+    this.fs = fs;
+    this.writerConfig = null;
+  }
+
   @Override
   public void setup(VectorAccessible incoming, OutputEntryListener outputEntryListener, WriteStatsListener writeStatsListener) throws IOException {
     Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE, "SelectionVector remover is not supported.");
-
     this.incoming = incoming;
     this.outputEntryListener = outputEntryListener;
     this.writeStatsListener = writeStatsListener;
-    this.fs = writerConfig.getFormatPlugin().getFsPlugin().createFS(writerConfig.getProps().getUserName(), context);
-    this.currentFile = fs.canonicalizePath(location.resolve(String.format("%s_%d.%s", prefix, nextFileIndex, extension)));
+    if(this.fs == null) {
+      this.fs = writerConfig.getFormatPlugin().getFsPlugin().createFS(writerConfig.getProps().getUserName(), context);
+    }
+    if(this.currentFile == null) {
+      this.currentFile = fs.canonicalizePath(location.resolve(String.format("%s_%d.%s", prefix, nextFileIndex, extension)));
+    }
     this.relativePath = currentFile.getName();
     this.currentFileOutputStream = new DataOutputStream(fs.create(currentFile));
     listOfFilesCreated.add(currentFile);

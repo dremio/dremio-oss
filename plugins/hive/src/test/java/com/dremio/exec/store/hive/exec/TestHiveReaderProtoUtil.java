@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -128,7 +129,7 @@ public class TestHiveReaderProtoUtil {
       assertTrue(getMessage(original, converted),
           converted.getTablePropertySubscriptList().size() == original.getTablePropertyList().size());
 
-      final List<Prop> convertedTableProperties = HiveReaderProtoUtil.getTableProperties(converted);
+      final List<Prop> convertedTableProperties = getTableProperties(converted);
       assertTrue(getMessage(original, converted),
           original.getTablePropertyList().size() == convertedTableProperties.size());
 
@@ -177,7 +178,7 @@ public class TestHiveReaderProtoUtil {
         assertTrue(getMessage(original, converted),
             convertePartitionXattr.getPropertySubscriptList().size() == originalPartitionXattr.getPartitionPropertyList().size());
 
-        final List<Prop> convertedPartitionProperties = HiveReaderProtoUtil.getPartitionProperties(converted, i);
+        final List<Prop> convertedPartitionProperties = getPartitionProperties(converted, i);
         assertTrue(getMessage(original, converted),
             originalPartitionXattr.getPartitionPropertyList().size() == convertedPartitionProperties.size());
 
@@ -438,14 +439,14 @@ public class TestHiveReaderProtoUtil {
   @Test
   public void getProps() {
     {
-      assertTrue(HiveReaderProtoUtil.getTableProperties(HiveTableXattr.newBuilder().build()).size() == 0);
+      assertTrue(getTableProperties(HiveTableXattr.newBuilder().build()).size() == 0);
       try {
         HiveReaderProtoUtil.getPartitionProperties(HiveTableXattr.newBuilder().build(), 0);
         fail();
       } catch (IllegalArgumentException ignored) {
       }
 
-      assertTrue(HiveReaderProtoUtil.getTableProperties(HiveTableXattr.newBuilder()
+      assertTrue(getTableProperties(HiveTableXattr.newBuilder()
           .setPropertyCollectionType(HiveReaderProto.PropertyCollectionType.DICTIONARY)
           .build()).size() == 0);
       try {
@@ -465,10 +466,10 @@ public class TestHiveReaderProtoUtil {
                   newPartitionXattrWithProps(newProp("c", "d"), newProp("a", "b"))));
 
       HiveTableXattr original = xattr.build();
-      assertTrue(HiveReaderProtoUtil.getTableProperties(original).size() == 0);
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 0)
+      assertTrue(getTableProperties(original).size() == 0);
+      assertTrue(getPartitionProperties(original, 0)
           .equals(Lists.newArrayList(newProp("a", "b"), newProp("a", "b"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 1)
+      assertTrue(getPartitionProperties(original, 1)
           .equals(Lists.newArrayList(newProp("c", "d"), newProp("a", "b"))));
       try {
         HiveReaderProtoUtil.getPartitionProperties(original, -1);
@@ -483,10 +484,10 @@ public class TestHiveReaderProtoUtil {
 
       HiveReaderProtoUtil.encodePropertiesAsDictionary(xattr);
       HiveTableXattr converted = xattr.build();
-      assertTrue(HiveReaderProtoUtil.getTableProperties(converted).size() == 0);
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(converted, 0)
+      assertTrue(getTableProperties(converted).size() == 0);
+      assertTrue(getPartitionProperties(converted, 0)
           .equals(Lists.newArrayList(newProp("a", "b"), newProp("a", "b"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(converted, 1)
+      assertTrue(getPartitionProperties(converted, 1)
           .equals(Lists.newArrayList(newProp("c", "d"), newProp("a", "b"))));
       try {
         HiveReaderProtoUtil.getPartitionProperties(original, -1);
@@ -511,16 +512,16 @@ public class TestHiveReaderProtoUtil {
                   newProp("a", "c")));
 
       HiveTableXattr original = xattr.build();
-      assertTrue(HiveReaderProtoUtil.getTableProperties(original)
+      assertTrue(getTableProperties(original)
           .equals(Lists.newArrayList(newProp("a", "c"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 0)
+      assertTrue(getPartitionProperties(original, 0)
           .equals(Lists.newArrayList(newProp("a", "b"), newProp("c", "d"))));
 
       HiveReaderProtoUtil.encodePropertiesAsDictionary(xattr);
       HiveTableXattr converted = xattr.build();
-      assertTrue(HiveReaderProtoUtil.getTableProperties(converted)
+      assertTrue(getTableProperties(converted)
           .equals(Lists.newArrayList(newProp("a", "c"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(converted, 0)
+      assertTrue(getPartitionProperties(converted, 0)
           .equals(Lists.newArrayList(newProp("a", "b"), newProp("c", "d"))));
     }
 
@@ -544,7 +545,7 @@ public class TestHiveReaderProtoUtil {
                   newProp("a", "c")));
 
       HiveTableXattr original = xattr.build();
-      assertTrue(HiveReaderProtoUtil.getTableProperties(original)
+      assertTrue(getTableProperties(original)
           .equals(Lists.newArrayList(
               newProp("a", "b"),
               newProp("a", "b"),
@@ -552,22 +553,22 @@ public class TestHiveReaderProtoUtil {
               newProp("a", "b"),
               newProp("a", "c"))));
 
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 0)
+      assertTrue(getPartitionProperties(original, 0)
           .equals(Lists.newArrayList(newProp("a", "b"), newProp("c", "d"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 1)
+      assertTrue(getPartitionProperties(original, 1)
           .equals(Lists.newArrayList(newProp("c", "d"), newProp("c", "d"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 2)
+      assertTrue(getPartitionProperties(original, 2)
           .equals(Lists.newArrayList(newProp("c", "d"), newProp("c", "e"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 3)
+      assertTrue(getPartitionProperties(original, 3)
           .equals(Lists.newArrayList(newProp("c", "d"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 4)
+      assertTrue(getPartitionProperties(original, 4)
           .equals(Lists.newArrayList(newProp("c", "d"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 5)
+      assertTrue(getPartitionProperties(original, 5)
           .equals(Lists.newArrayList(newProp("c", "d"))));
 
       HiveReaderProtoUtil.encodePropertiesAsDictionary(xattr);
       HiveTableXattr converted = xattr.build();
-      assertTrue(HiveReaderProtoUtil.getTableProperties(converted)
+      assertTrue(getTableProperties(converted)
           .equals(Lists.newArrayList(
               newProp("a", "b"),
               newProp("a", "b"),
@@ -575,17 +576,17 @@ public class TestHiveReaderProtoUtil {
               newProp("a", "b"),
               newProp("a", "c"))));
 
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(converted, 0)
+      assertTrue(getPartitionProperties(converted, 0)
           .equals(Lists.newArrayList(newProp("a", "b"), newProp("c", "d"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(converted, 1)
+      assertTrue(getPartitionProperties(converted, 1)
           .equals(Lists.newArrayList(newProp("c", "d"), newProp("c", "d"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(converted, 2)
+      assertTrue(getPartitionProperties(converted, 2)
           .equals(Lists.newArrayList(newProp("c", "d"), newProp("c", "e"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(converted, 3)
+      assertTrue(getPartitionProperties(converted, 3)
           .equals(Lists.newArrayList(newProp("c", "d"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(converted, 4)
+      assertTrue(getPartitionProperties(converted, 4)
           .equals(Lists.newArrayList(newProp("c", "d"))));
-      assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 5)
+      assertTrue(getPartitionProperties(original, 5)
           .equals(Lists.newArrayList(newProp("c", "d"))));
     }
   }
@@ -593,14 +594,14 @@ public class TestHiveReaderProtoUtil {
   @Test
   public void isLegacyFormat() {
     {
-      assertTrue(HiveReaderProtoUtil.getTableProperties(HiveTableXattr.newBuilder().build()).size() == 0);
+      assertTrue(getTableProperties(HiveTableXattr.newBuilder().build()).size() == 0);
       try {
         HiveReaderProtoUtil.getPartitionProperties(HiveTableXattr.newBuilder().build(), 0);
         fail();
       } catch (IllegalArgumentException ignored) {
       }
 
-      assertTrue(HiveReaderProtoUtil.getTableProperties(HiveTableXattr.newBuilder()
+      assertTrue(getTableProperties(HiveTableXattr.newBuilder()
         .setPropertyCollectionType(HiveReaderProto.PropertyCollectionType.DICTIONARY)
         .build()).size() == 0);
       try {
@@ -634,5 +635,13 @@ public class TestHiveReaderProtoUtil {
         assertFalse(HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr));
       }
     }
+  }
+
+  private List<Prop> getPartitionProperties(HiveTableXattr attrs, int index) {
+    return HiveReaderProtoUtil.getPartitionProperties(attrs, index).collect(Collectors.toList());
+  }
+
+  private List<Prop> getTableProperties(HiveTableXattr attrs) {
+    return HiveReaderProtoUtil.getTableProperties(attrs).collect(Collectors.toList());
   }
 }

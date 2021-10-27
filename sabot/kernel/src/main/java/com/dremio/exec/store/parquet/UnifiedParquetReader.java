@@ -90,6 +90,7 @@ public class UnifiedParquetReader implements RecordReader {
   private final SchemaDerivationHelper schemaHelper;
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
+  private final boolean isConvertedIcebergDataset;
   private final BatchSchema tableSchema;
   private ParquetScanProjectedColumns projectedColumns;
   private ParquetColumnResolver columnResolver;
@@ -115,24 +116,25 @@ public class UnifiedParquetReader implements RecordReader {
   private final int maxValidityBufSize;
 
   public UnifiedParquetReader(
-      OperatorContext context,
-      ParquetReaderFactory readerFactory,
-      BatchSchema tableSchema,
-      ParquetScanProjectedColumns projectedColumns,
-      Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-      List<ParquetFilterCondition> filterConditions,
-      ParquetFilterCreator filterCreator,
-      ParquetDictionaryConvertor dictionaryConvertor,
-      ParquetDatasetSplitScanXAttr readEntry,
-      FileSystem fs,
-      MutableParquetMetadata footer,
-      GlobalDictionaries dictionaries,
-      SchemaDerivationHelper schemaHelper,
-      boolean vectorize,
-      boolean enableDetailedTracing,
-      boolean supportsColocatedReads,
-      InputStreamProvider inputStreamProvider,
-      List<RuntimeFilter> runtimeFilters) {
+    OperatorContext context,
+    ParquetReaderFactory readerFactory,
+    BatchSchema tableSchema,
+    ParquetScanProjectedColumns projectedColumns,
+    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
+    List<ParquetFilterCondition> filterConditions,
+    ParquetFilterCreator filterCreator,
+    ParquetDictionaryConvertor dictionaryConvertor,
+    ParquetDatasetSplitScanXAttr readEntry,
+    FileSystem fs,
+    MutableParquetMetadata footer,
+    GlobalDictionaries dictionaries,
+    SchemaDerivationHelper schemaHelper,
+    boolean vectorize,
+    boolean enableDetailedTracing,
+    boolean supportsColocatedReads,
+    InputStreamProvider inputStreamProvider,
+    List<RuntimeFilter> runtimeFilters,
+    boolean isConvertedIcebergDataset) {
     super();
     this.context = context;
     this.readerFactory = readerFactory;
@@ -159,6 +161,47 @@ public class UnifiedParquetReader implements RecordReader {
         .map(RuntimeFilter::getInstanceWithNewNonPartitionColFiltersList)
         .collect(Collectors.toList());
     this.maxValidityBufSize = BitVectorHelper.getValidityBufferSize(context.getTargetBatchSize());
+    this.isConvertedIcebergDataset = isConvertedIcebergDataset;
+  }
+
+  public UnifiedParquetReader(
+    OperatorContext context,
+    ParquetReaderFactory readerFactory,
+    BatchSchema tableSchema,
+    ParquetScanProjectedColumns projectedColumns,
+    Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
+    List<ParquetFilterCondition> filterConditions,
+    ParquetFilterCreator filterCreator,
+    ParquetDictionaryConvertor dictionaryConvertor,
+    ParquetDatasetSplitScanXAttr readEntry,
+    FileSystem fs,
+    MutableParquetMetadata footer,
+    GlobalDictionaries dictionaries,
+    SchemaDerivationHelper schemaHelper,
+    boolean vectorize,
+    boolean enableDetailedTracing,
+    boolean supportsColocatedReads,
+    InputStreamProvider inputStreamProvider,
+    List<RuntimeFilter> runtimeFilters) {
+    this(context,
+      readerFactory,
+      tableSchema,
+      projectedColumns,
+      globalDictionaryFieldInfoMap,
+      filterConditions,
+      filterCreator,
+      dictionaryConvertor,
+      readEntry,
+      fs,
+      footer,
+      dictionaries,
+      schemaHelper,
+      vectorize,
+      enableDetailedTracing,
+      supportsColocatedReads,
+      inputStreamProvider,
+      runtimeFilters,
+      true);
   }
 
   @Override
@@ -625,7 +668,7 @@ public class UnifiedParquetReader implements RecordReader {
               unifiedReader.readerFactory.newReader(
                   unifiedReader.context,
                   unifiedReader.projectedColumns.cloneForSchemaPaths(
-                    unifiedReader.columnResolver.getBatchSchemaColumns(unifiedReader.vectorizableReaderColumns)),
+                    unifiedReader.columnResolver.getBatchSchemaColumns(unifiedReader.vectorizableReaderColumns), unifiedReader.isConvertedIcebergDataset),
                   unifiedReader.readEntry.getPath(),
                   unifiedReader.codecFactory,
                   unifiedReader.filterConditions,
@@ -651,8 +694,9 @@ public class UnifiedParquetReader implements RecordReader {
               unifiedReader.readEntry.getRowGroupIndex(),
               unifiedReader.readEntry.getPath(),
               unifiedReader.projectedColumns.cloneForSchemaPaths(
-                unifiedReader.columnResolver.getBatchSchemaColumns(unifiedReader.nonVectorizableReaderColumns)
-              ),
+                unifiedReader.columnResolver.getBatchSchemaColumns(unifiedReader.nonVectorizableReaderColumns),
+                unifiedReader.isConvertedIcebergDataset
+                ),
               unifiedReader.fs,
               unifiedReader.schemaHelper,
               deltas,

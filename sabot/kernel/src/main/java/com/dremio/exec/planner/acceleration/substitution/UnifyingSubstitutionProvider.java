@@ -23,8 +23,7 @@ import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.rules.ProjectMergeRule;
-import org.apache.calcite.rel.rules.ProjectRemoveRule;
+import org.apache.calcite.rel.rules.CoreRules;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,8 +69,8 @@ public class UnifyingSubstitutionProvider extends AbstractSubstitutionProvider {
   protected HepProgramBuilder getProgramBuilder() {
     return new HepProgramBuilder()
       .addRuleInstance(PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK)
-      .addRuleInstance(ProjectMergeRule.INSTANCE)
-      .addRuleInstance(ProjectRemoveRule.INSTANCE);
+      .addRuleInstance(CoreRules.PROJECT_MERGE)
+      .addRuleInstance(CoreRules.PROJECT_REMOVE);
   }
 
   /**

@@ -25,6 +25,8 @@ option optimize_for = SPEED;
 
 option java_outer_classname = "DatasetCommonProtobuf";
 
+import "namespace-file-common.proto";
+
 /// Dataset types
 enum DatasetType {
   INVALID_DATASET_TYPE = 0;
@@ -109,4 +111,5 @@ message IcebergMetadata {
   optional int64 snapshot_id = 2; // current snapshot id
   optional string partition_stats_file = 3; // path to partition stats file for the latest snapshot
   optional string tableUuid = 4; // unique id assigned to the iceberg table
+  optional com.dremio.service.namespace.file.proto.FileType file_type = 5;  // file type
 }

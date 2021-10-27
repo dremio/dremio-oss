@@ -78,12 +78,17 @@ export class AccountMenu extends Component {
 
     return <Menu>
       {config.shouldEnableBugFiling
-        && <MenuItem isInformational>
-          <span style={styles.menuInformation}>{intl.formatMessage({ id: 'HeaderMenu.InternalBuild' })}</span>
-        </MenuItem>}
-      {config.shouldEnableBugFiling
-        && <MenuItem onClick={this.onFileABug}>{intl.formatMessage({ id: 'HeaderMenu.FileABug' })}</MenuItem>}
-      {config.shouldEnableBugFiling && <DividerHr/>}
+        &&
+        <>
+          <MenuItem isInformational>
+            <span style={styles.menuInformation}>{intl.formatMessage({ id: 'HeaderMenu.InternalBuild' })}</span>
+          </MenuItem>
+          <MenuItem onClick={this.onFileABug}>
+            {intl.formatMessage({id: 'HeaderMenu.FileABug'})}
+          </MenuItem>
+          <DividerHr/>
+        </>
+      }
       <MenuItem onClick={this.onAccountSettings}>
         {intl.formatMessage({ id: 'HeaderMenu.AccountSettings' })}
       </MenuItem>

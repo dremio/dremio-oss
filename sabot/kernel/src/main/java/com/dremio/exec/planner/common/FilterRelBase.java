@@ -65,14 +65,7 @@ public abstract class FilterRelBase extends Filter {
 
     this.hasContains = ContainsRexVisitor.hasContainsCheckOrigin(this, this.getCondition(),-1);
 
-    boolean foundFlatten = false;
-    for (RexNode rex : this.getChildExps()) {
-      MoreRelOptUtil.FlattenRexVisitor visitor = new MoreRelOptUtil.FlattenRexVisitor();
-      if (rex.accept(visitor)) {
-        foundFlatten = true;
-      }
-    }
-    this.hasFlatten = foundFlatten;
+    this.hasFlatten = getCondition().accept(new MoreRelOptUtil.FlattenRexVisitor());
 
     final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(cluster.getPlanner());
     filterMinSelectivityEstimateFactor = plannerSettings.getFilterMinSelectivityEstimateFactor();
@@ -94,7 +87,7 @@ public abstract class FilterRelBase extends Filter {
     }
 
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(.1);
     }
 
     RelNode child = this.getInput();

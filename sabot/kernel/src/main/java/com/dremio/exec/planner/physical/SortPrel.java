@@ -69,7 +69,7 @@ public class SortPrel extends SortRelBase implements Prel {
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       //We use multiplier 0.05 for TopN operator, and 0.1 for Sort, to make TopN a preferred choice.
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(.1);
     }
 
     RelNode child = this.getInput();

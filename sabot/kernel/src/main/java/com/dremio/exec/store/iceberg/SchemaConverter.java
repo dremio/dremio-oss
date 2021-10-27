@@ -42,7 +42,9 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Timestamp;
 import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Type.NestedType;
 import org.apache.iceberg.types.Type.PrimitiveType;
@@ -88,12 +90,23 @@ public class SchemaConverter {
   }
 
   public BatchSchema fromIceberg(Schema icebergSchema) {
+
     return new BatchSchema(icebergSchema
       .columns()
       .stream()
       .map(x -> this.fromIcebergColumn(x))
       .filter(Objects::nonNull)
       .collect(Collectors.toList()));
+  }
+
+  public List<String> getPartitionColumns(Table table) {
+    return table
+      .spec()
+      .fields()
+      .stream()
+      .map(PartitionField::sourceId)
+      .map(table.schema()::findColumnName) // column name from schema
+      .collect(Collectors.toList());
   }
 
   public Field fromIcebergColumn(NestedField field) {

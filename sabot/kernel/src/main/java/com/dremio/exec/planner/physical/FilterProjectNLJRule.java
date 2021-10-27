@@ -62,7 +62,7 @@ public class FilterProjectNLJRule extends RelOptRule {
 
     final RelBuilder relBuilder = call.builder();
     RelNode newFilterRel = filter.copy(filter.getTraitSet(),
-      NestedLoopJoinPrel.create(join.getCluster(), join.getTraitSet(), join.getLeft(), join.getRight(), join.getJoinType(), join.getCondition(), join.getProjectedFields()),
+      NestedLoopJoinPrel.create(join.getCluster(), join.getTraitSet(), join.getLeft(), join.getRight(), join.getJoinType(), join.getCondition()),
     RexUtil.removeNullabilityCast(relBuilder.getTypeFactory(), newCondition));
 
     RelNode newProjRel = project.copy(project.getTraitSet(), newFilterRel, project.getProjects(), project.getRowType());

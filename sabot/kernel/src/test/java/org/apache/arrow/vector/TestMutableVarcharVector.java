@@ -16,6 +16,7 @@
 package org.apache.arrow.vector;
 
 import java.util.LinkedList;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.util.Text;
@@ -24,7 +25,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 import com.google.common.base.Stopwatch;
@@ -40,6 +43,8 @@ public class TestMutableVarcharVector extends DremioTest {
 
   @Rule
   public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
   @Before
   public void setupBeforeTest() {
@@ -398,7 +403,7 @@ public class TestMutableVarcharVector extends DremioTest {
       v1.allocateNew(m1.getUsedByteCapacity(), startIdx * 2);
 
       //copy records
-      m1.copyToVarchar(v1, 0, startIdx * 3);
+      m1.copyToVarWidthVec(v1, startIdx * 3);
 
       //reset the value count back to actual strings copied
       v1.setValueCount(startIdx);
@@ -460,7 +465,7 @@ public class TestMutableVarcharVector extends DremioTest {
       v2.allocateNew(m1.getUsedByteCapacity(), startIdx * 2);
 
       //copy records
-      m1.copyToVarchar(v2, 0, startIdx * 3);
+      m1.copyToVarWidthVec(v2, startIdx * 3);
 
       //reset the value count back to actual strings copied
       v2.setValueCount(startIdx);

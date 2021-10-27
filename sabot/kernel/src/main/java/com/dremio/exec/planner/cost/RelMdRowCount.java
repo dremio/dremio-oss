@@ -17,6 +17,7 @@ package com.dremio.exec.planner.cost;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
@@ -51,6 +52,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
@@ -61,7 +63,7 @@ import com.google.common.base.Throwables;
 public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount {
   private static final Logger logger = LoggerFactory.getLogger(RelMdRowCount.class);
   private static final RelMdRowCount INSTANCE = new RelMdRowCount(StatisticsService.NO_OP);
-
+  private static final Double decreaseSelectivityForInexactFilters = 0.999;
   public static final RelMetadataProvider SOURCE = ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.ROW_COUNT.method, INSTANCE);
 
   private final StatisticsService statisticsService;
@@ -91,6 +93,11 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
         }
         // Grouping sets multiply
         rowCount *= rel.getGroupSets().size();
+
+        if(rowCount >= mq.getRowCount(rel.getInput())){
+          // our estimation has failed completely
+          return rel.estimateRowCount(mq);
+        }
         return rowCount;
       } catch (Exception ex) {
         logger.debug("Failed to get row count of aggregate. Fallback to default estimation", ex);
@@ -103,7 +110,13 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
       if (distinctRowCount == null) {
         return rel.estimateRowCount(mq);
       }
-      return (double) distinctRowCount * (double) rel.getGroupSets().size();
+
+      Double rowCount = (double) distinctRowCount * (double) rel.getGroupSets().size();
+      if(rowCount >= mq.getRowCount(rel.getInput())){
+        // our estimation has failed completely
+        return rel.estimateRowCount(mq);
+      }
+      return rowCount;
     } catch (Exception ex) {
       logger.debug("Failed to get row count of aggregate. Fallback to default estimation", ex);
       return rel.estimateRowCount(mq);
@@ -121,14 +134,18 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
 
   private Double getDistinctCountForJoinChild(RelMetadataQuery mq, RelNode rel, ImmutableBitSet cols) {
     if (cols.asList().stream().anyMatch(col -> {
-      final RelColumnOrigin columnOrigin = mq.getColumnOrigin(rel, col);
-      if (columnOrigin != null && columnOrigin.getOriginTable() != null) {
-        final RelOptTable originTable = columnOrigin.getOriginTable();
-        final List<String> fieldNames = originTable.getRowType().getFieldNames();
-        final String columnName = fieldNames.get(columnOrigin.getOriginColumnOrdinal());
-        return statisticsService.getNDV(columnName, new NamespaceKey(originTable.getQualifiedName())) != null;
+      Set<RelColumnOrigin> columnOrigins = mq.getColumnOrigins(rel, col);
+      if (columnOrigins != null) {
+        for (RelColumnOrigin columnOrigin : columnOrigins) {
+          final RelOptTable originTable = columnOrigin.getOriginTable();
+          final List<String> fieldNames = originTable.getRowType().getFieldNames();
+          final String columnName = fieldNames.get(columnOrigin.getOriginColumnOrdinal());
+          if (statisticsService.getNDV(columnName, new NamespaceKey(originTable.getQualifiedName())) != null) {
+            return true;
+          }
+        }
       }
-      return true;
+      return false;
     })) {
       return mq.getDistinctRowCount(rel, cols, null);
     }
@@ -161,7 +178,8 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
     if (leftNdv == null || rightNdv == null
       || leftNdv == 0 || rightNdv == 0
       || leftRowCount == null || rightRowCount == null) {
-      return null;
+      // fallback to largest estimate
+     return RelMdUtil.getJoinRowCount(mq, rel, condition);
     }
 
     final Double selectivity = mq.getSelectivity(rel, remaining);
@@ -299,22 +317,48 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
           rowCount = rowCountFromStat;
         }
       }
-      return rel.getFilterReduction() * rowCount * splitRatio * rel.getObservedRowcountAdjustment();
+
+      double partitionFilterFactor = 1.0d;
+      if ((rel instanceof FilterableScan) && ((FilterableScan) rel).getPartitionFilter() != null) {
+        final PlannerSettings plannerSettings  = PrelUtil.getPlannerSettings(rel.getCluster().getPlanner());
+        partitionFilterFactor *= plannerSettings == null ? PlannerSettings.DEFAULT_PARITTION_FILTER_FACTOR : plannerSettings.getPartitionFilterFactor();
+      }
+
+      return rel.getFilterReduction() * rowCount * splitRatio * rel.getObservedRowcountAdjustment() * partitionFilterFactor;
     } catch (NamespaceException ex) {
       logger.warn("Failed to get split ratio from table metadata, {}", rel.getTableMetadata().getName());
       throw Throwables.propagate(ex);
     }
   }
 
+  private Double getSelectivityFromTableScanWithScanFilter(TableScan rel, RelMetadataQuery mq, ScanFilter scanFilter){
+    Double  selectivity = mq.getSelectivity(rel, scanFilter.getExactRexFilter());
+    if(scanFilter.getExactRexFilter() == null || !scanFilter.getExactRexFilter().equals(scanFilter.getRexFilter())){
+      // We make the selectivity with inExact Filters lower so that the planner chooses the plan with the InExact Filters pushed to the TableScan
+      // ToDo: Handle this part in TableScan costing
+      selectivity = selectivity * decreaseSelectivityForInexactFilters;
+    }
+    return selectivity;
+  }
+
+
   @Override
   public Double getRowCount(TableScan rel, RelMetadataQuery mq) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
       Double rowCount = getRowCountFromTableMetadata(rel);
       double selectivity = 1.0;
-      if (rel instanceof FilterableScan && ((FilterableScan) rel).getFilter() != null) {
-        selectivity = mq.getSelectivity(rel, ((FilterableScan) rel).getFilter().getRexFilter());
+      if (rel instanceof FilterableScan) {
+        FilterableScan filterableScan = (FilterableScan) rel;
+        if (filterableScan.getFilter() != null) {
+          selectivity *= getSelectivityFromTableScanWithScanFilter(rel, mq, ((FilterableScan) rel).getFilter());
+        }
+        if (filterableScan.getPartitionFilter() != null) {
+          // todo DX-38641 - get selectivity through stat
+          final PlannerSettings plannerSettings  = PrelUtil.getPlannerSettings(rel.getCluster().getPlanner());
+          selectivity *= plannerSettings == null ? PlannerSettings.DEFAULT_PARITTION_FILTER_FACTOR : plannerSettings.getPartitionFilterFactor();
+        }
       } else if (rel instanceof ScanPrelBase && ((ScanPrelBase) rel).hasFilter() && ((ScanPrelBase) rel).getFilter() != null) {
-        selectivity = mq.getSelectivity(rel, ((ScanPrelBase) rel).getFilter().getRexFilter());
+        selectivity = getSelectivityFromTableScanWithScanFilter(rel, mq, ((ScanPrelBase) rel).getFilter());
       }
       return rowCount == null ? rel.getTable().getRowCount() : selectivity * rowCount;
     }

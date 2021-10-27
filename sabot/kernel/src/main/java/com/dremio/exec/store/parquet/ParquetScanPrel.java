@@ -40,7 +40,6 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
-import com.google.common.base.Objects;
 
 /**
  * Convert scan prel to parquet group scan.
@@ -179,23 +178,6 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
         observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType, arrowCachingEnabled);
-  }
-
-  @Override
-  public boolean equals(final Object other) {
-    if (!(other instanceof ParquetScanPrel)) {
-      return false;
-    }
-    ParquetScanPrel castOther = (ParquetScanPrel) other;
-    return Objects.equal(filter, castOther.filter) &&
-      Objects.equal(globalDictionaryEncodedColumns, castOther.globalDictionaryEncodedColumns) &&
-      Objects.equal(cachedRelDataType, castOther.cachedRelDataType) &&
-      super.equals(other);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(super.hashCode(), filter);
   }
 
   public ParquetScanPrel cloneWithGlobalDictionaryColumns(List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns, RelDataType relDataType) {

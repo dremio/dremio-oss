@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.catalog;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.Spliterators;
@@ -37,6 +40,7 @@ import com.dremio.service.namespace.MetadataProtoUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
@@ -141,6 +145,23 @@ public final class MetadataObjectsUtils {
     newSignature.ifPresent(bs -> readDefinition.setReadSignature(ByteStringUtil.wrap(bs.toByteArray())));
 
     datasetConfig.setReadDefinition(readDefinition);
+
+
+    IcebergMetadata icebergMetadata;
+    if (newExtended.getIcebergMetadata() != null && newExtended.getIcebergMetadata().length > 0) {
+      try (ByteArrayInputStream bis = new ByteArrayInputStream(newExtended.getIcebergMetadata());
+           ObjectInput in = new ObjectInputStream(bis)) {
+        icebergMetadata = (IcebergMetadata) in.readObject();
+        PhysicalDataset pds = datasetConfig.getPhysicalDataset();
+        if (pds == null) {
+          pds = new PhysicalDataset();
+        }
+        pds.setIcebergMetadata(icebergMetadata);
+        datasetConfig.setPhysicalDataset(pds);
+      } catch (IOException | ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   /**

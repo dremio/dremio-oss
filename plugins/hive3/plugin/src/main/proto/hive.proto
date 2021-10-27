@@ -133,6 +133,11 @@ message Prop {
 
 enum HiveReadSignatureType {
   FILESYSTEM = 1;
+  VERSION_BASED = 2;
+}
+
+message RootPointer {
+  optional string path = 1; // location of the root pointer
 }
 
 message FileSystemCachedEntity {
@@ -151,4 +156,5 @@ message FileSystemPartitionUpdateKey {
 message HiveReadSignature {
   optional HiveReadSignatureType type = 1;
   repeated FileSystemPartitionUpdateKey fs_partition_updateKeys = 2;
+  optional RootPointer root_pointer = 3;
 }

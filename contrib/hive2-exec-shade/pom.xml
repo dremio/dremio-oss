@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>18.2.0-202110081842420694-7e500f14</version>
+    <version>19.0.0-202110270341120595-3e3e05e7</version>
   </parent>
 
   <artifactId>dremio-hive2-exec-shaded</artifactId>

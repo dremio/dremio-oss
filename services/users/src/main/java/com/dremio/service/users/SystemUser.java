@@ -15,6 +15,7 @@
  */
 package com.dremio.service.users;
 
+import com.dremio.common.UserConstants;
 import com.dremio.service.users.proto.UID;
 
 /**
@@ -25,7 +26,7 @@ public class SystemUser {
   /**
    * System user running the Dremio service.
    */
-  public static final String SYSTEM_USERNAME = "$dremio$";
+  public static final String SYSTEM_USERNAME = UserConstants.SYSTEM_USERNAME;
 
   public static final User SYSTEM_USER =
       SimpleUser.newBuilder()

@@ -42,6 +42,7 @@ describe('AccelerationUpdatesController', () => {
       entity: Immutable.fromJS({
         fullPathList: ['path']
       }),
+      clearDataSetAccelerationSettings: sinon.stub(),
       loadDatasetAccelerationSettings: sinon.stub(),
       updateDatasetAccelerationSettings: sinon.stub(),
       onDone: sinon.stub().returns('onDone'),

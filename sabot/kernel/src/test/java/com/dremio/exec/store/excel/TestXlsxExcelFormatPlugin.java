@@ -229,4 +229,13 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Failure creating parser for entry");
   }
+
+  @Test
+  public void testStrictOXMl() throws Exception {
+    final String filePath = getExcelDir() + "strict_oxml.xlsx";
+    final String query = String.format("SELECT * FROM dfs.\"%s\"", filePath);
+
+    testAndExpectUserException(query, ErrorType.DATA_READ, "Strict OXMl is not supported");
+  }
+
 }

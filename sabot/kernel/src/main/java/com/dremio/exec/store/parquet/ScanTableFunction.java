@@ -53,6 +53,7 @@ import com.dremio.service.namespace.DatasetHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
+
 /**
  * Parquet scan table function
  */
@@ -77,6 +78,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   // This is set to true after we are done consuming from upstream and we want to produce the
   // remianing buffered splits if present.
   private boolean produceFromBufferedSplits = false;
+  private BoostBufferManager boostBufferManager;
 
   public ScanTableFunction(FragmentExecutionContext fec,
                            OperatorContext context,
@@ -103,8 +105,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       inputColIds = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.COL_IDS);
       isColIdMapSet = false;
     }
-
     createRecordReaderIterator();
+    //initialise boost buffer manager here
     return outgoing;
   }
 
@@ -184,6 +186,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     currentRecordReader.allocate(fieldVectorMap);
     int records;
     while ((records = currentRecordReader.next()) == 0) {
+      //insert boost buffer manager here if the spilt is to be boosted.
       currentRecordReader.close();
       currentRecordReader = null;
       if (!getRecordReaderIterator().hasNext()) {
@@ -267,6 +270,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     return this.runtimeFilters;
   }
 
+
+
   @Override
   public void close() throws Exception {
     final List<AutoCloseable> closeables = new ArrayList<>(runtimeFilters.size() + 3);
@@ -275,6 +280,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     closeables.addAll(runtimeFilters);
     AutoCloseables.close(closeables);
     currentRecordReader = null;
+    //close boost buffer manager here.
     this.context.getStats().setReadIOStats();
   }
 }

@@ -70,16 +70,18 @@ public class ConvertletTable extends ReflectiveConvertletTable {
     }
   };
 
-  public ConvertletTable(ContextInformation contextInformation) {
+  public ConvertletTable(ContextInformation contextInformation, boolean ieee756DivideBehavior) {
     super();
-
+    if (ieee756DivideBehavior) {
+      registerOp(SqlStdOperatorTable.DIVIDE, IEEE754DivideConvertlet.INSTANCE);
+    }
     registerOp(SqlStdOperatorTable.TIMESTAMP_DIFF, DEFAULT_CONVERTLET);
     registerOp(SqlStdOperatorTable.EQUALS, EqualityConvertlet.INSTANCE);
     registerOp(SqlStdOperatorTable.NOT_EQUALS, EqualityConvertlet.INSTANCE);
     registerOp(SqlStdOperatorTable.IS_DISTINCT_FROM, EqualityConvertlet.INSTANCE);
     registerOp(SqlStdOperatorTable.IS_NOT_DISTINCT_FROM, EqualityConvertlet.INSTANCE);
-    registerOp(SqlFlattenOperator.INSTANCE, FlattenConvertlet.INSTANCE);
-    registerOp(SqlDatePartOperator.INSTANCE, SqlDatePartOperator.CONVERTLET);
+    registerOp(DremioSqlOperatorTable.FLATTEN, FlattenConvertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.DATE_PART, SqlDatePartOperator.CONVERTLET);
     registerOp(SqlStdOperatorTable.MINUS, new SqlRexConvertlet() {
       @Override
       public RexNode convertCall(SqlRexContext cx, SqlCall call) {

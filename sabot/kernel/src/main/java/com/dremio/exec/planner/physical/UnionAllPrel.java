@@ -65,7 +65,7 @@ public class UnionAllPrel extends UnionPrel {
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     double totalInputRowCount = 0;
     for (int i = 0; i < this.getInputs().size(); i++) {

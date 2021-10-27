@@ -230,7 +230,7 @@ public class TestCreateTable extends PlanTestBase {
   }
 
   @Test
-  public void testReadingFromRootPointer() throws Exception{
+  public void testReadingFromRootPointerWithAutomaticRefresh() throws Exception{
     String table1 = "root_pointer";
     try {
       File table1Folder = new File(getDfsTestTmpSchemaLocation(), table1);
@@ -258,17 +258,7 @@ public class TestCreateTable extends PlanTestBase {
       Thread.sleep(1001);
       addFileToTable(table, spec, testWorkingPath, "f2.parquet");
 
-      testBuilder()
-              .sqlQuery("select * from dfs_test_hadoop.root_pointer")
-              .unOrdered()
-              .baselineColumns("col1", "col2")
-              .baselineValues(1, 2)
-              .build()
-              .run();
-
-      String refreshMetadata = "alter table dfs_test_hadoop.root_pointer refresh metadata";
-      test(refreshMetadata);
-
+      // Automatic refresh should happen and should show the newly added records.
       testBuilder()
               .sqlQuery("select * from dfs_test_hadoop.root_pointer")
               .unOrdered()
@@ -277,7 +267,6 @@ public class TestCreateTable extends PlanTestBase {
               .baselineValues(1, 2)
               .build()
               .run();
-
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));

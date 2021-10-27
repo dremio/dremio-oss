@@ -33,6 +33,8 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
+import com.dremio.service.job.ActiveJobSummary;
+import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.ChronicleGrpc.ChronicleBlockingStub;
@@ -186,6 +188,11 @@ public class HybridJobsService implements JobsService {
   @Override
   public Iterable<JobSummary> searchJobs(SearchJobsRequest request) {
     return () -> getChronicleBlockingStub().searchJobs(request);
+  }
+
+  @Override
+  public Iterable<ActiveJobSummary> getActiveJobs(ActiveJobsRequest request){
+    return () -> getChronicleBlockingStub().getActiveJobs(request);
   }
 
   @Override

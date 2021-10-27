@@ -83,6 +83,15 @@ public interface DatasetMetadata extends Unwrappable {
   }
 
   /**
+   * Different sources support Iceberg datasets. This method will provide required Iceberg metadata
+   * that helps in triggering Iceberg execution for all such datasets.
+   * @return iceberg metadata. can be empty.
+   */
+  default byte[] getIcebergMetadata() {
+    return new byte[0];
+  }
+
+  /**
    * Create {@code DatasetMetadata}.
    *
    * @param stats dataset stats
@@ -102,7 +111,7 @@ public interface DatasetMetadata extends Unwrappable {
    * @return dataset metadata
    */
   static DatasetMetadata of(DatasetStats stats, Schema schema, BytesOutput extraInfo) {
-    return of(stats, schema, Collections.emptyList(), Collections.emptyList(), extraInfo);
+    return of(stats, schema, Collections.emptyList(), Collections.emptyList(), extraInfo, new byte[0]);
   }
 
   /**
@@ -116,18 +125,41 @@ public interface DatasetMetadata extends Unwrappable {
    * @return dataset metadata
    */
   static DatasetMetadata of(
+          DatasetStats stats,
+          Schema schema,
+          List<String> partitionColumns,
+          List<String> sortColumns,
+          BytesOutput extraInfo
+  ) {
+    return of(stats, schema, partitionColumns, sortColumns, extraInfo, new byte[0]);
+  }
+
+  /**
+   * Create {@code DatasetMetadata}.
+   *
+   * @param stats dataset stats
+   * @param schema schema
+   * @param partitionColumns partition columns
+   * @param sortColumns sort columns
+   * @param extraInfo extra info
+   * @param icebergMetadaa iceberg metadata
+   * @return dataset metadata
+   */
+  static DatasetMetadata of(
       DatasetStats stats,
       Schema schema,
       List<String> partitionColumns,
       List<String> sortColumns,
-      BytesOutput extraInfo
+      BytesOutput extraInfo,
+      byte[] icebergMetadaa
   ) {
     Objects.requireNonNull(stats, "dataset stats is required");
     Objects.requireNonNull(schema, "schema is required");
     Objects.requireNonNull(partitionColumns, "partition columns is required");
     Objects.requireNonNull(sortColumns, "sort columns is required");
     Objects.requireNonNull(extraInfo, "extra info is required");
+    Objects.requireNonNull(icebergMetadaa, "iceberg metadata is required");
 
-    return new DatasetMetadataImpl(stats, schema, partitionColumns, sortColumns, extraInfo);
+    return new DatasetMetadataImpl(stats, schema, partitionColumns, sortColumns, extraInfo, icebergMetadaa);
   }
 }

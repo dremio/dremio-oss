@@ -55,7 +55,7 @@ public class PushProjectIntoScanRule extends RelOptRule {
     ScanCrel newScan = scan.cloneWithProject(columnInfo.columns);
 
     List<RexNode> newProjects = Lists.newArrayList();
-    for (RexNode n : proj.getChildExps()) {
+    for (RexNode n : proj.getProjects()) {
       newProjects.add(n.accept(columnInfo.getInputRewriter()));
     }
 

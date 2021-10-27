@@ -34,7 +34,9 @@ import javax.ws.rs.client.Invocation;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -72,6 +74,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -81,13 +84,29 @@ import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
 import com.google.common.base.Charsets;
 
+import ch.qos.logback.classic.Level;
+
 /**
  * Tests to create, update and execute queries on physical datasets..
  */
 public class TestPhysicalDatasets extends BaseTestServer {
+  private static ch.qos.logback.classic.Logger rootLogger = ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger("com.dremio"));
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestPhysicalDatasets.class);
+  private static Level originalLogLevel;
   private BufferAllocator allocator;
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+
+  @BeforeClass
+  public static void initLogLevel() {
+    originalLogLevel = rootLogger.getLevel();
+    rootLogger.setLevel(Level.DEBUG);
+  }
+
+  @AfterClass
+  public static void restoreLogLevel() {
+    rootLogger.setLevel(originalLogLevel);
+  }
 
   @Before
   public void setup() throws Exception {
@@ -943,6 +962,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     for (int i = 0 ; i < expectedNumOfPartitionChunks ; i++) {
       assertTrue(iter.hasNext());
       PartitionChunkMetadata partitionChunkMetadata = iter.next();
+      logger.debug("Normalized partition info is {}.", partitionChunkMetadata.getNormalizedPartitionInfo());
+      for (PartitionProtobuf.DatasetSplit datasetSplit : partitionChunkMetadata.getDatasetSplits()) {
+        logger.debug("Dataset split is {}.", datasetSplit);
+      }
       assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
     }
     assertFalse(iter.hasNext());
@@ -967,6 +990,10 @@ public class TestPhysicalDatasets extends BaseTestServer {
     for (int i = 0 ; i < expectedNumOfPartitionChunks ; i++) {
       assertTrue(iter.hasNext());
       PartitionChunkMetadata partitionChunkMetadata = iter.next();
+      logger.debug("Normalized partition info is {}.", partitionChunkMetadata.getNormalizedPartitionInfo());
+      for (PartitionProtobuf.DatasetSplit datasetSplit : partitionChunkMetadata.getDatasetSplits()) {
+        logger.debug("Dataset split is {}.", datasetSplit);
+      }
       assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
     }
     assertFalse(iter.hasNext());

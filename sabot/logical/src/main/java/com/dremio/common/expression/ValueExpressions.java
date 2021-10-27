@@ -22,8 +22,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.util.Collections;
-import java.util.Iterator;
 
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
@@ -222,11 +220,6 @@ public class ValueExpressions {
 
     protected abstract V parseValue(String s);
 
-    @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
-    }
-
 
   }
 
@@ -292,11 +285,6 @@ public class ValueExpressions {
     }
 
     @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
-    }
-
-    @Override
     public String toString() {
       return "ValueExpression[float=" + f + "]";
     }
@@ -304,7 +292,7 @@ public class ValueExpressions {
 
   public static class IntExpression extends LogicalExpressionBase {
 
-    private int i;
+    private final int i;
 
     public IntExpression(int i) {
       this.i = i;
@@ -322,11 +310,6 @@ public class ValueExpressions {
     @Override
     public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
       return visitor.visitIntConstant(this, value);
-    }
-
-    @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
     }
 
     @Override
@@ -353,8 +336,8 @@ public class ValueExpressions {
 
   public static class DecimalExpression extends LogicalExpressionBase {
 
-    private BigDecimal decimal;
-    private int precision;
+    private final BigDecimal decimal;
+    private final int precision;
 
     public DecimalExpression(BigDecimal input, int precision, int scale) {
       Preconditions.checkArgument(scale >= 0,
@@ -363,13 +346,14 @@ public class ValueExpressions {
         "invalid precision " + precision + ", must be > 0");
       Preconditions.checkArgument(precision >= scale,
         "invalid precision " + precision + ", must be >= scale " + scale);
-
-      this.decimal = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
+      BigDecimal decimal;
+      decimal = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
       // Decimal value will be 0 if there is precision overflow.
       // This is similar to DecimalFunctions:CastDecimalDecimal
-      if(this.decimal.precision() > precision) {
-        this.decimal = new BigDecimal("0.0");
+      if(decimal.precision() > precision) {
+        decimal = new BigDecimal("0.0");
       }
+      this.decimal = decimal;
       this.precision = precision;
     }
 
@@ -402,11 +386,6 @@ public class ValueExpressions {
       }
       DecimalExpression castOther = (DecimalExpression) other;
       return Objects.equal(decimal, castOther.decimal) && Objects.equal(precision, castOther.precision);
-    }
-
-    @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
     }
 
     @Override
@@ -451,11 +430,6 @@ public class ValueExpressions {
     }
 
     @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
-    }
-
-    @Override
     public String toString() {
       return "ValueExpression[double=" + d + "]";
     }
@@ -490,11 +464,6 @@ public class ValueExpressions {
       }
       LongExpression castOther = (LongExpression) other;
       return Objects.equal(l, castOther.l);
-    }
-
-    @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
     }
 
     @Override
@@ -535,10 +504,6 @@ public class ValueExpressions {
       return Objects.equal(dateInMillis, castOther.dateInMillis);
     }
 
-    @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
-    }
 
     @Override
     public String toString() {
@@ -580,11 +545,6 @@ public class ValueExpressions {
     }
 
     @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
-    }
-
-    @Override
     public String toString() {
       return "ValueExpression[time=" + timeInMillis + "]";
     }
@@ -619,11 +579,6 @@ public class ValueExpressions {
       }
       TimeStampExpression castOther = (TimeStampExpression) other;
       return Objects.equal(timeInMillis, castOther.timeInMillis);
-    }
-
-    @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
     }
 
     @Override
@@ -663,12 +618,6 @@ public class ValueExpressions {
       IntervalYearExpression castOther = (IntervalYearExpression) other;
       return Objects.equal(months, castOther.months);
     }
-
-    @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
-    }
-
 
     @Override
     public String toString() {
@@ -718,11 +667,6 @@ public class ValueExpressions {
       }
       IntervalDayExpression castOther = (IntervalDayExpression) other;
       return Objects.equal(days, castOther.days) && Objects.equal(millis, castOther.millis);
-    }
-
-    @Override
-    public Iterator<LogicalExpression> iterator() {
-      return Collections.emptyIterator();
     }
 
     @Override

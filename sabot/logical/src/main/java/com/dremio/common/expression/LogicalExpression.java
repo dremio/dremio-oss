@@ -16,6 +16,8 @@
 package com.dremio.common.expression;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
 
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
@@ -46,6 +48,14 @@ public interface LogicalExpression extends Iterable<LogicalExpression>{
 
   <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E;
 
+  default int getSizeOfChildren() {
+    return 0;
+  }
+
+  @Override
+  default Iterator<LogicalExpression> iterator() {
+    return Collections.emptyIterator();
+  }
 
   int getSelfCost();
   int getCumulativeCost();

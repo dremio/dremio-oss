@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>18.2.0-202110081842420694-7e500f14</version>
+    <version>19.0.0-202110270341120595-3e3e05e7</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -380,18 +380,8 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <!-- See DX-4419
-           JDBC needs a more recent version of avatica than the one
-           calcite depends on
-      -->
       <groupId>org.apache.calcite.avatica</groupId>
-      <artifactId>avatica</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
+      <artifactId>avatica-core</artifactId>
     </dependency>
 
     <!-- Test Dependencies -->
@@ -640,7 +630,7 @@
               <exclude>de.vandermeer:*</exclude>
               <exclude>com.dremio.contrib:dremio-maprfs-shaded</exclude>
               <exclude>com.dremio.distribution:dremio-distribution-resources</exclude>
-              <exclude>com.yahoo.datasketches:*</exclude>
+              <exclude>org.apache.datasketches:*</exclude>
               <exclude>com.esri.geometry:*</exclude>
               <exclude>org.antlr:*</exclude>
               <exclude>org.hdrhistogram:HdrHistogram:*</exclude>

@@ -44,7 +44,7 @@ export default class PrevalidatedTextField extends Component {
 
   handleTextFieldChange = (e) => {
     const { value } = e.target;
-    this.setState({ internalValue: value });
+    this.setState({ internalValue: value }, this.handleUpdateTextField);
   }
 
   handleUpdateTextField = () => {

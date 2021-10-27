@@ -36,6 +36,7 @@ import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
@@ -98,7 +99,7 @@ public class HashToRandomExchangePrel extends ExchangePrel {
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
     RelNode child = this.getInput();
@@ -127,6 +128,8 @@ public class HashToRandomExchangePrel extends ExchangePrel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
+    OptionManager optionManager = creator.getOptionManager();
+
     final OpProps props = creator.props(this, null, childPOP.getProps().getSchema());
     final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
     final OpProps senderProps = creator.props(senderOperatorId, this, null, props.getSchema(), SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.5);
@@ -139,7 +142,8 @@ public class HashToRandomExchangePrel extends ExchangePrel {
         HashSenderCalculator.captureBucketOptions(creator.getOptionManager(), SENDER_RESERVE, props.getSchema()),
         props.getSchema(),
         childPOP,
-        HashPrelUtil.getHashExpression(this.fields, getInput().getRowType()));
+        HashPrelUtil.getHashExpression(this.fields, getInput().getRowType()),
+        optionManager);
   }
 
   public List<DistributionField> getFields() {

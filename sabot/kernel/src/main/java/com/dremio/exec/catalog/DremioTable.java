@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.catalog;
 
+import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.schema.TranslatableTable;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
@@ -49,4 +52,16 @@ public interface DremioTable extends TranslatableTable {
   BatchSchema getSchema();
 
   DatasetConfig getDatasetConfig();
+
+  default boolean isRolledUp(String column) {
+    return false;
+  }
+
+  default boolean rolledUpColumnValidInsideAgg(
+      String column,
+      SqlCall call,
+      SqlNode parent,
+      CalciteConnectionConfig config) {
+    return true;
+  }
 }

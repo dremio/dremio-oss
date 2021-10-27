@@ -514,7 +514,7 @@ public class TestSQLResource extends BaseTestServer {
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getErrors());
     QueryError firstError =  returnedSuggestions.getErrors().get(0);
-    assertEquals("Table 'M' not found", firstError.getMessage());
+    assertContains("'M' not found", firstError.getMessage());
     assertEquals(new QueryError.Range(1,15,2,16), firstError.getRange());
   }
 

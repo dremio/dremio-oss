@@ -111,7 +111,7 @@ public class CatalogServiceImpl implements CatalogService {
 
   public static final String CATALOG_SOURCE_DATA_NAMESPACE = "catalog-source-data";
 
-  private static final String SYSFLIGHT_SOURCE_NAME = "dremio.sys.runtime";
+  private static final String SYSFLIGHT_SOURCE_NAME = "sys_runtime";
 
   protected final Provider<SabotContext> context;
   protected final Provider<SchedulerService> scheduler;

@@ -177,12 +177,12 @@ class ReflectionPlanNormalizer implements RelTransformer {
 
   private static RelShuttle getIncremental(RefreshDecision decision) {
     Preconditions.checkArgument(isIncremental(decision));
-    return getShuttle(decision.getAccelerationSettings(), decision.getUpdateId());
+    return getShuttle(decision.getAccelerationSettings(), decision.getInitialRefresh(), decision.getUpdateId());
   }
 
-  private static RelShuttle getShuttle(AccelerationSettings settings, UpdateId updateId) {
+  private static RelShuttle getShuttle(AccelerationSettings settings, boolean isInitialRefresh, UpdateId updateId) {
     return new MaterializationShuttle(
-        Optional.ofNullable(settings.getRefreshField()).orElse(IncrementalUpdateUtils.UPDATE_COLUMN), updateId);
+        Optional.ofNullable(settings.getRefreshField()).orElse(IncrementalUpdateUtils.UPDATE_COLUMN), isInitialRefresh, updateId);
   }
 
 }

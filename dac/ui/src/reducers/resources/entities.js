@@ -19,6 +19,7 @@ import { get } from 'lodash/object';
 import entityTypes from 'dyn-load/reducers/resources/entityTypes';
 import { LOAD_ENTITIES_SUCCESS } from '@app/actions/resources';
 import { CLEAR_ENTITIES } from '@app/actions/resources/entities';
+import { CLEAR_DATASET_ACCELERATION_SETTINGS } from '@app/actions/resources/datasetAccelerationSettings';
 
 import * as entityReducers from './entityReducers';
 
@@ -90,6 +91,9 @@ export default function entitiesReducer(state = initialState, action) {
   case CLEAR_ENTITIES:
     // DX-13506
     nextState = clearEntitiesByType(state, action.typeList);
+    break;
+  case CLEAR_DATASET_ACCELERATION_SETTINGS:
+    nextState = nextState.deleteIn(['datasetAccelerationSettings', action.payload]);
     break;
   default:
     //do nothing

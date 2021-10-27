@@ -35,6 +35,7 @@ import java.util.Random;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -88,6 +89,7 @@ import io.netty.util.internal.PlatformDependent;
  */
 public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
   private final List<Field> postSpillAccumulatorVectorFields = Lists.newArrayList();
+  private final List<FieldVector> varlenAccumVectorFields = Lists.newArrayList();
   private int MAX_VALUES_PER_BATCH = 0;
 
   @Rule
@@ -99,23 +101,28 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
     MAX_VALUES_PER_BATCH = 4096;
     testPartitionSpillHandlerHelper();
     postSpillAccumulatorVectorFields.clear();
+    varlenAccumVectorFields.clear();
 
     MAX_VALUES_PER_BATCH = 2048;
     testPartitionSpillHandlerHelper();
     postSpillAccumulatorVectorFields.clear();
+    varlenAccumVectorFields.clear();
 
     MAX_VALUES_PER_BATCH = 1024;
     testPartitionSpillHandlerHelper();
     postSpillAccumulatorVectorFields.clear();
+    varlenAccumVectorFields.clear();
 
     /* try with HT batch size as non power of 2 */
     MAX_VALUES_PER_BATCH = 990;
     testPartitionSpillHandlerHelper();
     postSpillAccumulatorVectorFields.clear();
+    varlenAccumVectorFields.clear();
 
     MAX_VALUES_PER_BATCH = 976;
     testPartitionSpillHandlerHelper();
     postSpillAccumulatorVectorFields.clear();
+    varlenAccumVectorFields.clear();
   }
 
   private void testPartitionSpillHandlerHelper() throws Exception {
@@ -168,8 +175,22 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
     /* Expected ordinals after insertion into hash table */
     final int[] expectedOrdinals = {0, 1, 0, 2, 3, 3, 4, 5, 2, 1, 6, 0};
 
+    final String[] aggVarLenMin1 = {"zymotechnical" /*0*/, "zymophosphate" /*1*/, "zygozoospore" /*0*/, "zygosporangium" /*2*/,
+      "zygosporange" /*3*/, "zygopleural" /*3*/, "abarticulation" /*4*/, "abbotnullius" /*5*/, "abarticulation" /*2*/,
+      "abandonment" /*1*/, "A" /*6*/, "abarticulation" /*0*/};
+
+    final String[] aggVarLenMax1 = {"aymotechnical" /*0*/, "aymophosphate" /*1*/, "bygozoospore" /*0*/, "aygosporangium" /*2*/,
+      "aygosporange" /*3*/, "zygopleural" /*3*/, "abarticulation" /*4*/, "abbotnullius" /*5*/, "zbarticulation" /*2*/,
+      "zbandonment" /*1*/, "A" /*6*/, "zbarticulation" /*0*/};
+
     /* Measure columns -- compute SUM, MIN, MAX, COUNT, COUNT(1) */
     Integer[] aggcol1 = {100000, 160000, 200000, 300000, 120000, 50000, 80000, 140000, 90000, 100000, 110000, null};
+
+    final String[] expectedMin5 = {"abarticulation" /*0*/, "abandonment" /*1*/, "abarticulation" /*2*/ , "zygopleural" /*3*/,
+      "abarticulation" /*4*/, "abbotnullius" /*5*/, "A" /*6*/};
+
+    final String[] expectedMax5 = {"zbarticulation" /*0*/, "zbandonment" /*1*/, "zbarticulation" /*2*/, "zygopleural" /*3*/,
+      "abarticulation" /*4*/, "abbotnullius" /*5*/, "A" /*6*/};
 
     /*
      * key [hello, every, 1] is occurring 3 times but the last occurrence
@@ -200,6 +221,16 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
       populateInt(m1, aggcol1);
       c.add(m1);
 
+      /* Measure column 2  - min on varlength column */
+      VarCharVector m2 = new VarCharVector("m2", allocator);
+      populateStrings(m2, aggVarLenMin1);
+      c.add(m2);
+
+      /* Measure column 3 - max on varlength column */
+      VarCharVector m3 = new VarCharVector("m3", allocator);
+      populateStrings(m3, aggVarLenMax1);
+      c.add(m3);
+
       final int records = c.setAllCount(col1arr.length);
 
       /* create pivot definition */
@@ -215,6 +246,8 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
                 records,
                 expectedOrdinals,
                 m1,
+                m2,
+                m3,
                 expectedCount,
                 expectedCount1,
                 expectedCount.length);
@@ -282,6 +315,8 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
                           final int records,
                           final int[] expectedOrdinals,
                           final IntVector accumulatorInput,
+                          final VarCharVector m2,
+                          final VarCharVector m3,
                           final long[] counts,
                           final long[] counts1,
                           final int numCollapsedRecords) throws Exception {
@@ -297,14 +332,25 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
     final int numPartitions = 4;
     final ArrowBuf combined = allocator.buffer(numPartitions * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH);
     final VectorizedHashAggPartition partitions[] = new VectorizedHashAggPartition[numPartitions];
-    for(int i = 0; i < numPartitions; i++) {
-      final AccumulatorSet accumulator = createAccumulator(accumulatorInput, allocator, (i == 0));
-      LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
+    //to track the temporary vectors. as a convenience for releasing them at once
+    for (int i = 0; i < numPartitions; i++) {
+      VarCharVector[] tempVectors = new VarCharVector[2];
+
+      tempVectors[0] = new VarCharVector("varchar-min", allocator);
+      tempVectors[0].allocateNew(1024 * 1024, records);
+      tempVectors[1] = new VarCharVector("varchar-max", allocator);
+      tempVectors[1].allocateNew(1024 * 1024, records);
+
+      final AccumulatorSet accumulator = createAccumulator(accumulatorInput, m2, m3, tempVectors, allocator, (i == 0));
+      LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
+        10, true, accumulator, MAX_VALUES_PER_BATCH);
       final ArrowBuf buffer = combined.slice(i * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH,
         VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH);
       VectorizedHashAggPartition hashAggPartition = new VectorizedHashAggPartition(accumulator,
         sourceHashTable, pivot.getBlockWidth(), "P" + String.valueOf(i), buffer, false);
       partitions[i] = hashAggPartition;
+      varlenAccumVectorFields.add(tempVectors[0]);
+      varlenAccumVectorFields.add(tempVectors[1]);
     }
     combined.close();
 
@@ -321,7 +367,8 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
       FileSystem fs = null;
       VectorizedHashAggPartitionSpillHandler partitionSpillHandler = null;
       try (final PartitionToLoadSpilledData partitionToLoadSpilledData =
-             new PartitionToLoadSpilledData(allocator, fixedBufferSize, variableBlockSize, postSpillAccumulatorVectorFields, MAX_VALUES_PER_BATCH)) {
+             new PartitionToLoadSpilledData(allocator, fixedBufferSize, variableBlockSize, postSpillAccumulatorVectorFields,
+               MAX_VALUES_PER_BATCH, (estimatedVariableWidthKeySize * MAX_VALUES_PER_BATCH))) {
 
         Configuration conf = new org.apache.hadoop.conf.Configuration();
         conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
@@ -434,6 +481,8 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
 
         consumeSpilledData(partitionSpillHandler, partitionToLoadSpilledData, numCollapsedRecords, "P0");
         consumeSpilledData(partitionSpillHandler, partitionToLoadSpilledData, numCollapsedRecords, "P1");
+
+        AutoCloseables.close(varlenAccumVectorFields);
       } finally {
         partitionSpillHandler.close();
         AutoCloseables.close(partitions);
@@ -495,6 +544,9 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
   }
 
   private AccumulatorSet createAccumulator(IntVector in1,
+                                           VarCharVector in2,
+                                           VarCharVector in3,
+                                           VarCharVector[] tempVectors,
                                            final BufferAllocator allocator,
                                            final boolean firstPartition) {
     /* SUM Accumulator */
@@ -527,14 +579,37 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
       new CountOneAccumulator(null, in1Count1, in1Count1, MAX_VALUES_PER_BATCH,
                               allocator);
 
+    VarCharVector v1 = new VarCharVector("varchar-min", allocator);
+    final MinAccumulators.VarLenMinAccumulator in2MinAccum =
+      new MinAccumulators.VarLenMinAccumulator(in2, v1, v1, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, tempVectors[0]);
+
+    VarCharVector v2 = new VarCharVector("varchar-max", allocator);
+    final MaxAccumulators.VarLenMaxAccumulator in3MaxAccum =
+      new MaxAccumulators.VarLenMaxAccumulator(in3, v2, v2, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, tempVectors[1]);
+
     if (firstPartition) {
       postSpillAccumulatorVectorFields.add(in1SumOutputVector.getField());
       postSpillAccumulatorVectorFields.add(in1MaxOutputVector.getField());
       postSpillAccumulatorVectorFields.add(in1MinOutputVector.getField());
       postSpillAccumulatorVectorFields.add(in1Count.getField());
       postSpillAccumulatorVectorFields.add(in1Count1.getField());
+      postSpillAccumulatorVectorFields.add(in2.getField());
+      postSpillAccumulatorVectorFields.add(in3.getField());
     }
 
-    return new AccumulatorSet(4*1024, 128*1024, allocator, in1SumAccum, in1MaxAccum, in1MinAccum, in1countAccum, in1count1Accum);
+    return new AccumulatorSet(4*1024, 128*1024, allocator,
+      in1SumAccum, in1MaxAccum, in1MinAccum, in1countAccum, in1count1Accum, in2MinAccum, in3MaxAccum);
+  }
+
+  private void populateStrings(VarCharVector vector, String[] data) {
+    vector.allocateNew(1024 * 1024, data.length);
+    vector.zeroVector();
+    for (int i = 0; i < data.length; i++) {
+      final String val = data[i];
+      if (val != null){
+        vector.setSafe(i, val.getBytes());
+      }
+    }
+    vector.setValueCount(data.length);
   }
 }

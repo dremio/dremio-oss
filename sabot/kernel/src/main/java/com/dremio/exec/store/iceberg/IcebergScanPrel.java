@@ -81,7 +81,6 @@ import com.dremio.exec.store.MinMaxRewriter;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -90,6 +89,7 @@ import com.google.common.collect.Maps;
  * Iceberg dataset prel
  */
 public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizable {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergScanPrel.class);
   private static final Function<RexNode, List<Integer>> getUsedIndices = cond -> {
     Set<Integer> usedIndices = new HashSet<>();
     cond.accept(new RexVisitorImpl<Void>(true) {
@@ -106,7 +106,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   private final boolean arrowCachingEnabled;
   private final PruneFilterCondition pruneCondition;
   private final OptimizerRulesContext context;
-  private final FileSystemPlugin<?> fsPlugin;
+  private final SupportsIcebergRootPointer icebergRootPointerPlugin;
   private final String partitionStatsFile;
   private Long survivingRecords;
   private final boolean isConvertedIcebergDataset;
@@ -121,7 +121,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     this.arrowCachingEnabled = arrowCachingEnabled;
     this.pruneCondition = pruneCondition;
     this.context = context;
-    this.fsPlugin = context.getCatalogService().getSource(pluginId);
+    this.icebergRootPointerPlugin = context.getCatalogService().getSource(pluginId);
     this.partitionStatsFile = partitionStatsFile;
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
     this.isPruneConditionOnImplicitCol = pruneCondition != null && pruneCondition.getPartitionExpression() != null && isConditionOnImplicitCol();
@@ -294,11 +294,13 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       }
 
       PartitionSpec spec = IcebergUtils.getIcebergPartitionSpec(getBatchSchema(), partitionColumns, null);
-      InputFile inputFile = new DremioFileIO(fsPlugin.getFsConfCopy()).newInputFile(partitionStatsFile);
+      InputFile inputFile = new DremioFileIO(icebergRootPointerPlugin.getFsConfCopy()).newInputFile(partitionStatsFile);
       PartitionStatsReader partitionStatsReader = new PartitionStatsReader(inputFile, spec);
       try (RecordPruner pruner = new PartitionStatsBasedPruner(partitionStatsReader, context, spec)) {
         survivingRecords = Optional.of(pruner.prune(inUseColIdToNameMap, partitionColToIdMap, getUsedIndices, projectedColumns,
           tableMetadata, pruneCondition.getPartitionExpression(), getBatchSchema(), getRowType(), getCluster()));
+      } catch (RuntimeException e) {
+        logger.error("Encountered exception during row count estimation: ", e);
       }
     }
     return survivingRecords;

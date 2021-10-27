@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>18.2.0-202110081842420694-7e500f14</version>
+    <version>19.0.0-202110270341120595-3e3e05e7</version>
   </parent>
 
   <artifactId>dremio-sabot-logical</artifactId>
@@ -91,7 +91,7 @@
 
     <dependency>
       <groupId>org.apache.calcite.avatica</groupId>
-      <artifactId>avatica</artifactId>
+      <artifactId>avatica-core</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.calcite</groupId>

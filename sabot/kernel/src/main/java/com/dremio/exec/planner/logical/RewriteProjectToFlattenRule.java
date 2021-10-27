@@ -301,7 +301,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
       final LevelHolder highestLevelHolder = new LevelHolder();
       final ExpressionAnalyzer analyzer = this;
 
-      final List<RexNode> finalExpressions = project.getChildExps().stream().map(input -> {
+      final List<RexNode> finalExpressions = project.getProjects().stream().map(input -> {
         LevelHolder level = new LevelHolder();
         RexNode output = input.accept(analyzer, level);
         highestLevelHolder.index = Math.max(level.index, highestLevelHolder.index);

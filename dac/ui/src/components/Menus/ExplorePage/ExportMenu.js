@@ -29,6 +29,7 @@ import config from 'dyn-load/utils/config';
 import MenuItem from './MenuItem';
 import Menu from './Menu';
 
+
 const UNSUPPORTED_TYPE_COLUMNS = {
   'CSV': new Set([MAP, LIST, MIXED])
 };

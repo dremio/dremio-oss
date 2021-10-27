@@ -24,8 +24,10 @@ import static com.dremio.jdbc.impl.DremioMetaImpl.RADIX_INTERVAL;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.avatica.AvaticaParameter;
 import org.apache.calcite.avatica.AvaticaStatement;
@@ -141,8 +143,11 @@ class DremioMetaServerImpl implements DremioMeta {
         Meta.Frame frame = Meta.Frame.create(0, true, rows);
         StructType fieldMetaData = DremioMetaImpl.fieldMetaData(clazz);
         Meta.Signature signature = Meta.Signature.create(
-            fieldMetaData.columns, "",
-            Collections.<AvaticaParameter>emptyList(), CursorFactory.record(clazz), StatementType.SELECT);
+          fieldMetaData.columns, "",
+          Collections.emptyList(),
+          CursorFactory.record(clazz, Arrays.asList(clazz.getFields()),
+            fieldMetaData.columns.stream().map(column -> column.columnName).collect(Collectors.toList())),
+          StatementType.SELECT);
 
         AvaticaStatement statement = connection.createStatement();
         return MetaResultSet.create(connection.id, statement.getId(), true,

@@ -19,6 +19,7 @@ import static com.dremio.exec.store.hive.HiveUtilities.addProperties;
 import static com.dremio.exec.store.hive.HiveUtilities.createSerDe;
 import static com.dremio.exec.store.hive.HiveUtilities.getInputFormatClass;
 import static com.dremio.exec.store.hive.HiveUtilities.getStructOI;
+import static com.dremio.exec.store.hive.exec.HiveReaderProtoUtil.getPartitionProperties;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -53,7 +54,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.NativeCodeLoader;
 import org.apache.orc.OrcConf;
 
-import com.dremio.common.AutoCloseables;
 import com.dremio.common.SuppressForbidden;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
@@ -68,7 +68,6 @@ import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
-import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -76,7 +75,6 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 
 /**
@@ -228,7 +226,6 @@ class ScanWithHiveReader {
       Constructor<? extends HiveAbstractReader> readerCtor = tableReaderCtor;
       // It is possible to for a partition to have different input format than table input format.
       if (isPartitioned) {
-        final List<Prop> partitionPropertiesList;
         final Properties partitionProperties = new Properties();
         final Optional<String> partitionInputFormat;
         final Optional<String> partitionStorageHandlerName;
@@ -238,8 +235,7 @@ class ScanWithHiveReader {
         // If Partition Properties are stored in DatasetMetadata (Pre 3.2.0)
         if (HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr)) {
           logger.debug("Reading partition properties from DatasetMetadata");
-          partitionPropertiesList = HiveReaderProtoUtil.getPartitionProperties(tableXattr, splitXattr.getPartitionId());
-          addProperties(jobConf, partitionProperties, partitionPropertiesList);
+          addProperties(jobConf, partitionProperties, getPartitionProperties(tableXattr, splitXattr.getPartitionId()));
           partitionSerDe =
                   createSerDe(jobConf,
                           HiveReaderProtoUtil.getPartitionSerializationLib(tableXattr, splitXattr.getPartitionId()).get(),
@@ -251,8 +247,7 @@ class ScanWithHiveReader {
         } else {
           logger.debug("Reading partition properties from PartitionChunk");
           final PartitionXattr partitionXattr = HiveReaderProtoUtil.getPartitionXattr(split);
-          partitionPropertiesList = HiveReaderProtoUtil.getPartitionProperties(tableXattr, partitionXattr);
-          addProperties(jobConf, partitionProperties, partitionPropertiesList);
+          addProperties(jobConf, partitionProperties, getPartitionProperties(tableXattr, partitionXattr));
           partitionSerDe =
                   createSerDe(jobConf,
                           HiveReaderProtoUtil.getPartitionSerializationLib(tableXattr, partitionXattr),

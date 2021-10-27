@@ -15,28 +15,27 @@
  */
 package com.dremio.common.expression;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 
 public class FunctionCall extends LogicalExpressionBase implements Iterable<LogicalExpression> {
   private final String name;
-  public final ImmutableList<LogicalExpression> args;
+  public final List<LogicalExpression> args;
 
   public FunctionCall(String name, List<LogicalExpression> args) {
     this.name = name;
-
     if (args == null) {
-      args = Lists.newArrayList();
+      args = Collections.emptyList();
+    } else {
+      if (!(args instanceof ImmutableList)) {
+        args = ImmutableList.copyOf(args);
+      }
     }
-
-    if (!(args instanceof ImmutableList)) {
-      args = ImmutableList.copyOf(args);
-    }
-    this.args = (ImmutableList<LogicalExpression>) args;
+    this.args = args;
   }
 
   public String getName() {
@@ -51,6 +50,11 @@ public class FunctionCall extends LogicalExpressionBase implements Iterable<Logi
   @Override
   public Iterator<LogicalExpression> iterator() {
     return args.iterator();
+  }
+
+  @Override
+  public int getSizeOfChildren() {
+    return args.size();
   }
 
   @Override

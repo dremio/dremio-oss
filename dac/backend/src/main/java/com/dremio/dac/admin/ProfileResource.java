@@ -40,6 +40,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.annotations.TemporaryAccess;
+import com.dremio.dac.obfuscate.ObfuscationUtils;
 import com.dremio.dac.resource.NotificationResponse;
 import com.dremio.dac.resource.NotificationResponse.ResponseType;
 import com.dremio.dac.server.admin.profile.ProfileWrapper;
@@ -121,7 +122,7 @@ public class ProfileResource {
         .setAttempt(attempt)
         .setUserName(username)
         .build();
-      profile = jobsService.getProfile(request);
+      profile = ObfuscationUtils.obfuscate(jobsService.getProfile(request));
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
@@ -145,7 +146,7 @@ public class ProfileResource {
         .setAttempt(attempt)
         .setUserName(username)
         .build();
-      profile = jobsService.getProfile(request);
+      profile = ObfuscationUtils.obfuscate(jobsService.getProfile(request));
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
@@ -212,7 +213,7 @@ public class ProfileResource {
       ReflectionJobProfileRequest.Builder builder = ReflectionJobProfileRequest.newBuilder().setQueryProfileRequest(request)
         .setReflectionId(reflectionId);
 
-      profile = jobsService.getReflectionJobProfile(builder.build());
+      profile = ObfuscationUtils.obfuscate(jobsService.getReflectionJobProfile(builder.build()));
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
@@ -243,7 +244,7 @@ public class ProfileResource {
       ReflectionJobProfileRequest.Builder builder = ReflectionJobProfileRequest.newBuilder().setQueryProfileRequest(request)
         .setReflectionId(reflectionId);
 
-      profile = jobsService.getReflectionJobProfile(builder.build());
+      profile = ObfuscationUtils.obfuscate(jobsService.getReflectionJobProfile(builder.build()));
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));

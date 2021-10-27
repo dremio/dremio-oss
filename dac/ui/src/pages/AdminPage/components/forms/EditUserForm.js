@@ -31,7 +31,7 @@ import { getModuleState } from '@app/reducers';
 import { formBody } from 'uiTheme/less/forms.less';
 import { moduleStateHOC } from '@app/containers/ModuleStateContainer';
 import { compose } from 'redux';
-
+import LoadingOverlay from '@app/components/LoadingOverlay';
 
 
 const getPair = (formFieldName, entityFieldName) => ({
@@ -82,6 +82,7 @@ export class EditUserForm extends Component {
 
   static propTypes = {
     userId: PropTypes.string,
+    source: PropTypes.string,
     onCancel: PropTypes.func.isRequired,
     onFormSubmit: PropTypes.func.isRequired, // (submitPromise: Promise): void
     handleSubmit: PropTypes.func.isRequired,
@@ -89,6 +90,7 @@ export class EditUserForm extends Component {
     passwordHasPadding: PropTypes.bool,
     isModal: PropTypes.bool,
     isReadMode: PropTypes.bool,
+    isLoading: PropTypes.bool,
     updateFormDirtyState: PropTypes.func.isRequired, // required for FormDirtyStateWatcher
 
     //connected from pure redux
@@ -108,16 +110,19 @@ export class EditUserForm extends Component {
   };
 
   render() {
-    const { fields, passwordHasPadding, isModal, userId, isReadMode } = this.props;
+    const { fields, passwordHasPadding, isModal, userId, isReadMode, source, isLoading } = this.props;
+    const isFormLoading = isLoading !== false;
     const form = <UserForm
       isReadMode={isReadMode}
       className={isModal ? formBody : null}
       passwordHolderStyles={passwordHasPadding ? styles.passwordHolder : null}
       fields={fields}
+      source={source}
       noExtras
     />;
     return (
       <Fragment>
+        {isFormLoading && <LoadingOverlay showSpinner/>}
         <UserDetailLoader userId={userId} />
         {
           isReadMode ? form : (
@@ -136,11 +141,13 @@ const getInitialValues = createSelector(userConfig => userConfig, userConfig => 
 
 function mapStateToProps(state) {
   const userConfig = getUserInfo(getModuleState(state, moduleKey));
-
+  const userState = getModuleState(state, moduleKey) || {};
   if (userConfig) {
     return {
       userId: userConfig.id,
-      initialValues: getInitialValues(userConfig)
+      initialValues: getInitialValues(userConfig),
+      source: userConfig.source,
+      isLoading: userState.isLoading
     };
   }
 }

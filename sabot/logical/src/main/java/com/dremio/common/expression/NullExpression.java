@@ -15,9 +15,6 @@
  */
 package com.dremio.common.expression;
 
-import java.util.Collections;
-import java.util.Iterator;
-
 import com.dremio.common.expression.visitors.ExprVisitor;
 
 public class NullExpression implements LogicalExpression {
@@ -39,11 +36,6 @@ public class NullExpression implements LogicalExpression {
   @Override
   public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
     return visitor.visitNullExpression(this, value);
-  }
-
-  @Override
-  public Iterator<LogicalExpression> iterator() {
-    return Collections.emptyIterator();
   }
 
   public int getSelfCost() { return 0 ; }

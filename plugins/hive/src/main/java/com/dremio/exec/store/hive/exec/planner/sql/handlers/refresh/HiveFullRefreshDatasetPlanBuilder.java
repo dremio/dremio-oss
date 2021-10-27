@@ -21,7 +21,6 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -48,7 +47,6 @@ import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.hive.metadata.HiveDatasetMetadata;
 import com.dremio.exec.store.hive.metadata.HiveMetadataUtils;
 import com.dremio.exec.store.metadatarefresh.RefreshExecTableMetadata;
-import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -95,7 +93,6 @@ public class HiveFullRefreshDatasetPlanBuilder extends AbstractRefreshPlanBuilde
   @Override
   public void setupMetadataForPlanning(PartitionChunkListing partitionChunkListing, DatasetRetrievalOptions options) throws ConnectorException, InvalidProtocolBufferException {
     List<PartitionChunkMetadata> chunkMetadata = convertToPartitionChunkMetadata(partitionChunkListing, datasetConfig);
-    validatePartitions(partitionChunkListing);
 
     // For plugins like Hive, Aws glue we get dataset metadata like partition spec, partition values, table schema
     // in the coordinator, whereas for FileSystemPlugins metadata we send the existing metadata present in Kvstore.
@@ -121,15 +118,6 @@ public class HiveFullRefreshDatasetPlanBuilder extends AbstractRefreshPlanBuilde
     final NamespaceTable nsTable = new NamespaceTable(refreshExecTableMetadata, true);
     final DremioCatalogReader catalogReader = config.getConverter().getCatalogReader();
     this.table = new DremioPrepareTable(catalogReader, JavaTypeFactoryImpl.INSTANCE, nsTable);
-  }
-
-  protected void validatePartitions(PartitionChunkListing chunkListing) {
-    SupportsUnlimitedSplits hivePlugin = (SupportsUnlimitedSplits) plugin;
-    if (!hivePlugin.validatePartitions((chunkListing))) {
-      String errorMsg = String.format(unsupportedPartitionListingError + " [%s]", datasetPath);
-      logger.error(errorMsg);
-      throw UserException.unsupportedError().message(errorMsg).build(logger);
-    }
   }
 
   protected int getPartitionCount() {

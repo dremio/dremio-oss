@@ -16,7 +16,6 @@
 package com.dremio.sabot.join;
 
 import static com.dremio.sabot.Fixtures.NULL_BIGINT;
-import static com.dremio.sabot.Fixtures.NULL_INT;
 import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
@@ -25,7 +24,6 @@ import static com.dremio.sabot.Fixtures.tr;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -51,10 +49,8 @@ import com.dremio.sabot.Fixtures.HeaderRow;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.join.hash.EmptyGenerator;
-import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
@@ -76,12 +72,12 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     Assume.assumeTrue(true);
   }
 
-  protected abstract JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type, Set<Integer> buildProjected, Set<Integer> probeProjected);
+  protected abstract JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type);
 
   @Test
   public void emptyRight() throws Exception {
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("key"))),
-      JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0));
+      JoinRelType.INNER);
 
     final Table expected = t(
       th("key", "value", "n_nationKey"),
@@ -97,7 +93,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void emptyRightWithLeftJoin() throws Exception {
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("key"))),
-      JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0));
+      JoinRelType.LEFT);
 
     final Table expected = t(
       th("key", "value", "r_regionKey"),
@@ -117,7 +113,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void isNotDistinctWithNulls() throws Exception{
-    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table includeNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
@@ -129,7 +125,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithNulls() throws Exception{
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(4l, "b2", 4l, "a2")
@@ -139,7 +135,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithNullsLeft() throws Exception{
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, "a1"),
@@ -151,7 +147,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void noNullEquivalenceWithNullsRight() throws Exception{
     runRightAndOuter();
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(4l, "b2", 4l, "a2"),
@@ -182,7 +178,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithNullsLeftForString() throws Exception{
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.LEFT);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(4l, "a1", 1l, "a1"),
@@ -195,7 +191,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void noNullEquivalenceWithNullsRightForString() throws Exception{
     runRightAndOuter();
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.RIGHT);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(4l, "a1", 1l, "a1"),
@@ -228,7 +224,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void isNotDistinctWithZeroKey() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
@@ -241,7 +237,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithZeroKey() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(0l, "b2", 0l, "a2"),
@@ -252,7 +248,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithZeroKeyLeft() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, "a1"),
@@ -265,7 +261,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void noNullEquivalenceWithZeroKeyRight() throws Exception{
     runRightAndOuter();
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(0l, "b2", 0l, "a2"),
@@ -300,7 +296,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void freeValueInHashTable() throws Exception{
     long freeValue = Long.MIN_VALUE + 474747l;
-    JoinInfo freeValueInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo freeValueInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(0l, "b2", 0l, "a2"),
@@ -330,7 +326,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void isNotDistinctBitKeys() throws Exception{
-    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("bool1"), f("bool2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("bool1"), f("bool2"))), JoinRelType.INNER);
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
       tr(true, "b1", true, "a1"),
@@ -343,7 +339,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceBitKeys() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.INNER);
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
       tr(true, "b1", true, "a1"),
@@ -354,7 +350,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceBitKeysLeft() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.LEFT);
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
       tr(true, "b1", true, "a1"),
@@ -367,7 +363,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void noNullEquivalenceBitKeysRight() throws Exception{
     runRightAndOuter();
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.RIGHT);
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
       tr(true, "b1", true, "a1"),
@@ -400,7 +396,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void regionNationInner() throws Exception {
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_regionKey"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_regionKey"))), JoinRelType.INNER);
 
     final Table expected = t(
       th("n_name", "n_regionKey", "r_regionKey", "r_name"),
@@ -441,7 +437,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void nationRegionPartialKeyRight() throws Exception {
     runRightAndOuter();
-    JoinInfo info = getJoinInfo( Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo info = getJoinInfo( Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.RIGHT);
 
     final Table expected = t(
       th("r_regionKey", "r_name", "n_nationKey", "n_name"),
@@ -463,7 +459,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   public void regionNationPartialKeyRight() throws Exception {
     runRightAndOuter();
 
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_nationKey"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_nationKey"))), JoinRelType.RIGHT);
 
     final Table expected = t(
       th("n_nationKey", "n_name", "r_regionKey", "r_name"),
@@ -504,7 +500,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void nationRegionPartialKeyLeft() throws Exception {
 
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.LEFT);
 
     final Table expected = t(
       th("r_regionKey", "r_name", "n_nationKey", "n_name"),
@@ -545,7 +541,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void nationRegionPartialKeyOuter() throws Exception {
     runRightAndOuter();
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL);
 
     final Table expected = t(
       th("r_regionKey", "r_name", "n_nationKey", "n_name"),
@@ -588,7 +584,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void nationRegionPartialKeyOuterSmall() throws Exception {
     runRightAndOuter();
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL);
 
     final Table expected = t(
       th("r_regionKey", "r_name", "n_nationKey", "n_name"),
@@ -662,7 +658,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       new JoinCondition("EQUALS", f("col1_31"), f("col2_31")),
       new JoinCondition("EQUALS", f("col1_32"), f("col2_32")),
       new JoinCondition("EQUALS", f("col1_33"), f("col2_33"))
-    ), JoinRelType.INNER, JoinUtils.projectAll(34).asSet(), JoinUtils.projectAll(34).asSet());
+    ), JoinRelType.INNER);
 
     final Table expected = t(
       th("col2_1", "col2_2", "col2_3", "col2_4", "col2_5", "col2_6", "col2_7", "col2_8", "col2_9", "col2_10",
@@ -735,7 +731,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void hugeBatch() throws Exception {
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))),
-      JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+      JoinRelType.INNER);
 
     final int batchSize = 65536;
     final DataRow[] leftRows = new DataRow[batchSize];
@@ -760,7 +756,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void testDecimalJoin() throws Exception {
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(BigDecimal.valueOf(1), "b2", BigDecimal.valueOf(1), "a2"),
@@ -928,7 +924,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     int leftColumns = columns;
     int rightColumns = columns;
 
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT, JoinUtils.projectAll(1000).asSet(), JoinUtils.projectAll(1000).asSet());
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT);
 
     Table expected = t(getHeader("right", rightColumns, "left", leftColumns), false, getData(columns, leftColumns, 1));
     validateDual(joinInfo.operator, joinInfo.clazz,
@@ -944,7 +940,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     int leftColumns = columns;
     int rightColumns = columns;
 
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT, JoinUtils.projectAll(1000).asSet(), JoinUtils.projectAll(1000).asSet());
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT);
 
     Table expected = t(getHeader("right", rightColumns, "left", leftColumns), false, getDataDecimal(columns, leftColumns, 1));
     validateDual(joinInfo.operator, joinInfo.clazz,
@@ -952,202 +948,6 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         DecimalVector.class, new ArrowType.Decimal(38, 0), BaseTestJoin::insertIntoDecimalVector),
       new ManyColumnsGenerator<DecimalVector>(getTestAllocator(), "right", rightColumns, 1,
         DecimalVector.class, new ArrowType.Decimal(38, 0), BaseTestJoin::insertIntoDecimalVector),
-      DEFAULT_BATCH, expected);
-  }
-
-  protected void baseManyColumnsPartialProjectLeft() throws Exception {
-    int columns = 1000;
-    int leftColumns = columns;
-    int rightColumns = columns;
-
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT, ImmutableSet.of(0), ImmutableSet.of(0));
-
-    Table expected = t(getHeader("right", 1, "left", 1), false, getData(1, 1, 1));
-    validateDual(joinInfo.operator, joinInfo.clazz,
-      new ManyColumnsGenerator<IntVector>(getTestAllocator(), "left", leftColumns, 1, IntVector
-        .class, new ArrowType.Int(32, true),  BaseTestJoin::insertIntoIntVector),
-      new ManyColumnsGenerator<IntVector>(getTestAllocator(), "right", rightColumns, 1, IntVector
-        .class, new ArrowType.Int(32, true), BaseTestJoin::insertIntoIntVector),
-      DEFAULT_BATCH, expected);
-  }
-
-  public void basePartialInnerJoin() throws Exception {
-    JoinInfo info = getJoinInfo(Arrays.asList(
-      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
-      new JoinCondition("EQUALS", f("left_string2"), f("right_string2"))
-    ), JoinRelType.INNER, ImmutableSet.of(2), ImmutableSet.of(2));
-
-    final Table expected = t(
-      th("right_int2", "left_int2"),
-      tr(21, 21)
-    );
-
-    final Table left = t(
-      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
-      tr(11, "var11", 21, "var21", 31, "var31"),
-      tr(12, "var12", 22, "var22", 32, "var32"),
-      tr(13, "var13", 23, "var23", 33, "var33"),
-      tr(14, "var14", 24, "var24", 34, "var34")
-    );
-
-    final Table right = t(
-      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
-      tr(101, "var101", 21, "var21", 31, "var301"),
-      tr(102, "var102", 202, "var202", 32, "var302"),
-      tr(103, "var103", 23, "var203", 33, "var303"),
-      tr(104, "var104", 204, "var204", 34, "var304")
-    );
-
-    validateDual(
-      info.operator, info.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      DEFAULT_BATCH, expected);
-  }
-
-  public void basePartialInnerJoinMultipleFields() throws Exception {
-    JoinInfo info = getJoinInfo(Arrays.asList(
-      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
-      new JoinCondition("EQUALS", f("left_string2"), f("right_string2")),
-      new JoinCondition("EQUALS", f("left_int3"), f("right_int3"))
-    ), JoinRelType.INNER, ImmutableSet.of(2, 4), ImmutableSet.of(3));
-
-    final Table expected = t(
-      th("right_int2", "right_int3", "left_string2"),
-      tr(21, 31, "var21")
-    );
-
-    final Table left = t(
-      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
-      tr(11, "var11", 21, "var21", 31, "var31"),
-      tr(12, "var12", 22, "var22", 32, "var32"),
-      tr(13, "var13", 23, "var23", 33, "var33"),
-      tr(14, "var14", 24, "var24", 34, "var34")
-    );
-
-    final Table right = t(
-      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
-      tr(101, "var101", 21, "var21", 31, "var301"),
-      tr(102, "var102", 202, "var202", 32, "var302"),
-      tr(103, "var103", 23, "var203", 33, "var303"),
-      tr(104, "var104", 204, "var204", 34, "var304")
-    );
-
-    validateDual(
-      info.operator, info.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      DEFAULT_BATCH, expected);
-  }
-
-  public void basePartialLeftJoin() throws Exception {
-    JoinInfo info = getJoinInfo(Arrays.asList(
-      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
-      new JoinCondition("EQUALS", f("left_string2"), f("right_string2"))
-    ), JoinRelType.LEFT, ImmutableSet.of(2), ImmutableSet.of(2));
-
-    final Table expected = t(
-      th("right_int2", "left_int2"),
-      tr(21, 21),
-      tr(NULL_INT, 22),
-      tr(NULL_INT, 23),
-      tr(NULL_INT, 24)
-    );
-
-    final Table left = t(
-      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
-      tr(11, "var11", 21, "var21", 31, "var31"),
-      tr(12, "var12", 22, "var22", 32, "var32"),
-      tr(13, "var13", 23, "var23", 33, "var33"),
-      tr(14, "var14", 24, "var24", 34, "var34")
-    );
-
-    final Table right = t(
-      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
-      tr(101, "var101", 21, "var21", 31, "var301"),
-      tr(102, "var102", 202, "var202", 32, "var302"),
-      tr(103, "var103", 23, "var203", 33, "var303"),
-      tr(104, "var104", 204, "var204", 34, "var304")
-    );
-
-    validateDual(
-      info.operator, info.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      DEFAULT_BATCH, expected);
-  }
-
-  public void basePartialLeftJoinEmptyBuild() throws Exception {
-    JoinInfo info = getJoinInfo(Arrays.asList(
-      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
-      new JoinCondition("EQUALS", f("left_string2"), f("right_string2"))
-    ), JoinRelType.LEFT, ImmutableSet.of(), ImmutableSet.of(2));
-
-    final Table expected = t(
-      th("left_int2"),
-      tr(21),
-      tr(22),
-      tr(23),
-      tr(24)
-    );
-
-    final Table left = t(
-      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
-      tr(11, "var11", 21, "var21", 31, "var31"),
-      tr(12, "var12", 22, "var22", 32, "var32"),
-      tr(13, "var13", 23, "var23", 33, "var33"),
-      tr(14, "var14", 24, "var24", 34, "var34")
-    );
-
-    final Table right = t(
-      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
-      tr(101, "var101", 21, "var21", 31, "var301"),
-      tr(102, "var102", 202, "var202", 32, "var302"),
-      tr(103, "var103", 23, "var203", 33, "var303"),
-      tr(104, "var104", 204, "var204", 34, "var304")
-    );
-
-    validateDual(
-      info.operator, info.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
-      DEFAULT_BATCH, expected);
-  }
-
-  public void basePartialLeftJoinEmptyProbe() throws Exception {
-    JoinInfo info = getJoinInfo(Arrays.asList(
-      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
-      new JoinCondition("EQUALS", f("left_string2"), f("right_string2"))
-    ), JoinRelType.LEFT, ImmutableSet.of(2), ImmutableSet.of());
-
-    final Table expected = t(
-      th("right_int2"),
-      tr(21),
-      tr(NULL_INT),
-      tr(NULL_INT),
-      tr(NULL_INT)
-    );
-
-    final Table left = t(
-      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
-      tr(11, "var11", 21, "var21", 31, "var31"),
-      tr(12, "var12", 22, "var22", 32, "var32"),
-      tr(13, "var13", 23, "var23", 33, "var33"),
-      tr(14, "var14", 24, "var24", 34, "var34")
-    );
-
-    final Table right = t(
-      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
-      tr(101, "var101", 21, "var21", 31, "var301"),
-      tr(102, "var102", 202, "var202", 32, "var302"),
-      tr(103, "var103", 23, "var203", 33, "var303"),
-      tr(104, "var104", 204, "var204", 34, "var304")
-    );
-
-    validateDual(
-      info.operator, info.clazz,
-      left.toGenerator(getTestAllocator()),
-      right.toGenerator(getTestAllocator()),
       DEFAULT_BATCH, expected);
   }
 

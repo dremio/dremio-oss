@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 
 import org.apache.calcite.rel.core.JoinRelType;
 
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.OpProps;
@@ -45,6 +46,7 @@ public class HashJoinPOP extends AbstractBase {
   private final PhysicalOperator left;
   private final PhysicalOperator right;
   private final List<JoinCondition> conditions;
+  private final LogicalExpression extraCondition;
   private final JoinRelType joinType;
   private final boolean vectorize;
   private RuntimeFilterInfo runtimeFilterInfo;
@@ -55,6 +57,7 @@ public class HashJoinPOP extends AbstractBase {
       @JsonProperty("left") PhysicalOperator left,
       @JsonProperty("right") PhysicalOperator right,
       @JsonProperty("conditions") List<JoinCondition> conditions,
+      @JsonProperty("extraCondition") LogicalExpression extraCondition,
       @JsonProperty("joinType") JoinRelType joinType,
       @JsonProperty("vectorize") boolean vectorize,
       @JsonProperty("runtimeFilterInfo") RuntimeFilterInfo runtimeFilterInfo
@@ -63,6 +66,7 @@ public class HashJoinPOP extends AbstractBase {
     this.left = left;
     this.right = right;
     this.conditions = conditions;
+    this.extraCondition = extraCondition;
     this.joinType = joinType;
     this.vectorize = vectorize;
     this.runtimeFilterInfo = runtimeFilterInfo;
@@ -76,7 +80,7 @@ public class HashJoinPOP extends AbstractBase {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
       Preconditions.checkArgument(children.size() == 2);
-      return new HashJoinPOP(props, children.get(0), children.get(1), conditions, joinType, vectorize, runtimeFilterInfo);
+      return new HashJoinPOP(props, children.get(0), children.get(1), conditions, extraCondition, joinType, vectorize, runtimeFilterInfo);
   }
 
   @Override
@@ -98,6 +102,10 @@ public class HashJoinPOP extends AbstractBase {
 
   public List<JoinCondition> getConditions() {
       return conditions;
+  }
+
+  public LogicalExpression getExtraCondition() {
+    return extraCondition;
   }
 
   public boolean isVectorize() {

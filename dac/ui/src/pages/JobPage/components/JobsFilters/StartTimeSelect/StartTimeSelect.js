@@ -142,7 +142,6 @@ const style = {
     padding: '0 0 8px',
     display: 'flex',
     flexWrap: 'nowrap',
-    minHeight: '290px',
     fontFamily: 'Inter var'
   }
 };

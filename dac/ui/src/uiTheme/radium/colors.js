@@ -50,6 +50,9 @@ export const EXPLORE_HOVER_COLOR = '#E6E6E6';
 export const CELL_EXPANSION_HEADER = '#F3F3F3';
 export const CELL_EXPANSION = '#E9E9E9';
 
+// menu
+export const MENU_SELECTED = '#d2edf2';
+
 export default {
   GREY,
   NAVY,

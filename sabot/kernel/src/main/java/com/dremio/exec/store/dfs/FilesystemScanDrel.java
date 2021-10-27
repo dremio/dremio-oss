@@ -39,7 +39,6 @@ import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
 /**
@@ -191,20 +190,6 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
       pw.item("partitionFilters", partitionFilter.toString());
     }
     return pw;
-  }
-
-  @Override
-  public boolean equals(final Object other) {
-    if (!(other instanceof FilesystemScanDrel)) {
-      return false;
-    }
-    FilesystemScanDrel castOther = (FilesystemScanDrel) other;
-    return Objects.equal(filter, castOther.filter) && super.equals(other);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(super.hashCode(), filter);
   }
 
   public boolean isArrowCachingEnabled() {

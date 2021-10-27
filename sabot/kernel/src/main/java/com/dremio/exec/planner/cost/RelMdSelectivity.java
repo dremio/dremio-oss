@@ -141,7 +141,7 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
     return super.getSelectivity(rel, mq, predicate);
   }
 
-  private Double getSelectivity(RelSubset rel, RelMetadataQuery mq,
+  public Double getSelectivity(RelSubset rel, RelMetadataQuery mq,
                                 RexNode predicate) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
       return mq.getSelectivity(MoreObjects.firstNonNull(rel.getBest(), rel.getOriginal()), predicate);
@@ -168,6 +168,7 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
         List<String> fields = rel.getRowType().getFieldNames();
         return getScanSelectivityInternal(tableMetadata, predicate, fields, rexBuilder);
       } catch (Exception e) {
+        logger.warn(String.format("Exception %s occured while getting Scan Selectivity For rel %s" ,e.toString(),rel.toString()));
         return super.getSelectivity(rel, mq, predicate);
       }
     }
@@ -232,8 +233,8 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
   private double computeRangeSelectivity(TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
     String col = getColumn(orPred, fieldNames);
     if (col != null) {
-      StatisticsService.Histogram histogram = statisticsService.getHistogram(col, tableMetadata.getName());
-      if (histogram != null) {
+      StatisticsService.Histogram histogram = statisticsService.getHistogram(col, tableMetadata);
+      if (histogram != null && histogram.isTDigestSet()) {
         Long rowCount = statisticsService.getRowCount(tableMetadata.getName());
         Long nullCount = statisticsService.getNullCount(col, tableMetadata.getName());
         Double sel = (rowCount != null && nullCount != null && rowCount != 0) ? histogram.estimatedRangeSelectivity(orPred) * (1 - (nullCount.doubleValue() / rowCount)) : histogram.estimatedRangeSelectivity(orPred);
@@ -249,8 +250,16 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
   private double computeEqualsSelectivity(TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
     String col = getColumn(orPred, fieldNames);
     if (col != null) {
+      StatisticsService.Histogram histogram = statisticsService.getHistogram(col, tableMetadata);
+      Long rowCount = statisticsService.getRowCount(tableMetadata.getName());
+      if( histogram != null && histogram.isItemsSketchSet() && rowCount != null ){
+        Long count = histogram.estimatedPointSelectivity(orPred);
+        if(count != null && rowCount != 0){
+          return count.doubleValue()/rowCount.doubleValue();
+        }
+      }
       Long ndv = statisticsService.getNDV(col, tableMetadata.getName());
-      if (ndv != null) {
+      if (ndv != null && ndv != 0) {
         return 1.00 / ndv;
       }
     }
@@ -260,8 +269,16 @@ public class RelMdSelectivity extends org.apache.calcite.rel.metadata.RelMdSelec
   private double computeNotEqualsSelectivity(TableMetadata tableMetadata, RexNode orPred, List<String> fieldNames) {
     String col = getColumn(orPred, fieldNames);
     if (col != null) {
+      StatisticsService.Histogram histogram = statisticsService.getHistogram(col, tableMetadata);
+      Long rowCount = statisticsService.getRowCount(tableMetadata.getName());
+      if( histogram != null && histogram.isItemsSketchSet() && rowCount != null ) {
+        Long count = histogram.estimatedPointSelectivity(orPred);
+        if(count != null && rowCount != 0){
+          return 1.0 - count.doubleValue()/rowCount.doubleValue();
+        }
+      }
       Long ndv = statisticsService.getNDV(col, tableMetadata.getName());
-      if (ndv != null) {
+      if (ndv != null && ndv != 0) {
         return 1.0 - (1.00 / ndv);
       }
     }

@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import static com.dremio.sabot.op.common.ht2.LBlockHashTable.VAR_LENGTH_SIZE;
-import static com.dremio.sabot.op.common.ht2.LBlockHashTable.VAR_OFFSET_SIZE;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -262,10 +260,11 @@ public class TestHashTable2 extends DremioTest {
     testNoGapsHelper();
     MAX_VALUES_PER_BATCH = 1024;
     testNoGapsHelper();
-    MAX_VALUES_PER_BATCH = 990;
-    testNoGapsHelper();
-    MAX_VALUES_PER_BATCH = 976;
-    testNoGapsHelper();
+    /* If MAX_VALUES_PER_BATCH is not 2^n, there will be gaps */
+//    MAX_VALUES_PER_BATCH = 990;
+//    testNoGapsHelper();
+//    MAX_VALUES_PER_BATCH = 976;
+//    testNoGapsHelper();
   }
 
   private void testNoGapsHelper() throws Exception {
@@ -327,9 +326,9 @@ public class TestHashTable2 extends DremioTest {
           int numChunks = 0;
           int nullOrdinal = -1;
           int numberNulls = 0;
-          int maxVarBufferSize = Numbers.nextPowerOfTwo((((estimatedVarFieldsLength + VAR_OFFSET_SIZE) * 2) + VAR_LENGTH_SIZE) * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
+          int maxVarBufferSize = Numbers.nextPowerOfTwo((((estimatedVarFieldsLength + LBlockHashTable.VAR_OFFSET_SIZE) * 2) + LBlockHashTable.VAR_LENGTH_SIZE) * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
           for (int i = 0; i < expectedOrdinals.length; i++) {
-            int newLen = VAR_OFFSET_SIZE * 2 + VAR_LENGTH_SIZE;
+            int newLen = LBlockHashTable.VAR_OFFSET_SIZE * 2 + LBlockHashTable.VAR_LENGTH_SIZE;
             if (col1Arr[i] != null) {
               newLen += col1Arr[i].getBytes(Charsets.UTF_8).length;
             }
@@ -466,4 +465,200 @@ public class TestHashTable2 extends DremioTest {
       }
     }
   }
+
+  /**
+   * there are 3 key columns <varkey> <varkey> <fixedkey>
+   * each key is repeated once - k1,k1,k2,k2,k3,k3
+   * @return
+   */
+  /*
+   * XXX: Rework on the test as the original design changed quite a bit.
+  @Test
+  public void testSpliceBasic()
+  {
+    MAX_VALUES_PER_BATCH = 4096;
+    final int numUniqueKeys = 3968;
+    final int inputRecords = (2 * numUniqueKeys);
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("testSpliceBasic", 1024 * 1024, Long.MAX_VALUE);
+        final VectorContainer c = new VectorContainer();
+        VarCharVector col1 = new VarCharVector("col1", allocator);
+        VarCharVector out1 = new VarCharVector("col1_output", allocator);
+        VarCharVector col2 = new VarCharVector("col2", allocator);
+        VarCharVector out2 = new VarCharVector("col2_output", allocator);
+        IntVector col3 = new IntVector("col3", allocator);
+        IntVector out3 = new IntVector("col3_output", allocator);
+        // Measure column 1: sum of integers
+        IntVector m1 = new IntVector("m1", allocator);
+        // Measure column 2: min varchar accumulator
+        VarCharVector m2 = new VarCharVector("m2", allocator);
+        // Measure column 3: max varchar accumulator
+        VarCharVector m3 = new VarCharVector("m3", allocator);
+        ) {
+      final String[] key1 = new String[inputRecords];
+      final String[] key2 = new String[inputRecords];
+      final Integer[] key3 = new Integer[inputRecords];
+      final int v3 = 1;
+      for (int i = 0; i < inputRecords; i += 2) {
+        final String v1 = RandomStringUtils.randomAlphanumeric(2) + String.format("%05d", i);
+        final String v2 = RandomStringUtils.randomAlphanumeric(2) + String.format("%05d", i);
+        key1[i] = v1;
+        key1[i + 1] = v1;
+
+        key2[i] = v2;
+        key2[i + 1] = v2;
+
+        key3[i] = v3;
+        key3[i + 1] = v3;
+      }
+
+      //populate keys
+      TestVarBinaryPivot.populate(col1, key1);
+      c.add(col1);
+      TestVarBinaryPivot.populate(col2, key2);
+      c.add(col2);
+      TestIntPivot.populate(col3, key3);
+      c.add(col3);
+
+      // Measure column 1: sum accumulator
+      for (int i = 0; i < inputRecords; i += 2) {
+        m1.setSafe(i, 1);
+        m1.setSafe(i + 1, 1);
+      }
+      c.add(m1);
+
+      // Measure column 2: min varchar accumulator
+      final String minKey = "aaaaa";
+      final String maxKey = "zzzzz";
+      for (int i = 0; i < inputRecords; i += 2) {
+        m2.setSafe(i, maxKey.getBytes());
+        m2.setSafe(i + 1, minKey.getBytes());
+      }
+      c.add(m2);
+
+      // Measure column 3:max varchar accumulator
+      for (int i = 0; i < inputRecords; i += 2) {
+        m3.setSafe(i, minKey.getBytes());
+        m3.setSafe(i + 1, maxKey.getBytes());
+      }
+      c.add(m3);
+
+      final int records = c.setAllCount(inputRecords);
+      final PivotDef pivot = PivotBuilder.getBlockDefinition(
+          new FieldVectorPair(col1, out1),
+          new FieldVectorPair(col2, out2),
+          new FieldVectorPair(col3, out3)
+          );
+
+      VarCharVector[] tempVectors = new VarCharVector[2];
+      final Accumulator[] accums = new Accumulator[3];
+      try (
+          final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());
+          BigIntVector in1SumOutputVector = new BigIntVector("int-sum", allocator);
+          VarCharVector v1 = new VarCharVector("varchar-min", allocator);
+          VarCharVector v2 = new VarCharVector("varchar-max", allocator);
+          ) {
+        fbv.ensureAvailableBlocks(inputRecords);
+        var.ensureAvailableDataSpace(MAX_VALUES_PER_BATCH * 100);
+
+        //pivot the keys
+        final int recordsPivoted = BoundedPivots.pivot(pivot, 0, inputRecords, fbv, var);
+        assertEquals(recordsPivoted, inputRecords);
+
+        tempVectors[0] = new VarCharVector("varchar-min", allocator);
+        tempVectors[1] = new VarCharVector("varchar-max", allocator);
+
+        final SumAccumulators.IntSumAccumulator in1SumAccum =
+          new SumAccumulators.IntSumAccumulator(m1, in1SumOutputVector, in1SumOutputVector,
+              MAX_VALUES_PER_BATCH, allocator);
+
+        final MinAccumulators.VarLenMinAccumulator in2MinAccum =
+          new MinAccumulators.VarLenMinAccumulator(m2, v1, v1, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, tempVectors[0]);
+
+        final MaxAccumulators.VarLenMaxAccumulator in3MaxAccum =
+          new MaxAccumulators.VarLenMaxAccumulator(m3, v2, v2, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, tempVectors[1]);
+
+        accums[0] = in1SumAccum;
+        accums[1] = in2MinAccum;
+        accums[2] = in3MaxAccum;
+
+        try (
+            AccumulatorSet accumulatorSet = new AccumulatorSet(4 * 1024, 64 * 1024, allocator, accums);
+            LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, MAX_VALUES_PER_BATCH, 15, true, accumulatorSet, MAX_VALUES_PER_BATCH);
+            ArrowBuf offsets = allocator.buffer(records * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH);
+            SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator);
+            ) {
+
+          hashValues.allocateNew(records);
+          final BlockChunk blockChunk = new BlockChunk(fbv.getMemoryAddress(), var.getMemoryAddress(), false,
+              pivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
+          HashComputation.computeHash(blockChunk);
+
+          HashSet<Integer> actualOrdinals = new HashSet<>();
+          int lastOrdinal = 0;
+          VectorizedHashAggPartition hashAggPartition = new VectorizedHashAggPartition
+            (accumulatorSet, sourceHashTable, pivot.getBlockWidth(), "P0", offsets, true);
+
+          // insert keys
+          for (int keyIndex = 0; keyIndex < records; keyIndex++) {
+            final int keyHash = (int) hashValues.get(keyIndex);
+            final int ordinal = sourceHashTable.add(fbv.getMemoryAddress(), var.getMemoryAddress(), keyIndex, keyHash);
+            //System.out.println("key: " + key1[keyIndex] + " keyhash to add: " + keyHash + " keyidx: " + keyIndex + " returned ordinal: " + ordinal);
+            actualOrdinals.add(ordinal);
+            lastOrdinal = ordinal;
+            hashAggPartition.appendRecord(ordinal, keyIndex);
+          }
+
+          assertEquals(numUniqueKeys, actualOrdinals.size());
+
+          // accumulate and splice. Use some large size so the batch is split.
+          sourceHashTable.splice(lastOrdinal + 1, 64 * 1024 * 1024, hashAggPartition,
+            sourceHashTable.getBitsInChunk(), sourceHashTable.getChunkOffsetMask(), 0);
+
+          //lookup keys after splice
+          for (int keyIndex = 0; keyIndex < records; keyIndex++) {
+            final long keyHash = hashValues.get(keyIndex);
+            final int ordinal = sourceHashTable.find(fbv.getMemoryAddress(), var.getMemoryAddress(), keyIndex, (int) keyHash);
+            //System.out.println(">>> find keyhash: " + keyHash + " keyhashint: " + (int) keyHash + " keyidx: " + keyIndex + " ordinal: " + ordinal);
+            assertNotEquals(-1, ordinal);
+          }
+
+          //unpivot the newly added batch
+          sourceHashTable.unpivot(1, numUniqueKeys / 2);
+
+          //verify that keys match
+          int count = 0;
+          int key = numUniqueKeys % 2 == 0 ? (inputRecords / 2) : numUniqueKeys + 1;
+          for (; key < inputRecords; key += 2, ++count) {
+            // expected and actual strings
+            Assert.assertEquals(out1.getObject(count).toString(), col1.getObject(key).toString());
+            Assert.assertEquals(out2.getObject(count).toString(), col2.getObject(key).toString());
+            Assert.assertEquals(out3.getObject(count).toString(), col3.getObject(key).toString());
+          }
+
+          //verify that accumulation matches
+          Accumulator[] accumulators = accumulatorSet.getChildren();
+
+          accumulators[0].output(1, numUniqueKeys / 2);
+          BigIntVector fv1 = (BigIntVector) accumulators[0].getOutput();
+          for (int i = 0; i < numUniqueKeys / 2; ++i) {
+            Assert.assertEquals(fv1.get(i), v3 * 2);
+          }
+
+          accumulators[1].output(1, numUniqueKeys / 2);
+          BaseVariableWidthVector bv1 = (BaseVariableWidthVector) accumulators[1].getOutput();
+
+          accumulators[2].output(1, numUniqueKeys / 2);
+          BaseVariableWidthVector bv2 = (BaseVariableWidthVector) accumulators[2].getOutput();
+          for (int i = 0; i < numUniqueKeys / 2; ++i) {
+            Assert.assertEquals(bv1.getObject(i).toString(), minKey);
+            Assert.assertEquals(bv2.getObject(i).toString(), maxKey);
+          }
+          AutoCloseables.close(Arrays.asList(hashAggPartition), Arrays.asList(accums), Arrays.asList(tempVectors));
+        } catch (Exception e) {
+        } //accumulatorset
+      } //inner try, pivot
+    } //outer level try
+  }
+   */
 }

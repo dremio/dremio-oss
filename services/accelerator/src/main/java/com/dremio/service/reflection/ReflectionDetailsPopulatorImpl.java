@@ -18,6 +18,7 @@ package com.dremio.service.reflection;
 import static com.dremio.service.reflection.ReflectionUtils.isPhysicalDataset;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -67,7 +68,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 /**
  * populates a {@link AccelerationDetails}
@@ -78,7 +78,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   private final NamespaceService namespace;
   private final ReflectionService reflections;
   private final AccelerationDetails details = new AccelerationDetails();
-  private final Map<String, ReflectionState> consideredReflections = Maps.newHashMap();
+  private final Map<String, ReflectionState> consideredReflections = new HashMap<>();
 
   private List<String> substitutionErrors = Collections.emptyList();
 
@@ -91,15 +91,13 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
     try {
       // reflection was considered and matched
-      if (!consideredReflections.containsKey(materialization.getReflectionId())) {
-        final ReflectionState state = new ReflectionState(
-          materialization.getMaterializationId(),
-          materialization.getReflectionId(),
-          !substitutions.isEmpty(), // non empty substitutions means that the reflected was matched at least once
-          materialization.isSnowflake()
-        );
-        consideredReflections.put(materialization.getReflectionId(), state);
-      }
+      final ReflectionState state = new ReflectionState(
+        materialization.getMaterializationId(),
+        materialization.getReflectionId(),
+        !substitutions.isEmpty(), // non empty substitutions means that the reflected was matched at least once
+        materialization.isSnowflake()
+      );
+      consideredReflections.put(materialization.getReflectionId(), state);
     } catch (Exception e) {
       logger.error("AccelerationDetails populator failed to handle planSubstituted()", e);
     }
@@ -109,7 +107,8 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   public void addReflectionHints(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
     try {
       // reflection was considered and matched
-      if (consideredReflections.containsKey(reflectionExplanationsAndQueryDistance.getReflectionId())) {
+      if (consideredReflections.containsKey(reflectionExplanationsAndQueryDistance.getReflectionId())
+        && consideredReflections.get(reflectionExplanationsAndQueryDistance.getReflectionId()).getSubstitutionState() == SubstitutionState.CONSIDERED) {
         ReflectionState cr = consideredReflections.get(reflectionExplanationsAndQueryDistance.getReflectionId());
         cr.queryDistance = reflectionExplanationsAndQueryDistance.getQueryDistance();
         cr.explanations = reflectionExplanationsAndQueryDistance.getDisplayHintMessageList();

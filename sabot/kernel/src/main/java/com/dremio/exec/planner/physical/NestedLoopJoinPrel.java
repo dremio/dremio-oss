@@ -17,12 +17,8 @@ package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.IntFunction;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -37,7 +33,6 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
-import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.LogicalExpression;
@@ -54,8 +49,6 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
-import com.dremio.sabot.op.join.JoinUtils;
-import com.google.common.collect.Lists;
 
 @Options
 public class NestedLoopJoinPrel  extends JoinPrel {
@@ -70,51 +63,29 @@ public class NestedLoopJoinPrel  extends JoinPrel {
   private final RexNode vectorExpression;
 
   private NestedLoopJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, JoinRelType joinType, RexNode condition, RexNode vectorExpression) {
-    this(cluster, traits, left, right, joinType, condition, vectorExpression, JoinUtils.projectAll(left.getRowType().getFieldCount()+right.getRowType().getFieldCount()));
-  }
-
-  private NestedLoopJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, JoinRelType joinType, RexNode condition, RexNode vectorExpression, ImmutableBitSet projectedFields) {
-    super(cluster, traits, left, right, condition, joinType, projectedFields);
+    super(cluster, traits, left, right, condition, joinType);
     this.vectorExpression = vectorExpression;
   }
 
 
   public static NestedLoopJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, JoinRelType joinType, RexNode condition) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new NestedLoopJoinPrel(cluster, adjustedTraits, left, right, joinType, condition, (RexNode) null);
-  }
-
-  public static NestedLoopJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, JoinRelType joinType, RexNode condition, ImmutableBitSet projectedFields) {
-    final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new NestedLoopJoinPrel(cluster, adjustedTraits, left, right, joinType, condition, null, projectedFields);
+    return new NestedLoopJoinPrel(cluster, adjustedTraits, left, right, joinType, condition, null);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, conditionExpr, vectorExpression, getProjectedFields());
-  }
-
-  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, RexNode vectorExpression) {
-    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, conditionExpr, vectorExpression, getProjectedFields());
-  }
-
-  @Override
-  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields) {
-    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, conditionExpr, null, projectedFields);
+    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, conditionExpr, vectorExpression);
   }
 
   public Join copy(RexNode condition, RexNode vectorExpression) {
-    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, condition, vectorExpression, getProjectedFields());
-  }
-
-  public Join copy(ImmutableBitSet projectedFields) {
-    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, condition, vectorExpression, projectedFields);
+    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, condition, vectorExpression);
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     double leftRowCount = mq.getRowCount(this.getLeft());
     double rightRowCount = mq.getRowCount(this.getRight());
@@ -159,10 +130,9 @@ public class NestedLoopJoinPrel  extends JoinPrel {
     LogicalExpression vectorCondition = null;
     if (!vectorized) {
       // the non-vectorized operation doesn't support conditions.
-      List<JoinCondition> conditions = Lists.newArrayList();
       final List<String> leftFields = left.getRowType().getFieldNames();
       final List<String> rightFields = right.getRowType().getFieldNames();
-      buildJoinConditions(conditions, leftFields, rightFields, leftKeys, rightKeys);
+      final List<JoinCondition> conditions = buildJoinConditions(leftFields, rightFields, leftKeys, rightKeys);
       if(!conditions.isEmpty()) {
         throw UserException.unsupportedError().message("NLJ doesn't support conditions yet. Conditions found %s.", conditions).build(logger);
       }
@@ -184,7 +154,7 @@ public class NestedLoopJoinPrel  extends JoinPrel {
 
       condition = RexToExpr.toExpr(
           new ParseContext(settings),
-          getInputRowType(),
+          getRowType(),
           getCluster().getRexBuilder(),
           getCondition(),
           true,
@@ -192,7 +162,7 @@ public class NestedLoopJoinPrel  extends JoinPrel {
       if(vectorExpression != null) {
         vectorCondition = RexToExpr.toExpr(
             new ParseContext(settings),
-            getInputRowType(),
+            getRowType(),
             getCluster().getRexBuilder(),
             vectorExpression,
             true,
@@ -202,43 +172,11 @@ public class NestedLoopJoinPrel  extends JoinPrel {
 
     // generate the schema for execution. Yes, for some reason we put build first then probe (opposite of Calcite)
     final SchemaBuilder b = BatchSchema.newBuilder();
-    int leftSize = left.getRowType().getFieldCount(); // left
-    int rightSize = right.getRowType().getFieldCount(); // right
-    Set<Integer> buildProjected = new HashSet<>();
-    Set<Integer> probeProjected = new HashSet<>();
-
-    if (vectorized) {
-      Map<String, Integer> fieldToInd = new HashMap<>();
-      ImmutableBitSet projected = getProjectedFields();
-      if (projected == null) {
-        projected = JoinUtils.projectAll(leftSize + rightSize);
-      }
-      for (int ind : projected.asList()) {
-        fieldToInd.put(getInputRowType().getFieldNames().get(ind), ind);
-      }
-
-      for (int i = 0; i < buildPop.getProps().getSchema().getFieldCount(); i++) {
-        Field f = buildPop.getProps().getSchema().getFields().get(i);
-        if (fieldToInd.containsKey(f.getName())) {
-          b.addField(f);
-          buildProjected.add(i);
-        }
-      }
-
-      for (int i = 0; i < probePop.getProps().getSchema().getFieldCount(); i++) {
-        Field f = probePop.getProps().getSchema().getFields().get(i);
-        if (fieldToInd.containsKey(f.getName())) {
-          b.addField(f);
-          probeProjected.add(i);
-        }
-      }
-    } else {
-      for (Field f : buildPop.getProps().getSchema()) {
-        b.addField(f);
-      }
-      for (Field f : probePop.getProps().getSchema()) {
-        b.addField(f);
-      }
+    for (Field f : buildPop.getProps().getSchema()) {
+      b.addField(f);
+    }
+    for (Field f : probePop.getProps().getSchema()) {
+      b.addField(f);
     }
 
     final BatchSchema schema = b.build();
@@ -249,9 +187,7 @@ public class NestedLoopJoinPrel  extends JoinPrel {
         joinType,
         condition,
         vectorized,
-        vectorCondition,
-        buildProjected,
-        probeProjected);
+        vectorCondition);
   }
 
   @Override
@@ -264,4 +200,8 @@ public class NestedLoopJoinPrel  extends JoinPrel {
     return SelectionVectorMode.NONE;
   }
 
+  @Override
+  public RexNode getExtraCondition() {
+    return null;
+  }
 }

@@ -204,4 +204,24 @@ public class AttemptsHelper {
     }
     return null;
   }
+
+  public Long getQueuedTimeStamp() {
+    if (getQueuedTime() != null) {
+      Optional<AttemptEvent> event = events.stream().filter(e -> e.getState() == State.QUEUED).findAny();
+      if (event.isPresent()) {
+        return event.get().getStartTime();
+      }
+    }
+    return null;
+  }
+
+  public Long getRunningTimeStamp() {
+    if (getRunningTime() != null) {
+      Optional<AttemptEvent> event = events.stream().filter(e -> e.getState() == State.RUNNING).findAny();
+      if (event.isPresent()) {
+        return event.get().getStartTime();
+      }
+    }
+    return null;
+  }
 }

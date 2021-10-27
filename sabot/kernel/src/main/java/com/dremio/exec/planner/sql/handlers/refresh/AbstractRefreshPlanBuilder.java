@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql.handlers.refresh;
 
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,7 +45,6 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
-import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.util.Pair;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.PartitionSpec;
@@ -141,8 +139,6 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
 
     // nothing is known about the dataset yet. Imagining high value at start for max parallelism.
     protected static final long INITIAL_RECORD_COUNT = DremioCost.LARGE_ROW_COUNT;
-    public static String unsupportedPartitionListingError = "Found unsupported partition listing in the table";
-
     protected static final Logger logger = LoggerFactory.getLogger(AbstractRefreshPlanBuilder.class);
     protected final SqlHandlerConfig config;
     protected final RelOptCluster cluster;
@@ -233,8 +229,8 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
 
     logger.info("DatasetConfig of table {} in catalog is not up to date with Iceberg metadata." +
       "Current iceberg table version [Snapshot ID: {}, RootMetadataFile: {}], version in catalog [Snapshot ID: {}, RootMetadataFile: {}]. " +
-      "Tyring to restore catalog metadata from iceberg metadata..", datasetConfig.getFullPathList(), oldIcebergMetadata.getSnapshotId(), oldIcebergMetadata.getMetadataFileLocation(),
-      currentIcebergTable.currentSnapshot().snapshotId(), currentRootPointerFileLocation);
+      "Tyring to restore catalog metadata from iceberg metadata..", datasetConfig.getFullPathList(), currentIcebergTable.currentSnapshot().snapshotId(), currentRootPointerFileLocation,
+      oldIcebergMetadata.getSnapshotId(), oldIcebergMetadata.getMetadataFileLocation());
     Snapshot snapshot = currentIcebergTable.currentSnapshot();
 
     // Update schema
@@ -318,17 +314,14 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
    * Outputs root Prel
    *
    * @return
-   * @throws IOException
    */
-  public Prel buildPlan() throws RelConversionException {
+  public Prel buildPlan() {
     final Prel dirListingPrel = getDataFileListingPrel();
     final Prel roundRobinExchange = getDirListToFooterReadExchange(dirListingPrel);
     final Prel footerReadPrel = getFooterReader(roundRobinExchange);
     final Prel hashToRandomExchange = getHashToRandomExchange(footerReadPrel);
     final Prel writerCommitterPrel = getWriterPrel(hashToRandomExchange);
-    final Prel screenPrel = new ScreenPrel(cluster, traitSet, writerCommitterPrel);
-
-    return screenPrel;
+    return new ScreenPrel(cluster, traitSet, writerCommitterPrel);
   }
 
   public abstract PartitionChunkListing listPartitionChunks(DatasetRetrievalOptions datasetRetrievalOptions) throws ConnectorException;
@@ -515,10 +508,6 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     }
     return partitionChunkMetadataList;
   }
-
-    protected void validatePartitions(PartitionChunkListing chunkListing) {
-    }
-
 
     static PartitionProtobuf.PartitionChunk convertToPartitionChunkProto(PartitionChunk chunk) {
     final List<PartitionProtobuf.PartitionValue> values = StreamSupport.stream(Spliterators.spliterator(chunk.getPartitionValues().iterator(),

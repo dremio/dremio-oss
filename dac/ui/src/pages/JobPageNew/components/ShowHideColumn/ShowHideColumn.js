@@ -23,6 +23,8 @@ import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import FilterSelectMenu from 'components/Fields/FilterSelectMenu';
 import './ShowHideColumn.less';
 
+const disabledColumns = ['acceleration', 'usr', 'job', 'st', 'qt'];
+
 const ShowHideColumn = ({
   intl: { formatMessage },
   defaultValue,
@@ -54,7 +56,7 @@ const ShowHideColumn = ({
   const filterColumnUnSelect = (item) => {
     const unSelectedColumn = localStorageUtils.getJobColumns()
       .map(column => {
-        if (column.key === item && item !== 'reflection') {
+        if (column.key === item && !disabledColumns.includes(item)) {
           column.isSelected = false;
           return column;
         }

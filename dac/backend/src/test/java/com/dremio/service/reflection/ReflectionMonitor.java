@@ -23,9 +23,11 @@ import static com.dremio.service.reflection.proto.ReflectionState.ACTIVE;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Future;
 
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
@@ -342,7 +344,7 @@ public class ReflectionMonitor {
     throw new IllegalStateException();
   }
 
-  public void waitUntilNoMoreRefreshing(long requestTime) {
+  public void waitUntilNoMoreRefreshing(long requestTime, long numMaterializations) {
     Wait w = new Wait();
     while (w.loop()) {
       Future<?> future = reflections.wakeupManager("start refresh");
@@ -351,7 +353,8 @@ public class ReflectionMonitor {
       } catch (Exception e) {
         Throwables.propagate(e);
       }
-      if (materializations.get().stream()
+      List<MaterializationDescriptor> materializationDescriptorList = materializations.get();
+      if ((materializationDescriptorList.size() == numMaterializations) && materializationDescriptorList.stream()
         .filter(m -> m.getReflectionType() != ReflectionType.EXTERNAL)
         .noneMatch(m -> {
         Optional<ReflectionEntry> e = reflections.getEntry(new ReflectionId(m.getLayoutId()));

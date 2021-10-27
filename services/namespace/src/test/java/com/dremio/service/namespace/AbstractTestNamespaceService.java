@@ -577,6 +577,8 @@ public abstract class AbstractTestNamespaceService {
     final NamespaceKey namespaceKey = new NamespaceKey(PathUtils.parseFullPath("s.b.ds2"));
 
     final DatasetConfig oldConfig = namespaceService.getDataset(namespaceKey);
+    // DX-35283: wait for a while to avoid flaky failure caused by the same getLastModified() of oldConfig and newConfig.
+    Thread.sleep(1);
     final DatasetConfig newConfig = namespaceService.renameDataset(namespaceKey, new NamespaceKey(PathUtils.parseFullPath("s.b.ds22")));
     items = NamespaceTestUtils.listFolder(namespaceService, "s.b");
     assertEquals(1, items.size());

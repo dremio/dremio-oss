@@ -54,7 +54,7 @@ public class TestResetPassword extends BaseTestServer {
     Assume.assumeFalse(BaseTestServer.isMultinode());
     try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
       dacConfig = dacConfig.writePath(folder1.newFolder().getAbsolutePath());
-      BaseTestServer.init(false);
+      BaseTestServer.init();
     }
   }
 
@@ -69,7 +69,7 @@ public class TestResetPassword extends BaseTestServer {
   public void testResetPassword() throws Exception {
     getCurrentDremioDaemon().close();
     SetPassword.resetPassword(getCurrentDremioDaemon().getDACConfig(), DEFAULT_USERNAME, "tshiran123456");
-    BaseTestServer.init(false);
+    BaseTestServer.init();
 
     UserLogin userLogin = new UserLogin(DEFAULT_USERNAME, DEFAULT_PASSWORD);
     expectStatus(Status.UNAUTHORIZED, getAPIv2().path("/login").request(JSON).buildPost(Entity.json(userLogin)), GenericErrorMessage.class);

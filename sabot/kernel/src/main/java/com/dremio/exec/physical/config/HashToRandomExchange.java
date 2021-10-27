@@ -28,10 +28,10 @@ import com.dremio.exec.physical.config.HashSenderCalculator.BucketOptions;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class HashToRandomExchange extends AbstractExchange {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashToRandomExchange.class);
 
   private static final boolean HASH_EXCHANGE_SPOOLING;
 
@@ -41,6 +41,7 @@ public class HashToRandomExchange extends AbstractExchange {
 
   private final BucketOptions options;
   private final LogicalExpression expr;
+  private final OptionManager optionManager;
 
   public HashToRandomExchange(
       OpProps props,
@@ -49,10 +50,17 @@ public class HashToRandomExchange extends AbstractExchange {
       BucketOptions options,
       BatchSchema schema,
       PhysicalOperator child,
-      LogicalExpression expr) {
-    super(props, senderProps, receiverProps, schema, child);
+      LogicalExpression expr,
+      OptionManager optionManager) {
+    super(props, senderProps, receiverProps, schema, child, optionManager);
     this.options = options;
     this.expr = expr;
+    this.optionManager = optionManager;
+  }
+
+  @Override
+  public long getMemReserve() {
+   return computeMemReserve();
   }
 
   @Override
@@ -68,7 +76,7 @@ public class HashToRandomExchange extends AbstractExchange {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashToRandomExchange(props, senderProps, receiverProps, options, schema, child, expr);
+    return new HashToRandomExchange(props, senderProps, receiverProps, options, schema, child, expr, optionManager);
   }
 
   @JsonProperty("expr")

@@ -100,8 +100,8 @@ const styles = {
     width: '425px',
     maxWidth: '533px',
     whiteSpace: 'nowrap',
-    background: '#F5FCFF',
-    border: '1.5px solid #31D3DB',
+    background: '#F4FAFC', //DX-34369
+    border: '1.5px solid #43B8C9',
     padding: '2px 18px 18px 18px'
   },
   iconStyle: {

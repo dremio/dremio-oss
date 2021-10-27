@@ -23,6 +23,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.SelectionVectorRemover;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
@@ -97,7 +98,8 @@ public class VectorizedCopyOperator implements SingleInputOperator {
     }
 
     // setup copiers from incoming to buffered.
-    copiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(incoming), VectorContainer.getFieldVectors(buffered));
+    copiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(incoming), VectorContainer.getFieldVectors(buffered),
+      context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_COMPLEX_COPIER));
     if (straightCopy || randomVector == null) {
       shouldBufferOutput = false;
     }

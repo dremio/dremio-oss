@@ -21,10 +21,12 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.statistics.proto.StatisticId;
 
 /**
- * Utility class for statistics
- */
-public class StatisticsUtil {
 
+ * Utility class for statistics
+
+ */
+
+public class StatisticsUtil {
   public static StatisticId createStatisticId(String column, String table) {
     return new StatisticId().setTablePath(table.toLowerCase()).setColumn(column.toLowerCase());
   }

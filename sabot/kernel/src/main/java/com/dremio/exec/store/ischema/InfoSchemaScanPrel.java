@@ -32,7 +32,6 @@ import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.catalog.SearchQuery;
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
 /**
@@ -85,17 +84,6 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
   public RelWriter explainTerms(RelWriter pw) {
     String str = query == null ? null : query.toString().replace('\n', ' ');
     return super.explainTerms(pw).itemIf("query", str, query != null);
-  }
-
-  @Override
-  public boolean equals(Object other) {
-    if(!other.getClass().equals(this.getClass())){
-      return false;
-    }
-
-    InfoSchemaScanPrel castOther = (InfoSchemaScanPrel) other;
-
-    return Objects.equal(query, castOther.query) && super.equals(other);
   }
 
   @Override

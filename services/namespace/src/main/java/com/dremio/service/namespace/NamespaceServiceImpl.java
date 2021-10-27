@@ -110,6 +110,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   public static final String PARTITION_CHUNKS = "metadata-dataset-splits";
   public static final String MULTI_SPLITS = "metadata-multi-splits";
   private static final int LOG_BATCH = 99;
+  public static final int LATEST_VERSION = 1;
 
   private final LegacyIndexedStore<String, NameSpaceContainer> namespace;
   private final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunkStore;
@@ -397,6 +398,9 @@ public class NamespaceServiceImpl implements NamespaceService {
   protected void doCreateOrUpdateEntity(final NamespaceEntity entity, List<NameSpaceContainer> entitiesOnPath, NamespaceAttribute... attributes) throws NamespaceException {
     final NameSpaceContainer prevContainer = lastElement(entitiesOnPath);
     ensureIdExistsTypeMatches(entity, prevContainer);
+
+    // update to latest version
+    entity.getContainer().setVersion(LATEST_VERSION);
 
     namespace.put(entity.getPathKey().getKey(), entity.getContainer());
   }

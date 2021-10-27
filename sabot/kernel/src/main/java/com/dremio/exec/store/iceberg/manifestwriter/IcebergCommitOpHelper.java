@@ -31,6 +31,8 @@ import org.apache.iceberg.ManifestFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.TypedFieldId;
@@ -64,6 +66,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     private final Set<IcebergPartitionData> addedPartitions = new HashSet<>(); // partitions with new files
     private final Set<IcebergPartitionData> deletedPartitions = new HashSet<>(); // partitions with deleted files
     protected Predicate<String> partitionExistsPredicate = path -> true;
+    private FileSystem fsToCheckIfPartitionExists;
     protected ReadSignatureProvider readSigProvider = (added, deleted) -> ByteString.EMPTY;
 
     public static IcebergCommitOpHelper getInstance(OperatorContext context, WriterCommitterPOP config) {
@@ -83,7 +86,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
 
     public void setup(VectorAccessible incoming) {
         // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
-      IcebergModel icebergModel = config.getPlugin().getIcebergModel();
+      IcebergModel icebergModel = config.getPlugin().getIcebergModel(context);
       IcebergTableProps icebergTableProps = config.getIcebergTableProps();
 
         TypedFieldId id = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
@@ -195,6 +198,8 @@ public class IcebergCommitOpHelper implements AutoCloseable {
       if (!isFullRefresh) {
         existingReadSignature = ByteString.copyFrom(config.getDatasetConfig().get().getReadDefinition().getReadSignature().toByteArray());  // TODO avoid copy
       }
+      createPartitionExistsPredicate(config);
+
       readSigProvider = config.getSourceTablePlugin().createReadSignatureProvider(existingReadSignature, icebergTableProps.getDataTableLocation(),
         context.getFunctionContext().getContextInformation().getQueryStartTime(),
         getPartitionPaths(), partitionExistsPredicate, isFullRefresh, config.isPartialRefresh());
@@ -233,9 +238,28 @@ public class IcebergCommitOpHelper implements AutoCloseable {
       return partitionDataList;
     }
 
+    protected void createPartitionExistsPredicate(WriterCommitterPOP config) {
+      partitionExistsPredicate = (path) ->
+      {
+        try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
+          return getFS(path, config).exists(Path.of(path));
+        } catch (Exception e) {
+          throw UserException.ioExceptionError(e).buildSilently();
+        }
+      };
+    }
+
+    private FileSystem getFS(String path, WriterCommitterPOP config) throws IOException {
+      if (fsToCheckIfPartitionExists == null) {
+        fsToCheckIfPartitionExists = config.getSourceTablePlugin().createFS(path, config.getProps().getUserName(), context);
+      }
+      return fsToCheckIfPartitionExists;
+    }
+
     @Override
     public void close() throws Exception {
         icebergOpCommitter = null;
+        AutoCloseables.close(fsToCheckIfPartitionExists);
     }
 
     public void cleanUpManifestFiles(FileSystem fs) throws IOException, ClassNotFoundException {

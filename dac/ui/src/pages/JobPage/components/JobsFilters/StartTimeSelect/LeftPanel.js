@@ -137,7 +137,7 @@ class LeftPanel extends PureComponent {
 
 const style = {
   panel: {
-    width: 213,
+    width: 230,
     display: 'inline-block',
     height: 264,
     borderRight: '1px solid #C4C4C4',

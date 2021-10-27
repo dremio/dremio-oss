@@ -22,16 +22,16 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.datasketches.ArrayOfBooleansSerDe;
+import org.apache.datasketches.ArrayOfDoublesSerDe;
+import org.apache.datasketches.ArrayOfLongsSerDe;
+import org.apache.datasketches.ArrayOfNumbersSerDe;
+import org.apache.datasketches.ArrayOfStringsSerDe;
 import org.junit.Test;
 
 import com.dremio.DremioTestWrapper;
 import com.dremio.PlanTestBase;
 import com.google.common.collect.ImmutableList;
-import com.yahoo.sketches.ArrayOfBooleansSerDe;
-import com.yahoo.sketches.ArrayOfDoublesSerDe;
-import com.yahoo.sketches.ArrayOfLongsSerDe;
-import com.yahoo.sketches.ArrayOfNumbersSerDe;
-import com.yahoo.sketches.ArrayOfStringsSerDe;
 
 /**
  * TestCountMinSketchFunctions
@@ -115,7 +115,7 @@ public class TestItemsSketchFunctions extends PlanTestBase {
     List<Pair<Object, Long>> e = ImmutableList.of(Pair.of(0.5d, 2L));
     List<Pair<Object, Long>> f = ImmutableList.of(Pair.of(1203724800000L, 2L));
     List<Pair<Object, Long>> g = ImmutableList.of(Pair.of(1203762030000L, 2L));
-    List<Pair<Object, Long>> h = ImmutableList.of(Pair.of(37230000, 2L));
+    List<Pair<Object, Long>> h = ImmutableList.of(Pair.of(37230000L, 2L));
     List<Pair<Object, Long>> i = ImmutableList.of(Pair.of("random", 2L));
     List<Pair<Object, Long>> j = ImmutableList.of(Pair.of(18730000, 2L));
     List<Pair<Object, Long>> k = ImmutableList.of(Pair.of(30, 2L));

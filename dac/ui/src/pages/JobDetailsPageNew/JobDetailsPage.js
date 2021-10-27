@@ -27,6 +27,9 @@ import { updateViewState } from 'actions/resources';
 import { getViewState } from 'selectors/resources';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import jobsUtils from '@app/utils/jobsUtils';
+import socket from '@inject/utils/socket';
+
 import TopPanel from './components/TopPanel/TopPanel';
 import OverView from './components/OverView/OverView';
 import SQL from './components/SQLTab/SQLTab';
@@ -38,6 +41,7 @@ const JobDetailsPage = (props) => {
   const [currentTab, setCurrentTab] = useState('Overview');
   const [isContrast, setIsContrast] = useState(isSqlContrast);
   const [jobDetails, setJobDetails] = useState(Immutable.Map());
+  const [isListeningForProgress, setIsListeningForProgress] = useState(false);
   const {
     intl: {
       formatMessage
@@ -49,15 +53,26 @@ const JobDetailsPage = (props) => {
     showJobIdProfile,
     cancelJob,
     totalAttempts,
-    getViewStateDetails
+    getViewStateDetails,
+    jobDetailsFromStore
   } = props;
 
+  // TODO: Revisit this to fetch the info from socket instead of making multiple calls to get job details
   useEffect(() => {
-    getJobDetails(jobId, JOB_DETAILS_VIEW_ID, totalAttempts)
+    // Skip start action for updates to the same job to avoid screen flickering (due to the spinner)
+    const skipStartAction = jobDetails && jobDetails.size !== 0 && jobDetails.get('id') === jobId;
+    getJobDetails(jobId, JOB_DETAILS_VIEW_ID, totalAttempts, skipStartAction)
       .then((response) => {
         if (!response) return; // no-payload error
 
         if (!response.error) {
+          if (
+            (jobDetails.size === 0 || jobDetails.get('id') !== jobId) &&
+            jobsUtils.isJobRunning(response.jobStatus)
+          ) {
+            socket.startListenToQVJobProgress(jobId);
+            setIsListeningForProgress(true);
+          }
           setJobDetails(Immutable.fromJS(response));
         } else if (response.status === 404) {
           const errorMessage = formatMessage({ id: 'Job.Details.NoData'});
@@ -72,7 +87,13 @@ const JobDetailsPage = (props) => {
           });
         }
       });
-  }, [jobId]);
+  }, [jobId, jobDetailsFromStore]);
+
+  useEffect(() => {
+    if (isListeningForProgress) {
+      return () => socket.stoptListenToQVJobProgress(jobId);
+    }
+  }, [isListeningForProgress]);
 
   const renderContent = (contentPage) => {
     switch (contentPage) {
@@ -83,6 +104,7 @@ const JobDetailsPage = (props) => {
         downloadJobFile={downloadFile}
         isContrast = {isContrast}
         onClick = {setIsContrast}
+        status={jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')}
       />;
     case 'SQL':
       return <SQL
@@ -95,7 +117,7 @@ const JobDetailsPage = (props) => {
     case 'Profile':
       return <Profile jobDetails={jobDetails} showJobProfile={showJobIdProfile}/>;
     default:
-      return <OverView sql={jobDetails.get('queryText')} />;
+      return <OverView sql={jobDetails.get('queryText')} status={jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')} />;
     }
   };
 
@@ -109,13 +131,13 @@ const JobDetailsPage = (props) => {
               jobId={jobDetails.get('id')}
               changePages={props.changePages}
               setComponent={setCurrentTab}
-              jobStatus={jobDetails.get('jobStatus')}
+              jobStatus={ jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')}
               jobDetails={jobDetails}
               showJobProfile={showJobIdProfile}
               cancelJob={cancelJob}
             />
           </div>
-          <div className='gutter-left--double'>
+          <div className='gutter-left--double full-height'>
             {renderContent(currentTab)}
           </div>
         </div>
@@ -134,18 +156,24 @@ JobDetailsPage.propTypes = {
   showJobIdProfile: PropTypes.func,
   totalAttempts: PropTypes.number,
   getViewStateDetails: PropTypes.func,
-  cancelJob: PropTypes.func
+  cancelJob: PropTypes.func,
+  jobDetailsFromStore: PropTypes.object
 };
 
 
-function mapStateToProps(state) {
+function mapStateToProps(state, ownProps) {
+  const jobsList = state.jobs.jobs.get('jobList').toArray();
+  const currentJob = jobsList.find((job) => {
+    return job.get('id') === ownProps.jobId;
+  });
   return {
+    jobDetailsFromStore: currentJob,
     viewState: getViewState(state, JOB_DETAILS_VIEW_ID)
   };
 }
 
 const mapDispatchToProps = dispatch => ({
-  getJobDetails: (jobId, viewId, totalAttempts) => dispatch(loadJobDetails(jobId, viewId, totalAttempts)),
+  getJobDetails: (jobId, viewId, totalAttempts, skipStartAction) => dispatch(loadJobDetails(jobId, viewId, totalAttempts, skipStartAction)),
   showJobIdProfile: (profileUrl) => dispatch(showJobProfile(profileUrl)),
   getViewStateDetails:(viewId, errObj) => dispatch(updateViewState(viewId, errObj)),
   cancelJob: (jobId) => dispatch(cancelJobAndShowNotification(jobId))

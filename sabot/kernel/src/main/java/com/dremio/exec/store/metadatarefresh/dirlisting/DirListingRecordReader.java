@@ -17,8 +17,10 @@ package com.dremio.exec.store.metadatarefresh.dirlisting;
 
 import static com.dremio.exec.store.iceberg.model.IcebergConstants.FILE_VERSION;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +38,7 @@ import org.apache.iceberg.Schema;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.util.Retryer;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
@@ -86,9 +89,9 @@ public class DirListingRecordReader implements RecordReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DirListingRecordReader.class);
 
   private final FileSystem fs;
-  protected final long lastReadSignatureMtime;
+  protected final long startTime;
   protected final Path rootPath;
-  private final Path operatingPath;
+  protected final Path operatingPath;
   private final boolean isRecursive;
   private final boolean discoverPartitions;
   private OutputMutator outgoing;
@@ -105,6 +108,11 @@ public class DirListingRecordReader implements RecordReader {
   private BigIntVector sizeVector;
   private VarCharVector pathVector;
   private VarBinaryVector partitionInfoVector;
+  private Retryer retryer = new Retryer.Builder()
+    .retryIfExceptionOfType(IOException.class)
+    .retryIfExceptionOfType(RuntimeException.class)
+    .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
+    .setMaxRetries(10).build();
 
   public DirListingRecordReader(OperatorContext context,
                                 FileSystem fs,
@@ -114,7 +122,7 @@ public class DirListingRecordReader implements RecordReader {
                                 List<PartitionProtobuf.PartitionValue> partitionValues,
                                 boolean discoverPartitions) {
     this.fs = fs;
-    this.lastReadSignatureMtime = dirListInputSplit.getReadSignature();
+    this.startTime = context.getFunctionContext().getContextInformation().getQueryStartTime();
     this.rootPath = Path.of(dirListInputSplit.getRootPath());
     this.operatingPath = Path.of(dirListInputSplit.getOperatingPath());
     this.isFile = dirListInputSplit.getIsFile();
@@ -135,7 +143,12 @@ public class DirListingRecordReader implements RecordReader {
     mtimeVector = (BigIntVector) outgoing.getVector(DirList.OUTPUT_SCHEMA.MODIFICATION_TIME);
     sizeVector = (BigIntVector) outgoing.getVector(DirList.OUTPUT_SCHEMA.FILE_SIZE);
     partitionInfoVector = (VarBinaryVector) outgoing.getVector(DirList.OUTPUT_SCHEMA.PARTITION_INFO);
-    initDirIterator(isFile);
+    try {
+      initDirIterator(isFile);
+    }
+    catch (IOException e) {
+      throw new IllegalStateException("Error listing directory " + operatingPath.toString(), e);
+    }
   }
 
   @Override
@@ -147,20 +160,34 @@ public class DirListingRecordReader implements RecordReader {
 
   @Override
   public int next() {
-    int generatedRecords;
+    //Default value will never be used.
+    int generatedRecords = 0;
     try {
       generatedRecords = iterateDirectory();
-      logger.debug("Processed batch {} of size {}", batchesProcessed, batchSize);
-      batchesProcessed++;
-      setNextBatchSize();
-    } catch (IOException e) {
-      throw UserException
-        .dataReadError(e)
-        .message("Failed to list subdirectories of directory " + operatingPath.toString())
-        .addContext("Directory path", operatingPath.toString())
-        .build(logger);
+    } catch (RuntimeException | IOException e) {
+      boolean hasExceptionHandled = true;
+      String errorMessage = "Failed to list files of directory " + operatingPath.toString();
+      if (isRateLimitingException(e)) {
+        try {
+          generatedRecords = (int) retryer.call(() -> iterateDirectory());
+        } catch (Retryer.OperationFailedAfterRetriesException retriesException) {
+          hasExceptionHandled = false;
+          errorMessage = "With retry attempt failed to list files of directory " + operatingPath.toString();
+        }
+      } else {
+        hasExceptionHandled = false;
+      }
+      if (!hasExceptionHandled) {
+        throw UserException
+          .dataReadError(e)
+          .message(errorMessage)
+          .addContext("Directory path", operatingPath.toString())
+          .build(logger);
+      }
     }
-
+    logger.debug("Processed batch {} of size {}", batchesProcessed, batchSize);
+    batchesProcessed++;
+    setNextBatchSize();
     int finalGeneratedRecords = generatedRecords;
     outgoing.getVectors().forEach(valueVector -> valueVector.setValueCount(finalGeneratedRecords));
 
@@ -177,7 +204,7 @@ public class DirListingRecordReader implements RecordReader {
     return "DirListingRecordReader{" +
       "  rootPath=" + rootPath +
       "  operatingPath=" + operatingPath +
-      ", lastReadSignatureMtime=" + lastReadSignatureMtime +
+      ", startTime=" + startTime +
       ", isRecursive=" + isRecursive +
       ", discoverPartitions=" + discoverPartitions +
       '}';
@@ -188,7 +215,7 @@ public class DirListingRecordReader implements RecordReader {
     logger.debug(String.format("Performing directory listing on path %s", rootPath));
     while (dirIterator != null && generatedRecords < batchSize && dirIterator.hasNext()) {
       FileAttributes attributes = dirIterator.next();
-      if (!attributes.isDirectory() && isValidPath(attributes.getPath()) && attributes.lastModifiedTime().toMillis() < lastReadSignatureMtime) {
+      if (!attributes.isDirectory() && isValidPath(attributes.getPath()) && attributes.lastModifiedTime().toMillis() <= startTime) {
         generatedRecords++;
         logger.debug(String.format("Add path %s to the output", attributes.getPath()));
         addToOutput(attributes, generatedRecords - 1);
@@ -202,7 +229,7 @@ public class DirListingRecordReader implements RecordReader {
     this.batchSize = batchSize;
   }
 
-  protected void initDirIterator(boolean isFile) {
+  protected void initDirIterator(boolean isFile) throws IOException {
     try {
       if(isFile) {
         dirIterator = Collections.singletonList(fs.getFileAttributes(operatingPath)).iterator();
@@ -210,8 +237,42 @@ public class DirListingRecordReader implements RecordReader {
         dirIterator = fs.listFiles(operatingPath, isRecursive).iterator();
       }
     } catch (IOException e) {
-      throw new IllegalStateException("Failed to get the list files details.",e);
+      if (isRateLimitingException(e)) {
+        try {
+          dirIterator = (Iterator<FileAttributes>) retryer.call(() -> fs.listFiles(operatingPath, isRecursive).iterator());
+        } catch (Retryer.OperationFailedAfterRetriesException retriesException) {
+          String retryErrorMessage = "Retry attempted ";
+          if (e.getMessage() != null) {
+            retryErrorMessage += " with error message: " + e.getMessage();
+          } else {
+            retryErrorMessage += " with empty error message";
+          }
+          throw new IOException(retryErrorMessage, e.getCause());
+        }
+      } else {
+        throw e;
+      }
     }
+  }
+
+  private boolean isRateLimitingException(Exception e) {
+    boolean shouldRateLimit = true;
+    if (e instanceof FileNotFoundException || e instanceof  AccessDeniedException) {
+      shouldRateLimit = false;
+    }
+    //In case of wrapped Runtime exception
+    if (e.getCause() != null && (e.getCause() instanceof FileNotFoundException || e.getCause() instanceof AccessDeniedException)) {
+      shouldRateLimit = false;
+    }
+    if (e.getMessage() != null && (e.getMessage().contains("ConditionNotMet") || e.getMessage().contains("PathNotFound"))) {
+      shouldRateLimit = false;
+    }
+    //In case of wrapped Runtime exception
+    if (e.getCause() != null && e.getCause().getMessage() != null && (e.getCause().getMessage().contains("ConditionNotMet") || e.getCause().getMessage().contains("PathNotFound"))) {
+      shouldRateLimit = false;
+    }
+    logger.info("Rate limit flag is {} for cause {} and message {} ", shouldRateLimit, e.getCause(), e.getMessage());
+    return shouldRateLimit;
   }
 
   protected void addToOutput(FileAttributes fileStatus, int index) throws IOException {

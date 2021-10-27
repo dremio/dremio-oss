@@ -670,12 +670,14 @@ public class AttemptManager implements Runnable {
          * send anything to.
          */
 
+        boolean sendTailProfileFailed = false;
         try {
           // send whatever result we ended up with
           injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_TAIL_PROFLE_ERROR);
           profileTracker.sendTailProfile(uex);
         } catch (Exception e) {
           logger.warn("Exception sending tail profile. Setting query state to failed", resultException);
+          sendTailProfileFailed = true;
           addException(e);
           recordNewState(QueryState.FAILED);
           resultState = QueryState.FAILED;
@@ -690,6 +692,13 @@ public class AttemptManager implements Runnable {
         try {
           injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_GET_FULL_PROFLE_ERROR);
           queryProfile = profileTracker.getFullProfile();
+
+          // full profile from store will not have latest info when sendTailProfile fails, so update with in-memory state
+          if (sendTailProfileFailed) {
+            QueryProfile.Builder profileBuilder = queryProfile.toBuilder();
+            profileTracker.addLatestState(profileBuilder);
+            queryProfile = profileBuilder.build();
+          }
         } catch (Exception e) {
           logger.warn("Exception while getting full profile. Setting query state to failed", e);
           addException(e);

@@ -26,6 +26,7 @@ import org.junit.Test;
 
 import com.dremio.DremioTestWrapper;
 import com.dremio.PlanTestBase;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 
 public class TestTDigestFunctions extends PlanTestBase {
@@ -152,21 +153,23 @@ public class TestTDigestFunctions extends PlanTestBase {
 
   @Test
   public void tDigestDateQ0() throws Exception {
-    test("set planner.slice_target = 1");
-    String query = "select tdigest(l_shipdate) ship from cp.\"tpch/lineitem.parquet\"";
-    Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
-    tolerances.put("`ship`", new DremioTestWrapper.BaselineValuesForTDigest(0.6, 0.01));
+    try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
+      test("set planner.slice_target = 1");
+      String query = "select tdigest(l_shipdate) ship from cp.\"tpch/lineitem.parquet\"";
+      Map<String, DremioTestWrapper.BaselineValuesForTDigest> tolerances = new HashMap<>();
+      tolerances.put("`ship`", new DremioTestWrapper.BaselineValuesForTDigest(0.6, 0.01));
 
-    org.joda.time.format.DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD");
-    LocalDateTime date = formatter.parseLocalDateTime("1992-04-27");
-    Long unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date);
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("ship")
-      .baselineValues(unixTimeStamp.doubleValue())
-      .baselineTolerancesForTDigest(tolerances)
-      .go();
+      org.joda.time.format.DateTimeFormatter formatter = DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD");
+      LocalDateTime date = formatter.parseLocalDateTime("1992-04-27");
+      Long unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date);
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("ship")
+        .baselineValues(unixTimeStamp.doubleValue())
+        .baselineTolerancesForTDigest(tolerances)
+        .go();
+    }
   }
 
   @Test

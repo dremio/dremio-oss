@@ -16,9 +16,10 @@
 package com.dremio.exec.store.sys.accel;
 
 import java.sql.Timestamp;
+import java.util.Iterator;
 
-import com.dremio.exec.proto.ReflectionRPC;
 import com.dremio.service.Service;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import com.google.common.base.Optional;
 
 /**
@@ -26,10 +27,10 @@ import com.google.common.base.Optional;
  */
 public interface AccelerationListManager extends Service {
 
-  Iterable<ReflectionInfo> getReflections();
-  Iterable<MaterializationInfo> getMaterializations();
-  Iterable<RefreshInfo> getRefreshInfos();
-  Iterable<DependencyInfo> getReflectionDependencies();
+  Iterator<ReflectionInfo> getReflections();
+  Iterator<MaterializationInfo> getMaterializations();
+  Iterator<RefreshInfo> getRefreshInfos();
+  Iterator<DependencyInfo> getReflectionDependencies();
 
   class ReflectionInfo {
     public final String reflection_id;
@@ -37,7 +38,9 @@ public interface AccelerationListManager extends Service {
     public final String type;
     public final String status;
     public final int num_failures;
+    public final String datasetId;
     public final String dataset;
+    public final String datasetType;
     public final String sortColumns;
     public final String partitionColumns;
     public final String distributionColumns;
@@ -47,15 +50,17 @@ public interface AccelerationListManager extends Service {
     public final String externalReflection;
     public final boolean arrow_cache;
 
-    public ReflectionInfo(String reflectionId, String name, String type, String status, int numFailures, String dataset,
-        String sortColumns, String partitionColumns, String distributionColumns, String dimensions, String measures,
-        String displayColumns, String externalReflection, boolean arrowCachingEnabled) {
+    public ReflectionInfo(String reflectionId, String reflectionName, String type, String status, int numFailures, String datasetId,
+        String datasetName, String datasetType, String sortColumns, String partitionColumns, String distributionColumns,
+        String dimensions, String measures, String displayColumns, String externalReflection, boolean arrowCachingEnabled) {
       this.reflection_id = reflectionId;
-      this.name = name;
+      this.name = reflectionName;
       this.type = type;
       this.status = status;
       this.num_failures = numFailures;
-      this.dataset = dataset;
+      this.datasetId = datasetId;
+      this.dataset = datasetName;
+      this.datasetType = datasetType;
       this.sortColumns = sortColumns;
       this.partitionColumns = partitionColumns;
       this.distributionColumns = distributionColumns;
@@ -66,9 +71,9 @@ public interface AccelerationListManager extends Service {
       this.arrow_cache = arrowCachingEnabled;
     }
 
-    public ReflectionRPC.ReflectionInfo toProto() {
-      ReflectionRPC.ReflectionInfo.Builder protoReflectionInfo =
-        ReflectionRPC.ReflectionInfo.newBuilder();
+    public ReflectionDescriptionServiceRPC.ListReflectionsResponse toProto() {
+      ReflectionDescriptionServiceRPC.ListReflectionsResponse.Builder protoReflectionInfo =
+        ReflectionDescriptionServiceRPC.ListReflectionsResponse.newBuilder();
 
         if(externalReflection != null) {
           protoReflectionInfo.setExternalReflection(externalReflection);
@@ -76,8 +81,14 @@ public interface AccelerationListManager extends Service {
         if (reflection_id != null) {
           protoReflectionInfo.setReflectionId(reflection_id);
         }
+        if(datasetId != null) {
+          protoReflectionInfo.setDatasetId(datasetId);
+        }
         if(dataset != null) {
-          protoReflectionInfo.setDataset(dataset);
+          protoReflectionInfo.setDatasetName(dataset);
+        }
+        if(datasetType != null) {
+          protoReflectionInfo.setDatasetType(datasetType);
         }
         if(dimensions != null) {
           protoReflectionInfo.setDimensions(dimensions);
@@ -89,7 +100,7 @@ public interface AccelerationListManager extends Service {
           protoReflectionInfo.setDistributionColumns(distributionColumns);
         }
         if (name != null) {
-          protoReflectionInfo.setName(name);
+          protoReflectionInfo.setReflectionName(name);
         }
         if (type != null) {
           protoReflectionInfo.setType(type);
@@ -112,13 +123,15 @@ public interface AccelerationListManager extends Service {
       return protoReflectionInfo.build();
     }
 
-    public static ReflectionInfo getReflectionInfo(ReflectionRPC.ReflectionInfo reflectionInfoProto) {
+    public static ReflectionInfo getReflectionInfo(ReflectionDescriptionServiceRPC.ListReflectionsResponse reflectionInfoProto) {
       return new ReflectionInfo(reflectionInfoProto.getReflectionId(),
-        reflectionInfoProto.getName(),
+        reflectionInfoProto.getReflectionName(),
         reflectionInfoProto.getType(),
         reflectionInfoProto.getStatus(),
         reflectionInfoProto.getNumFailures(),
-        reflectionInfoProto.getDataset(),
+        reflectionInfoProto.getDatasetId(),
+        reflectionInfoProto.getDatasetName(),
+        reflectionInfoProto.getDatasetType(),
         reflectionInfoProto.getSortColumns(),
         reflectionInfoProto.getPartitionColumns(),
         reflectionInfoProto.getDistributionColumns(),
@@ -126,7 +139,7 @@ public interface AccelerationListManager extends Service {
         reflectionInfoProto.getMeasures(),
         reflectionInfoProto.getDisplayColumns(),
         reflectionInfoProto.getExternalReflection(),
-        reflectionInfoProto.getArrowCachingEnabled());
+        reflectionInfoProto.getArrowCache());
     }
   }
 
@@ -144,16 +157,16 @@ public interface AccelerationListManager extends Service {
       this.dependency_path = dependency_path;
     }
 
-    public static DependencyInfo getDependencyInfo(ReflectionRPC.DependencyInfo dependencyInfoProto) {
+    public static DependencyInfo getDependencyInfo(ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse dependencyInfoProto) {
       return new DependencyInfo(dependencyInfoProto.getReflectionId(),
         dependencyInfoProto.getDependencyId(),
         dependencyInfoProto.getDependencyType(),
         dependencyInfoProto.getDependencyPath());
     }
 
-    public ReflectionRPC.DependencyInfo toProto() {
-      ReflectionRPC.DependencyInfo.Builder protoDependencyInfo =
-        ReflectionRPC.DependencyInfo.newBuilder();
+    public ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse toProto() {
+      ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse.Builder protoDependencyInfo =
+        ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse.newBuilder();
 
       if (reflection_id != null) {
         protoDependencyInfo.setReflectionId(reflection_id);
@@ -211,9 +224,9 @@ public interface AccelerationListManager extends Service {
       this.last_refresh_from_pds = lastRefreshFromPds;
     }
 
-    public ReflectionRPC.MaterializationInfo toProto() {
-      ReflectionRPC.MaterializationInfo.Builder protoMaterializationInfo =
-        ReflectionRPC.MaterializationInfo.newBuilder();
+    public ReflectionDescriptionServiceRPC.ListMaterializationsResponse toProto() {
+      ReflectionDescriptionServiceRPC.ListMaterializationsResponse.Builder protoMaterializationInfo =
+        ReflectionDescriptionServiceRPC.ListMaterializationsResponse.newBuilder();
 
       if(reflection_id != null) {
         protoMaterializationInfo.setReflectionId(reflection_id);
@@ -224,15 +237,19 @@ public interface AccelerationListManager extends Service {
       }
 
       if(create != null) {
-        protoMaterializationInfo.setCreate(create.getTime());
+        protoMaterializationInfo.setCreated(
+          com.google.protobuf.Timestamp.newBuilder().setSeconds(create.getTime()).build()
+        );
       }
 
       if (expiration != null) {
-        protoMaterializationInfo.setExpiration(expiration.getTime());
+        protoMaterializationInfo.setExpires(
+          com.google.protobuf.Timestamp.newBuilder().setSeconds(expiration.getTime()).build()
+        );
       }
 
       if (bytes != null) {
-        protoMaterializationInfo.setBytes(bytes);
+        protoMaterializationInfo.setSizeBytes(bytes);
       }
 
       if (seriesId != null) {
@@ -264,19 +281,20 @@ public interface AccelerationListManager extends Service {
       }
 
       if (last_refresh_from_pds != null) {
-        protoMaterializationInfo.setLastRefreshFromPds(last_refresh_from_pds.getTime());
+        protoMaterializationInfo.setLastRefreshFromPds(
+          com.google.protobuf.Timestamp.newBuilder().setSeconds(last_refresh_from_pds.getTime()).build());
       }
 
       return protoMaterializationInfo.build();
     }
 
-    public static MaterializationInfo fromMaterializationInfo(ReflectionRPC.MaterializationInfo materializationInfoProto) {
+    public static MaterializationInfo fromMaterializationInfo(ReflectionDescriptionServiceRPC.ListMaterializationsResponse materializationInfoProto) {
       return new MaterializationInfo(
         materializationInfoProto.getReflectionId(),
         materializationInfoProto.getMaterializationId(),
-        new Timestamp(Optional.fromNullable(materializationInfoProto.getCreate()).or(0L)),
-        new Timestamp(Optional.fromNullable(materializationInfoProto.getExpiration()).or(0L)),
-        materializationInfoProto.getBytes(),
+        new Timestamp(Optional.fromNullable(materializationInfoProto.getCreated().getSeconds()).or(0L)),
+        new Timestamp(Optional.fromNullable(materializationInfoProto.getExpires().getSeconds()).or(0L)),
+        materializationInfoProto.getSizeBytes(),
         materializationInfoProto.getSeriesId(),
         materializationInfoProto.getInitRefreshJobId(),
         materializationInfoProto.getSeriesOrdinal(),
@@ -284,7 +302,7 @@ public interface AccelerationListManager extends Service {
         materializationInfoProto.getState(),
         materializationInfoProto.getFailureMsg(),
         materializationInfoProto.getDataPartitions(),
-        new Timestamp(Optional.fromNullable(materializationInfoProto.getLastRefreshFromPds()).or(0L))
+        new Timestamp(Optional.fromNullable(materializationInfoProto.getLastRefreshFromPds().getSeconds()).or(0L))
       );
     }
   }
@@ -352,7 +370,7 @@ public interface AccelerationListManager extends Service {
         this.series_ordinal = series_ordinal;
     }
 
-    public static RefreshInfo fromRefreshInfo(ReflectionRPC.RefreshInfo refreshInfoProto) {
+    public static RefreshInfo fromRefreshInfo(ReflectionDescriptionServiceRPC.GetRefreshInfoResponse refreshInfoProto) {
       return new RefreshInfo(
         refreshInfoProto.getId(),
         refreshInfoProto.getReflectionId(),

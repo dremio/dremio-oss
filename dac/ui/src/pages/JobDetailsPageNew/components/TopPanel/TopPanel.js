@@ -80,7 +80,7 @@ export const TopPanel = (props) => {
     const resourcePath = constructResourcePath(fullPath);
     const nextLocation = {
       pathname: datasetFullPath ? datasetPathUtils.toHref(resourcePath) : 'tmp/UNTITLED',
-      query: { jobId, version: jobDetails.get('datasetVersion')}
+      query: { jobId, version: jobDetails.get('datasetVersion') }
     };
 
     if (QueriedDataset.get('datasetPathsList')) {
@@ -107,83 +107,85 @@ export const TopPanel = (props) => {
   const isSingleProfile = attemptDetails && attemptDetails.size === 1;
   return (
     <div className='topPanel'>
-      <div className='topPanel__jobDetails'>
-        <div data-qa='jobs-logo' onClick={() => changePages(null)}>
-          {renderIcon('Jobs.svg', 'topPanel__jobDetails__jobsIcon')}
+      <div className='topPanel__navigationWrapper'>
+        <div className='topPanel__jobDetails'>
+          <div data-qa='jobs-logo' onClick={() => changePages(null)}>
+            {renderIcon('Jobs.svg', 'topPanel__jobDetails__jobsIcon')}
+          </div>
+          <div className='gutter-top--half'>
+            <JobStateIcon state={jobStatus} />
+          </div>
+          <div data-qa='top-panel-jobId'>{jobId}</div>
         </div>
-        <div className='gutter-top--half'>
-          <JobStateIcon state={jobStatus} />
-        </div>
-        <div data-qa='top-panel-jobId'>{jobId}</div>
-      </div>
-      <div
-        className='topPanel__overview'
-        onClick={() => onTabClick('Overview')}
-      >
-        <div className={classNames(
-          'topPanel__overview__content',
-          { 'topPanel__border': selectedTab === 'Overview' }
-        )}>
-          {selectedTab === 'Overview' ?
-            renderIcon('Shape_lite.svg', 'topPanel__overview__overviewIcon')
-            :
-            renderIcon('Shape_lite.svg')
-          }
-          <div className={
-            selectedTab === 'Overview'
-              ?
-              'topPanel__overview__headerLite'
+        <div
+          className='topPanel__overview'
+          onClick={() => onTabClick('Overview')}
+        >
+          <div className={classNames(
+            'topPanel__overview__content',
+            { 'topPanel__border': selectedTab === 'Overview' }
+          )}>
+            {selectedTab === 'Overview' ?
+              renderIcon('Shape_lite.svg', 'topPanel__overview__overviewIcon')
               :
-              'topPanel__overview__header'
-          }>
-            {formatMessage({ id: 'TopPanel.Overview' })}
+              renderIcon('Shape_lite.svg')
+            }
+            <div className={
+              selectedTab === 'Overview'
+                ?
+                'topPanel__overview__headerLite'
+                :
+                'topPanel__overview__header'
+            }>
+              {formatMessage({ id: 'TopPanel.Overview' })}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className='topPanel__sql'
-        data-qa='toppanel-sql'
-        onClick={() => onTabClick('SQL')}>
-        <div className={classNames(
-          'topPanel__sql__content',
-          { 'topPanel__border': selectedTab === 'SQL' }
-        )}>
-          {selectedTab === 'SQL' ?
-            renderIcon('Union.svg', 'topPanel__sql__sqlIcon')
-            :
-            renderIcon('Union.svg')
-          }
-          <div className={
-            selectedTab === 'SQL'
-              ?
-              'topPanel__overview__headerLite'
+        <div className='topPanel__sql'
+          data-qa='toppanel-sql'
+          onClick={() => onTabClick('SQL')}>
+          <div className={classNames(
+            'topPanel__sql__content',
+            { 'topPanel__border': selectedTab === 'SQL' }
+          )}>
+            {selectedTab === 'SQL' ?
+              renderIcon('Union.svg', 'topPanel__sql__sqlIcon')
               :
-              'topPanel__overview__header'
-          }>{formatMessage({ id: 'TopPanel.SQL' })}</div>
+              renderIcon('Union.svg')
+            }
+            <div className={
+              selectedTab === 'SQL'
+                ?
+                'topPanel__overview__headerLite'
+                :
+                'topPanel__overview__header'
+            }>{formatMessage({ id: 'TopPanel.SQL' })}</div>
+          </div>
         </div>
-      </div>
 
-      <div
-        className='topPanel__rawProfile'
-        onClick={() => isSingleProfile ? showJobProfile(profileUrl) : onTabClick('Profile')}
-      >
-        <div className={classNames(
-          'topPanel__rawProfile__content',
-          { 'topPanel__border': selectedTab === 'Profile' }
-        )}>
-          {selectedTab === 'Profile' ?
-            renderIcon('RawProfile.svg', 'topPanel__rawProfile__rawProfileSelectedIcon')
-            :
-            renderIcon('RawProfile.svg', 'topPanel__rawProfile__rawProfileIcon')
-          }
-          <div className={
-            selectedTab === 'Profile'
-              ?
-              'topPanel__rawProfile__headerLite'
+        <div
+          className='topPanel__rawProfile'
+          onClick={() => isSingleProfile ? showJobProfile(profileUrl) : onTabClick('Profile')}
+        >
+          <div className={classNames(
+            'topPanel__rawProfile__content',
+            { 'topPanel__border': selectedTab === 'Profile' }
+          )}>
+            {selectedTab === 'Profile' ?
+              renderIcon('RawProfile.svg', 'topPanel__rawProfile__rawProfileSelectedIcon')
               :
-              'topPanel__rawProfile__header'
-          }>
-            {formatMessage({ id: 'TopPanel.Rawprofile' })}
+              renderIcon('RawProfile.svg', 'topPanel__rawProfile__rawProfileIcon')
+            }
+            <div className={
+              selectedTab === 'Profile'
+                ?
+                'topPanel__rawProfile__headerLite'
+                :
+                'topPanel__rawProfile__header'
+            }>
+              {formatMessage({ id: 'TopPanel.Rawprofile' })}
+            </div>
           </div>
         </div>
       </div>

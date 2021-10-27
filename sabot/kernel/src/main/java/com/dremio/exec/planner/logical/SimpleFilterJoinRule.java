@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.logical.LogicalFilter;
@@ -26,7 +24,6 @@ import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql2rel.CorrelationReferenceFinder;
-import org.apache.calcite.tools.RelBuilderFactory;
 
 import com.dremio.service.Pointer;
 
@@ -36,17 +33,32 @@ import com.dremio.service.Pointer;
  */
 public final class SimpleFilterJoinRule extends FilterJoinRule {
 
-  public static final SimpleFilterJoinRule CALCITE_INSTANCE = new SimpleFilterJoinRule(
-      RelOptRule.operand(LogicalFilter.class, RelOptRule.operand(LogicalJoin.class, RelOptRule.any())),
-      "SimpleFilterJoinRuleCrel:filter",
-      DremioRelFactories.CALCITE_LOGICAL_BUILDER);
-  public static final SimpleFilterJoinRule LOGICAL_INSTANCE = new SimpleFilterJoinRule(
-          RelOptRule.operand(FilterRel.class, RelOptRule.operand(JoinRel.class, RelOptRule.any())),
-          "SimpleFilterJoinRuleDrel:filter",
-          DremioRelFactories.LOGICAL_BUILDER);
+  public static final FilterJoinRule CALCITE_INSTANCE = new SimpleFilterJoinRule(
+    SimpleFilterJoinRule.Config.EMPTY
+      .withRelBuilderFactory(DremioRelFactories.CALCITE_LOGICAL_BUILDER)
+      .withOperandSupplier(b0 ->
+        b0.operand(LogicalFilter.class).oneInput(b1 ->
+          b1.operand(LogicalJoin.class).anyInputs()))
+      .withDescription("SimpleFilterJoinRuleCrel:filter")
+      .as(SimpleFilterJoinRule.Config.class)
+      .withSmart(true)
+      .withPredicate(FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM)
+      .as(SimpleFilterJoinRule.Config.class));
 
-  private SimpleFilterJoinRule(RelOptRuleOperand operand, String id, RelBuilderFactory relBuilderFactory) {
-    super(operand, id, true, relBuilderFactory, FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
+  public static final FilterJoinRule LOGICAL_INSTANCE = new SimpleFilterJoinRule(
+    SimpleFilterJoinRule.Config.EMPTY
+      .withRelBuilderFactory(DremioRelFactories.LOGICAL_BUILDER)
+      .withOperandSupplier(b0 ->
+        b0.operand(Filter.class).oneInput(b1 ->
+          b1.operand(Join.class).anyInputs()))
+      .withDescription("SimpleFilterJoinRuleDrel:filter")
+      .as(SimpleFilterJoinRule.Config.class)
+      .withSmart(true)
+      .withPredicate(FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM)
+      .as(SimpleFilterJoinRule.Config.class));
+
+  private SimpleFilterJoinRule(Config config) {
+    super(config);
   }
 
   @Override

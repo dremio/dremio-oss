@@ -69,7 +69,7 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
     blockSize = operatorContext.getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
     TableFunctionContext tableFunctionContext = getTableFunctionContext(DataProcessorType.SPLIT_GEN);
     FileSystemPlugin plugin = mock(FileSystemPlugin.class);
-    when(plugin.createSplitCreator(operatorContext,null)).thenReturn(new ParquetSplitCreator(operatorContext));
+    when(plugin.createSplitCreator(operatorContext,null, false)).thenReturn(new ParquetSplitCreator(operatorContext, true));
     dataFileProcessor = new SplitGeneratingDatafileProcessor(operatorContext, plugin, null, tableFunctionContext);
     dataFileProcessor = spy(dataFileProcessor);
     incoming = buildIncomingVector();

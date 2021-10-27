@@ -39,7 +39,6 @@ import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
-import com.dremio.exec.maestro.DefaultRoutingQueueManager;
 import com.dremio.exec.maestro.GlobalKeysService;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.RulesFactory;
@@ -59,7 +58,7 @@ import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.GroupResourceInformation;
-import com.dremio.resource.common.RoutingQueueManager;
+import com.dremio.resource.common.ReflectionRoutingManager;
 import com.dremio.security.CredentialsService;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
@@ -132,7 +131,7 @@ public class SabotContext implements AutoCloseable {
   private final Provider<GlobalKeysService> globalCredentailsServiceProvider;
   private final Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider;
   private final Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider;
-  public static RoutingQueueManager routingQueueManager = DefaultRoutingQueueManager.INSTANCE;
+  private final Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider;
 
   public SabotContext(
       DremioConfig dremioConfig,
@@ -177,7 +176,8 @@ public class SabotContext implements AutoCloseable {
       Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
       Provider<GlobalKeysService> globalCredentailsServiceProvider,
       Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
-      Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
+      Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
+      Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
   ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -238,6 +238,7 @@ public class SabotContext implements AutoCloseable {
     this.globalCredentailsServiceProvider = globalCredentailsServiceProvider;
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
+    this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
   }
 
   private static List<RulesFactory> getRulesFactories(ScanResult scan) {
@@ -300,7 +301,8 @@ public class SabotContext implements AutoCloseable {
     Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
     Provider<GlobalKeysService> globalCredentailsServiceProvider,
     Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
-    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
+    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
+    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
     ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -355,6 +357,7 @@ public class SabotContext implements AutoCloseable {
     this.globalCredentailsServiceProvider = globalCredentailsServiceProvider;
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
+    this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
   }
 
   private void checkIfCoordinator() {
@@ -663,7 +666,11 @@ public class SabotContext implements AutoCloseable {
     return credentialsServiceProvider;
   }
 
-  public RoutingQueueManager getRoutingQueueManager() {
-    return routingQueueManager;
+  public ReflectionRoutingManager getReflectionRoutingManager() {
+    return null;
+  }
+
+  public Provider<SysFlightChannelProvider> getSysFlightChannelProviderProvider() {
+    return sysFlightChannelProviderProvider;
   }
 }

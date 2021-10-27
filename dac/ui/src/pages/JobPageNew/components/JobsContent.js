@@ -154,7 +154,7 @@ export default class JobsContent extends PureComponent {
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.jobs !== this.props.jobs) {
-      this.runActionForJobs(nextProps.jobs, false, (jobId) => socket.startListenToJobProgress(jobId));
+      this.runActionForJobs(nextProps.jobs, false, (jobId) => socket.startListenToQVJobProgress(jobId));
 
       // if we don't have an active job id highlight the first job
       if (!nextProps.jobId) {
@@ -170,7 +170,7 @@ export default class JobsContent extends PureComponent {
 
   componentWillUnmount() {
     $(window).off('mouseup', this.handleMouseReleaseOutOfBrowser);
-    this.runActionForJobs(this.props.jobs, true, (jobId) => socket.stopListenToJobProgress(jobId));
+    this.runActionForJobs(this.props.jobs, true, (jobId) => socket.stoptListenToQVJobProgress(jobId));
   }
 
   getCurrentJobIndex() {
@@ -230,14 +230,15 @@ export default class JobsContent extends PureComponent {
         const formattedPlanningTime = planningTime && (planningTime < 1000 ? '<1s' : timeUtils.formatTimeDiff(planningTime, 'HH:mm:ss'));
         const formattedCost = jobsUtils.getFormattedNumber(job.get('plannerEstimatedCost'));
         const formattedRowsScanned = jobsUtils.getFormattedNumber(job.get('rowsScanned'));
-        const formattedRowsReturned = jobsUtils.getFormattedNumber(job.get('rowsReturned'));
+        const formattedRowsReturned = jobsUtils.getFormattedNumber(job.get('outputRecords'));
         const getColumnName = additionalColumnName(job);
 
         return {
           data: {
             jobStatus: { node: () => renderJobStatus(job.get('state')), value: job.get('state') },
             job: { node: () => renderColumn(job.get('id')), value: job.get('id') },
-            usr: { node: () => renderColumn(job.get('queryUser')), value: job.get('queryUser') },
+            usr: { node: () => renderColumn(job.get('user')), value: job.get('queryUser') },
+            acceleration: { node: () => renderIcon(job.get('accelerated')), value: renderIcon(job.get('accelerated')) },
             reflection: { node: () => renderIcon(job.get('accelerated')), value: renderIcon(job.get('accelerated')) },
             ds: { node: () => renderDataset(job, index), value: job },
             qt: { node: () => renderColumn(intl.formatMessage({ id: getFormatMessageIdForQueryType(job) })), value: job.get('queryType') },
@@ -289,7 +290,8 @@ export default class JobsContent extends PureComponent {
           loadNextRecords={loadNextJobs}
           sortRecords={this.sortJobsByColumn}
           noDataText={intl.formatMessage({ id: 'Job.NoJobs' })}
-          showIconHeaders={{ reflection: { node: getReflectionIcon } }}
+          showIconHeaders={{ acceleration: { node: getReflectionIcon } }}
+          disableZebraStripes
         />
       </div>
     );

@@ -31,6 +31,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.SinglePrel;
@@ -86,7 +87,7 @@ public class ConvertFromJsonPrel extends SinglePrel {
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     super.explainTerms(pw);
-    List<RexNode> childExprs = input.getChildExps();
+    List<RexNode> childExprs = MoreRelOptUtil.getChildExps(input);
 
     List<String> convertFields = Lists.transform(conversions, new Function<ConversionColumn, String>() {
       @Override

@@ -65,7 +65,6 @@ public class SqlDatePartOperator extends SqlFunction {
       .put("week", TimeUnitRange.WEEK).build();
 
   public static final SqlRexConvertlet CONVERTLET = new DatePartConvertlet();
-  public static final SqlDatePartOperator INSTANCE = new SqlDatePartOperator();
 
   public SqlDatePartOperator() {
     super(

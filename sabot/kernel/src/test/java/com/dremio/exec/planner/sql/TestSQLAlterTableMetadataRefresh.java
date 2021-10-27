@@ -54,7 +54,7 @@ public class TestSQLAlterTableMetadataRefresh {
   public void testAlterTableReflectionRouting() {
     final String sql = "ALTER TABLE tbl ROUTE ALL REFLECTIONS TO QUEUE q1";
     final  SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
-    Assert.assertTrue(sqlNode instanceof SqlAlterDatasetReflectionRouting && ((SqlAlterDatasetReflectionRouting) sqlNode).getQueueName().toString().equals("q1"));
+    Assert.assertTrue(sqlNode instanceof SqlAlterDatasetReflectionRouting && ((SqlAlterDatasetReflectionRouting) sqlNode).getQueueOrEngineName().toString().equals("q1"));
 
     final String sql2 = "ALTER TABLE tbl ROUTE ALL REFLECTIONS TO DEFAULT QUEUE";
     final  SqlNode sqlNode2 = SqlConverter.parseSingleStatementImpl(sql2, parserConfig, false);

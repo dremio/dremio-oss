@@ -13,573 +13,567 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../Avatar/Avatars.less";
+ @import "../Avatar/Avatars.less";
 
-:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-  .font-icon {
-    .icon-type {
-      background-repeat: no-repeat;
-      background-size: cover;
-      width: 28px;
-      height: 28px;
-    }
-
-    .Aggregation {
-      background-image: url(icons/Aggregation.svg);
-    }
-
-    .Aggregation-Reversed {
-      background-image: url(icons/Aggregation-Reversed.svg);
-    }
-
-    .Aggregate {
-      background-image: url(icons/Aggregate.svg);
-    }
-
-    .CanceledGray {
-      background-image: url(icons/CanceledGray.svg);
-    }
-
-    .Raw {
-      background-image: url(icons/Raw.svg);
-    }
-
-    .RightArrow {
-      background-image: url(icons/RightArrow.svg);
-    }
-
-    .RawMode {
-      background-image: url(icons/RawMode.svg);
-    }
-
-    .GroupBy {
-      background-image: url(icons/GroupBy.svg);
-    }
-
-    .Bars {
-      background-image: url(icons/Bars.svg);
-    }
-
-    .FolderToDataset {
-      background-image: url(icons/FolderToDataset.svg);
-    }
-
-    .LoaderWhite {
-      background-image: url(icons/LoaderWhite.svg);
-    }
-
-    .Activity {
-      background-image: url(icons/Activity.svg);
-    }
-
-    .Add {
-      background-image: url(icons/Add.svg);
-    }
-
-    .AddHover {
-      background-image: url(icons/AddHover.svg);
-    }
-
-    .AddFields {
-      background-image: url(icons/Add-Fields.svg);
-    }
-
-    /* TODO Andrey, check your components and use one style*/
-    .ArrowDownSmall, .Arrow-Down-Small {
-      background-image: url(icons/Arrow-Down-Small.svg);
-    }
-
-    .ArrowDownSmallReversed, .Arrow-Down-Small-Reversed {
-      background-image: url(icons/Arrow-Down-Small-Reversed.svg);
-    }
-
-    .ArrowLeft, .Arrow-Left {
-      background-image: url(icons/Arrow-Left.svg);
-    }
-
-    .ArrowRight, .Arrow-Right {
-      background-image: url(icons/Arrow-Right.svg);
-    }
-
-    .Blocked {
-      background-image: url(icons/Blocked.svg);
-    }
-
-    .Bug {
-      background-image: url(icons/Bug.svg);
-    }
-
-    .Canceled {
-      background-image: url(icons/Canceled.svg);
-    }
-
-    .Chat {
-      background-image: url(icons/Chat.svg);
-    }
-
-    .ChatTeal {
-      background-image: url(icons/Chat-Teal.svg);
-    }
-
-    .ChatActive {
-      background-image: url(icons/ChatActive.svg);
-    }
-
-    .Clipboard {
-      background-image: url(icons/Clipboard.svg);
-      background-size: contain;
-    }
-
-    .Collapse {
-      background-image: url(icons/Collapse.svg);
-    }
-
-    .Database-Bad {
-      background-image: url(icons/Database-Bad.svg);
-    }
-
-    .Database-Degraded {
-      background-image: url(icons/Database-Degraded.svg);
-    }
-
-    .Database {
-      background-image: url(icons/Database.svg);
-    }
-
-    .DataGraph {
-      background-image: url(icons/Data-Graph.svg);
-    }
-
-    .Date {
-      background-image: url(icons/Date.svg);
-    }
-
-    .Delete {
-      background-image: url(icons/Delete.svg);
-    }
-
-    .Download {
-      background-image: url(icons/Download.svg);
-    }
-
-    .DownloadLink {
-      background-image: url(icons/DownloadLink.svg);
-    }
-
-    .Draggable {
-      background-image: url(icons/Draggable.svg);
-    }
-    
-    .DropdownDisabled {
-      background-image: url(icons/DropdownDisabled.svg);
-    }
-
-  .DropdownEnabled {
-      background-image: url(icons/DropdownEnabled.svg);
-    }
-
-    .DropdownDisabled {
-      background-image: url(icons/DropdownDisabled.svg);
-    }
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+   
+   .font-icon {
+     .icon-type {
+       background-repeat: no-repeat;
+       background-size: cover;
+       width: 28px;
+       height: 28px;
+     }
+ 
+     .Aggregation {
+       background-image: url(icons/Aggregation.svg);
+     }
+ 
+     .Aggregation-Reversed {
+       background-image: url(icons/Aggregation-Reversed.svg);
+     }
+ 
+     .Aggregate {
+       background-image: url(icons/Aggregate.svg);
+     }
+ 
+     .CanceledGray {
+       background-image: url(icons/CanceledGray.svg);
+     }
+ 
+     .Raw {
+       background-image: url(icons/Raw.svg);
+     }
+ 
+     .RightArrow {
+       background-image: url(icons/RightArrow.svg);
+     }
+ 
+     .RawMode {
+       background-image: url(icons/RawMode.svg);
+     }
+ 
+     .GroupBy {
+       background-image: url(icons/GroupBy.svg);
+     }
+ 
+     .Bars {
+       background-image: url(icons/Bars.svg);
+     }
+ 
+     .FolderToDataset {
+       background-image: url(icons/FolderToDataset.svg);
+     }
+ 
+     .LoaderWhite {
+       background-image: url(icons/LoaderWhite.svg);
+     }
+ 
+     .Activity {
+       background-image: url(icons/Activity.svg);
+     }
+ 
+     .Add {
+       background-image: url(icons/Add.svg);
+     }
+ 
+     .AddHover {
+       background-image: url(icons/AddHover.svg);
+     }
+ 
+     .AddFields {
+       background-image: url(icons/Add-Fields.svg);
+     }
+ 
+     /* TODO Andrey, check your components and use one style*/
+     .ArrowDownSmall, .Arrow-Down-Small {
+       background-image: url(icons/Arrow-Down-Small.svg);
+     }
+ 
+     .ArrowDownSmallReversed, .Arrow-Down-Small-Reversed {
+       background-image: url(icons/Arrow-Down-Small-Reversed.svg);
+     }
+ 
+     .ArrowLeft, .Arrow-Left {
+       background-image: url(icons/Arrow-Left.svg);
+     }
+ 
+     .ArrowRight, .Arrow-Right {
+       background-image: url(icons/Arrow-Right.svg);
+     }
+ 
+     .Blocked {
+       background-image: url(icons/Blocked.svg);
+     }
+ 
+     .Bug {
+       background-image: url(icons/Bug.svg);
+     }
+ 
+     .Canceled {
+       background-image: url(icons/Canceled.svg);
+     }
+ 
+     .Chat {
+       background-image: url(icons/Chat.svg);
+     }
+ 
+     .ChatTeal {
+       background-image: url(icons/Chat-Teal.svg);
+     }
+ 
+     .ChatActive {
+       background-image: url(icons/ChatActive.svg);
+     }
+ 
+     .Clipboard {
+       background-image: url(icons/Clipboard.svg);
+       background-size: contain;
+     }
+ 
+     .Collapse {
+       background-image: url(icons/Collapse.svg);
+     }
+ 
+     .Database-Bad {
+       background-image: url(icons/Database-Bad.svg);
+     }
+ 
+     .Database-Degraded {
+       background-image: url(icons/Database-Degraded.svg);
+     }
+ 
+     .Database {
+       background-image: url(icons/Database.svg);
+     }
+ 
+     .DataGraph {
+       background-image: url(icons/Data-Graph.svg);
+     }
+ 
+     .Date {
+       background-image: url(icons/Date.svg);
+     }
+ 
+     .Delete {
+       background-image: url(icons/Delete.svg);
+     }
+ 
+     .Download {
+       background-image: url(icons/Download.svg);
+     }
+ 
+     .DownloadLink {
+       background-image: url(icons/DownloadLink.svg);
+     }
+ 
+     .Draggable {
+       background-image: url(icons/Draggable.svg);
+     }
+     
+     .DropdownDisabled {
+        background-image: url(icons/DropdownDisabled.svg);
+      }
 
     .DropdownEnabled {
-      background-image: url(icons/DropdownEnabled.svg);
-    }
-
-    .Edit {
-      background-image: url(icons/Edit.svg);
-    }
-
-    .EditActive {
-      background-image: url(icons/EditActive.svg);
-    }
-
-    .EditSmall {
-      background-image: url(icons/Edit-Small.svg);
-    }
-
-    .EngineStart {
-      background-image: url(icons/EngineStart.svg);
-    }
-
-    .Error {
-      background-image: url(icons/Error.svg);
-    }
-
-    .ErrorSolid {
-      background-image: url(icons/Error-Solid.svg);
-    }
-
-    .Expand {
-      background-image: url(icons/Expand.svg);
-    }
-
-    .ExpandText {
-      background-image: url(icons/Expand-Text.svg);
-    }
-
-    .File {
-      background-image: url(icons/File.svg);
-    }
-
-    .FileLarge {
-      background-image: url(icons/FileLarge.svg);
-    }
-
-    .FileConvert {
-      background-image: url(icons/File-Convert.svg);
-    }
-
-    .FileEmpty {
-      background-image: url(icons/EmptyFile.svg);
-    }
-
-    .Flame {
-      background-image: url(icons/Flame.svg);
-      background-size: contain;
-    }
-
-    .Flame-Disabled {
-      background-image: url(icons/Flame-Disabled.svg);
-      background-size: contain;
-    }
-
-    .Folder {
-      background-image: url(icons/Folder.svg);
-    }
-
-    .FolderConvert {
-      background-image: url(icons/Folder-Convert.svg);
-    }
-
-    .FolderData {
-      background-image: url(icons/FolderData.svg);
-    }
-
-    .FolderDataLarge {
-      background-image: url(icons/FolderDataLarge.svg);
-    }
-
-    .UserGroup {
-      background-image: url(icons/UserGroup.svg);
-    }
-
-    .Group {
-      background-image: url(icons/Group.svg);
-      background-size: contain;
-    }
-
-    .Home {
-      background-image: url(icons/Home.svg);
-    }
-
-    .InfoCircleNoninteractive {
-      background-image: url(icons/Info-Circle-Noninteractive.svg);
-    }
-
-    .InfoCircle {
-      background-image: url(icons/Info-Circle.svg);
-    }
-
-    .InfoCircleSolid {
-      background-image: url(icons/Info-Circle-Solid.svg);
-    }
-
-    .Info {
-      background-image: url(icons/Info.svg);
-    }
-
-    .Join {
-      background-image: url(icons/Join.svg);
-    }
-
-    .JoinFull {
-      background-image: url(icons/Join-Full.svg);
-    }
-
-    .JoinInner {
-      background-image: url(icons/Join-Inner.svg);
-    }
-
-    .JoinLeft {
-      background-image: url(icons/Join-Left.svg);
-    }
-
-    .JoinRight {
-      background-image: url(icons/Join-Right.svg);
-    }
-
-    .Loader {
-      background-image: url(icons/Loader.svg);
-    }
-
-    .Lookup {
-      background-image: url(icons/Lookup.svg);
-    }
-
-    .Masked {
-      background-image: url(icons/Masked.svg);
-    }
-
-    .Minus {
-      background-image: url(icons/Minus.svg);
-    }
-
-    .MinusSimple {
-      background-image: url(icons/Minus-Simple.svg);
-    }
-
-    .NarwhalLogoWithNameLight {
-      background-image: url('~Narwhal-Logo-With-Name-Light');
-      background-size: contain; // todo: should they all use this?
-    }
-
-    .NarwhalLogo {
-      background-image: url(icons/Narwhal-Logo.svg);
-    }
-
-    .NarwhalReversed {
-      background-image: url(icons/Narwhal-Reversed.svg);
-    }
-
-    .OK {
-      background-image: url(icons/OK.svg);
-    }
-
-    .OKGrey {
-      background-image: url(icons/OKGrey.svg);
-    }
-
-    .OKSolid {
-      background-image: url(icons/OK-Solid.svg);
-    }
-
-    .OKSolidGrey {
-      background-image: url(icons/OKSolidGrey.svg);
-    }
-
-    .OpenBI {
-      background-image: url(icons/OpenBI.svg);
-    }
-
-    .Pending {
-      background-image: url(icons/Pending.svg);
-    }
-
-    .PendingDiamond {
-      background-image: url(icons/PendingDiamond.svg);
-    }
-
-    .PendingGray {
-      background-image: url(icons/PendingGray.svg);
-    }
-
-    .PlusSign {
-      background-image: url(icons/PlusSign.svg);
-    }
-
-    .Disabled {
-      background-image: url(icons/Disabled.svg);
-    }
-
-    .PhysicalDataset {
-      background-image: url(icons/PhysicalDataset.svg);
-    }
-
-    .PhysicalDatasetLarge {
-      background-image: url(icons/PhysicalDatasetLarge.svg);
-    }
-
-    .Pin {
-      background-image: url(icons/Pin.svg);
-    }
-
-    .Planning {
-      background-image: url(icons/Planning.svg);
-    }
-
-    .Publish {
-      background-image: url(icons/Publish.svg);
-    }
-
-    .Query {
-      background-image: url(icons/Query.svg);
-    }
-
-    .QueryPlain {
-      background-image: url(icons/QueryPlain.svg);
-    }
-
-    .Queued {
-      background-image: url(icons/Queued.svg);
-    }
-
-    .Raw-Reversed {
-      background-image: url(icons/Raw-Reversed.svg);
-    }
-
-    .Recent {
-      background-image: url(icons/Recent.svg);
-    }
-
-    .Recenter {
-      background-image: url(icons/Recenter.svg);
-    }
-
-    .Return {
-      background-image: url(icons/Return.svg);
-    }
-
-    .Save {
-      background-image: url(icons/Save.svg);
-    }
-
-    .Search {
-      background-image: url(icons/Search.svg);
-    }
-
-    .SearchPaleNavy {
-      background-image: url(icons/Search-Pale-Navy.svg);
-    }
-
-    .Settings {
-      background-image: url(icons/Settings.svg);
-    }
-
-    .SettingsSmall {
-      background-image: url(icons/Settings-Small.svg);
-    }
-
-    .SettingsMediumFilled {
-      background-image: url(icons/SettingsMediumFilled.svg);
-    }
-
-    .Space {
-      background-image: url(icons/Space.svg);
-    }
-
-    .SpacePrivate {
-      background-image: url(icons/SpacePrivate.svg);
-    }
-
-    .Starting {
-      background-image: url(icons/Starting.svg);
-    }
-
-    .Time {
-      background-image: url(icons/Time.svg);
-    }
-
-    .Trace {
-      background-image: url(icons/Trace.svg);
-    }
-
-    .TypeBinary {
-      background-image: url(icons/Type-Binary.svg);
-    }
-
-    .TypeBoolean {
-      background-image: url(icons/Type-Boolean.svg);
-    }
-
-    .TypeDateTime {
-      background-image: url(icons/Type-Date-Time.svg);
-    }
-
-    .TypeDecimal {
-      background-image: url(icons/Type-Decimal.svg);
-    }
-
-    .TypeFloat {
-      background-image: url(icons/Type-Float.svg);
-    }
-
-    .TypeGeo {
-      background-image: url(icons/Type-Geo.svg);
-    }
-
-    .TypeInteger {
-      background-image: url(icons/Type-Integer.svg);
-    }
-
-    .TypeList {
-      background-image: url(icons/Type-List.svg);
-    }
-
-    .TypeMap {
-      background-image: url(icons/Type-Map.svg);
-    }
-
-    .TypeMixed {
-      background-image: url(icons/Type-Mixed.svg);
-    }
-
-    .TypeText {
-      background-image: url(icons/Type-Text.svg);
-    }
-
-    .TypeOther {
-      background-image: url(icons/Type-Other.svg);
-    }
-
-    .User {
-      background-image: url(icons/User.svg);
-    }
-
-    .Upload {
-      background-image: url(icons/Upload.svg);
-    }
-
-    .VirtualDataset {
-      background-image: url(icons/VirtualDataset.svg);
-    }
-
-    .OtherDataSets {
-      background-image: url(icons/OtherDataSets.svg);
-    }
-
-    .VirtualDatasetLarge {
-      background-image: url(icons/VirtualDatasetLarge.svg);
-    }
-
-    .Visibility {
-      background-image: url(icons/Visibility.svg);
-    }
-
-    .Visibility-Off {
-      background-image: url(icons/Visibility-Off.svg);
-    }
-
-    .Warning {
-      background-image: url(icons/Warning.svg);
-    }
-
-    .WarningSolid {
-      background-image: url(icons/WarningSolid.svg);
-    }
-
-    .XBig {
-      background-image: url(icons/X-Big.svg);
-    }
-
-    .XBigWhite {
-      background-image: url(icons/X-BigWhite.svg);
-    }
-
-    .XSmall {
-      background-image: url(icons/X-Small.svg);
-    }
-
-    .Ellipsis {
-      background-image: url(icons/Ellipsis.svg);
-    }
-
-    .Qlik-logo {
-      background-image: url(icons/qliklogo.png);
-    }
-
-    .Trash {
-      background-image: url(icons/Trash-small.svg);
-    }
-  }
-} 
+        background-image: url(icons/DropdownEnabled.svg);
+      }
+
+     .Edit {
+       background-image: url(icons/Edit.svg);
+     }
+ 
+     .EditActive {
+       background-image: url(icons/EditActive.svg);
+     }
+ 
+     .EditSmall {
+       background-image: url(icons/Edit-Small.svg);
+     }
+ 
+     .EngineStart {
+       background-image: url(icons/EngineStart.svg);
+     }
+ 
+     .Error {
+       background-image: url(icons/Error.svg);
+     }
+ 
+     .ErrorSolid {
+       background-image: url(icons/Error-Solid.svg);
+     }
+ 
+     .Expand {
+       background-image: url(icons/Expand.svg);
+     }
+ 
+     .ExpandText {
+       background-image: url(icons/Expand-Text.svg);
+     }
+ 
+     .File {
+       background-image: url(icons/File.svg);
+     }
+ 
+     .FileLarge {
+       background-image: url(icons/FileLarge.svg);
+     }
+ 
+     .FileConvert {
+       background-image: url(icons/File-Convert.svg);
+     }
+ 
+     .FileEmpty {
+       background-image: url(icons/EmptyFile.svg);
+     }
+ 
+     .Flame {
+       background-image: url(icons/Flame.svg);
+       background-size: contain;
+     }
+ 
+     .Flame-Disabled {
+       background-image: url(icons/Flame-Disabled.svg);
+       background-size: contain;
+     }
+ 
+     .Folder {
+       background-image: url(icons/Folder.svg);
+     }
+ 
+     .FolderConvert {
+       background-image: url(icons/Folder-Convert.svg);
+     }
+ 
+     .FolderData {
+       background-image: url(icons/FolderData.svg);
+     }
+ 
+     .FolderDataLarge {
+       background-image: url(icons/FolderDataLarge.svg);
+     }
+ 
+     .UserGroup {
+       background-image: url(icons/UserGroup.svg);
+     }
+ 
+     .Group {
+       background-image: url(icons/Group.svg);
+       background-size: contain;
+     }
+ 
+     .Home {
+       background-image: url(icons/Home.svg);
+     }
+ 
+     .InfoCircleNoninteractive {
+       background-image: url(icons/Info-Circle-Noninteractive.svg);
+     }
+ 
+     .InfoCircle {
+       background-image: url(icons/Info-Circle.svg);
+     }
+ 
+     .InfoCircleSolid {
+       background-image: url(icons/Info-Circle-Solid.svg);
+     }
+ 
+     .Info {
+       background-image: url(icons/Info.svg);
+     }
+ 
+     .Join {
+       background-image: url(icons/Join.svg);
+     }
+ 
+     .JoinFull {
+       background-image: url(icons/Join-Full.svg);
+     }
+ 
+     .JoinInner {
+       background-image: url(icons/Join-Inner.svg);
+     }
+ 
+     .JoinLeft {
+       background-image: url(icons/Join-Left.svg);
+     }
+ 
+     .JoinRight {
+       background-image: url(icons/Join-Right.svg);
+     }
+ 
+     .Loader {
+       background-image: url(icons/Loader.svg);
+     }
+ 
+     .Lookup {
+       background-image: url(icons/Lookup.svg);
+     }
+ 
+     .Masked {
+       background-image: url(icons/Masked.svg);
+     }
+ 
+     .Minus {
+       background-image: url(icons/Minus.svg);
+     }
+ 
+     .MinusSimple {
+       background-image: url(icons/Minus-Simple.svg);
+     }
+ 
+     .NarwhalLogoWithNameLight {
+       background-image: url('~Narwhal-Logo-With-Name-Light');
+       background-size: contain; // todo: should they all use this?
+     }
+ 
+     .NarwhalLogo {
+       background-image: url(icons/Narwhal-Logo.svg);
+     }
+ 
+     .NarwhalReversed {
+       background-image: url(icons/Narwhal-Reversed.svg);
+     }
+ 
+     .OK {
+       background-image: url(icons/OK.svg);
+     }
+ 
+     .OKGrey {
+       background-image: url(icons/OKGrey.svg);
+     }
+ 
+     .OKSolid {
+       background-image: url(icons/OK-Solid.svg);
+     }
+ 
+     .OKSolidGrey {
+       background-image: url(icons/OKSolidGrey.svg);
+     }
+ 
+     .OpenBI {
+       background-image: url(icons/OpenBI.svg);
+     }
+ 
+     .Pending {
+       background-image: url(icons/Pending.svg);
+     }
+ 
+     .PendingDiamond {
+       background-image: url(icons/PendingDiamond.svg);
+     }
+ 
+     .PendingGray {
+       background-image: url(icons/PendingGray.svg);
+     }
+ 
+     .PlusSign {
+       background-image: url(icons/PlusSign.svg);
+     }
+ 
+     .Disabled {
+       background-image: url(icons/Disabled.svg);
+     }
+ 
+     .PhysicalDataset {
+       background-image: url(icons/PhysicalDataset.svg);
+     }
+ 
+     .PhysicalDatasetLarge {
+       background-image: url(icons/PhysicalDatasetLarge.svg);
+     }
+ 
+     .Pin {
+       background-image: url(icons/Pin.svg);
+     }
+ 
+     .Planning {
+       background-image: url(icons/Planning.svg);
+     }
+ 
+     .Publish {
+       background-image: url(icons/Publish.svg);
+     }
+ 
+     .Query {
+       background-image: url(icons/Query.svg);
+     }
+ 
+     .QueryPlain {
+       background-image: url(icons/QueryPlain.svg);
+     }
+ 
+     .Queued {
+       background-image: url(icons/Queued.svg);
+     }
+ 
+     .Raw-Reversed {
+       background-image: url(icons/Raw-Reversed.svg);
+     }
+ 
+     .Recent {
+       background-image: url(icons/Recent.svg);
+     }
+ 
+     .Recenter {
+       background-image: url(icons/Recenter.svg);
+     }
+ 
+     .Return {
+       background-image: url(icons/Return.svg);
+     }
+ 
+     .Save {
+       background-image: url(icons/Save.svg);
+     }
+ 
+     .Search {
+       background-image: url(icons/Search.svg);
+     }
+ 
+     .SearchPaleNavy {
+       background-image: url(icons/Search-Pale-Navy.svg);
+     }
+ 
+     .Settings {
+       background-image: url(icons/Settings.svg);
+     }
+ 
+     .SettingsSmall {
+       background-image: url(icons/Settings-Small.svg);
+     }
+ 
+     .SettingsMediumFilled {
+       background-image: url(icons/SettingsMediumFilled.svg);
+     }
+ 
+     .Space {
+       background-image: url(icons/Space.svg);
+     }
+ 
+     .SpacePrivate {
+       background-image: url(icons/SpacePrivate.svg);
+     }
+ 
+     .Starting {
+       background-image: url(icons/Starting.svg);
+     }
+ 
+     .Time {
+       background-image: url(icons/Time.svg);
+     }
+ 
+     .Trace {
+       background-image: url(icons/Trace.svg);
+     }
+ 
+     .TypeBinary {
+       background-image: url(icons/Type-Binary.svg);
+     }
+ 
+     .TypeBoolean {
+       background-image: url(icons/Type-Boolean.svg);
+     }
+ 
+     .TypeDateTime {
+       background-image: url(icons/Type-Date-Time.svg);
+     }
+ 
+     .TypeDecimal {
+       background-image: url(icons/Type-Decimal.svg);
+     }
+ 
+     .TypeFloat {
+       background-image: url(icons/Type-Float.svg);
+     }
+ 
+     .TypeGeo {
+       background-image: url(icons/Type-Geo.svg);
+     }
+ 
+     .TypeInteger {
+       background-image: url(icons/Type-Integer.svg);
+     }
+ 
+     .TypeList {
+       background-image: url(icons/Type-List.svg);
+     }
+ 
+     .TypeMap {
+       background-image: url(icons/Type-Map.svg);
+     }
+ 
+     .TypeMixed {
+       background-image: url(icons/Type-Mixed.svg);
+     }
+ 
+     .TypeText {
+       background-image: url(icons/Type-Text.svg);
+     }
+ 
+     .TypeOther {
+       background-image: url(icons/Type-Other.svg);
+     }
+ 
+     .User {
+       background-image: url(icons/User.svg);
+     }
+ 
+     .Upload {
+       background-image: url(icons/Upload.svg);
+     }
+ 
+     .VirtualDataset {
+       background-image: url(icons/VirtualDataset.svg);
+     }
+ 
+     .OtherDataSets {
+       background-image: url(icons/OtherDataSets.svg);
+     }
+ 
+     .VirtualDatasetLarge {
+       background-image: url(icons/VirtualDatasetLarge.svg);
+     }
+ 
+     .Visibility {
+       background-image: url(icons/Visibility.svg);
+     }
+ 
+     .Visibility-Off {
+       background-image: url(icons/Visibility-Off.svg);
+     }
+ 
+     .Warning {
+       background-image: url(icons/Warning.svg);
+     }
+ 
+     .WarningSolid {
+       background-image: url(icons/WarningSolid.svg);
+     }
+ 
+     .XBig {
+       background-image: url(icons/X-Big.svg);
+     }
+ 
+     .XBigWhite {
+       background-image: url(icons/X-BigWhite.svg);
+     }
+ 
+     .XSmall {
+       background-image: url(icons/X-Small.svg);
+     }
+ 
+     .Ellipsis {
+       background-image: url(icons/Ellipsis.svg);
+     }
+ 
+     .Qlik-logo {
+       background-image: url(icons/qliklogo.png);
+     }
+ 
+     .Trash {
+       background-image: url(icons/Trash-small.svg);
+     }
+   }
+ }
+ 

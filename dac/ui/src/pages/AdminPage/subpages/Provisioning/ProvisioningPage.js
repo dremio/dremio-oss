@@ -18,7 +18,11 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+import { compose } from 'redux';
+import { withRouter } from 'react-router';
 import { injectIntl, FormattedMessage } from 'react-intl';
+
+import withEnginePrivileges from '@inject/pages/AdminPage/subpages/Provisioning/withEnginePrivileges';
 
 import {
   loadProvision, removeProvision,
@@ -65,7 +69,10 @@ export class ProvisioningPage extends Component {
     showConfirmationDialog: PropTypes.func,
     addNotification: PropTypes.func,
     editProvision: PropTypes.func,
-    intl: PropTypes.object
+    intl: PropTypes.object,
+    canCreate: PropTypes.bool,
+    location: PropTypes.object,
+    router: PropTypes.object
   };
 
   state = {
@@ -76,7 +83,7 @@ export class ProvisioningPage extends Component {
 
   _isUnmounted = false;
 
-  componentWillMount() {
+  componentDidMount() {
     this.startPollingProvisionData(true);
     this.loadData();
   }
@@ -87,7 +94,14 @@ export class ProvisioningPage extends Component {
   }
 
   removeProvision = (entity) => {
-    const { state: { selectedEngineId }, unselectEngine } = this;
+    const { unselectEngine } = this;
+    const {
+      location: {
+        state: {
+          selectedEngineId
+        } = {}
+      } = {}
+    } = this.props;
     const removeFunction = getRemoveFunction(this.props);
     const loadFunction = getLoadProvisionFunction(this.props);
     ApiUtils.attachFormSubmitHandlers(
@@ -173,10 +187,48 @@ export class ProvisioningPage extends Component {
   };
 
   selectEngine = (engineId) => {
-    this.setState({selectedEngineId: engineId});
-  };
+    const {
+      location,
+      router
+    } = this.props;
+    const {
+      state: locationState
+    } = location || {};
+    router.push({
+      ...location,
+      state: {
+        ...locationState,
+        selectedEngineId: engineId,
+        fromEngineListPage: true
+      }
+    });
+  }
+
   unselectEngine = () => {
-    this.setState({selectedEngineId: null});
+    const {
+      router,
+      location
+    } = this.props;
+
+    const {
+      state: locationState
+    } = location || {};
+
+    const {
+      fromEngineListPage
+    } = locationState || {};
+
+    if (fromEngineListPage) {
+      router.goBack();
+    } else {
+      router.push({
+        ...location,
+        state: {
+          ...locationState,
+          selectedEngineId: null
+        }
+      });
+    }
   };
 
   openAddProvisionModal = () => {
@@ -222,9 +274,18 @@ export class ProvisioningPage extends Component {
   )
 
   renderHeader() {
-    const { selectedEngineId } = this.state;
+    const {
+      canCreate,
+      provisions,
+      location: {
+        state: {
+          selectedEngineId
+        } = {}
+      } = {}
+    } = this.props;
+
     const selectedEngine = this.getSelectedEngine(selectedEngineId);
-    return (selectedEngineId) ?
+    return (selectedEngineId && selectedEngine) ?
       <SingleEngineHeader
         engine={selectedEngine}
         unselectEngine={this.unselectEngine}
@@ -232,12 +293,13 @@ export class ProvisioningPage extends Component {
         handleStartStop={this.handleChangeProvisionState}
         removeProvision={this.handleRemoveProvision}
         showConfirmationDialog={this.props.showConfirmationDialog}
+        provisions={provisions}
         {...getExtraFunctions(this.props)}
       /> :
       <SettingHeader
         titleStyle={{fontSize: 20}}
         title={la('Engines')}
-        endChildren={this.renderAddEngineButton()}
+        endChildren={canCreate ? this.renderAddEngineButton() : null}
       />;
   }
 
@@ -246,7 +308,7 @@ export class ProvisioningPage extends Component {
     const queues = this.getQueues();
     return (
       <div style={styles.baseContent}>
-        {selectedEngineId && <SingleEngineView
+        {selectedEngineId && selectedEngine && <SingleEngineView
           engine={selectedEngine} queues={queues} viewState={viewState}
         />}
         {!selectedEngineId && <ClusterListView
@@ -265,8 +327,15 @@ export class ProvisioningPage extends Component {
   }
 
   render() {
-    const { viewState, provisions } = this.props;
-    const { selectedEngineId } = this.state;
+    const {
+      location: {
+        state: {
+          selectedEngineId
+        } = {}
+      } = {},
+      provisions,
+      viewState
+    } = this.props;
     // want to not flicker the UI as we poll
     const isInFirstLoad = !this.pollId;
     return (
@@ -292,17 +361,25 @@ function mapStateToProps(state) {
   };
 }
 
-export default connect(mapStateToProps, {
-  loadProvision,
-  removeProvision,
-  openAddProvisionModal,
-  openEditProvisionModal,
-  openAdjustWorkersModal,
-  showConfirmationDialog,
-  addNotification,
-  editProvision,
-  ...extraProvisingPageMapDispatchToProps
-})(injectIntl(ProvisioningPage));
+export default compose(
+  connect(
+    mapStateToProps,
+    {
+      loadProvision,
+      removeProvision,
+      openAddProvisionModal,
+      openEditProvisionModal,
+      openAdjustWorkersModal,
+      showConfirmationDialog,
+      addNotification,
+      editProvision,
+      ...extraProvisingPageMapDispatchToProps
+    }
+  ),
+  injectIntl,
+  withRouter,
+  withEnginePrivileges
+)(ProvisioningPage);
 
 const styles = {
   baseContent: {

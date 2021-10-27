@@ -17,8 +17,6 @@ package com.dremio.exec.store.sys.accesscontrol;
 
 import java.util.Objects;
 
-import com.dremio.exec.proto.AccessControlRPC;
-
 /**
  * Schema for system table entry for sys.membership.
  */
@@ -73,31 +71,5 @@ public class SysTableMembershipInfo {
       ", member_name='" + member_name + '\'' +
       ", member_type='" + member_type + '\'' +
       '}';
-  }
-
-  public static SysTableMembershipInfo toMembershipInfo(AccessControlRPC.MembershipInfo membershipInfoProto) {
-    return new SysTableMembershipInfo(
-      membershipInfoProto.getRoleName(),
-      membershipInfoProto.getMemberName(),
-      membershipInfoProto.getMemberType());
-  }
-
-  public AccessControlRPC.MembershipInfo toProto() {
-    AccessControlRPC.MembershipInfo.Builder membershipInfoProto =
-      AccessControlRPC.MembershipInfo.newBuilder();
-
-    if (role_name != null) {
-      membershipInfoProto.setRoleName(role_name);
-    }
-
-    if (member_name != null) {
-      membershipInfoProto.setMemberName(member_name);
-    }
-
-    if (member_type != null) {
-      membershipInfoProto.setMemberType(member_type);
-    }
-
-    return membershipInfoProto.build();
   }
 }

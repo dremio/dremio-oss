@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { PRIMARY_600, linen } from '@app/uiTheme/less/color-schema.less';
 import { PALE_NAVY, NAVY } from 'uiTheme/radium/colors';
 import { bodyWhite } from 'uiTheme/radium/typography';
 
 export const arrowWidth = '5px';
 
 const typeToColor = {
-  error: '#FEEAEA',
+  error: linen,
   info: PALE_NAVY,
   status: NAVY,
-  custom: '#31D3DB'
+  custom: PRIMARY_600
 };
 
 
@@ -50,7 +51,10 @@ export default function getTooltipStyles(type) {
       width: 180,
       borderRadius: 5,
       padding: '9px 10px',
-      ...(type === 'status' ? bodyWhite : null)
+      ...(type === 'status' ? bodyWhite : null),
+      height: 'auto',
+      maxHeight: '800px',
+      overflowY: 'auto'
     },
 
     arrow: {

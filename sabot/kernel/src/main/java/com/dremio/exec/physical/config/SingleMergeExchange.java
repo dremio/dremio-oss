@@ -32,6 +32,7 @@ import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.ParallelizationInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -40,6 +41,7 @@ public class SingleMergeExchange extends AbstractExchange {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingleMergeExchange.class);
 
   private final List<Ordering> orderExpr;
+  private final OptionManager optionManager;
 
   public SingleMergeExchange(
       OpProps props,
@@ -47,9 +49,11 @@ public class SingleMergeExchange extends AbstractExchange {
       OpProps receiverProps,
       BatchSchema schema,
       PhysicalOperator child,
-      List<Ordering> orderExpr) {
-    super(props, senderProps, receiverProps, schema, child);
+      List<Ordering> orderExpr,
+      OptionManager optionManager) {
+    super(props, senderProps, receiverProps, schema, child, optionManager);
     this.orderExpr = orderExpr;
+    this.optionManager = optionManager;
   }
 
   @Override
@@ -89,7 +93,7 @@ public class SingleMergeExchange extends AbstractExchange {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new SingleMergeExchange(props, senderProps, receiverProps, schema, child, orderExpr);
+    return new SingleMergeExchange(props, senderProps, receiverProps, schema, child, orderExpr, optionManager);
   }
 
   @JsonProperty("orderings")

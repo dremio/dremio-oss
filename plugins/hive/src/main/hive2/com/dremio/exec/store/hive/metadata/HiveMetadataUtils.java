@@ -72,6 +72,8 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.Snapshot;
 import org.apache.parquet.Strings;
 import org.slf4j.helpers.MessageFormatter;
 
@@ -81,6 +83,7 @@ import com.dremio.common.util.DateTimes;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
+import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.connector.metadata.PartitionValue;
@@ -90,9 +93,11 @@ import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
 import com.dremio.connector.metadata.options.RefreshTableFilterOption;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
+import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
+import com.dremio.exec.store.file.proto.FileProtobuf;
 import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveSchemaConverter;
@@ -100,6 +105,11 @@ import com.dremio.exec.store.hive.HiveSettings;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.exec.store.hive.exec.apache.PathUtils;
+import com.dremio.exec.store.hive.exec.metadata.SchemaConverter;
+import com.dremio.exec.store.hive.file.HiveFileIO;
+import com.dremio.exec.store.hive.iceberg.IcebergHiveTableIdentifier;
+import com.dremio.exec.store.hive.iceberg.IcebergHiveTableOperations;
+import com.dremio.exec.store.hive.iceberg.IcebergInputFormat;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
 import com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType;
@@ -108,6 +118,8 @@ import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.thrift.TException;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
@@ -127,6 +139,9 @@ public class HiveMetadataUtils {
   private static final int INPUT_SPLIT_LENGTH_RUNNABLE_PARALLELISM = 16;
   private static final long MAX_NAMENODE_FS_CALL_TIMEOUT = 2000l;
   private static final Joiner PARTITION_FIELD_SPLIT_KEY_JOINER = Joiner.on("__");
+  public static final String TABLE_TYPE = "table_type";
+  public static final String ICEBERG = "iceberg";
+  public static final String METADATA_LOCATION = "metadata_location";
 
   public static class SchemaComponents {
     private final String tableName;
@@ -182,10 +197,17 @@ public class HiveMetadataUtils {
   public static InputFormat<?, ?> getInputFormat(Table table, final HiveConf hiveConf) {
     try (final Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       final JobConf job = new JobConf(hiveConf);
-      final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
-      job.setInputFormat(inputFormatClazz);
-      return job.getInputFormat();
+      return getInputFormat(table, job, null);
     }
+  }
+
+  public static InputFormat<?, ?> getInputFormat(Table table, final JobConf job, Partition partition) {
+    if (isIcebergTable(table)) {
+      return new IcebergInputFormat();
+    }
+    final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
+    job.setInputFormat(inputFormatClazz);
+    return job.getInputFormat();
   }
 
   public static boolean isTransactionalTable(Table table) {
@@ -194,9 +216,15 @@ public class HiveMetadataUtils {
 
   public static boolean isValidInputFormatForIcebergExecution(Table table, HiveConf conf) {
     final InputFormat<?, ?> format = HiveMetadataUtils.getInputFormat(table, conf);
-    return (isParquetFormat(format) && !shouldUseFileSplitsFromInputFormat(format))
+    return ((isParquetFormat(format) && !shouldUseFileSplitsFromInputFormat(format))
       || isAvroFormat(format)
-      || (isOrcFormat(format) && !isTransactionalTable(table));
+      || (isOrcFormat(format) && !isTransactionalTable(table)))
+      && !isIcebergInputFormat(format);
+  }
+
+  public static boolean isIcebergTable(Table table) {
+    String tableTypeValue = table.getParameters().get(TABLE_TYPE);
+    return tableTypeValue != null && tableTypeValue.equalsIgnoreCase(ICEBERG);
   }
 
   public static boolean isInputFormatSameForAllPartitions(HiveClient client,
@@ -439,7 +467,7 @@ public class HiveMetadataUtils {
                                                final boolean ignoreAuthzErrors,
                                                final int maxMetadataLeafColumns,
                                                final int maxNestedLevels,
-                                               final boolean includeComplexParquetColumns,
+                                               final boolean includeComplexParquetCols,
                                                final HiveConf hiveConf) throws ConnectorException {
 
     try {
@@ -452,37 +480,87 @@ public class HiveMetadataUtils {
         throw new ConnectorException(
           MessageFormatter.format("Dataset path '{}', table not found.", datasetPath).getMessage());
       }
-
-      final InputFormat<?, ?> format = getInputFormat(table, hiveConf);
-
       final Properties tableProperties = MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table.getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
-      final List<Field> fields = new ArrayList<>();
-      final List<String> partitionColumns = new ArrayList<>();
-
-      HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetColumns);
-      HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
-      HiveSchemaConverter.checkFieldNestedLevels(table, maxNestedLevels);
-      final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
-
-      final List<ColumnInfo> columnInfos = buildColumnInfo(table, format, includeComplexParquetColumns);
-
-      final TableMetadata tableMetadata = TableMetadata.newBuilder()
-        .table(table)
-        .tableProperties(tableProperties)
-        .batchSchema(batchSchema)
-        .fields(fields)
-        .partitionColumns(partitionColumns)
-        .columnInfos(columnInfos)
-        .build();
-
+      TableMetadata tableMetadata;
+      if (isIcebergTable(table)) {
+        tableMetadata = getTableMetadataFromIceberg(hiveConf, table, tableProperties);
+      } else {
+        tableMetadata = getTableMetadataFromHMS(table, tableProperties, datasetPath,
+          maxMetadataLeafColumns, maxNestedLevels, includeComplexParquetCols, hiveConf);
+      }
       HiveMetadataUtils.injectOrcIncludeFileIdInSplitsConf(tableMetadata.getTableStorageCapabilities(), tableProperties);
-
       return tableMetadata;
     } catch (ConnectorException e) {
       throw e;
     } catch (Exception e) {
       throw new ConnectorException(e);
     }
+  }
+
+  private static TableMetadata getTableMetadataFromIceberg(final HiveConf hiveConf, final Table table,
+                                                           final Properties tableProperties) {
+    JobConf jobConf = new JobConf(hiveConf);
+
+    String metadataLocation = tableProperties.getProperty(METADATA_LOCATION, "");
+    IcebergHiveTableIdentifier hiveTableIdentifier = new IcebergHiveTableIdentifier(metadataLocation);
+    HiveFileIO fileIO = new HiveFileIO(jobConf);
+    IcebergHiveTableOperations hiveTableOperations = new IcebergHiveTableOperations(fileIO, hiveTableIdentifier);
+    BaseTable icebergTable = new BaseTable(hiveTableOperations, new Path(metadataLocation).getName());
+    icebergTable.refresh();
+
+    final Snapshot snapshot = icebergTable.currentSnapshot();
+    long numRecords = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-records", "0")) : 0L;
+    long numDataFiles = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0")) : 0L;
+
+    SchemaConverter schemaConverter = new SchemaConverter();
+    BatchSchema batchSchema = schemaConverter.fromIceberg(icebergTable.schema());
+    IcebergMetadata icebergMetadata = new IcebergMetadata()
+      .setFileType(FileType.ICEBERG);
+
+    return TableMetadata.newBuilder()
+      .table(table)
+      .tableProperties(tableProperties)
+      .batchSchema(batchSchema)
+      .fields(batchSchema.getFields())
+      .partitionColumns(schemaConverter.getPartitionColumns(icebergTable))
+      .columnInfos(new ArrayList<>())
+      .icebergMetadata(icebergMetadata)
+      .manifestStats(DatasetStats.of(numDataFiles, ScanCostFactor.EASY.getFactor()))
+      .recordCount(numRecords)
+      .build();
+  }
+
+  private static TableMetadata getTableMetadataFromHMS(final Table table,
+                                                       final Properties tableProperties,
+                                                       final EntityPath datasetPath,
+                                                       final int maxMetadataLeafColumns,
+                                                       final int maxNestedLevels,
+                                                       final boolean includeComplexParquetCols,
+                                                       final HiveConf hiveConf) throws ConnectorException {
+
+
+    final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
+
+    final InputFormat<?, ?> format = getInputFormat(table, hiveConf);
+
+    final List<Field> fields = new ArrayList<>();
+    final List<String> partitionColumns = new ArrayList<>();
+
+    HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetCols);
+    HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
+    HiveSchemaConverter.checkFieldNestedLevels(table, maxNestedLevels);
+    final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
+
+    final List<ColumnInfo> columnInfos = buildColumnInfo(table, format, includeComplexParquetCols);
+
+    return TableMetadata.newBuilder()
+      .table(table)
+      .tableProperties(tableProperties)
+      .batchSchema(batchSchema)
+      .fields(fields)
+      .partitionColumns(partitionColumns)
+      .columnInfos(columnInfos)
+      .build();
   }
 
   /**
@@ -674,6 +752,21 @@ public class HiveMetadataUtils {
     return datasetSplits;
   }
 
+  public static List<DatasetSplit> getDatasetSplitsForIcebergTables(TableMetadata tableMetadata) {
+    String metadataLocation = tableMetadata.getTableProperties().getProperty(METADATA_LOCATION, "");
+    EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
+      .setPath(metadataLocation)
+      .setStart(0)
+      .setLength(0)
+      .setUpdateKey(FileProtobuf.FileSystemCachedEntity.newBuilder()
+        .setPath(metadataLocation)
+        .setLastModificationTime(0))
+      .build();
+    List<DatasetSplitAffinity> splitAffinities = new ArrayList<>();
+    return Arrays.asList(DatasetSplit.of(
+      splitAffinities, 0, 0, splitExtended::writeTo));
+  }
+
   /**
    * Helper class that returns the size of the {@link InputSplit}. For non-transactional tables, the size is straight
    * forward. For transactional tables (currently only supported in ORC format), length need to be derived by
@@ -785,22 +878,15 @@ public class HiveMetadataUtils {
 
       final String scheme = uri.getScheme();
       if (!Strings.isNullOrEmpty(scheme)) {
-        if (scheme.regionMatches(true, 0, "s3", 0, 2)) {
-          /* AWS S3 does not support impersonation, last modified times or orc split file ids. */
-          return HiveStorageCapabilities.newBuilder()
-            .supportsImpersonation(false)
-            .supportsLastModifiedTime(false)
-            .supportsOrcSplitFileIds(false)
-            .build();
-        } else if (scheme.regionMatches(true, 0, "wasb", 0, 4) ||
+        if (scheme.regionMatches(true, 0, "s3", 0, 2) ||
+          scheme.regionMatches(true, 0, "wasb", 0, 4) ||
           scheme.regionMatches(true, 0, "abfs", 0, 4) ||
           scheme.regionMatches(true, 0, "wasbs", 0, 5) ||
-          scheme.regionMatches(true, 0, "abfss", 0, 5)) {
-          /* DX-17365: Azure Storage does not support correct last modified times, Azure returns last modified times,
-           *  however, the timestamps returned are incorrect. They reference the folder's create time rather
-           *  that the folder content's last modified time. Please see Prototype.java for Azure storage fs uri schemes. */
+          scheme.regionMatches(true, 0, "abfss", 0, 5) ||
+          scheme.regionMatches(true, 0, "gs", 0, 2)) {
+          /* Cloud FS do not support impersonation, last modified times or orc split file ids. */
           return HiveStorageCapabilities.newBuilder()
-            .supportsImpersonation(true)
+            .supportsImpersonation(false)
             .supportsLastModifiedTime(false)
             .supportsOrcSplitFileIds(false)
             .build();
@@ -894,17 +980,14 @@ public class HiveMetadataUtils {
       DirListInputSplitProto.DirListInputSplit dirListInputSplit = null;
       boolean trimStats = trimStats(splitType);
       HiveDatasetStats metastoreStats = null;
-      InputFormat<?, ?> format = null;
+      InputFormat<?, ?> format = getInputFormat(table, job, partition);
+      Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
       metadataAccumulator.setTableLocation(table.getSd().getLocation());
 
       if (null == partition) {
         partitionXattr = getPartitionXattr(table, fromProperties(tableMetadata.getTableProperties()));
 
         final HiveStorageCapabilities tableStorageCapabilities = tableMetadata.getTableStorageCapabilities();
-
-        final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
-        job.setInputFormat(inputFormatClazz);
-        format = job.getInputFormat();
 
         final StorageDescriptor storageDescriptor = table.getSd();
         if (splitType == DIR_LIST_INPUT_SPLIT) {
@@ -937,10 +1020,6 @@ public class HiveMetadataUtils {
       } else {
         final Properties partitionProperties = buildPartitionProperties(partition, table);
         final HiveStorageCapabilities partitionStorageCapabilities = getHiveStorageCapabilities(partition.getSd());
-
-        final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
-        job.setInputFormat(inputFormatClazz);
-        format = job.getInputFormat();
 
         final StorageDescriptor storageDescriptor = partition.getSd();
         if (splitType == DIR_LIST_INPUT_SPLIT) {
@@ -1037,6 +1116,10 @@ public class HiveMetadataUtils {
 
   private static boolean isAvroFormat(InputFormat<?, ?> format) {
     return AvroContainerInputFormat.class.isAssignableFrom(format.getClass());
+  }
+
+  private static boolean isIcebergInputFormat(InputFormat<?, ?> format) {
+    return (format instanceof IcebergInputFormat);
   }
 
   public static FileType getFileTypeFromInputFormat(Class<? extends InputFormat> inputFormat) {

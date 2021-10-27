@@ -71,14 +71,17 @@ public class DremioFileIO implements FileIO {
   public InputFile newInputFile(String path) {
     try {
       Long fileSize;
-      path = Path.getContainerSpecificRelativePath(Path.of(path));
-      Path modifiedPath = Path.of(path);
+      Path filePath = Path.of(path);
+      if (fs != null && !fs.supportsPathsWithScheme()) {
+        path = Path.getContainerSpecificRelativePath(filePath);
+        filePath = Path.of(path);
+      }
       if (fileLength == null && fs != null) {
-        fileSize = fs.getFileAttributes(modifiedPath).size();
+        fileSize = fs.getFileAttributes(filePath).size();
       } else {
         fileSize = fileLength;
       }
-      return new DremioInputFile(fs, modifiedPath, fileSize, context, dataset, datasourcePluginUID, conf);
+      return new DremioInputFile(fs, filePath, fileSize, context, dataset, datasourcePluginUID, conf);
     } catch (IOException e) {
       throw UserException.ioExceptionError(e).buildSilently();
     }

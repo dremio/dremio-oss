@@ -38,21 +38,21 @@ import com.dremio.exec.planner.cost.DremioCost.Factory;
  */
 public class AggregateRel extends AggregateRelBase implements Rel {
   /** Creates a AggregateRel. */
-  private AggregateRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, boolean indicator, ImmutableBitSet groupSet,
+  private AggregateRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) throws InvalidRelException {
-    super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
+    super(cluster, traits, child, groupSet, groupSets, aggCalls);
   }
 
-  public static AggregateRel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, boolean indicator, ImmutableBitSet groupSet,
+  public static AggregateRel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, ImmutableBitSet groupSet,
   List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) throws InvalidRelException {
     final RelTraitSet adjustedTraits = adjustTraits(traits);
-    return new AggregateRel(cluster, adjustedTraits, child, indicator, groupSet, groupSets, aggCalls);
+    return new AggregateRel(cluster, adjustedTraits, child, groupSet, groupSets, aggCalls);
   }
 
   @Override
-  public Aggregate copy(RelTraitSet traitSet, RelNode input, boolean indicator, ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
+  public Aggregate copy(RelTraitSet traitSet, RelNode input, ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
     try {
-      return AggregateRel.create(getCluster(), traitSet, input, indicator, groupSet, groupSets, aggCalls);
+      return AggregateRel.create(getCluster(), traitSet, input, groupSet, groupSets, aggCalls);
     } catch (InvalidRelException e) {
       // Semantic error not possible. Must be a bug. Convert to
       // internal error.

@@ -29,7 +29,7 @@ message StatisticMessage {
   required int64 created_at = 2;
   optional int64 ndv = 3;
   optional bytes serialized_tdigest = 4;
-  optional bytes serialized_cms = 5;
+  optional bytes serialized_items_sketch = 5;
   optional int64 column_row_count = 6;
   optional int64 version = 7;
   optional int64 row_count = 8;

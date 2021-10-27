@@ -36,6 +36,7 @@ import java.security.AccessControlException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -317,7 +318,7 @@ public class TestRecursiveDirectoryStream extends DremioTest {
     }
 
     @Override
-    public AsyncByteReader getAsyncByteReader(FileKey fileKey) throws IOException {
+    public AsyncByteReader getAsyncByteReader(FileKey fileKey, Map<String, String> options) throws IOException {
       throw new UnsupportedOperationException();
     }
   }

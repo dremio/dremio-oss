@@ -77,6 +77,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_special_chars_partitions_" + formatType + " (int_field INT) PARTITIONED BY (timestamp_part TIMESTAMP, char_part CHAR(10)) STORED AS " + formatType);
     dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_table_permission_" + formatType + "(col1 INT, col2 STRING) STORED AS " + formatType);
     dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_partition_permission_" + formatType + "(id INT) PARTITIONED BY (year INT, month STRING) STORED AS " + formatType);
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS refresh_v2_test_deleted_partition_" + formatType + "(id INT) PARTITIONED BY (year INT, month STRING) STORED AS " + formatType);
 
     // Dremio supports 800 columns by default, let's create a table with more columns.
     final String createWideTable = IntStream.range(0, 810).mapToObj(i -> "COL" + i + " int").collect(Collectors.joining(", ", "CREATE TABLE refresh_v2_test_maxwidth_" + formatType + "(", ") STORED AS " + formatType));
@@ -97,6 +98,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_maxwidth_" + formatType);
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_table_permission_" + formatType);
     dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_partition_permission_" + formatType);
+    dataGenerator.executeDDL("DROP TABLE IF EXISTS refresh_v2_test_deleted_partition_" + formatType);
     enableUnlimitedSplitsSupportFlags.close();
   }
 
@@ -286,6 +288,31 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     finally {
       fs.setPermission(partitionDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     }
+  }
+
+  @Test
+  public void testFullRefreshWithNonExistentPartitionDir() throws Exception {
+    final String tableName = "refresh_v2_test_deleted_partition_" + formatType;
+    final String insertCmd1 = "INSERT INTO " + tableName + " PARTITION(year=2020, month='Jan') VALUES(1)";
+    final String insertCmd2 = "INSERT INTO " + tableName + " PARTITION(year=2021, month='Jan') VALUES(2)";
+    dataGenerator.executeDDL(insertCmd1);
+    dataGenerator.executeDDL(insertCmd2);
+
+    // deleting a partition directory
+    final Path partitionDir = new Path(dataGenerator.getWhDir() + "/" + tableName.toLowerCase(Locale.ROOT) + "/year=2020/month=Jan");
+    assertTrue("Error deleting dir " + partitionDir, fs.delete(partitionDir, true));
+
+    final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
+    // this will do a full refresh
+    runSQL(sql);
+
+    String selectQuery = "SELECT * from " + HIVE + tableName;
+    testBuilder()
+      .sqlQuery(selectQuery)
+      .unOrdered()
+      .baselineColumns("id", "month", "year")
+      .baselineValues(2, "Jan", 2021)
+      .go();
   }
 
   private static boolean isDirEmpty(final java.nio.file.Path directory) throws IOException {

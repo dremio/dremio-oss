@@ -65,4 +65,9 @@ public class InputReference extends LogicalExpressionBase {
     return Collections.<LogicalExpression>singleton(reference).iterator();
   }
 
+  @Override
+  public int getSizeOfChildren() {
+    return 1;
+  }
+
 }

@@ -63,7 +63,7 @@ public class TestServerTracing extends BaseTestServer {
 
   @BeforeClass
   public static void init() throws Exception {
-    initializeCluster(isMultinode(), new DACDaemonModule() {
+    initializeCluster(new DACDaemonModule() {
       @Override
       public void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster) {
         super.bootstrap(shutdownHook, bootstrapRegistry, scanResult, dacConfig, isMaster);

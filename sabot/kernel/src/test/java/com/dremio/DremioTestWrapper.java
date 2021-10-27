@@ -44,6 +44,10 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.datasketches.ArrayOfItemsSerDe;
+import org.apache.datasketches.frequencies.ErrorType;
+import org.apache.datasketches.frequencies.ItemsSketch;
+import org.apache.datasketches.memory.Memory;
 import org.joda.time.Period;
 import org.junit.Assert;
 
@@ -62,10 +66,6 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.yahoo.memory.Memory;
-import com.yahoo.sketches.ArrayOfItemsSerDe;
-import com.yahoo.sketches.frequencies.ErrorType;
-import com.yahoo.sketches.frequencies.ItemsSketch;
 
 /**
  * An object to encapsulate the options for a Dremio unit test, as well as the execution methods to perform the tests and

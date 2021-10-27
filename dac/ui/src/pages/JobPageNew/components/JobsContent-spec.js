@@ -124,7 +124,7 @@ describe('JobsContent', () => {
     });
 
     it('should call setActiveJob if jobs have changed and there is no jobId', () => {
-      sinon.stub(socket, 'startListenToJobProgress');
+      sinon.stub(socket, 'startListenToQVJobProgress');
       sinon.spy(instance, 'setActiveJob');
 
       wrapper.setProps({jobId: undefined}).setContext(context);
@@ -165,7 +165,7 @@ describe('JobsContent', () => {
           durationDetails
         }
       ), true);
-      socket.startListenToJobProgress.restore();
+      socket.startListenToQVJobProgress.restore();
     });
 
     it('should call setActiveJob with first job if jobs have changed and there is no active job id', () => {
@@ -197,7 +197,7 @@ describe('JobsContent', () => {
     });
 
     it('should call runActionForJobs with startListenToJob as a callback when jobs change', () => {
-      sinon.stub(socket, 'startListenToJobProgress');
+      sinon.stub(socket, 'startListenToQVJobProgress');
       sinon.spy(instance, 'runActionForJobs');
 
       wrapper.setProps(commonProps).setContext(context);
@@ -216,8 +216,8 @@ describe('JobsContent', () => {
       wrapper.setProps({jobId: '456', jobs}).setContext(context);
       expect(instance.runActionForJobs).to.be.calledOnce;
       expect(instance.runActionForJobs).to.be.calledWith(jobs, false);
-      expect(socket.startListenToJobProgress).to.be.calledWith(jobs.getIn([0, 'id']));
-      socket.startListenToJobProgress.restore();
+      expect(socket.startListenToQVJobProgress).to.be.calledWith(jobs.getIn([0, 'id']));
+      socket.startListenToQVJobProgress.restore();
     });
   });
 
@@ -282,7 +282,7 @@ describe('JobsContent', () => {
       };
       const instance = shallow(<JobsContent {...props}/>, {context}).instance();
 
-      sinon.spy(socket, 'stopListenToJobProgress');
+      sinon.spy(socket, 'stoptListenToQVJobProgress');
       sinon.spy(instance, 'runActionForJobs');
 
       expect(instance.runActionForJobs).to.not.be.called;
@@ -291,8 +291,8 @@ describe('JobsContent', () => {
 
       expect(instance.runActionForJobs).to.be.calledOnce;
       expect(instance.runActionForJobs).to.be.calledWith(props.jobs, true);
-      expect(socket.stopListenToJobProgress).to.be.calledWith(props.jobs.getIn([0, 'id']));
-      socket.stopListenToJobProgress.restore();
+      expect(socket.stoptListenToQVJobProgress).to.be.calledWith(props.jobs.getIn([0, 'id']));
+      socket.stoptListenToQVJobProgress.restore();
     });
   });
 });

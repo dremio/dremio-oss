@@ -90,15 +90,16 @@ export default class Checkbox extends PureComponent {
     return <span className={labelContent}>{label}</span>;
   }
 
-  renderDummyCheckbox(isChecked, style) {
+  renderDummyCheckbox(isChecked, style, disabled) {
     const setCheckBoxClass = classNames(
       customCheckBox,
       this.props.checkBoxClass,
+      {'--disabled': disabled},
       { 'checked': isChecked }
     );
     return <div className={setCheckBoxClass} style={style}
       data-qa={this.props.dataQa || 'dummyCheckbox'}>
-      {isChecked || this.props.showCheckIcon ? <i className='fa fa-check' style={{ color: '#fff' }} /> : '\u00A0'}
+      {isChecked || this.props.showCheckIcon ? <i className='fa fa-check' style={{ color: isChecked ? '#fff' : '#43B8C9' }} /> : '\u00A0'}
     </div>;
   }
 
@@ -108,7 +109,7 @@ export default class Checkbox extends PureComponent {
       inputType, labelBefore,
       className, inverted, renderDummyInput,
       dataQa, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
-      toolTip, toolTipPosition,
+      toolTip, toolTipPosition, disabled,
       ...props
     } = this.props;
     const dummyCheckState = (inverted) ? !props.checked : props.checked;
@@ -121,7 +122,7 @@ export default class Checkbox extends PureComponent {
         <input disabled={this.props.disabled} type={inputType} style={styles.inputStyle} {...props} />
         {renderDummyInput && renderDummyInput(props.checked, dummyInputStyle)}
         {isOnOffSwitch && this.renderOnOffSwitch(props.checked, label, labelBefore)}
-        {!renderDummyInput && !isOnOffSwitch && this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)}
+        {!renderDummyInput && !isOnOffSwitch && this.renderDummyCheckbox(dummyCheckState, dummyInputStyle, disabled)}
       </TooltipEnabledLabel>
     );
   }

@@ -27,7 +27,6 @@ import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableTimeMilliHolder;
 import org.apache.arrow.vector.holders.NullableTimeStampMilliHolder;
 import org.apache.arrow.vector.holders.NullableVarBinaryHolder;
-import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.ObjectHolder;
 
 import com.dremio.exec.expr.AggrFunction;
@@ -274,69 +273,6 @@ public class TDigestFunctions {
       digest.obj = com.tdunning.math.stats.TDigest.createMergingDigest(compression.value);
     }
   }
-
-  @FunctionTemplate(name = "tdigest", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-  public static class NullableVarCharTDigestFunction implements AggrFunction {
-    @Param
-    private NullableVarCharHolder in;
-    @Workspace
-    private ObjectHolder digest;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder compression;
-    @Inject
-    OptionResolver options;
-
-    public void setup() {
-    }
-
-    @Override
-    public void add() {
-    }
-
-    @Override
-    public void output() {
-    }
-
-    @Override
-    public void reset() {
-    }
-  }
-
-  @FunctionTemplate(name = "tdigest", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
-  public static class NullableVarBinaryTDigestFunction implements AggrFunction {
-    @Param
-    private NullableVarBinaryHolder in;
-    @Workspace
-    private ObjectHolder digest;
-    @Output
-    private NullableVarBinaryHolder out;
-    @Inject
-    private ArrowBuf buffer;
-    @Workspace
-    IntHolder compression;
-    @Inject
-    OptionResolver options;
-
-    public void setup() {
-    }
-
-    @Override
-    public void add() {
-    }
-
-    @Override
-    public void output() {
-    }
-
-    @Override
-    public void reset() {
-    }
-  }
-
 
   /**
    * Merges the tdigest produced by the tdigest functions to produce a new tdigest

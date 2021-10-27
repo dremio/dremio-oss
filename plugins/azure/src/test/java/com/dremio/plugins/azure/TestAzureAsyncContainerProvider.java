@@ -218,7 +218,7 @@ public class TestAzureAsyncContainerProvider {
       client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true, new String[] {"tempContainer"});
 
     thrown.expect(UserException.class);
-    thrown.expectMessage("Failure while validating existence of container tempContainer. Error Unable to find container tempContainer - [404 null]");
+    thrown.expectMessage("Failure while validating existence of container tempContainer. Error: Unable to find container tempContainer - [404 null]");
     containerProvider.verfiyContainersExist();
   }
 
@@ -257,19 +257,18 @@ public class TestAzureAsyncContainerProvider {
     Response response = mock(Response.class);
     when(response.getHeader(any(String.class))).thenReturn("");
     when(response.getStatusCode()).thenReturn(403);
-    when(response.getStatusText()).thenReturn("Forbidden, InsufficientAccountPermissions, \"The account being accessed does not have sufficient permissions to execute this operation.\"");
     ListenableFuture<Response> future = mock(ListenableFuture.class);
     when(future.get()).thenReturn(response);
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-            client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
+      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true);
     try {
       containerProvider.assertContainerExists("container");
       fail("Expecting exception");
     } catch (Retryer.OperationFailedAfterRetriesException e) {
       assertTrue(e.getCause() instanceof ContainerAccessDeniedException);
-      assertEquals("Access to container container denied - [403 Forbidden, InsufficientAccountPermissions, \"The account being accessed does not have sufficient permissions to execute this operation.\"]", e.getCause().getMessage());
+      assertEquals("Either access to container container was denied or Container container does not exist - [403 null]", e.getCause().getMessage());
     }
     // Ensure no retries attempted
     verify(client, times(1)).executeRequest(any(Request.class));

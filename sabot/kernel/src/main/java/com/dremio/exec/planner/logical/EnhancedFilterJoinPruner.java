@@ -27,6 +27,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.google.common.collect.Lists;
@@ -112,18 +113,60 @@ public final class EnhancedFilterJoinPruner {
   public static RexNode prunePushdown(RexNode predicates, RelMetadataQuery mq,
     RelNode relNode, RexBuilder rexBuilder) {
     RelOptPredicateList pulledUpPredicates = mq.getPulledUpPredicates(relNode);
-    Set<String> pushedFiltersString = pulledUpPredicates.pulledUpPredicates
-      .stream()
-      .map(RexNode::toString)
-      .collect(Collectors.toSet());
-
     List<RexNode> prunedPredicates = Lists.newArrayList();
+
     for (RexNode conjunct: RelOptUtil.conjunctions(predicates)) {
-      if (!pushedFiltersString.contains(conjunct.toString())) {
+      boolean pushed = false;
+      ImmutableBitSet targetBitSet = RelOptUtil.InputFinder.analyze(conjunct).build();
+      for (RexNode pushedFilter: pulledUpPredicates.pulledUpPredicates) {
+        // Here it's not enough to simply check same between the candidate filter and each of the
+        // pulledUpPredicates. E.x., suppose previously we pushed a filter "(a AND b) OR (a AND c)",
+        // now the candidate pushdown filter "(b OR c)" should also be pruned out.
+        RexNode extractedFromBitSet = extractFromBitSet(pushedFilter, targetBitSet, rexBuilder);
+        if (extractedFromBitSet.equals(conjunct)) {
+          pushed = true;
+          break;
+        }
+      }
+      if (!pushed) {
         prunedPredicates.add(conjunct);
       }
     }
+
     return RexUtil.composeConjunction(rexBuilder, prunedPredicates, false);
+  }
+
+  /**
+   * Extract sub-filter that only contain targetBitSet from the input filter, without narrowing
+   * the filter range.
+   */
+  private static RexNode extractFromBitSet(RexNode rexNode, ImmutableBitSet targetBitSet,
+    RexBuilder rexBuilder) {
+    SqlKind kind = rexNode.getKind();
+    switch (kind) {
+      case AND:
+      case OR: {
+        List<RexNode> childNodes = MoreRelOptUtil.conDisjunctions(rexNode);
+        List<RexNode> extractedList = Lists.newArrayList();
+        for (RexNode childNode: childNodes) {
+          RexNode extracted = extractFromBitSet(childNode, targetBitSet, rexBuilder);
+          if (!extracted.isAlwaysTrue()) {
+            extractedList.add(extracted);
+          } else if (kind == SqlKind.OR) {
+            return rexBuilder.makeLiteral(true);
+          }
+        }
+        return MoreRelOptUtil.composeConDisjunction(rexBuilder, extractedList, false, kind);
+      }
+      default: {
+        ImmutableBitSet bitSet = RelOptUtil.InputFinder.analyze(rexNode).build();
+        if (targetBitSet.contains(bitSet)) {
+          return rexNode;
+        } else {
+          return rexBuilder.makeLiteral(true);
+        }
+      }
+    }
   }
 
   /**

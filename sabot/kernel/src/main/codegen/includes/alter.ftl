@@ -494,24 +494,30 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
 SqlNode SqlAlterDatasetReflectionRouting(SqlParserPos pos, SqlIdentifier tblName) :
 {
   SqlLiteral isDefault;
-  SqlIdentifier queueName;
+  SqlIdentifier queueOrEngineName;
+  SqlLiteral isQueue;
 }
 {
   {
     isDefault = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+    isQueue = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
   }
   <TO>
   (
     <DEFAULT_> { isDefault = SqlLiteral.createBoolean(true, pos);}
   )?
-  <QUEUE>
+  (
+    <QUEUE> { isQueue = SqlLiteral.createBoolean(true, pos); }
+    |
+    <ENGINE>
+  )
   {
     if (isDefault.booleanValue())
-    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, null);
+    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, isQueue, null);
   }
-  queueName = SimpleIdentifier()
+  queueOrEngineName = SimpleIdentifier()
   {
-    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, queueName);
+    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, isQueue, queueOrEngineName);
   }
 }
 

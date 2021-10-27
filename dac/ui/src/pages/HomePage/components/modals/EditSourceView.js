@@ -33,9 +33,10 @@ import ConfigurableSourceForm from 'pages/HomePage/components/modals/Configurabl
 import EditSourceViewMixin, {
   mapStateToProps,
   additionalMapDispatchToProps,
-  getFinalSubmit
+  getFinalSubmit,
+  ENABLE_USE_LEGACY_DIALECT_OPTION
 } from '@inject/pages/HomePage/components/modals/EditSourceViewMixin';
-import { isExternalSourceType } from '@app/constants/sourceTypes';
+import { isExternalSourceType, USE_LEGACY_DIALECT_PROPERTY_NAME } from '@app/constants/sourceTypes';
 
 import { viewStateWrapper } from 'uiTheme/less/forms.less';
 
@@ -44,13 +45,17 @@ export const VIEW_ID = 'EditSourceView';
 
 export const processUiConfig = (uiConfig) => {
   if (!uiConfig || !uiConfig.elements) return uiConfig;
-
+  let elements = uiConfig.elements;
+  if (!ENABLE_USE_LEGACY_DIALECT_OPTION) {
+    elements = elements.filter((el) => el.propertyName !== USE_LEGACY_DIALECT_PROPERTY_NAME);
+  }
+  elements = elements.map((el) => ({
+    ...el,
+    propertyName: FormUtils.addFormPrefixToPropName(el.propertyName)
+  }));
   return {
     ...uiConfig,
-    elements: uiConfig.elements.map(el => ({
-      ...el,
-      propertyName: FormUtils.addFormPrefixToPropName(el.propertyName)
-    }))
+    elements
   };
 };
 

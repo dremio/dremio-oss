@@ -15,8 +15,6 @@
  */
 package com.dremio.service.sysflight;
 
-import static org.apache.arrow.util.Preconditions.checkNotNull;
-
 import java.util.ArrayList;
 
 import javax.inject.Provider;
@@ -31,7 +29,7 @@ import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.PutResult;
 import org.apache.arrow.flight.Result;
 import org.apache.arrow.flight.Ticket;
-import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +38,6 @@ import com.dremio.common.exceptions.GrpcExceptionUtil;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
 import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
-import com.dremio.service.job.ChronicleGrpc;
 import com.google.common.annotations.VisibleForTesting;
 
 import io.grpc.Status;
@@ -51,13 +48,10 @@ import io.grpc.Status;
 public class SysFlightProducer implements FlightProducer, AutoCloseable {
   private static final Logger LOGGER = LoggerFactory.getLogger(SysFlightProducer.class);
 
-  private final BufferAllocator allocator;
-  private final SystemTableManager manager;
+  private final Provider<SystemTableManager> managerProvider;
 
-  public SysFlightProducer(BufferAllocator allocator,
-                           Provider<ChronicleGrpc.ChronicleBlockingStub> jobsStub) {
-    this.allocator = checkNotNull(allocator).newChildAllocator("sysflight-producer", 0, Long.MAX_VALUE);
-    this.manager = new SystemTableManager(this.allocator, jobsStub);
+  public SysFlightProducer(Provider<SystemTableManager> managerProvider) {
+    this.managerProvider = managerProvider;
   }
 
   @Override
@@ -65,11 +59,12 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
     LOGGER.info("Got getStream request for ticket: {}", ticket);
     try {
       final SysFlightTicket sysTicket = CoordinatorFlightTicket.parseFrom(ticket.getBytes()).getSyFlightTicket();
-      manager.streamData(sysTicket, listener);
+      // todo: set username in RequestContext from SysFlightTicket
+      managerProvider.get().streamData(sysTicket, listener);
     } catch (UserException ue) {
       LOGGER.error("UserException while getStream for ticket {}: ", ticket, ue);
       listener.error(GrpcExceptionUtil.toStatusRuntimeException(ue));
-    } catch (Exception e) {
+    } catch (Throwable e) {
       LOGGER.error("Exception while getStream for ticket {}: ", ticket, e);
       listener.error(Status.UNKNOWN.withCause(e).withDescription(e.getMessage()).asException());
     }
@@ -79,11 +74,11 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
   public void listFlights(CallContext callContext, Criteria criteria, StreamListener<FlightInfo> listener) {
     LOGGER.info("Got listFlights request");
     try {
-      manager.listSchemas(listener);
+      managerProvider.get().listSchemas(listener);
     } catch (UserException ue) {
       LOGGER.error("Exception while listFlights: ", ue);
       listener.onError(GrpcExceptionUtil.toStatusRuntimeException(ue));
-    } catch (Exception e) {
+    } catch (Throwable e) {
       LOGGER.error("Exception while listFlights: ", e);
       listener.onError(Status.UNKNOWN.withCause(e).withDescription(e.getMessage()).asException());
     }
@@ -93,8 +88,9 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
   public FlightInfo getFlightInfo(CallContext callContext, FlightDescriptor desc) {
     LOGGER.info("Got getFlightInfo request for descriptor: {}", desc);
     try {
-      return new FlightInfo(manager.getSchema(desc.getPath().get(0)), desc, new ArrayList<>(), -1, -1);
-    } catch (UserException e) {
+      Schema schema =  managerProvider.get().getSchema(desc.getPath().get(0));
+      return new FlightInfo(schema, desc, new ArrayList<>(), -1, -1);
+    } catch (Throwable e) {
       LOGGER.error("Exception while getFlightInfo: ", e);
       throw Status.UNKNOWN.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
@@ -117,12 +113,11 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(manager,allocator);
+    AutoCloseables.close(managerProvider.get());
   }
 
   @VisibleForTesting
-  public void setRecordBatchSize(int recordBatchSize)
-  {
-    this.manager.setRecordBatchSize(recordBatchSize);
+  public void setRecordBatchSize(int recordBatchSize) {
+    this.managerProvider.get().setRecordBatchSize(recordBatchSize);
   }
 }

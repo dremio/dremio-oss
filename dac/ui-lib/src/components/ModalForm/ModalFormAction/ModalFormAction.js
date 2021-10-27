@@ -22,6 +22,7 @@ import clsx from 'clsx';
 import './modalFormAction.scss';
 import Button from '../../Button';
 import * as ButtonTypes from '../../Button/ButtonTypes';
+import DialogContext from '../../Dialog/DialogContext';
 
 export const MODAL_FORM_ACTION_DIRECTION = {
   LEFT: 'left',
@@ -35,6 +36,7 @@ const ModalFormAction = (props) => {
     className,
     dataQa,
     disabled,
+    isClose,
     onClick,
     onMouseDown,
     color,
@@ -52,26 +54,38 @@ const ModalFormAction = (props) => {
     { 'modalFormAction--right': direction === MODAL_FORM_ACTION_DIRECTION.RIGHT }
   ]);
 
+  const handleClick = (onClose, ...args) => {
+    if (isClose && !onClick) {
+      onClose(...args);
+    } else if (onClick && typeof onClick === 'function') {
+      onClick(...args);
+    }
+  };
+
   return (
-    <span className={updatedClassName}>
-      <Button
-        classes={classes}
-        className={className}
-        dataQa={dataQa}
-        disabled={disabled}
-        disableMargin
-        onClick={onClick}
-        onMouseDown={onMouseDown}
-        color={color}
-        variant={variant}
-        style={style}
-        text={text}
-        title={title}
-        type={type}
-      >
-        {children}
-      </Button>
-    </span>
+    <DialogContext.Consumer>
+      {({ onClose }) => (
+        <span className={updatedClassName}>
+          <Button
+            classes={classes}
+            className={className}
+            dataQa={dataQa}
+            disabled={disabled}
+            disableMargin
+            onClick={(...args) => handleClick(onClose, ...args)}
+            onMouseDown={onMouseDown}
+            color={color}
+            variant={variant}
+            style={style}
+            text={text}
+            title={title}
+            type={type}
+          >
+            {children}
+          </Button>
+        </span>
+      )}
+    </DialogContext.Consumer>
   );
 };
 
@@ -80,6 +94,7 @@ ModalFormAction.propTypes = {
   classes: PropTypes.object,
   className: PropTypes.string,
   disabled: PropTypes.bool,
+  isClose: PropTypes.bool,
   text: PropTypes.string,
   type: PropTypes.string,
   color: PropTypes.oneOf(ButtonTypes.COLORS_ARRAY),

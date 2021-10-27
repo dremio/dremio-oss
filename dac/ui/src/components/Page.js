@@ -17,7 +17,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 
-import MainHeader from '@app/components/MainHeader';
+import SideNav from '@app/components/SideNav/SideNav';
 import { flexColumnContainer, fullHeight } from '@app/uiTheme/less/layout.less';
 import { Suspense } from '@app/components/Lazy';
 
@@ -46,11 +46,9 @@ export class MainMasterPage extends Component {
   render() {
     const { children } = this.props;
     return (
-      <div className={classNames(fullHeight, flexColumnContainer)}>
-        <div>
-          <MainHeader />
-        </div>
+      <div className={classNames(fullHeight, flexColumnContainer, 'mainPage' )}>
         <div className={pageContent}>
+          <SideNav/>
           <Suspense>
             {children}
           </Suspense>

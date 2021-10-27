@@ -27,6 +27,7 @@ import com.dremio.exec.planner.physical.HashPrelUtil.HashExpressionCreatorHelper
 import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.UnorderedDeMuxExchangePrel;
 import com.dremio.exec.planner.physical.UnorderedMuxExchangePrel;
 import com.dremio.exec.planner.sql.SqlOperatorImpl;
@@ -87,7 +88,7 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
 
     Prel newPrel = child;
 
-    if (isMuxEnabled) {
+    if (isMuxEnabled && !(child instanceof TableFunctionPrel)) {
       newPrel = new UnorderedMuxExchangePrel(child.getCluster(), child.getTraitSet(), child);
     }
 

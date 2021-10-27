@@ -80,7 +80,7 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
   public RelNode visit(LogicalProject project) {
     final RenameConvertToConvertFromVisitor renameVisitor = new RenameConvertToConvertFromVisitor(project.getCluster().getRexBuilder(), table);
     final List<RexNode> projExpr = Lists.newArrayList();
-    for(RexNode rexNode : project.getChildExps()) {
+    for(RexNode rexNode : project.getProjects()) {
       projExpr.add(rexNode.accept(unwrappingExpressionVisitor));
     }
 
@@ -92,7 +92,7 @@ public class PreProcessRel extends StatelessRelShuttleImpl {
     List<RexNode> exprList = new ArrayList<>();
     boolean rewrite = false;
 
-    for (RexNode rex : project.getChildExps()) {
+    for (RexNode rex : project.getProjects()) {
       RexNode newExpr = rex.accept(renameVisitor);
       if (newExpr != rex) {
         if (newExpr instanceof RexCall) {

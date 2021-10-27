@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>18.2.0-202110081842420694-7e500f14</version>
+    <version>19.0.0-202110270341120595-3e3e05e7</version>
   </parent>
 
   <groupId>com.dremio.plugins</groupId>
@@ -56,6 +56,7 @@
       </activation>
       <modules>
         <module>adls</module>
+        <module>awsauth</module>
         <module>azure</module>
         <module>s3</module>
         <module>hive3</module>

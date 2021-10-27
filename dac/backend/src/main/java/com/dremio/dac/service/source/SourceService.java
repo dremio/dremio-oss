@@ -623,7 +623,9 @@ public class SourceService {
     try {
       DatasetConfig dataset = namespaceService.getDataset(key);
       boolean isIcebergMetadata = false;
-      if (dataset.getPhysicalDataset().getIcebergMetadata() != null) {
+      if (dataset.getPhysicalDataset().getIcebergMetadataEnabled() != null &&
+          dataset.getPhysicalDataset().getIcebergMetadataEnabled() &&
+          dataset.getPhysicalDataset().getIcebergMetadata() != null) {
         tableUuid = dataset.getPhysicalDataset().getIcebergMetadata().getTableUuid();
         isIcebergMetadata = true;
       }

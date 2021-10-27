@@ -18,13 +18,12 @@ package com.dremio.exec.expr.fn.hll;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ObjectHolder;
+import org.apache.datasketches.hll.HllSketch;
+import org.apache.datasketches.hll.TgtHllType;
+import org.apache.datasketches.hll.Union;
+import org.apache.datasketches.memory.WritableMemory;
 
 import com.dremio.sabot.exec.context.SlicedBufferManager;
-import com.yahoo.memory.Memory;
-import com.yahoo.memory.WritableMemory;
-import com.yahoo.sketches.hll.HllSketch;
-import com.yahoo.sketches.hll.TgtHllType;
-import com.yahoo.sketches.hll.Union;
 
 /**
  * An accumulator that designed to combine one or more separate HLL values into a single HLL
@@ -37,8 +36,9 @@ public class UnionAccum {
   private UnionAccum(BufferManager manager, int lgConfigK) {
     final int size = HllSketch.getMaxUpdatableSerializationBytes(lgConfigK, TgtHllType.HLL_8);
     final ArrowBuf buf = ((SlicedBufferManager) manager).getManagedBufferSliced(size);
-    buf.setZero(0, size);
-    this.union = new Union(lgConfigK, WritableMemory.wrap(buf.nioBuffer(0, size)));
+    byte[] bytes = new byte[size];
+    buf.getBytes(0, bytes);
+    this.union = new Union(lgConfigK, WritableMemory.wrap(bytes));
   }
 
   public void reset() {
@@ -47,7 +47,9 @@ public class UnionAccum {
 
   public void addHll(ArrowBuf buf, int start, int end) {
     final int len = end - start;
-    HllSketch sketch = HllSketch.wrap(Memory.wrap(buf.nioBuffer(start, len)));
+    byte[] bytes = new byte[len];
+    buf.getBytes(start, bytes);
+    HllSketch sketch = HllSketch.heapify(bytes);
     union.update(sketch);
   }
 

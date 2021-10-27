@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -315,7 +316,7 @@ public class TestPushJoinFilterIntoProjectRule extends DremioTest {
     }
 
     @Override
-    public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv) {
+    public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, BiFunction<RelNode, RelNode, RelNode> handler) {
       transformed = rel;
     }
   }

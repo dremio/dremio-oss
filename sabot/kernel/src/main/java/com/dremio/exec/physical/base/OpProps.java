@@ -38,7 +38,6 @@ public class OpProps {
   private final int targetBatchSize;
   private final BatchSchema schema;
   private final int schemaHashCode;
-  private long memReserve;
   private final boolean memoryBound;
   private final double memoryFactor;
   private final boolean memoryExpensive;
@@ -46,6 +45,7 @@ public class OpProps {
 
   // this is currently mutable but should ultimately become immutable.
   private long memLimit;
+  private long memReserve;
 
   public OpProps(
     int operatorId,
@@ -232,4 +232,7 @@ public class OpProps {
     return prototype(1_000_000, Long.MAX_VALUE);
   }
 
+  public void setMemReserve(long reserve) {
+    this.memReserve = reserve;
+  }
 }

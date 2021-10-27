@@ -84,7 +84,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   public boolean enableAsync = true;
 
   @Tag(10)
-  @DisplayMetadata(label = "Enable compatibility mode (experimental)")
+  @DisplayMetadata(label = "Enable compatibility mode")
   public boolean compatibilityMode = false;
 
   @Tag(11)

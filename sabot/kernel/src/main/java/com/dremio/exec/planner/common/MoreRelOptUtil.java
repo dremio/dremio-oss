@@ -45,14 +45,19 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.core.Snapshot;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -332,7 +337,7 @@ public final class MoreRelOptUtil {
     final List<RexNode> castExps =
       RexUtil.generateCastExpressions(rexBuilder, castRowType, rowType);
 
-    return projectFactory.createProject(rel, castExps, rowType.getFieldNames());
+    return projectFactory.createProject(rel, ImmutableList.of(), castExps, rowType.getFieldNames());
   }
 
   /**
@@ -1119,8 +1124,8 @@ public final class MoreRelOptUtil {
     public RelNode visit(LogicalProject project) {
       RelNode newInput = project.getInput().accept(this);
       final ConditionFlattenter flattener = new ConditionFlattenter(project.getCluster().getRexBuilder());
-      List<RexNode> newExprs = project.getChildExps().stream().map(expr -> expr.accept(flattener)).collect(Collectors.toList());
-      return LogicalProject.create(newInput, newExprs, project.getRowType().getFieldNames());
+      List<RexNode> newExprs = project.getProjects().stream().map(expr -> expr.accept(flattener)).collect(Collectors.toList());
+      return LogicalProject.create(newInput, ImmutableList.of(), newExprs, project.getRowType().getFieldNames());
     }
 
     @Override
@@ -1314,5 +1319,30 @@ public final class MoreRelOptUtil {
       default:
         throw new UnsupportedOperationException();
     }
+  }
+
+  /**
+   * Returns a list of the child expressions of given relational expression.
+   * @param rel Relational expression
+   * @return List of the child expressions of given relational expression
+   */
+  public static List<RexNode> getChildExps(RelNode rel) {
+    List<RexNode> rexNodes = ImmutableList.of();
+    if (rel instanceof Filter) {
+      rexNodes = ImmutableList.of(((Filter)rel).getCondition());
+    } else if (rel instanceof Join) {
+      rexNodes = ImmutableList.of(((Join)rel).getCondition());
+    } else if (rel instanceof MultiJoin) {
+      rexNodes = ImmutableList.of(((MultiJoin)rel).getJoinFilter());
+    } else if (rel instanceof Project) {
+      rexNodes = ((Project)rel).getProjects();
+    } else if (rel instanceof Sort) {
+      rexNodes = ((Sort)rel).getSortExps();
+    } else if (rel instanceof TableFunctionScan) {
+      rexNodes = ImmutableList.of(((TableFunctionScan)rel).getCall());
+    } else if (rel instanceof Snapshot) {
+      rexNodes = ImmutableList.of(((Snapshot)rel).getPeriod());
+    }
+    return rexNodes;
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.common.expression;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -57,6 +58,13 @@ public class InExpression extends LogicalExpressionBase {
   public InExpression(LogicalExpression eval, List<LogicalExpression> constants) {
     assert COUNT.incrementAndGet() > 0;
     this.eval = eval;
+    if (constants == null) {
+      constants = Collections.emptyList();
+    } else {
+      if (!(constants instanceof ImmutableList)) {
+        constants = ImmutableList.copyOf(constants);
+      }
+    }
     this.constants = constants;
   }
 
@@ -89,6 +97,11 @@ public class InExpression extends LogicalExpressionBase {
   @Override
   public Iterator<LogicalExpression> iterator() {
     return ImmutableList.<LogicalExpression>builder().add(eval).addAll(constants).build().iterator();
+  }
+
+  @Override
+  public int getSizeOfChildren() {
+    return constants.size()+1;
   }
 
   public JClass getListType(JCodeModel model) {

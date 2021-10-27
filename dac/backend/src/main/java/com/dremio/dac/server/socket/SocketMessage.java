@@ -16,6 +16,8 @@
 package com.dremio.dac.server.socket;
 
 import com.dremio.dac.model.job.PartialJobListItem;
+import com.dremio.dac.model.job.PartialJobListingItem;
+import com.dremio.dac.obfuscate.ObfuscationUtils;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobsProtoUtil;
@@ -174,7 +176,7 @@ public class SocketMessage {
 
     public JobProgressUpdate(JobSummary jobSummary) {
       this.id = JobsProtoUtil.toStuff(jobSummary.getJobId());
-      this.update = new PartialJobListItem(jobSummary);
+      this.update = new PartialJobListItem(ObfuscationUtils.obfuscate(jobSummary));
     }
 
     public JobId getId() {
@@ -182,6 +184,40 @@ public class SocketMessage {
     }
 
     public PartialJobListItem getUpdate() {
+      return update;
+    }
+  }
+
+  @JsonTypeName("job-progress-newListingUI")
+  public static class JobProgressUpdateForNewUI extends Payload {
+    private JobId id;
+    private PartialJobListingItem update;
+    private boolean newJobUi;
+
+    @VisibleForTesting
+    @JsonCreator
+    public JobProgressUpdateForNewUI(@JsonProperty("id") JobId id, @JsonProperty("update") PartialJobListingItem update,boolean newJobUI) {
+      super();
+      this.id = id;
+      this.update = update;
+      this.newJobUi = newJobUI;
+    }
+
+    public JobProgressUpdateForNewUI(JobSummary jobSummary,boolean newJobsUi) {
+      this.id = JobsProtoUtil.toStuff(jobSummary.getJobId());
+      this.update = new PartialJobListingItem(ObfuscationUtils.obfuscate(jobSummary));
+      this.newJobUi = newJobsUi;
+    }
+
+    public JobId getId() {
+      return id;
+    }
+
+    public boolean isNewJobUi() {
+      return newJobUi;
+    }
+
+    public PartialJobListingItem getUpdate() {
       return update;
     }
   }
@@ -195,6 +231,24 @@ public class SocketMessage {
 
     @JsonCreator
     public ListenProgress(@JsonProperty("id") JobId id) {
+      super();
+      this.id = id;
+    }
+
+    public JobId getId() {
+      return id;
+    }
+  }
+
+  /**
+   * Message from client > server requesting events about job progress.
+   */
+  @JsonTypeName("qv-job-progress-listen")
+  public static class QVListenProgress extends Payload {
+    private final JobId id;
+
+    @JsonCreator
+    public QVListenProgress(@JsonProperty("id") JobId id) {
       super();
       this.id = id;
     }
@@ -312,6 +366,7 @@ public class SocketMessage {
         SocketMessage.PingPayload.class,
         SocketMessage.ListenReflectionJobProgress.class,
         SocketMessage.ListenReflectionJobDetails.class,
+        SocketMessage.QVListenProgress.class,
         };
   }
 }

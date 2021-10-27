@@ -47,6 +47,8 @@ import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.common.hashtable.ChainedHashTable;
@@ -58,6 +60,7 @@ import com.dremio.sabot.op.common.hashtable.HashTableStats;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.vhash.HashJoinStats;
 import com.dremio.sabot.op.join.vhash.VectorizedHashJoinOperator;
+import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -67,7 +70,10 @@ import com.sun.codemodel.JVar;
 
 import io.netty.util.internal.PlatformDependent;
 
+@Options
 public class HashJoinOperator implements DualInputOperator {
+
+  public static final BooleanValidator ENABLE_SPILL = new BooleanValidator("exec.op.join.spill", false);
 
   private long outputRecords;
 
@@ -464,8 +470,12 @@ public class HashJoinOperator implements DualInputOperator {
   public static class Creator implements DualInputOperator.Creator<HashJoinPOP>{
     @Override
     public DualInputOperator create(OperatorContext context, HashJoinPOP config) throws ExecutionSetupException {
-      if(config.isVectorize()){
-        return new VectorizedHashJoinOperator(context, config);
+      if(config.isVectorize()) {
+        if (context.getOptions().getOption(ENABLE_SPILL)) {
+          return new VectorizedSpillingHashJoinOperator(context, config);
+        } else {
+          return new VectorizedHashJoinOperator(context, config);
+        }
       } else {
         return new HashJoinOperator(context, config);
       }

@@ -18,6 +18,9 @@ package com.dremio.exec.store.deltalake;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionException;
@@ -56,6 +59,7 @@ public class DeltaMetadataFetchJob implements Supplier {
   public long startTime;
   public boolean tryCheckpointRead;
   public long version;
+  public long subparts;
 
   private static Retryer retryer = new Retryer.Builder()
     .retryIfExceptionOfType(RuntimeException.class)
@@ -65,7 +69,7 @@ public class DeltaMetadataFetchJob implements Supplier {
   private DeltaFilePathResolver resolver = new DeltaFilePathResolver();
 
 
-  public DeltaMetadataFetchJob(SabotContext context, Path metaDir, FileSystem fs, long startTime, boolean tryCheckpointRead, long version) {
+  public DeltaMetadataFetchJob(SabotContext context, Path metaDir, FileSystem fs, long startTime, boolean tryCheckpointRead, long version, long subparts) {
     this.metaDir = metaDir;
     this.rootFolder = metaDir.getParent();
     this.fs = fs;
@@ -73,26 +77,37 @@ public class DeltaMetadataFetchJob implements Supplier {
     this.startTime = startTime;
     this.tryCheckpointRead = tryCheckpointRead;
     this.version = version;
+    this.subparts = subparts;
   }
 
   @Override
   public DeltaLogSnapshot get() {
     try {
-      Path checkPointParquetPath = resolver.resolve(metaDir, version, FileType.PARQUET);
+      List<Path> checkPointParquetPaths = resolver.resolve(metaDir, version, subparts, FileType.PARQUET);
 
       if(tryCheckpointRead ) {
-        final Optional<FileAttributes> fileAttrs = getFileAttrs(checkPointParquetPath);
-        if (checkFileExistsAndValid(fileAttrs)) {
-          logger.debug("Reading checkpoint file for Delta table at {}. Checkpoint version {}.", metaDir.toString(), version);
-          return readAndSetVersion(fileAttrs.get(), FileType.PARQUET);
+        List<FileAttributes> fileAttrsList = new ArrayList<>();
+        boolean allFilesPassCheck = true;
+        for(Path checkPointParquetPath: checkPointParquetPaths) {
+          final Optional<FileAttributes> fileAttrs = getFileAttrs(checkPointParquetPath);
+          if (checkFileExistsAndValid(fileAttrs)) {
+            logger.debug("Reading checkpoint file for Delta table at {}. Checkpoint version {}. Subparts Number {}", metaDir.toString(), version, subparts);
+            fileAttrsList.add(fileAttrs.get());
+          } else {
+            allFilesPassCheck = false;
+            break;
+          }
+        }
+        if (allFilesPassCheck) {
+          return readAndSetVersion(fileAttrsList, FileType.PARQUET);
         }
       }
 
-      Path commitJsonPath = resolver.resolve(metaDir, version, FileType.JSON);
-      final Optional<FileAttributes> fileAttrs = getFileAttrs(commitJsonPath);
+      List<Path> commitJsonPath = resolver.resolve(metaDir, version, subparts, FileType.JSON);
+      final Optional<FileAttributes> fileAttrs = getFileAttrs(commitJsonPath.get(0));
       if(checkFileExistsAndValid(fileAttrs)) {
         logger.debug("Reading commit file for Delta table at {}. Commit version {}.", metaDir.toString(), version);
-        return readAndSetVersion(fileAttrs.get(), FileType.JSON);
+        return readAndSetVersion(new ArrayList<>(Arrays.asList(fileAttrs.get())), FileType.JSON);
       }
 
       throw new CompletionException(new
@@ -105,11 +120,11 @@ public class DeltaMetadataFetchJob implements Supplier {
     }
   }
 
-  public DeltaLogSnapshot readAndSetVersion(FileAttributes fileAttrs, FileType type) throws IOException {
+  public DeltaLogSnapshot readAndSetVersion(List<FileAttributes> fileAttrsList, FileType type) throws IOException {
     DeltaLogReader reader = DeltaLogReader.getInstance(type);
-    DeltaLogSnapshot snapshot =  reader.parseMetadata(rootFolder, context, fs, fileAttrs, version);
+    DeltaLogSnapshot snapshot =  reader.parseMetadata(rootFolder, context, fs, fileAttrsList, version);
     snapshot.setVersionId(version);
-    snapshot.setFileAttrs(fileAttrs);
+    snapshot.setFileAttrs(fileAttrsList.get(0));
     return snapshot;
   }
 

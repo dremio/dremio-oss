@@ -29,10 +29,10 @@ import org.apache.calcite.sql.SqlKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
@@ -158,7 +158,7 @@ public class IncrementalUpdateServiceUtils {
         || kind == SqlKind.MIN
         || kind == SqlKind.MAX
         || kind == SqlKind.COUNT
-        || HyperLogLog.HLL.getName().equals(aggregation.getName());
+        || DremioSqlOperatorTable.HLL.getName().equals(aggregation.getName());
     }
 
     @Override

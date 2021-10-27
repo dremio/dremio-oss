@@ -56,7 +56,7 @@ const FormikUnsavedWarningHOC = (WrappedComponent) => (props) => {
 
   return (
     <Fragment>
-      <Dialog onClose={handleStay} open={showDialog} size='xs'>
+      <Dialog onClose={handleStay} open={showDialog} size='sm' isCentered>
         <DialogTitle onClose={handleStay}>
           <FormattedMessage id='common.unsavedChangesTitle' defaultMessage='Unsaved Changes' />
         </DialogTitle>

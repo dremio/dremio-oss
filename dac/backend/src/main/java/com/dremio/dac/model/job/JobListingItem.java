@@ -44,7 +44,6 @@ public class JobListingItem extends PartialJobListingItem {
     @JsonProperty("queriedDatasets") List<DataSet> queriedDatasets,
     @JsonProperty("isAccelerated") boolean isAccelerated,
     @JsonProperty("state") JobState state,
-    @JsonProperty("isFinalState") boolean isFinalState,
     @JsonProperty("startTime") Long startTime,
     @JsonProperty("endTime") Long endTime,
     @JsonProperty("duration") Long duration,
@@ -59,11 +58,14 @@ public class JobListingItem extends PartialJobListingItem {
     @JsonProperty("totalAttempts") int totalAttempts,
     @JsonProperty("isStarFlakeAccelerated") boolean isStarFlakeAccelerated,
     @JsonProperty("requestType") RequestType requestType,
-    @JsonProperty("description") String description
-    ) {
-    super(id, state, isFinalState, queryUser, startTime, endTime, duration, rowsScanned, rowsReturned, wlmQueue, queryText, queryType,
+    @JsonProperty("description") String description,
+    @JsonProperty("isComplete") boolean isComplete,
+    @JsonProperty("datasetVersion") String datasetVersion,
+    @JsonProperty("outputLimited") boolean outputLimited
+  ) {
+    super(id, state, queryUser, startTime, endTime, duration, rowsScanned, rowsReturned, wlmQueue, queryText, queryType,
       isAccelerated, durationDetails, plannerEstimatedCost, queriedDatasets, engine, subEngine, enqueuedTime, waitInClient,
-      input, output, spilled,totalAttempts ,isStarFlakeAccelerated,requestType,description);
+      input, output, spilled, totalAttempts, isStarFlakeAccelerated, requestType, description,isComplete,datasetVersion,outputLimited);
   }
 
   public JobListingItem(JobSummary input) {

@@ -21,7 +21,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
-import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -32,16 +31,19 @@ import com.google.common.base.Preconditions;
  */
 public class ParquetSplitCreator implements BlockBasedSplitGenerator.SplitCreator {
   private final OperatorContext context;
+  private final boolean convertToRelativePath;
 
-  public ParquetSplitCreator(OperatorContext context) {
+  public ParquetSplitCreator(OperatorContext context, boolean convertToRelativePath) {
     this.context = context;
+    this.convertToRelativePath = convertToRelativePath;
   }
 
   @Override
   public SplitAndPartitionInfo createSplit(PartitionProtobuf.NormalizedPartitionInfo filePartitionInfo, SplitIdentity splitIdentity,
                                            String fileFormat, long fileSize, long currentModTime) {
 
-  String splitPath = Path.getContainerSpecificRelativePath(Path.of(splitIdentity.getPath()));
+
+  String splitPath = splitIdentity.getPath();
   Preconditions.checkArgument(fileFormat.equalsIgnoreCase(PARQUET.toString()));
     ParquetProtobuf.ParquetBlockBasedSplitXAttr splitExtended = ParquetProtobuf.ParquetBlockBasedSplitXAttr.newBuilder()
       .setPath(splitPath)

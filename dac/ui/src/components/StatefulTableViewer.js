@@ -37,7 +37,8 @@ export default class StatefulTableViewer extends Component {
     onClick: PropTypes.func,
     resizableColumn: PropTypes.bool,
     loadNextRecords: PropTypes.func,
-    disableSort: PropTypes.bool
+    disableSort: PropTypes.bool,
+    disableZebraStripes: PropTypes.any
     // extra props passed along to underlying Table impl
     // columns: PropTypes.array.isRequired,
     // className: PropTypes.string,
@@ -52,7 +53,7 @@ export default class StatefulTableViewer extends Component {
   renderTableContent() {
     const {
       viewState, tableData, virtualized, noDataText,
-      onClick, resizableColumn, loadNextRecords, disableSort, ...passAlongProps
+      onClick, resizableColumn, loadNextRecords, disableSort, disableZebraStripes, ...passAlongProps
     } = this.props;
     const data = viewState && viewState.get('isInProgress') ? Immutable.List() : tableData;
     const tableProps = {
@@ -64,7 +65,7 @@ export default class StatefulTableViewer extends Component {
     };
     const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
     const tableViewer = virtualized
-      ? <VirtualizedTableViewer {...tableProps} disableSort={disableSort}/>
+      ? <VirtualizedTableViewer {...tableProps} disableSort={disableSort} disableZebraStripes={disableZebraStripes}/>
       : <TableViewer {...tableProps} />;
     if (!(viewState && viewState.get('isInProgress')) && tableSize === 0) {
       // here we skip showing empty virtualized table header because of IE11 issues with flex box

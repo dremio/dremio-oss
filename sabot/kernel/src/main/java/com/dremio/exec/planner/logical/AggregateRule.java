@@ -50,7 +50,7 @@ public class AggregateRule extends RelOptRule {
     final RelTraitSet traits = aggregate.getTraitSet().plus(Rel.LOGICAL);
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
     try {
-      call.transformTo(AggregateRel.create(aggregate.getCluster(), traits, convertedInput, aggregate.indicator,
+      call.transformTo(AggregateRel.create(aggregate.getCluster(), traits, convertedInput,
           aggregate.getGroupSet(), aggregate.getGroupSets(), aggregate.getAggCallList()));
     } catch (InvalidRelException e) {
       // Do nothing. Planning might not succeed, but that's okay.

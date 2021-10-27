@@ -31,12 +31,16 @@ import com.dremio.common.collections.Tuple;
  * Helper class to get summary of memory state on allocation failures.
  */
 public final class MemoryDebugInfo {
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryDebugInfo.class);
   // (1:root, 2:queue, 3:query, 4:phase, 5:frag, 6:operator).
   private static final int NUM_LEVELS_FROM_ROOT_TO_OPERATOR = 6;
   // max nodes to dump at each level.
-  private static final int MAX_NODES_PER_LEVEL = 10;
+  // To print in the executor log, upto 10 levels are dumped.
+  private static final int MAX_NODES_PER_LEVEL_TO_PRINT = 10;
+  // To pass onto profile/coordinator upto 2 levels are dumped to reduce memory footprint
+  private static final int MAX_NODES_PER_LEVEL_TO_STORE = 2;
 
-  private static void print(StringBuilder sb, BufferAllocator current, int currentLevel, int maxLevels) {
+  private static void print(StringBuilder sb, BufferAllocator current, int currentLevel, int maxLevels, int nodesPerLevel) {
     if (currentLevel > maxLevels) {
       return;
     }
@@ -58,38 +62,42 @@ public final class MemoryDebugInfo {
         .append(childAllocators.size())
         .append('\n');
 
-    for (BufferAllocator child : pruneAllocatorList(childAllocators)) {
-      print(sb, child,currentLevel + 1, maxLevels);
+    for (BufferAllocator child : pruneAllocatorList(childAllocators, nodesPerLevel)) {
+      print(sb, child,currentLevel + 1, maxLevels, nodesPerLevel);
     }
   }
 
-  private static Collection<BufferAllocator> pruneAllocatorList(Collection<BufferAllocator> allocators) {
-    if (allocators.size() <= MAX_NODES_PER_LEVEL) {
+  private static Collection<BufferAllocator> pruneAllocatorList(Collection<BufferAllocator> allocators, int nodesPerLevel) {
+    if (allocators.size() <= nodesPerLevel) {
       return allocators;
     }
 
     return allocators.stream()
       .map(allocator -> Tuple.of(allocator.getAllocatedMemory(), allocator))
       .sorted(Comparator.comparingLong(tuple -> -tuple.first))
-      .limit(MAX_NODES_PER_LEVEL)
+      .limit(nodesPerLevel)
       .map(tuple -> tuple.second)
       .collect(Collectors.toList());
   }
 
-  private static String getSummary(BufferAllocator start, int numLevels) {
+  private static String getSummary(BufferAllocator start, int numLevels, int nodesPerLevel) {
     final StringBuilder sb = new StringBuilder();
-    print(sb, start, 0, numLevels);
+    print(sb, start, 0, numLevels, nodesPerLevel);
     return sb.toString();
   }
 
-  public static String getSummaryFromRoot(BufferAllocator allocator) {
+  private static String getSummaryFromRoot(BufferAllocator allocator, int nodesPerLevel) {
     // find the root allocator.
     BufferAllocator root = allocator;
     while (root.getParentAllocator() != null) {
       root = root.getParentAllocator();
     }
 
-    return getSummary(root, NUM_LEVELS_FROM_ROOT_TO_OPERATOR);
+    return getSummary(root, NUM_LEVELS_FROM_ROOT_TO_OPERATOR, nodesPerLevel);
+  }
+
+  public static String  getSummaryFromRoot(BufferAllocator allocator) {
+    return getSummaryFromRoot(allocator, MAX_NODES_PER_LEVEL_TO_STORE);
   }
 
   public static String getDetailsOnAllocationFailure(OutOfMemoryException exception, BufferAllocator allocator) {
@@ -119,16 +127,22 @@ public final class MemoryDebugInfo {
      */
 
     String summary;
+    String printSummary;
     if (failedAtAllocator == null) {
-      summary = getSummaryFromRoot(allocator);
+      summary = getSummaryFromRoot(allocator, MAX_NODES_PER_LEVEL_TO_STORE);
+      printSummary = getSummaryFromRoot(allocator, MAX_NODES_PER_LEVEL_TO_PRINT);
     } else if (failedAtAllocator.getParentAllocator() == null) {
-      summary = getSummaryFromRoot(failedAtAllocator);
+      summary = getSummaryFromRoot(failedAtAllocator, MAX_NODES_PER_LEVEL_TO_STORE);
+      printSummary = getSummaryFromRoot(failedAtAllocator, MAX_NODES_PER_LEVEL_TO_PRINT);
     } else {
-      summary = getSummary(failedAtAllocator, 3);
+      summary = getSummary(failedAtAllocator, 3, MAX_NODES_PER_LEVEL_TO_STORE);
+      printSummary = getSummary(failedAtAllocator, 3, MAX_NODES_PER_LEVEL_TO_PRINT);
     }
 
     sb.append("\nAllocator dominators:\n");
     sb.append(summary);
+
+    logger.info("\nAllocation failure: \nDetailed Allocator dominators:\n " + printSummary);
     return sb.toString();
   }
 }

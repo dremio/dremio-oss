@@ -61,6 +61,11 @@ public class ReturnValueExpression implements LogicalExpression {
     return Iterators.singletonIterator(child);
   }
 
+  @Override
+  public int getSizeOfChildren() {
+    return 1;
+  }
+
   public boolean isReturnTrueOnOne() {
     return returnTrueOnOne;
   }

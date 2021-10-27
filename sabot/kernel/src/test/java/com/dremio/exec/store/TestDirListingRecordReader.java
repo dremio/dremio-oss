@@ -17,6 +17,7 @@ package com.dremio.exec.store;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -86,10 +87,11 @@ public class TestDirListingRecordReader extends BaseTestQuery {
   }
 
   private OperatorContext getCtx() {
-    OperatorContext operatorContext = mock(OperatorContext.class);
+    OperatorContext operatorContext = mock(OperatorContext.class, RETURNS_DEEP_STUBS);
     when(operatorContext.getAllocator()).thenReturn(testAllocator);
     when(operatorContext.getTargetBatchSize()).thenReturn(4000);
     when(operatorContext.getMinorFragmentEndpoints()).thenReturn(ImmutableList.of(new MinorFragmentEndpoint(0,null)));
+    when(operatorContext.getFunctionContext().getContextInformation().getQueryStartTime()).thenReturn(System.currentTimeMillis());
     return operatorContext;
   }
 
@@ -141,8 +143,8 @@ public class TestDirListingRecordReader extends BaseTestQuery {
   private static DirListInputSplitProto.DirListInputSplit getDirListInputSplit(String operatingPath, String rootPath) {
     return DirListInputSplitProto.DirListInputSplit.newBuilder()
       .setOperatingPath(operatingPath)
+      .setReadSignature(Long.MAX_VALUE)
       .setRootPath(rootPath)
-      .setReadSignature(System.currentTimeMillis())
       .build();
   }
 

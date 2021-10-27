@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.model.job;
 
+import static com.dremio.dac.obfuscate.ObfuscationUtils.obfuscateSql;
+
 import java.util.List;
 
 import com.dremio.dac.util.TruncateString200Converter;
@@ -110,7 +112,7 @@ public class JobSummaryUI {
       input.getUser(),
       input.getStartTime() == 0 ? null : input.getStartTime(),
       input.getEndTime() == 0 ? null : input.getEndTime(),
-      Strings.isNullOrEmpty(input.getDescription()) ? null : input.getDescription(),
+      Strings.isNullOrEmpty(input.getDescription()) ? null : obfuscateSql(input.getDescription()),
       JobsProtoUtil.toStuff(input.getRequestType()),
       input.getAccelerated(),
       input.getDatasetVersion(),

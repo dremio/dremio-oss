@@ -62,6 +62,24 @@ public interface SupportsInternalIcebergTable extends SupportsUnlimitedSplits {
   FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException;
 
   /**
+   * Creates a new FileSystem instance for a given user using the file path provided.
+   *
+   * @param filePath file path
+   * @param userName user
+   * @return file system, not null
+   */
+  FileSystem createFSWithAsyncOptions(String filePath, String userName, OperatorContext operatorContext) throws IOException;
+
+  /**
+   * Creates a new FileSystem instance for a given user using the file path provided.
+   * It doesn't use hadoop fs cache
+   * @param filePath file path
+   * @param userName user
+   * @return file system, not null
+   */
+  FileSystem createFSWithoutHDFSCache(String filePath, String userName, OperatorContext operatorContext) throws IOException;
+
+  /**
    * Indicates that the plugin supports getting dataset metadata (partition spec, partition values, table schema)
    * in the coordinator itself. Eg. for Hive plugin, we can get this info from Hive metastore.
    */
@@ -77,7 +95,7 @@ public interface SupportsInternalIcebergTable extends SupportsUnlimitedSplits {
   /**
    * Creates the plugin-specific split creator.
    */
-  BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes);
+  BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable);
 
   /**
    * Creates the plugin-specific Scan Table Function.

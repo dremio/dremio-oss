@@ -19,11 +19,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
+
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
@@ -38,6 +41,7 @@ import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.UserNotFoundException;
+import com.google.common.collect.ImmutableList;
 
 /**
  * An overridden implementation of SqlToRelConverter that redefines view expansion behavior.
@@ -57,7 +61,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
   }
 
   @Override
-  public RelNode toRel(RelOptTable table) {
+  public RelNode toRel(RelOptTable table, @Nonnull List<RelHint> hints) {
     return table.toRel(createToRelContext());
   }
 
@@ -101,7 +105,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       if (expansionNode.isDefault()) {
         sqlConverter.getFunctionContext().getContextInformation().setPlanCacheable(unflattenedRoot.isPlanCacheable());
         return new RelRoot(expansionNode, unflattenedRoot.validatedRowType, unflattenedRoot.kind,
-          unflattenedRoot.fields, unflattenedRoot.collation);
+          unflattenedRoot.fields, unflattenedRoot.collation, ImmutableList.of());
       }
     }
     final RelRootPlus root = newConverter.toConvertibleRelRoot(validatedNode, true, true);
@@ -114,7 +118,8 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     // expansion context sensitive even if it isn't locally.
     final boolean contextSensitive = root.isContextSensitive() || ExpansionNode.isContextSensitive(root.rel);
 
-    return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive, false), root.validatedRowType, root.kind, root.fields, root.collation);
+    return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive, false),
+      root.validatedRowType, root.kind, root.fields, root.collation, ImmutableList.of());
   }
 
   public static RelRoot expandView(NamespaceKey path, final String viewOwner, final String queryString, final List<String> context, final SqlConverter sqlConverter, final BatchSchema batchSchema) {

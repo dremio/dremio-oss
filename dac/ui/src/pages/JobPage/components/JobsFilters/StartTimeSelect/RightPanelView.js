@@ -114,7 +114,6 @@ const calendarTheme = {
     height: 17,
     color: '#707070',
     fontWeight: 0,
-    fontSize: 11,
     width: 19,
     marginBottom: 1
   },

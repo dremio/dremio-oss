@@ -73,6 +73,11 @@ public class ValueVectorWriteExpression implements LogicalExpression {
   }
 
   @Override
+  public int getSizeOfChildren() {
+    return 1;
+  }
+
+  @Override
   public int getSelfCost() {
     return 0;  // TODO
   }

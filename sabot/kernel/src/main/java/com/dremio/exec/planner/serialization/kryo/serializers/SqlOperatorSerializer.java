@@ -20,23 +20,19 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.expr.fn.hll.HyperLogLog;
-import com.dremio.exec.expr.fn.impl.GeoFunctions;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.FieldSerializer;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 
 /**
@@ -70,6 +66,7 @@ public class SqlOperatorSerializer<T extends SqlOperator> extends FieldSerialize
     static {
       try {
         populate(SqlStdOperatorTable.instance());
+        populate(DremioSqlOperatorTable.instance());
       } catch (final Exception ex) {
         logger.error("unable to populate operator table", ex);
       }
@@ -83,18 +80,15 @@ public class SqlOperatorSerializer<T extends SqlOperator> extends FieldSerialize
      * @param table operator table instance
      */
     private static void populate(final Object table) {
-      final List<Field> operators = FluentIterable
-          .from(Arrays.asList(table.getClass().getDeclaredFields()))
-          .filter(new Predicate<Field>() {
-            @Nullable
-            @Override
-            public boolean apply(@Nullable final Field field) {
-              final int modifiers = field.getModifiers();
-              final Class type = field.getType();
-              return Modifier.isStatic(modifiers) && Modifier.isPublic(modifiers) && SqlOperator.class.isAssignableFrom(type);
-            }
+      final List<Field> operators = Arrays.stream(table.getClass().getDeclaredFields())
+          .filter(field -> {
+            final int modifiers = field.getModifiers();
+            final Class<?> type = field.getType();
+            return Modifier.isStatic(modifiers)
+                && Modifier.isPublic(modifiers)
+                && SqlOperator.class.isAssignableFrom(type);
           })
-          .toList();
+          .collect(Collectors.toList());
 
       for (final Field operatorField:operators) {
         try {
@@ -104,13 +98,6 @@ public class SqlOperatorSerializer<T extends SqlOperator> extends FieldSerialize
         }
       }
 
-      put(HyperLogLog.HLL);
-      put(HyperLogLog.HLL_DECODE);
-      put(HyperLogLog.HLL_MERGE);
-      put(HyperLogLog.NDV);
-      put(GeoFunctions.GEO_DISTANCE);
-      put(GeoFunctions.GEO_NEARBY);
-      put(GeoFunctions.GEO_BEYOND);
 
     }
 

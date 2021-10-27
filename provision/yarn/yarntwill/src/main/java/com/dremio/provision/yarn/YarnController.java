@@ -211,6 +211,7 @@ public class YarnController {
     }
 
     systemOptions.put("-XX:MaxDirectMemorySize", directMemory + "m");
+    systemOptions.put("-XX:+PrintClassHistogramBeforeFullGC", "");
     systemOptions.put("-XX:+PrintClassHistogramAfterFullGC", "");
 
     for (Property prop : propertyList) {

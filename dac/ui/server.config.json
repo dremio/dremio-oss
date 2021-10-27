@@ -1,6 +1,6 @@
 {
   "proxyPatterns": [{
-      "patterns": ["/v1*"], "origin": "atlantisApi", "ws": false
+      "patterns": ["/v0*"], "origin": "atlantisApi", "ws": false
     }, {
       "patterns": ["/ui*"], "origin": "atlantisApp", "ws": false
     }, {

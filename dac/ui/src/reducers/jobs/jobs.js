@@ -55,6 +55,15 @@ export default function jobs(state = initialState, action) {
     }
     return state;
   }
+  case ActionTypes.UPDATE_QV_JOB_STATE: {
+    const index = state.get('jobList').findIndex(job => job.get('id') === action.jobId);
+    if (index !== -1) {
+      const oldJob = state.getIn(['jobList', index]);
+      if (!oldJob) return state;
+      return state.setIn(['jobList', index], Immutable.fromJS(action.payload));
+    }
+    return state;
+  }
   case ActionTypes.JOBS_DATA_REQUEST:
   case ActionTypes.SORT_JOBS_REQUEST:
   case ActionTypes.FILTER_JOBS_REQUEST:

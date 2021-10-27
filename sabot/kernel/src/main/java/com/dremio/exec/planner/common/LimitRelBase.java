@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.planner.common;
 
-import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -32,7 +30,6 @@ import org.apache.calcite.rex.RexNode;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.planner.physical.PrelUtil;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Base class for logical and physical Limits implemented in Dremio
@@ -65,7 +62,7 @@ public abstract class LimitRelBase extends Sort {
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
     double numRows = mq.getRowCount(this);
@@ -77,11 +74,6 @@ public abstract class LimitRelBase extends Sort {
   @Override
   public RelCollation getCollation() {
     return RelCollations.EMPTY;
-  }
-
-  @Override
-  public List<RelCollation> getCollationList() {
-    return ImmutableList.of();
   }
 
   @Override

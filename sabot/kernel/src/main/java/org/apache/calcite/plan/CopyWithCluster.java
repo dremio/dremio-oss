@@ -206,7 +206,6 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
       cluster,
       copyOf(aggregate.getTraitSet()),
       input,
-      aggregate.indicator,
       aggregate.getGroupSet(),
       aggregate.getGroupSets(),
       copyOf(aggregate.getAggCallList())
@@ -318,9 +317,7 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
   @Override
   public RelNode visit(LogicalSort sort) {
     final RelNode input = sort.getInput().accept(this);
-    return new LogicalSort(
-      cluster,
-      copyOf(sort.getTraitSet()),
+    return LogicalSort.create(
       input,
       sort.getCollation(),
       copyOf(sort.offset),
@@ -331,12 +328,7 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
   @Override
   public RelNode visit(LogicalExchange exchange) {
     final RelNode input = exchange.getInput().accept(this);
-    return new LogicalExchange(
-      cluster,
-      copyOf(exchange.getTraitSet()),
-      input,
-      exchange.getDistribution()
-    );
+    return LogicalExchange.create(input, exchange.getDistribution());
   }
 
   private RelNode copyOf(LogicalWindow window) {

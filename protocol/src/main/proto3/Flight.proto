@@ -1,0 +1,43 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+package exec.flight;
+
+option java_package = "com.dremio.exec.proto";
+option java_outer_classname = "FlightProtos";
+option optimize_for = SPEED;
+option java_generate_equals_and_hash = true;
+
+import "Search.proto";
+
+message CoordinatorFlightTicket {
+  oneof identifier {
+      JobsFlightTicket jobs_flight_ticket = 1;
+      SysFlightTicket sy_flight_ticket = 2;
+    }
+}
+
+message JobsFlightTicket {
+  string jobId = 1;
+  int32 offset = 2;
+  int32 limit = 3;
+}
+
+message SysFlightTicket {
+  string dataset_name = 1;
+  exec.search.SearchQuery query = 2;
+  string user_name = 3;
+}

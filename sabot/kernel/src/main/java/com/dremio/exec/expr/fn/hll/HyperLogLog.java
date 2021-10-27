@@ -28,14 +28,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
 public class HyperLogLog {
 
   public static final int HLL_VARBINARY_SIZE = 65536;
-  public static final SqlAggFunction HLL = new SqlHllAggFunction();
-  public static final SqlAggFunction HLL_MERGE = new SqlHllMergeAggFunction();
-  public static final SqlAggFunction NDV = new SqlNdvAggFunction();
-  public static final SqlFunction HLL_DECODE = new SqlHllDecodeOperator();
 
   public static class SqlHllDecodeOperator extends SqlFunction {
     public SqlHllDecodeOperator() {
-      super(new SqlIdentifier("HLL_DECODE", SqlParserPos.ZERO), ReturnTypes.BIGINT, null, OperandTypes.BINARY, null, SqlFunctionCategory.USER_DEFINED_FUNCTION);
+      super(new SqlIdentifier("HLL_DECODE", SqlParserPos.ZERO), ReturnTypes.BIGINT_NULLABLE, null, OperandTypes.BINARY, null, SqlFunctionCategory.USER_DEFINED_FUNCTION);
     }
 
     @Override

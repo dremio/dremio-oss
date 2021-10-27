@@ -475,6 +475,7 @@ public class TestJobStatusV2 extends BaseTestServer {
   private void validateFailedJob(JobSummary jobSummary) throws Exception {
     Assert.assertSame(jobSummary.getJobState(), JobState.FAILED);
     Assert.assertNotNull(jobSummary.getFailureInfo());
+    Assert.assertTrue(jobSummary.getEndTime() > jobSummary.getStartTime());
     Assert.assertTrue(jobSummary.getFailureInfo().contains("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
   }
 

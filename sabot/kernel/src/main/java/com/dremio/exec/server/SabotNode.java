@@ -585,6 +585,8 @@ public class SabotNode implements AutoCloseable {
 
         bind(SystemTablePluginConfigProvider.class).toInstance(new SystemTablePluginConfigProvider());
 
+        bind(SysFlightChannelProvider.class).toInstance(SysFlightChannelProvider.NO_OP);
+
         bind(ResourceAllocator.class).toInstance(new BasicResourceAllocator(getProvider(ClusterCoordinator.class),
           getProvider(GroupResourceInformation.class)));
 
@@ -705,7 +707,8 @@ public class SabotNode implements AutoCloseable {
             Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
             Provider<GlobalKeysService> globalKeysServiceProvider,
             Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
-            Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
+            Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
+            Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
     ) {
       return new ContextService(
               bootstrap,
@@ -748,7 +751,8 @@ public class SabotNode implements AutoCloseable {
               datasetCatalogStub,
               globalKeysServiceProvider,
               credentialsServiceProvider,
-              conduitInProcessChannelProviderProvider
+              conduitInProcessChannelProviderProvider,
+              sysFlightChannelProviderProvider
       );
     }
 

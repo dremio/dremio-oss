@@ -1,0 +1,44 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/color-schema.less";
+
+ @sideNav-menu-width: 254px;
+ @sideNav-menu-background-color: #fff;
+ @sideNav-menu-border-color: #e5e5e5;
+ @sideNav-menu-box-shadow-color: rgba(0, 0, 0, .1);
+
+ :global { 
+   .sideNav-menu {
+     visibility: hidden;
+     position: fixed;
+     left: 6.4rem;
+     z-index: 10;
+     width: @sideNav-menu-width;
+     box-shadow:  0px 0px 16px @sideNav-menu-box-shadow-color;
+     border: 1px solid @sideNav-menu-border-color;
+     border-left: 0;
+     border-radius: 0 4px 4px 0;
+     background-color: @sideNav-menu-background-color;
+
+     &.--show {
+       visibility: visible;
+     }
+
+     &.--wide {
+       left: 22.4rem;
+     }
+   }
+ }

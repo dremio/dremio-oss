@@ -16,6 +16,7 @@
 package com.dremio.common.expression;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,21 +24,36 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
+import com.google.common.collect.ImmutableList;
 
 public class CaseExpression extends LogicalExpressionBase {
   public final List<CaseConditionNode> caseConditions;
   public final LogicalExpression elseExpr;
   public final CompleteType outputType;
+  private final int sizeOfChildren;
 
   public CaseExpression(List<CaseConditionNode> caseConditions, LogicalExpression elseExpr, CompleteType outputType) {
+    if (caseConditions == null) {
+      caseConditions = Collections.emptyList();
+    } else {
+      if (!(caseConditions instanceof ImmutableList)) {
+        caseConditions = ImmutableList.copyOf(caseConditions);
+      }
+    }
     this.caseConditions = caseConditions;
     this.elseExpr = elseExpr;
     this.outputType = outputType;
+    this.sizeOfChildren = caseConditions.size()*2 + 1;
   }
 
   @Override
   public <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E {
     return visitor.visitCaseExpression(this, value);
+  }
+
+  @Override
+  public int getSizeOfChildren() {
+    return sizeOfChildren;
   }
 
   @Override

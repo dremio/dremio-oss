@@ -82,30 +82,6 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
   }
 
   @Override
-  public boolean equals(final Object other) {
-    if (!(other instanceof ScanCrel)) {
-      return false;
-    }
-    ScanCrel otherScan = (ScanCrel) other;
-
-    // for acceleration purposes, no need to do deep comparison.
-    if(otherScan.isDirectNamespaceDescendent && isDirectNamespaceDescendent){
-      return getTableMetadata().getName().equals(otherScan.getTableMetadata().getName());
-    }
-    return super.equals(other);
-  }
-
-  @Override
-  public int hashCode() {
-    if(isDirectNamespaceDescendent){
-      return getTableMetadata().getName().hashCode();
-    }
-
-    return super.hashCode();
-  }
-
-
-  @Override
   public TableScan projectInvisibleColumn(String name) {
     // Check if already included
     if (getProjectedColumns().stream().map(path -> path.getRootSegment().getPath())

@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.sys.accesscontrol;
 
-import com.dremio.exec.proto.AccessControlRPC;
-
 /**
  * System table entry for a privilege.
  */
@@ -57,41 +55,5 @@ public class SysTablePrivilegeInfo {
 
   public String getPrivilege() {
     return privilege;
-  }
-
-  public static SysTablePrivilegeInfo toPrivilegeInfo(AccessControlRPC.PrivilegeInfo privilegeInfo) {
-    return new SysTablePrivilegeInfo(
-      privilegeInfo.getGranteeType(),
-      privilegeInfo.getGrantee(),
-      privilegeInfo.getGrantType(),
-      privilegeInfo.getEntity(),
-      privilegeInfo.getPrivilege());
-  }
-
-  public AccessControlRPC.PrivilegeInfo toProto() {
-    AccessControlRPC.PrivilegeInfo.Builder privilegeInfoProto =
-      AccessControlRPC.PrivilegeInfo.newBuilder();
-
-    if (grantee_type != null) {
-      privilegeInfoProto.setGranteeType(grantee_type);
-    }
-
-    if (grantee != null) {
-      privilegeInfoProto.setGrantee(grantee);
-    }
-
-    if (object_type != null) {
-      privilegeInfoProto.setGrantType(object_type);
-    }
-
-    if (object != null) {
-      privilegeInfoProto.setEntity(object);
-    }
-
-    if (privilege != null) {
-      privilegeInfoProto.setPrivilege(privilege);
-    }
-
-    return privilegeInfoProto.build();
   }
 }

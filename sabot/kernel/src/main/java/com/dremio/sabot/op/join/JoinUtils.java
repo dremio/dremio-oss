@@ -16,7 +16,6 @@
 
 package com.dremio.sabot.op.join;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,10 +25,6 @@ import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.ImmutableBitSet;
 
@@ -39,7 +34,6 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.ClassProducer;
-import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.resolver.TypeCastRules;
@@ -54,47 +48,6 @@ public class JoinUtils {
     EQUALITY,  // equality join
     INEQUALITY,  // inequality join: <>, <, >
     CARTESIAN   // no join condition
-  }
-  public static List<RexNode> createSwappedJoinExprsProjected(
-    JoinRelBase newJoin,
-    JoinRelBase origJoin) {
-    final List<RelDataTypeField> newJoinFields =
-      newJoin.getInputRowType().getFieldList();
-    final RexBuilder rexBuilder = newJoin.getCluster().getRexBuilder();
-    final List<RexNode> exps = new ArrayList<>();
-    final int nFields = origJoin.getRight().getRowType().getFieldCount();
-
-    List<Integer> projected;
-    ImmutableBitSet projectedSet = ImmutableBitSet.range(newJoin.getRowType().getFieldCount());
-    projected = projectedSet.asList();
-
-    for (int i = 0; i < newJoinFields.size(); i++) {
-      final int source = (i + nFields) % newJoinFields.size();
-      if (projectedSet.get(source)) {
-        RelDataTypeField field = newJoinFields.get(source);
-        exps.add(rexBuilder.makeInputRef(field.getType(), projected.indexOf(source)));
-      }
-    }
-    return exps;
-  }
-
-  public static RelDataType rowTypeFromProjected(RelNode left, RelNode right, RelDataType curRowType, ImmutableBitSet projected, RelDataTypeFactory typeFactory) {
-    int leftSize = left.getRowType().getFieldCount();
-    int rightSize = right.getRowType().getFieldCount();
-    List<RelDataTypeField> fields = curRowType.getFieldList();
-    if (projected.asSet().size() != fields.size()) {;
-      List<RelDataType> dataTypes = new ArrayList<>();
-      List<String> fieldNames = new ArrayList<>();
-      for (int i = 0; i < fields.size(); i++) {
-        if (projected.get(i)) {
-          RelDataTypeField field = fields.get(i);
-          dataTypes.add(field.getType());
-          fieldNames.add(field.getName());
-        }
-      }
-      return typeFactory.createStructType(dataTypes, fieldNames);
-    }
-    return curRowType;
   }
 
   // Given a Join RelNode, swap its left condition with right condition
@@ -115,20 +68,6 @@ public class JoinUtils {
         adjustments
       )
     );
-  }
-
-  public static ImmutableBitSet projectSwap(ImmutableBitSet projectedFields, int numFieldLeft, int size) {
-    if (null == projectedFields) {
-      return null;
-    }
-    int[] adjustments = new int[size];
-    Arrays.fill(adjustments, 0, numFieldLeft, size-numFieldLeft);
-    Arrays.fill(adjustments, numFieldLeft, numFieldLeft + size-numFieldLeft, -numFieldLeft);
-    ImmutableBitSet.Builder builder = ImmutableBitSet.builder();
-    for (int i : projectedFields.asList()) {
-      builder.set(adjustments[i]+i);
-    }
-    return builder.build();
   }
 
   public static ImmutableBitSet projectAll(int size) {

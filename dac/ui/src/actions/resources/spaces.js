@@ -53,7 +53,7 @@ function fetchSpaceListData(includeDatasetCount = false) {
 export function loadSpaceListData() {
   return (dispatch) => {
     return dispatch(fetchSpaceListData())
-      .then(() => dispatch(fetchSpaceListData(true)));
+      .then(dispatch(fetchSpaceListData(true)));
   };
 }
 

@@ -30,6 +30,7 @@ export default class ConfirmModal extends Component {
 
   static propTypes = {
     isOpen: PropTypes.bool,
+    isCentered: PropTypes.bool,
     hideCancelButton: PropTypes.bool,
     hideCloseButton: PropTypes.bool,
     showOnlyConfirm: PropTypes.bool,
@@ -46,13 +47,15 @@ export default class ConfirmModal extends Component {
     showPrompt: PropTypes.bool,
     promptFieldProps: PropTypes.object,
     dataQa: PropTypes.string,
-    validatePromptText: PropTypes.func
+    validatePromptText: PropTypes.func,
+    style: PropTypes.object
   };
 
   static defaultProps = {
     hideCancelButton: false,
     showOnlyConfirm: false,
-    hideCloseButton: false
+    hideCloseButton: false,
+    style: {}
   };
 
   state = {
@@ -159,7 +162,7 @@ export default class ConfirmModal extends Component {
         direction='column'
         alignItems='stretch'
         justify='space-evenly'
-        classes={{ root: 'full-height' }}
+        classes={{ root: 'full-height margin-bottom--double margin-top' }}
       >
         <Grid item>
           {textRenderer}
@@ -181,10 +184,12 @@ export default class ConfirmModal extends Component {
   render() {
     const {
       isOpen,
+      isCentered,
       title,
       onCancel,
       confirmText,
       confirmButtonStyle,
+      style,
       cancelText,
       showOnlyConfirm,
       showPrompt,
@@ -200,6 +205,16 @@ export default class ConfirmModal extends Component {
       canSubmit =  validatePromptText(this.state.promptValue);
     }
 
+    // Using style here instead of classes because Modal doesn't work with classNames, should switch to use the Dialog from ui-lib
+    const modalStyle = {
+      ...(showPrompt ? { height: '275px' } : {}),
+      ...(isCentered ? {
+        top: '50%',
+        marginTop: -(showPrompt ? 275 : 200) / 2
+      } : {}),
+      ...style
+    };
+
     return (
       <Modal
         isOpen={isOpen}
@@ -209,7 +224,7 @@ export default class ConfirmModal extends Component {
         dataQa={dataQa}
         size='smallest'
         title={title || la('Confirm')}
-        style={showPrompt ? { height: '275px' } : {}}
+        style={modalStyle}
       >
         <div style={{...modalContent, ...confirmBodyText}}>
           {this.renderBody()}

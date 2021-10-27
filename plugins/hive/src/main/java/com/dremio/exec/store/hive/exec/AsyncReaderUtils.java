@@ -67,7 +67,7 @@ public class AsyncReaderUtils {
       jobConf.set("authority", uri.getRawAuthority());
       jobConf.set(FS_DREMIO_AZURE_IMPL, DremioFileSystem.class.getName());
     } else if (HDFS_FILE_SYSTEM.contains(scheme)) {
-      modifiedURI = new URI(HDFS_SCHEME,  uri.getHost(), uri.getPath(), uri.getFragment());
+      modifiedURI = uri;
       jobConf.set(FS_DREMIO_HDFS_IMPL, DremioFileSystem.class.getName());
     } else if (GCS_FILE_SYSTEM.contains(scheme)) {
       modifiedURI = new URI(DREMIO_GCS_SCHEME,  uri.getRawAuthority(), "/" + uri.getRawAuthority() +  uri.getPath(),

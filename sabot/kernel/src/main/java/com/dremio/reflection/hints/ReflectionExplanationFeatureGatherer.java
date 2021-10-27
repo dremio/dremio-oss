@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.reflection.hints.features.FieldMissingFeature;
@@ -52,18 +53,18 @@ public class ReflectionExplanationFeatureGatherer {
    * @param userFilter
    * @param materializationFilter
    */
-  public void overFiltered(RexNode userFilter, RexNode materializationFilter) {
+  public void overFiltered(RexNode userFilter, RexNode materializationFilter, RelDataType datasetRowType) {
     reflectionIdToFeatureList.computeIfAbsent(currentReflectionId, KEY_TO_NEW_SET)
-        .add(new FilterDisjointFeature(userFilter, materializationFilter));
+        .add(new FilterDisjointFeature(userFilter, materializationFilter, datasetRowType));
   }
 
   /**
-   * Clause over filtes
+   * Clause over filters
    * @param materializationFilters
    */
-  public void overFiltered(RexNode materializationFilters) {
+  public void overFiltered(RexNode materializationFilters, RelDataType datasetRowType) {
     reflectionIdToFeatureList.computeIfAbsent(currentReflectionId, KEY_TO_NEW_SET)
-        .add(new MaterializationFilterOverSpecifiedFeature(materializationFilters));
+        .add(new MaterializationFilterOverSpecifiedFeature(materializationFilters, datasetRowType));
   }
 
 }

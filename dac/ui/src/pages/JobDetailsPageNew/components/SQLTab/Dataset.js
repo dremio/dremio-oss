@@ -32,6 +32,6 @@ const Dataset = ({description}) => {
 };
 
 Dataset.propTypes = {
-  description: PropTypes.object
+  description: PropTypes.any
 };
 export default Dataset;

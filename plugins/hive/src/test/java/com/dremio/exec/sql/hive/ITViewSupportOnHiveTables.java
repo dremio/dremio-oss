@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,8 +43,8 @@ public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
   @Rule
   public final ExpectedException exception = ExpectedException.none();
 
-  @ClassRule
-  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(600, TimeUnit.SECONDS);
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();

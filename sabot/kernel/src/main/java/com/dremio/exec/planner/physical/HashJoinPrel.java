@@ -29,7 +29,6 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -49,9 +48,7 @@ import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.options.TypeValidators.RangeDoubleValidator;
-import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
-import com.google.common.collect.Lists;
 
 @Options
 public class HashJoinPrel extends JoinPrel {
@@ -63,46 +60,33 @@ public class HashJoinPrel extends JoinPrel {
   public static final BooleanValidator BOUNDED = new BooleanValidator("planner.op.hashjoin.bounded", false);
 
   private final boolean swapped;
+  private final RexNode extraCondition;
   private RuntimeFilterInfo runtimeFilterInfo;
 
   private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                       JoinRelType joinType, boolean swapped) {
-    super(cluster, traits, left, right, condition, joinType, JoinUtils.projectAll(left.getRowType().getFieldCount()+right.getRowType().getFieldCount()));
+                       RexNode extraCondition, JoinRelType joinType, boolean swapped,
+                       RuntimeFilterInfo runtimeFilterInfo) {
+    super(cluster, traits, left, right, condition, joinType);
     this.swapped = swapped;
-  }
-
-  private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                       JoinRelType joinType, boolean swapped, ImmutableBitSet projectedFields) {
-    super(cluster, traits, left, right, condition, joinType, projectedFields);
-    this.swapped = swapped;
-  }
-
-  private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                       JoinRelType joinType, boolean swapped, ImmutableBitSet projectedFields, RuntimeFilterInfo runtimeFilterInfo) {
-    this(cluster, traits, left, right, condition, joinType, swapped, projectedFields);
+    this.extraCondition = extraCondition;
     this.runtimeFilterInfo = runtimeFilterInfo;
   }
 
   public static HashJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                                    JoinRelType joinType, ImmutableBitSet projectedFields) {
+                                    RexNode extraCondition, JoinRelType joinType) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, joinType, false, projectedFields, null);
+    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, extraCondition, joinType, false, null);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped, getProjectedFields(), this.runtimeFilterInfo);
-  }
-
-  @Override
-  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields) {
-    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped, projectedFields, this.runtimeFilterInfo);
+    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, this.extraCondition, joinType, this.swapped, this.runtimeFilterInfo);
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     if (joinCategory == JoinCategory.CARTESIAN || joinCategory == JoinCategory.INEQUALITY) {
       return planner.getCostFactory().makeInfiniteCost();
@@ -134,7 +118,6 @@ public class HashJoinPrel extends JoinPrel {
     final List<Integer> currentLeftKeys;
     List<Integer> currentRightKeys;
 
-    final JoinRelType jtype;
 
     // Swapping left and side if necessary
     // Output is not swapped as the operator uses field names and not field indices
@@ -144,13 +127,11 @@ public class HashJoinPrel extends JoinPrel {
       currentRight = left;
       currentLeftKeys = rightKeys;
       currentRightKeys = leftKeys;
-      jtype = this.getJoinType().swap();
     } else {
       currentLeft = left;
       currentRight = right;
       currentLeftKeys = leftKeys;
       currentRightKeys = rightKeys;
-      jtype = this.getJoinType();
     }
 
     final List<String> leftFields = currentLeft.getRowType().getFieldNames();
@@ -159,12 +140,12 @@ public class HashJoinPrel extends JoinPrel {
     final PhysicalOperator leftPop = ((Prel)currentLeft).getPhysicalOperator(creator);
     final PhysicalOperator rightPop = ((Prel)currentRight).getPhysicalOperator(creator);
 
-    final List<JoinCondition> conditions = Lists.newArrayList();
-
-    buildJoinConditions(conditions, leftFields, rightFields, currentLeftKeys, currentRightKeys);
+    final List<JoinCondition> conditions = buildJoinConditions(leftFields, rightFields, currentLeftKeys, currentRightKeys);
 
     final boolean vectorize = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN)
         && canVectorize(creator.getContext().getFunctionRegistry(), leftPop, rightPop, conditions);
+
+    final LogicalExpression extraJoinCondition = buildExtraJoinCondition(vectorize);
 
     SchemaBuilder b = BatchSchema.newBuilder();
     for (Field f : rightPop.getProps().getSchema()) {
@@ -176,17 +157,18 @@ public class HashJoinPrel extends JoinPrel {
     BatchSchema schema = b.build();
 
     return new HashJoinPOP(
-        creator
-          .props(this, null, schema, RESERVE, LIMIT)
-          .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
-          .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
-          .cloneWithMemoryExpensive(true),
-        leftPop,
-        rightPop,
-        conditions,
-        joinType,
-        vectorize,
-        runtimeFilterInfo
+      creator
+        .props(this, null, schema, RESERVE, LIMIT)
+        .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
+        .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
+        .cloneWithMemoryExpensive(true),
+      leftPop,
+      rightPop,
+      conditions,
+      extraJoinCondition,
+      joinType,
+      vectorize,
+      runtimeFilterInfo
     );
   }
 
@@ -214,6 +196,7 @@ public class HashJoinPrel extends JoinPrel {
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw)
+      .itemIf("extraCondition", extraCondition, extraCondition != null)
       .itemIf("swapped", swapped, swapped)
       .itemIf("runtimeFilter", runtimeFilterInfo, runtimeFilterInfo != null);
   }
@@ -238,7 +221,7 @@ public class HashJoinPrel extends JoinPrel {
   }
 
   public HashJoinPrel swap() {
-    return new HashJoinPrel(getCluster(), traitSet, left, right, condition, joinType, !swapped, getProjectedFields());
+    return new HashJoinPrel(getCluster(), traitSet, left, right, condition, extraCondition, joinType, !swapped, runtimeFilterInfo);
   }
 
   public boolean isSwapped() {
@@ -253,5 +236,8 @@ public class HashJoinPrel extends JoinPrel {
     this.runtimeFilterInfo = runtimeFilterInfo;
   }
 
-
+  @Override
+  public RexNode getExtraCondition() {
+    return extraCondition;
+  }
 }

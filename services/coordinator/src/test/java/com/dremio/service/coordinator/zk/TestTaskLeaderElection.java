@@ -25,8 +25,12 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -34,6 +38,7 @@ import org.junit.rules.Timeout;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.TaskLeaderChangeListener;
 import com.dremio.service.coordinator.TaskLeaderElection;
 import com.google.common.collect.ImmutableList;
@@ -392,6 +397,97 @@ public class TestTaskLeaderElection {
     }
   }
 
+  @Test
+  public void testReEnterElection() throws Exception {
+    try (ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
+      DEFAULT_SABOT_CONFIG,
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))) {
+      coordinator.start();
+
+      CoordinationProtos.NodeEndpoint nodeEndpoint1 = CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("host1")
+        .setFabricPort(1234)
+        .setUserPort(2345)
+        .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
+        .build();
+
+      CoordinationProtos.NodeEndpoint nodeEndpoint2 = CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("host2")
+        .setFabricPort(1235)
+        .setUserPort(2346)
+        .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
+        .build();
+
+
+      TestElectionListenerProvider electionListenerProvider = new TestElectionListenerProvider();
+
+      TaskLeaderElection taskLeaderElectionService1 =
+        new TaskLeaderElection(
+          SERVICE_NAME,
+          DirectProvider.wrap(coordinator),
+          5000L, // 5secs
+          DirectProvider.wrap(nodeEndpoint1),
+          Executors.newSingleThreadScheduledExecutor(),
+          20L,
+          electionListenerProvider
+        );
+
+      TaskLeaderElection taskLeaderElectionService2 =
+        new TaskLeaderElection(
+          SERVICE_NAME,
+          DirectProvider.wrap(coordinator),
+          5000L, // 5secs
+          DirectProvider.wrap(nodeEndpoint2),
+          Executors.newSingleThreadScheduledExecutor(),
+          20L,
+          electionListenerProvider
+        );
+
+      List<TaskLeaderElection> taskLeaderElectionServiceList =
+        ImmutableList.of(
+          taskLeaderElectionService1,
+          taskLeaderElectionService2);
+
+
+      taskLeaderElectionServiceList.forEach(v -> {
+        try {
+          v.start();
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      });
+
+      // wait till atleast one participant is elected.
+      while (taskLeaderElectionServiceList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
+        Thread.sleep(50);
+      }
+
+      // set ignore election such that after relinquish, the test simulates the situation where there is no leader
+      electionListenerProvider.setIgnoreElection();
+
+      // wait till there are no leaders after leadership relinquish. when electedCount == 2
+      // TestPreConditionElectionListener return false.
+      while (taskLeaderElectionServiceList.stream().anyMatch(TaskLeaderElection::isTaskLeader))  {
+        Thread.sleep(50);
+      }
+
+      List<TaskLeaderElection> leaders = taskLeaderElectionServiceList
+        .stream()
+        .filter(TaskLeaderElection::isTaskLeader).collect(Collectors.toList());
+      Assert.assertEquals(0, leaders.size());
+
+      electionListenerProvider.resetIgnoreElection();
+
+      // due to reelection there must be a leader elected
+      while (taskLeaderElectionServiceList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
+        Thread.sleep(50);
+      }
+
+      TaskLeaderElection leader = getCurrentLeaderFilter(taskLeaderElectionServiceList);
+      assertNotNull(leader);
+    }
+  }
+
   private void waitUntilLeaderRemoved(List<TaskLeaderElection> taskLeaderElectionMap, TaskLeaderElection leader) throws Exception {
     while (taskLeaderElectionMap.stream().anyMatch(v -> { return leader.getCurrentEndPoint().equals(v.getTaskLeader()); })) {
       Thread.sleep(100);
@@ -429,5 +525,48 @@ public class TestTaskLeaderElection {
     }
     throw new RuntimeException("Failed to get current leader.");
   }
+
+  private static class TestElectionListenerProvider implements Function<ElectionListener, ElectionListener> {
+    private final AtomicBoolean ignoreElection = new AtomicBoolean(false);
+
+    @Override
+    public ElectionListener apply(ElectionListener innerListener) {
+      return new TestElectionListener(innerListener, ignoreElection);
+    }
+
+    void setIgnoreElection() {
+      ignoreElection.set(true);
+    }
+
+    void resetIgnoreElection() {
+      ignoreElection.set(false);
+    }
+  }
+
+  private static class TestElectionListener implements ElectionListener {
+
+    private final ElectionListener innerListener;
+    private final AtomicBoolean atomicBoolean;
+
+
+    TestElectionListener(ElectionListener innerListener, AtomicBoolean atomicBoolean) {
+      this.innerListener = innerListener;
+      this.atomicBoolean = atomicBoolean;
+    }
+
+    @Override
+    public void onElected() {
+      logger.info("Called onElected {}", atomicBoolean.get());
+      if (!atomicBoolean.get()) {
+        innerListener.onElected();
+      }
+    }
+
+    @Override
+    public void onCancelled() {
+      innerListener.onCancelled();
+    }
+  }
+
 }
 

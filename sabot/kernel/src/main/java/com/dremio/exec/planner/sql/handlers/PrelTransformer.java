@@ -99,7 +99,6 @@ import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
-import com.dremio.exec.planner.physical.visitor.AddProjectOnPartialJoinVisitor;
 import com.dremio.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
 import com.dremio.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
 import com.dremio.exec.planner.physical.visitor.FinalColumnReorderer;
@@ -116,6 +115,7 @@ import com.dremio.exec.planner.physical.visitor.SplitUpComplexExpressions;
 import com.dremio.exec.planner.physical.visitor.StarColumnConverter;
 import com.dremio.exec.planner.physical.visitor.SwapHashJoinVisitor;
 import com.dremio.exec.planner.physical.visitor.WriterUpdater;
+import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.FindNonJdbcConventionRexSubQuery;
@@ -179,7 +179,7 @@ public class PrelTransformer {
 
     final SqlNode validated = validatedTypedSqlNode.getKey();
     final RelNode rel = convertToRel(config, validated, relTransformer);
-    final RelNode preprocessedRel = preprocessNode(config, rel);
+    final RelNode preprocessedRel = preprocessNode(config.getContext().getOperatorTable(), rel);
     return new ConvertedRelNode(preprocessedRel, validatedTypedSqlNode.getValue());
   }
 
@@ -255,7 +255,7 @@ public class PrelTransformer {
     } catch (RelOptPlanner.CannotPlanException ex) {
       logger.error(ex.getMessage(), ex);
 
-      if(JoinUtils.checkCartesianJoin(relNode, Lists.<Integer>newArrayList(), Lists.<Integer>newArrayList(), Lists.<Boolean>newArrayList())) {
+      if (JoinUtils.checkCartesianJoin(relNode, Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList())) {
         throw new UnsupportedRelOperatorException("This query cannot be planned\u2014possibly due to use of an unsupported feature.");
       } else {
         throw ex;
@@ -303,7 +303,8 @@ public class PrelTransformer {
         relWithoutMultipleConstantGroupKey = rowCountAdjusted;
       }
       final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateQuery(relWithoutMultipleConstantGroupKey, DremioRelFactories.LOGICAL_BUILDER.create(relWithoutMultipleConstantGroupKey.getCluster(), null), true);
-      final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, decorrelatedNode, decorrelatedNode.getTraitSet().plus(Rel.LOGICAL), true);
+      final RelNode sortRemoved = (plannerSettings.isSortInJoinRemoverEnabled())? DremioSortInJoinRemover.remove(decorrelatedNode): decorrelatedNode;
+      final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, sortRemoved, sortRemoved.getTraitSet().plus(Rel.LOGICAL), true);
       return jdbcPushDown.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.LOGICAL_BUILDER));
     } else {
       return rowCountAdjusted;
@@ -691,33 +692,14 @@ public class PrelTransformer {
     phyRelNode = StarColumnConverter.insertRenameProject(phyRelNode);
 
     /*
-     * 1.1.)
-     * Output schema for the same join rel might differ based on which operator is used in execution.
-     * Currently, RowType for join is based on actual fields needed by its consumer.
-     * However, this could cause name collision issue in execution time if
-     * - multiple join operators appear consecutively
-     * - the join operators are executed by operators that don't support partial projection
-     * For example, The following case would end up getting name conflicts on the field A and B.
-     *
-     *            JoinRel(RowType:[A B C D])
-     *            /            \
-     *       Rel([A B])       JoinRel([C D]) -> becomes [A B C D] after executed by join operators without partial projection support
-     *                        /         \
-     *                    Rel([A C])  Rel([B D])
-     *
-     * Make sure to add project on join if it partially projects all incoming fields
-     */
-    phyRelNode = AddProjectOnPartialJoinVisitor.insertProject(phyRelNode);
-
-    /*
-     * 1.2)
+     * 1.1)
      * Join might cause naming conflicts from its left and right child.
      * In such case, we have to insert Project to rename the conflicting names.
      */
     phyRelNode = JoinPrelRenameVisitor.insertRenameProject(phyRelNode);
 
     /*
-     * 1.3.) Swap left / right for INNER hash join, if left's row count is < (1 + margin) right's row count.
+     * 1.2.) Swap left / right for INNER hash join, if left's row count is < (1 + margin) right's row count.
      * We want to have smaller dataset on the right side, since hash table builds on right side.
      */
     if (plannerSettings.isHashJoinSwapEnabled()) {
@@ -725,7 +707,7 @@ public class PrelTransformer {
     }
 
     /*
-     * 1.4.) Break up all expressions with complex outputs into their own project operations
+     * 1.3.) Break up all expressions with complex outputs into their own project operations
      *
      * This is not needed for planning anymore, but just in case there are udfs that needs to be split up, keep it.
      */
@@ -1032,7 +1014,7 @@ public class PrelTransformer {
     return groupSetRel;
   }
 
-  private static RelNode preprocessNode(SqlHandlerConfig config, RelNode rel) throws SqlUnsupportedException {
+  public static RelNode preprocessNode(OperatorTable operatorTable, RelNode rel) throws SqlUnsupportedException {
     /*
      * Traverse the tree to do the following pre-processing tasks: 1. replace the convert_from, convert_to function to
      * actual implementations Eg: convert_from(EXPR, 'JSON') be converted to convert_fromjson(EXPR); TODO: Ideally all
@@ -1042,8 +1024,8 @@ public class PrelTransformer {
      */
 
     PreProcessRel visitor = PreProcessRel.createVisitor(
-        config.getContext().getOperatorTable(),
-        rel.getCluster().getRexBuilder());
+      operatorTable,
+      rel.getCluster().getRexBuilder());
     try {
       rel = rel.accept(visitor);
     } catch (UnsupportedOperationException ex) {

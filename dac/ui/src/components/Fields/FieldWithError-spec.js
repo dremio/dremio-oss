@@ -15,6 +15,8 @@
  */
 import { shallow } from 'enzyme';
 
+import { FormValidationMessage } from 'dremio-ui-lib';
+
 import FieldWithError from './FieldWithError';
 
 describe('FieldWithError', () => {
@@ -32,7 +34,7 @@ describe('FieldWithError', () => {
   it('should not render error if there is none', () => {
     const wrapper = shallow(<FieldWithError><input/></FieldWithError>);
     wrapper.instance().refs = { target: {} }; // simulate refs
-    expect(wrapper.find('Tooltip').prop('target')()).to.be.null;
+    expect(wrapper.find(FormValidationMessage)).to.have.length(0);
   });
 
   it('should render error when there is one', () => {
@@ -43,7 +45,7 @@ describe('FieldWithError', () => {
     const wrapper = shallow(<FieldWithError {...props}><input/></FieldWithError>);
     const refObj = {};
     wrapper.instance().refs = { target: refObj }; // simulate refs
-    expect(wrapper.find('Tooltip').prop('target')()).to.equal(refObj);
+    expect(wrapper.find(FormValidationMessage)).to.have.length(1);
   });
 
   it('should throw when there is no child', () => {

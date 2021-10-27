@@ -29,6 +29,7 @@ import com.dremio.exec.planner.fragment.ParallelizationInfo;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ArrayListMultimap;
@@ -58,8 +59,8 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
   protected ArrayListMultimap<Integer, MinorFragmentIndexEndpoint> receiverToSenderMapping;
   private boolean isSenderReceiverMappingCreated;
 
-  public AbstractMuxExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema, PhysicalOperator child) {
-    super(props, senderProps, receiverProps, schema, child);
+  public AbstractMuxExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema, PhysicalOperator child, OptionManager optionManager) {
+    super(props, senderProps, receiverProps, schema, child, optionManager);
   }
 
   @Override

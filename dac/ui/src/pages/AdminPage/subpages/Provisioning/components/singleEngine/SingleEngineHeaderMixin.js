@@ -19,6 +19,7 @@ import EngineStatus from '@app/pages/AdminPage/subpages/Provisioning/components/
 
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
+    loadData() {},
     getEngineStatus(engine, styles) {
       return <EngineStatus engine={engine} style={styles.statusIcon} />;
     },

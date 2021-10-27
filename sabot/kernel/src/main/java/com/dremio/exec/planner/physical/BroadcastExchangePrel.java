@@ -56,7 +56,7 @@ public class BroadcastExchangePrel extends ExchangePrel{
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     PlannerSettings plannerSettings = PrelUtil.getSettings(getCluster());
     if(plannerSettings.useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
 
     RelNode child = this.getInput();
@@ -107,7 +107,8 @@ public class BroadcastExchangePrel extends ExchangePrel{
         senderProps,
         receiverProps,
         props.getSchema(),
-        childPOP);
+        childPOP,
+        creator.getOptionManager());
   }
 
 }

@@ -33,6 +33,10 @@ public interface ResizeListener {
 
     @Override
     public void releaseBatch(final int batchIdx) { }
+
+    @Override
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {}
   };
 
   void addBatch() throws Exception;
@@ -46,4 +50,11 @@ public interface ResizeListener {
   void verifyBatchCount(int batches);
 
   void releaseBatch(final int batchIdx);
+
+  default boolean hasSpace(final int space, final int batchIndex) {
+    return true;
+  }
+
+  public void accumulate(final long memoryAddr, final int count,
+                         final int bitsInChunk, final int chunkOffsetMask);
 }

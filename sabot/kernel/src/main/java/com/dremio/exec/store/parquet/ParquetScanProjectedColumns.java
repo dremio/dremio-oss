@@ -32,10 +32,12 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergSchemaFi
 public class ParquetScanProjectedColumns {
   private final List<SchemaPath> projectedColumns;
   private final List<IcebergProtobuf.IcebergSchemaField> icebergColumnIDs;
+  private final boolean isConvertedIcebergDataset;
 
-  private ParquetScanProjectedColumns(List<SchemaPath> projectedColumns, List<IcebergSchemaField> icebergColumnIDs) {
+  private ParquetScanProjectedColumns(List<SchemaPath> projectedColumns, List<IcebergSchemaField> icebergColumnIDs, boolean isConvertedIcebergDataset) {
     this.projectedColumns = projectedColumns;
     this.icebergColumnIDs = icebergColumnIDs;
+    this.isConvertedIcebergDataset = isConvertedIcebergDataset;
   }
 
   public int size() {
@@ -48,8 +50,9 @@ public class ParquetScanProjectedColumns {
       columnResolver = new ParquetColumnDefaultResolver(this.projectedColumns);
       return columnResolver;
     }
-    ParquetMessageTypeIDExtractor idExtractor = new ParquetMessageTypeIDExtractor();
-    if (idExtractor.hasIds(parquetSchema)) {
+    if (!this.isConvertedIcebergDataset) {
+      ParquetMessageTypeIDExtractor idExtractor = new ParquetMessageTypeIDExtractor();
+      idExtractor.hasIds(parquetSchema);
       columnResolver = new ParquetColumnIcebergResolver(this.projectedColumns, this.icebergColumnIDs, idExtractor.getAliases());
     } else {
       columnResolver = new ParquetColumnDefaultResolver(this.projectedColumns);
@@ -58,7 +61,7 @@ public class ParquetScanProjectedColumns {
   }
 
   private ParquetScanProjectedColumns(List<SchemaPath> projectedColumns) {
-    this(projectedColumns, null);
+    this(projectedColumns, null, true);
   }
 
   public List<SchemaPath> getBatchSchemaProjectedColumns() {
@@ -70,11 +73,11 @@ public class ParquetScanProjectedColumns {
   }
 
   public static ParquetScanProjectedColumns fromSchemaPathAndIcebergSchema(
-    List<SchemaPath> projectedColumns, List<IcebergSchemaField> icebergColumnIDs) {
-    return new ParquetScanProjectedColumns(projectedColumns, icebergColumnIDs);
+    List<SchemaPath> projectedColumns, List<IcebergSchemaField> icebergColumnIDs, boolean isConvertedIcebergDataset) {
+    return new ParquetScanProjectedColumns(projectedColumns, icebergColumnIDs, isConvertedIcebergDataset);
   }
 
-  ParquetScanProjectedColumns cloneForSchemaPaths(List<SchemaPath> projectedColumns) {
-    return new ParquetScanProjectedColumns(projectedColumns, this.icebergColumnIDs);
+  ParquetScanProjectedColumns cloneForSchemaPaths(List<SchemaPath> projectedColumns, boolean isConvertedIcebergDataset) {
+    return new ParquetScanProjectedColumns(projectedColumns, this.icebergColumnIDs, isConvertedIcebergDataset);
   }
 }

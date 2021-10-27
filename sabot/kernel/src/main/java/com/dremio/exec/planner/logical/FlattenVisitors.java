@@ -43,7 +43,7 @@ public class FlattenVisitors {
   }
 
   public static boolean hasFlatten(Project project){
-    for(RexNode n : project.getChildExps()){
+    for(RexNode n : project.getProjects()){
       if(n.accept(new FlattenFinder())){
         return true;
       }
@@ -164,7 +164,7 @@ public class FlattenVisitors {
     }
 
     public void add(Project project){
-      for(RexNode e : project.getChildExps()){
+      for(RexNode e : project.getProjects()){
         e.accept(this);
       }
     }

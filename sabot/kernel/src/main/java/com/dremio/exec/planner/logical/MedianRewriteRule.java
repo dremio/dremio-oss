@@ -73,7 +73,12 @@ public class MedianRewriteRule extends RelOptRule {
     final List<AggregateCall> aggCallList = aggregate.getAggCallList();
     for (AggregateCall aggregateCall : aggCallList) {
       final SqlKind kind = aggregateCall.getAggregation().getKind();
-      if(kind == SqlKind.MEDIAN) {
+      //Median/Percentil rewrite rule doesn't handle the filter at all currently.
+      //So when it fires, it does an incorrect transformation.
+      //Each rule needs to correctly transform, regardless of whatever other rules might be out there.
+      //As long as the filter rewrite rule is in the same phase (or earlier) than the percentile rewrite,
+      //it should be fine.
+      if((kind == SqlKind.MEDIAN) && !aggregateCall.hasFilter()) {
         return true;
       }
     }

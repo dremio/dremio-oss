@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.inject.Provider;
+
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
@@ -41,6 +43,7 @@ import com.dremio.dac.server.socket.SocketMessage.ListenRecords;
 import com.dremio.dac.server.socket.SocketMessage.Payload;
 import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.ExternalStatusListener;
@@ -67,12 +70,14 @@ public class SocketServlet extends WebSocketServlet {
   private final ObjectWriter writer;
   private final JobsService jobsService;
   private final TokenManager tokenManager;
+  private final Provider<OptionManager> optionManager;
 
-  public SocketServlet(JobsService jobsService, final TokenManager tokenManager) {
+  public SocketServlet(JobsService jobsService, final TokenManager tokenManager, Provider<OptionManager> optionManager) {
     this.jobsService = jobsService;
     this.tokenManager = Preconditions.checkNotNull(tokenManager, "token manager is required");
     this.reader = JSONUtil.mapper().readerFor(SocketMessage.class);
     this.writer = JSONUtil.mapper().writerFor(SocketMessage.class);
+    this.optionManager = optionManager;
   }
 
   @Override
@@ -150,6 +155,9 @@ public class SocketServlet extends WebSocketServlet {
         } else if (msg instanceof ListenProgress) {
           JobId id = ((ListenProgress) msg).getId();
           jobsService.registerListener(id, new ProgressListener(id, this));
+        } else if (msg instanceof SocketMessage.QVListenProgress) {
+          JobId id = ((SocketMessage.QVListenProgress) msg).getId();
+          jobsService.registerListener(id, new QVProgressListener(id, this));
         } else if (msg instanceof ListenRecords) {
           JobId id = ((ListenRecords) msg).getId();
           jobsService.registerListener(id, new RecordsListener(id, this));
@@ -242,6 +250,30 @@ public class SocketServlet extends WebSocketServlet {
     public void queryCompleted(JobSummary jobSummary) {
       final JobProgressUpdate update = new JobProgressUpdate(jobSummary);
       socket.send(update);
+    }
+  }
+
+  private class QVProgressListener implements ExternalStatusListener {
+
+    private final DremioSocket socket;
+    private final JobId jobId;
+
+    public QVProgressListener(JobId jobId, DremioSocket socket) {
+      super();
+      this.socket = socket;
+      this.jobId = jobId;
+    }
+
+    @Override
+    public void queryProgressed(JobSummary jobSummary) {
+        final SocketMessage.JobProgressUpdateForNewUI update = new SocketMessage.JobProgressUpdateForNewUI(jobSummary, true);
+        socket.send(update);
+    }
+
+    @Override
+    public void queryCompleted(JobSummary jobSummary) {
+        final SocketMessage.JobProgressUpdateForNewUI update = new SocketMessage.JobProgressUpdateForNewUI(jobSummary,true);
+        socket.send(update);
     }
   }
 

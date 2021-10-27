@@ -42,7 +42,7 @@ public final class UIOptions {
   /*
    * Specifies whether new jobs UI should be shown
    */
-  public static final BooleanValidator JOBS_UI_CHECK = new BooleanValidator("dremio.jobs.new.ui", false);
+  public static final BooleanValidator JOBS_UI_CHECK = new BooleanValidator("dremio.jobs.new.ui", true);
 
   /**
    * Specifies the Content Security Policy (CSP) header used by the Dremio UI.
@@ -52,4 +52,9 @@ public final class UIOptions {
     + " blob: ws: wss: *.mktoutil.com *.dremio.com *.bm4u.net *.mktoresp.com *.cloudfront.net *.marketo.com *.sentry.io *.intercom.io"
     + " *.walkme.com *.intercomcdn.com *.io *.marketo.net *.bootstrapcdn.com *.googletagmanager.com; img-src 'self'"
     + " blob: data: *.cloudfront.net *.amazonaws.com; font-src 'self' data: *.bootstrapcdn.com;");
+
+  /*
+   * Specifies whether new jobs profile UI should be shown
+   */
+  public static final BooleanValidator JOBS_PROFILE_UI_CHECK = new BooleanValidator("dremio.query.visualiser.enabled", false);
 }

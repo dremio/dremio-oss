@@ -30,7 +30,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker.Consistency;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 
@@ -71,7 +70,7 @@ public class EqualityConvertlet implements SqlRexConvertlet {
       } else {
         // if there are no Decimal types or some of the types are non-exact, fall back to default Calcite
         // behavior which will convert to Double
-        type = SqlTypeUtil.consistentType(cx.getTypeFactory(), consistency, types);
+        type = ConsistentTypeUtil.consistentType(cx.getTypeFactory(), consistency, types);
       }
       if (type != null) {
         final List<RexNode> oldExprs = Lists.newArrayList(exprs);

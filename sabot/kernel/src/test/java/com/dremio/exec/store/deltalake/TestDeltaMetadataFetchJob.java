@@ -47,7 +47,7 @@ public class TestDeltaMetadataFetchJob {
 
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), false, 0L);
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), false, 0L, 1L);
     DeltaLogSnapshot snapshot = job.get();
 
     assertEquals(snapshot.getVersionId(), 0);
@@ -58,7 +58,7 @@ public class TestDeltaMetadataFetchJob {
     assertEquals(11L, snapshot.getNetOutputRows());
 
 
-    job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 0L);
+    job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 0L, 1L);
     //Will try checkpoint read first then JSON read
     snapshot = job.get();
 
@@ -75,7 +75,7 @@ public class TestDeltaMetadataFetchJob {
 
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), false, 11L);
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), false, 11L, 1L);
     DeltaLogSnapshot snapshot = job.get();
 
     assertEquals(snapshot.getVersionId(), 11);
@@ -97,7 +97,7 @@ public class TestDeltaMetadataFetchJob {
     Path metaDir = Path.of(path);
 
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 1000L);
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 1000L, 1L);
 
     try {
       DeltaLogSnapshot snapshot = job.get();
@@ -118,7 +118,7 @@ public class TestDeltaMetadataFetchJob {
     commitJson.setLastModified(System.currentTimeMillis() + 10 * 1000);
 
 
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 1L);
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 1L, 1L);
 
     try {
       DeltaLogSnapshot snapshot = job.get();
@@ -135,7 +135,7 @@ public class TestDeltaMetadataFetchJob {
 
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 0L);
+    DeltaMetadataFetchJob job = new DeltaMetadataFetchJob(null, metaDir, fs, System.currentTimeMillis(), true, 0L, 1L);
     //Should fail as we are trying to read checkpoint but the file is a commit json
 
     try {

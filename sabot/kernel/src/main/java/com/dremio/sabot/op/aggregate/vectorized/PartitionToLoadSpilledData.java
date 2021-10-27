@@ -20,9 +20,10 @@ import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BaseFixedWidthVector;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
@@ -90,14 +91,16 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
   private final int batchSize;
   private int recordsInBatch;
   private final byte[] accumulatorTypes;
+  private final int varLenAccumulatorCapacity;
 
   public PartitionToLoadSpilledData(final BufferAllocator allocator,
                                     final int fixedDataLength,
                                     final int variableDataLength,
                                     final List<Field> postSpillAccumulatorVectorTypes,
-                                    final int batchSize) throws Exception {
+                                    final int batchSize, final int varLenAccumulatorCapacity) throws Exception {
     Preconditions.checkArgument(allocator != null, "Error: need a valid allocator to pre-allocate memory");
     this.allocator = allocator;
+    this.varLenAccumulatorCapacity = varLenAccumulatorCapacity;
     /* we use Numbers.nextPowerOfTwo because that is how memory allocation happens
      * inside FixedBlockVector and VariableBlockVector when inserting into hashtable.
      * if we don't use nextPowerOfTwo for actual allocation size, we might run into
@@ -105,17 +108,17 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
      * here to load the spilled batch into memory.
      */
     try(AutoCloseables.RollbackCloseable rollbackable = new AutoCloseables.RollbackCloseable()) {
+      this.fixedDataLength = fixedDataLength;
+      this.variableDataLength = variableDataLength;
       fixedKeyColPivotedData = allocator.buffer(Numbers.nextPowerOfTwo(fixedDataLength));
       rollbackable.add(fixedKeyColPivotedData);
       variableKeyColPivotedData = allocator.buffer(Numbers.nextPowerOfTwo(variableDataLength));
       rollbackable.add(variableKeyColPivotedData);
-      this.postSpillAccumulatorVectors = new FieldVector[postSpillAccumulatorVectorTypes.size()];
-      this.fixedDataLength = fixedDataLength;
-      this.variableDataLength = variableDataLength;
+      initBuffers();
       this.batchSize = batchSize;
       this.recordsInBatch = 0;
+      this.postSpillAccumulatorVectors = new FieldVector[postSpillAccumulatorVectorTypes.size()];
       this.accumulatorTypes = new byte[postSpillAccumulatorVectorTypes.size()];
-      initBuffers();
       initPostSpillAccumulatorVectors(postSpillAccumulatorVectorTypes, batchSize, rollbackable);
       rollbackable.commit();
       logger.debug("Extra Partition Pre-allocation, fixed-data length: {}, variable-data length: {}, actual fixed-data capacity: {}, actual variable-data capacty: {}, batchSize: {}",
@@ -139,17 +142,25 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
                                                final AutoCloseables.RollbackCloseable rollbackCloseable) {
     int count = 0;
     for (Field field : postSpillAccumulatorVectorTypes) {
-     FieldVector vector = TypeHelper.getNewVector(field, allocator);
-     /* we have aggregation on INT, BIGINT, FLOAT, FLOAT4 and DECIMAL types of
-      * columns which are all fixed width.
-      */
-     Preconditions.checkArgument(vector instanceof BaseFixedWidthVector, "Error: detected invalid accumulator vector type");
-     rollbackCloseable.add(vector);
-     ((BaseFixedWidthVector) vector).allocateNew(valueCount);
+      FieldVector vector = TypeHelper.getNewVector(field, allocator);
+      rollbackCloseable.add(vector);
+      /* we have aggregation on INT, BIGINT, FLOAT, FLOAT4 and DECIMAL types of
+       * columns which are all fixed width as well as (for min/max) on VARCHAR/VARBINARY
+       * with variable width.
+       */
+      final Types.MinorType type = org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(field.getType());
+      if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
+        Preconditions.checkArgument(vector instanceof BaseVariableWidthVector, "Error: detected invalid accumulator vector type");
+        ((BaseVariableWidthVector) vector).allocateNew(this.varLenAccumulatorCapacity, valueCount);
+      } else {
+        Preconditions.checkArgument(vector instanceof BaseFixedWidthVector, "Error: detected invalid accumulator vector type");
+        ((BaseFixedWidthVector) vector).allocateNew(valueCount);
+      }
 
-     Preconditions.checkArgument(vector.getValueCapacity() >= valueCount, "Error: failed to correctly pre-allocate accumulator vector in extra partition");
-     postSpillAccumulatorVectors[count] = vector;
-     count++;
+      Preconditions.checkArgument(vector.getValueCapacity() >= valueCount, "Error: failed to correctly pre-allocate accumulator vector in extra partition");
+      postSpillAccumulatorVectors[count] = vector;
+      accumulatorTypes[count] = (byte)type.ordinal();
+      count++;
     }
   }
 
@@ -187,46 +198,6 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
   }
 
   /**
-   * Get the length we have pre-allocated for deserializing fixed
-   * width pivoted GROUP BY key column data.
-   *
-   * @return pre-allocated length for fixed width data.
-   */
-  public int getPreallocatedFixedDataLength() {
-    return fixedDataLength;
-  }
-
-  /**
-   * Get the length we have pre-allocated for deserializing variable
-   * width pivoted GROUP BY key column data.
-   *
-   * @return pre-allocated length for variable width data.
-   */
-  public int getPreallocatedVariableDataLength() {
-    return variableDataLength;
-  }
-
-  /**
-   * Get the length of fixed width pivoted GROUP BY key column data
-   * from a deserialized spilled batch.
-   *
-   * @return deserialized length for fixed width data.
-   */
-  public int getReadableBytesForFixedWidthData() {
-    return LargeMemoryUtil.checkedCastToInt(fixedKeyColPivotedData.readableBytes());
-  }
-
-  /**
-   * Get the length of variable width pivoted GROUP BY key column data
-   * from a deserialized spilled batch.
-   *
-   * @return deserialized length for variable width data.
-   */
-  public int getReadableBytesForVariableWidthData() {
-    return LargeMemoryUtil.checkedCastToInt(variableKeyColPivotedData.readableBytes());
-  }
-
-  /**
    * Get pre-allocated batch size.
    *
    * @return batch size
@@ -251,6 +222,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
    * @return number of records in deserialized spilled batch
    */
   public int getRecordsInBatch() {
+    Preconditions.checkArgument(recordsInBatch == -1 || recordsInBatch > 0);
     return recordsInBatch;
   }
 
@@ -268,13 +240,14 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
   }
 
   /**
-   * Set the number of records in deserialized spilled batchh
+   * Set the number of records in deserialized spilled batch.
    * This is used by {@link VectorizedHashAggPartitionSerializable} when
    * it is loading a spilled batch into memory
    *
    * @param records number of records in deserialized spilled batch
    */
   public void setRecordsInBatch(final int records) {
+    Preconditions.checkArgument(records == -1 || records > 0);
     Preconditions.checkArgument(records <= batchSize, "Error: detected invalid number of records read from spilled batch");
     this.recordsInBatch = records;
   }
@@ -300,14 +273,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
     variableKeyColPivotedData.readerIndex(0);
     variableKeyColPivotedData.writerIndex(0);
     for (FieldVector vector : postSpillAccumulatorVectors) {
-      final ArrowBuf validityBuffer = vector.getValidityBuffer();
-      final ArrowBuf dataBuffer = vector.getDataBuffer();
-      validityBuffer.readerIndex(0);
-      validityBuffer.writerIndex(0);
-      dataBuffer.readerIndex(0);
-      dataBuffer.writerIndex(0);
-      validityBuffer.setZero(0, validityBuffer.capacity());
-      dataBuffer.setZero(0, dataBuffer.capacity());
+      vector.reset();
       vector.setValueCount(0);
     }
   }

@@ -20,6 +20,7 @@ import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 import Art from '@app/components/Art';
 import EllipsedText from 'components/EllipsedText';
+import deepEqual from 'deep-equal';
 
 import FontIcon from 'components/Icon/FontIcon';
 import Checkbox from 'components/Fields/Checkbox';
@@ -36,7 +37,8 @@ FilterSelectMenuItem.propTypes = {
   onClick: PropTypes.func,
   className: PropTypes.string,
   checkBoxClass: PropTypes.string,
-  showCheckIcon: PropTypes.bool
+  showCheckIcon: PropTypes.bool,
+  disabled: PropTypes.bool
 };
 
 
@@ -49,7 +51,8 @@ export function FilterSelectMenuItem({
   onClick,
   className,
   checkBoxClass,
-  showCheckIcon
+  showCheckIcon,
+  disabled
 }) {
   const menuClass = clsx('filterSelectMenu', className);
   return (
@@ -65,6 +68,7 @@ export function FilterSelectMenuItem({
           dataQa={getDataQaForFilterItem(item.id)}
           checkBoxClass={checkBoxClass}
           showCheckIcon={showCheckIcon}
+          disabled={disabled}
         />
       </span>
       <span className='filterSelectMenu__vectorColumns'>
@@ -125,7 +129,6 @@ export default class FilterSelectMenu extends PureComponent {
     selectViewBeforeClose: PropTypes.func,
     setBackGroundColorForLabel: PropTypes.bool,
     ellipsedTextClass: PropTypes.string
-
   };
 
   static defaultProps = { // todo: `la` loc not building correctly here
@@ -143,6 +146,15 @@ export default class FilterSelectMenu extends PureComponent {
   state = {
     pattern: ''
   };
+
+  shouldComponentUpdate(nextProps) {
+    const { items, selectedValues } = this.props;
+    if (deepEqual(items, nextProps.items) && deepEqual(selectedValues.toJS(), nextProps.selectedValues.toJS())) {
+      return false;
+    } else {
+      return true;
+    }
+  }
 
   componentWillReceiveProps(nextProps) {
     this.updateValueIsSelected(nextProps);
@@ -218,6 +230,7 @@ export default class FilterSelectMenu extends PureComponent {
         className={this.props.className}
         checkBoxClass={this.props.checkBoxClass}
         showCheckIcon={this.props.showCheckIcon}
+        disabled={item.disabled}
       />);
     });
   }
@@ -272,9 +285,6 @@ export default class FilterSelectMenu extends PureComponent {
   }
 
   render() {
-    if (!this.props.items.length) {
-      return null;
-    }
     const {
       label,
       name,
@@ -284,14 +294,22 @@ export default class FilterSelectMenu extends PureComponent {
       popoverFilters,
       selectClass,
       isArtIcon,
-      iconClass
+      iconClass,
+      items,
+      selectedValues,
+      preventSelectedLabel,
+      alwaysShowLabel
     } = this.props;
+
+    if (!items.length) {
+      return null;
+    }
     const className = clsx('filter-select-menu field', selectClass);
     return (
       <SelectView
         content={
           <Fragment>
-            {(this.props.preventSelectedLabel || !this.props.selectedValues.size || this.props.alwaysShowLabel) && <span>{label}</span>}
+            {(preventSelectedLabel || !selectedValues.size || alwaysShowLabel) && <span>{label}</span>}
             {showSelectedLabel ? this.renderSelectedLabel() : label}
           </Fragment>
         }

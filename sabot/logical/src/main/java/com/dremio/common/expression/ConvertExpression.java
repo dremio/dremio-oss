@@ -56,6 +56,11 @@ public class ConvertExpression extends LogicalExpressionBase implements Iterable
     return Collections.singleton(input).iterator();
   }
 
+  @Override
+  public int getSizeOfChildren() {
+    return 1;
+  }
+
   public String getConvertFunction() {
     return convertFunction;
   }

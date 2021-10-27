@@ -61,18 +61,16 @@ public class StreamAggPrel extends AggPrelBase implements Prel{
   private StreamAggPrel(RelOptCluster cluster,
                        RelTraitSet traits,
                        RelNode child,
-                       boolean indicator,
                        ImmutableBitSet groupSet,
                        List<ImmutableBitSet> groupSets,
                        List<AggregateCall> aggCalls,
                        OperatorPhase phase) throws InvalidRelException {
-    super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls, phase);
+    super(cluster, traits, child, groupSet, groupSets, aggCalls, phase);
   }
 
   public static StreamAggPrel create(RelOptCluster cluster,
                        RelTraitSet traits,
                        RelNode child,
-                       boolean indicator,
                        ImmutableBitSet groupSet,
                        List<ImmutableBitSet> groupSets,
                        List<AggregateCall> aggCalls,
@@ -87,7 +85,7 @@ public class StreamAggPrel extends AggPrelBase implements Prel{
           return collation(groupSet);
         });
 
-    return new StreamAggPrel(cluster, adjustedTraits, child, indicator, groupSet, groupSets, aggCalls, phase);
+    return new StreamAggPrel(cluster, adjustedTraits, child, groupSet, groupSets, aggCalls, phase);
   }
 
   /**
@@ -126,9 +124,9 @@ public class StreamAggPrel extends AggPrelBase implements Prel{
   }
 
   @Override
-  public Aggregate copy(RelTraitSet traitSet, RelNode input, boolean indicator, ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
+  public Aggregate copy(RelTraitSet traitSet, RelNode input, ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
     try {
-      return StreamAggPrel.create(getCluster(), traitSet, input, indicator, groupSet, groupSets, aggCalls, this.getOperatorPhase());
+      return StreamAggPrel.create(getCluster(), traitSet, input, groupSet, groupSets, aggCalls, this.getOperatorPhase());
     } catch (InvalidRelException e) {
       throw new AssertionError(e);
     }
@@ -137,7 +135,7 @@ public class StreamAggPrel extends AggPrelBase implements Prel{
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     RelNode child = this.getInput();
     double inputRows = mq.getRowCount(child);

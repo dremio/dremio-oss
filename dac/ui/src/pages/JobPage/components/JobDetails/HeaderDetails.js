@@ -28,6 +28,7 @@ import datasetPathUtils from 'utils/resourcePathUtils/dataset';
 import { constructFullPathAndEncode, constructResourcePath } from 'utils/pathUtils';
 import { getViewState } from 'selectors/resources';
 import JobsUtils, { JobState } from '@app/utils/jobsUtils';
+import headerDetailsConfig from '@inject/pages/JobPage/components/JobDetails/headerDetailsConfig';
 
 import JobStateIcon from '../JobStateIcon';
 
@@ -67,6 +68,10 @@ class HeaderDetails extends PureComponent {
           text={intl.formatMessage({id: 'Common.Cancel'})}
           onClick={this.cancelJob}
           styles={[styles.button]}/>);
+    }
+
+    if (headerDetailsConfig.hideOpenResultsButton) {
+      return null;
     }
 
     const queryType = jobDetails.get('queryType');

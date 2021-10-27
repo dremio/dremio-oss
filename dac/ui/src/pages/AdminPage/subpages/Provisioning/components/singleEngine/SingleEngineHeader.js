@@ -24,17 +24,25 @@ import { StartStopButton } from '@app/pages/AdminPage/subpages/Provisioning/comp
 import {CLUSTER_STATE} from '@app/constants/provisioningPage/provisioningConstants';
 import SingleEngineHeaderMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/singleEngine/SingleEngineHeaderMixin';
 
+
 export const VIEW_ID = 'EngineHeader';
 
 @SingleEngineHeaderMixin
 class SingleEngineHeader extends PureComponent {
   static propTypes = {
     engine: PropTypes.instanceOf(Immutable.Map),
+    provisions: PropTypes.instanceOf(Immutable.List),
     unselectEngine: PropTypes.func,
     handleEdit: PropTypes.func,
     handleStartStop: PropTypes.func,
     intl: PropTypes.object
   };
+  state = {
+    engineDetails: {}
+  };
+  componentDidMount() {
+    this.loadData();
+  }
 
   onStartStop = () => {
     const { engine, handleStartStop } = this.props;

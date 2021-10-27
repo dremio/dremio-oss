@@ -16,6 +16,7 @@
 package com.dremio.exec.store.deltalake;
 
 import java.io.IOException;
+import java.util.List;
 
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.FileAttributes;
@@ -43,8 +44,8 @@ public interface DeltaLogReader {
      * Parses the DeltaLake commit log file / checkpoint parquet
      *
      * @param fs
-     * @param fileAttributes
+     * @param fileAttributes List of File Attributes - Cannot be empty or null
      * @return
      */
-    DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes, long version) throws IOException;
+    DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, List<FileAttributes> fileAttributes, long version) throws IOException;
 }

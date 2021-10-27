@@ -65,7 +65,6 @@ import com.dremio.exec.store.sys.SystemTable;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.resource.ClusterResourceInformation;
-import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -263,6 +262,6 @@ public class TestRelMdRowCount {
   }
 
   private Prel newJoin(Prel left, Prel right, RexNode joinExpr) {
-    return HashJoinPrel.create(cluster, traits, left, right, joinExpr, JoinRelType.INNER, JoinUtils.projectAll(left.getRowType().getFieldCount()+right.getRowType().getFieldCount()));
+    return HashJoinPrel.create(cluster, traits, left, right, joinExpr, null, JoinRelType.INNER);
   }
 }

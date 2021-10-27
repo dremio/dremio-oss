@@ -25,8 +25,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -127,8 +127,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
         throw createExceptionWithContext("Failure deserializing Hive extended attributes.", e);
       }
 
-      final Properties tableProperties = new Properties();
-      addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableAttr));
+      addProperties(jobConf, null, HiveReaderProtoUtil.getTableProperties(tableAttr));
 
       List<String> selectedColumnNames;
       List<TypeInfo> selectedColumnTypes = new ArrayList<>();
@@ -323,19 +322,10 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
         builder = builder.addContext("Partition values", partition);
       }
 
-      final String tableProperties = Joiner.on("\n").join(
-        Iterables.transform(HiveReaderProtoUtil.getTableProperties(tableAttr),
-          new Function<Prop, String>() {
-            @Nullable
-            @Override
-            public String apply(@Nullable Prop input) {
-              return input.getKey() + " -> " + input.getValue();
-            }
-          }
-        )
-      );
+      String tableProperties = HiveReaderProtoUtil.getTableProperties(tableAttr)
+        .map(input -> input.getKey() + " -> " + input.getValue())
+        .collect(Collectors.joining("\n"));
       builder = builder.addContext("Table properties", tableProperties);
-
       return builder.build(logger);
     }
   }

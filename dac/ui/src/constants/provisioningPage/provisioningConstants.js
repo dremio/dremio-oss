@@ -126,7 +126,7 @@ export const ENGINE_FILTER_LABEL = {
 
 
 export const ENGINE_COLUMNS_CONFIG = [
-  {key: 'status', label: '', width: 25, flexGrow: 0, style: {marginRight: 3}},
+  {key: 'status', label: '', width: 25, flexGrow: 0, isFixedWidth: true, style: {marginRight: 3}},
   {key: 'engine', label: 'Engine', flexGrow: 1, headerStyle: {marginLeft: -6}},
   {key: 'size', label: 'Size', width: 90, headerStyle: {marginLeft: -6}}, //# of workers
   {key: 'cores', label: 'Cores per Executor', width: 130, headerStyle: {marginLeft: -6}},

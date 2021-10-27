@@ -16,8 +16,6 @@
 package com.dremio.common.expression;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
 
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
@@ -167,11 +165,6 @@ public class SchemaPath extends BasePath implements LogicalExpression, Comparabl
 
     SchemaPath other = (SchemaPath) obj;
     return rootSegment == null || rootSegment.contains(other.rootSegment);
-  }
-
-  @Override
-  public Iterator<LogicalExpression> iterator() {
-    return Collections.emptyIterator();
   }
 
   @Override

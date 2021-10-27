@@ -18,6 +18,22 @@
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   #home-page {
+    .homePageBody {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+
+      .homePageLeftTreeDiv {
+        display: flex;
+        flex: 1;
+        max-height: calc(100% - 64px);
+
+        &.--withoutSearch {
+          max-height: 100%;
+        }
+      }
+    }
+
     .home-container {
       margin: 5px 0;
     }

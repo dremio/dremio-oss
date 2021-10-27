@@ -49,3 +49,5 @@ export default function(input) {
     }
   });
 }
+
+export const ENABLE_USE_LEGACY_DIALECT_OPTION = true;

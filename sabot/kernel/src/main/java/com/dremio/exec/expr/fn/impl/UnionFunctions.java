@@ -25,10 +25,12 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.UnionHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.exceptions.UserException;
@@ -245,6 +247,70 @@ public class UnionFunctions {
       }
     }
   }
+
+  @FunctionTemplate(name = "ASSERT_DECIMAL", derivation =  AssertDecimalOutputDerivation.class)
+  public static class CastUnionDecimal implements SimpleFunction {
+
+
+    @Param UnionHolder in;
+    @Output
+    NullableDecimalHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      if (in.isSet == 1) {
+        in.reader.read(out);
+      } else {
+        out.isSet = 0;
+      }
+    }
+  }
+
+  public static class AssertDecimalOutputDerivation implements OutputDerivation {
+
+    @Override
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      int scale = 0;
+      int precision = 0;
+
+      // Get the max scale and precision from the inputs
+      for (LogicalExpression e : args) {
+        CompleteType type = e.getCompleteType();
+        if(type.isUnion()) {
+          List<Field> fields= type.getChildren();
+          for(Field f: fields) {
+            if(f.getType().getTypeID() == ArrowType.ArrowTypeID.Decimal) {
+              ArrowType.Decimal arg = (ArrowType.Decimal) f.getType();
+              scale = Math.max(scale, arg.getScale());
+              precision = Math.max(precision, arg.getPrecision());
+            }
+          }
+        }
+      }
+      return CompleteType.fromDecimalPrecisionScale(precision, scale);
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "IS_DECIMAL", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
+  public static class UnionIsDecimal implements SimpleFunction {
+
+    @Param UnionHolder in;
+    @Output NullableBitHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      if (in.isSet == 1) {
+        out.value = in.getMinorType() == MinorType.DECIMAL ? 1 : 0;
+      } else {
+        out.value = 0;
+      }
+    }
+  }
+
 
   @SuppressWarnings("unused")
   @FunctionTemplate(names = "ASSERT_STRUCT", scope = FunctionTemplate.FunctionScope.SIMPLE,

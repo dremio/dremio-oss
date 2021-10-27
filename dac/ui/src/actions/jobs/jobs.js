@@ -33,9 +33,14 @@ export const updateJobDetails = (jobDetails) => ({
 });
 
 export const UPDATE_JOB_STATE = 'UPDATE_JOB_STATE';
+export const UPDATE_QV_JOB_STATE = 'UPDATE_QV_JOB_STATE';
 
 export const updateJobState = (jobId, payload) => ({
   type: UPDATE_JOB_STATE, jobId, payload
+});
+
+export const updateQVJobState = (jobId, payload) => ({
+  type: UPDATE_QV_JOB_STATE, jobId, payload
 });
 
 export const updateQueryState = (queryState) => {
@@ -337,6 +342,7 @@ export function showJobProfile(profileUrl) {
         const location = getState().routing.locationBeforeTransitions;
         return dispatch(
           push({...location, state: {
+            ...location.state,
             modal: 'JobProfileModal',
             profileUrl: apiCall.toString()
           }})

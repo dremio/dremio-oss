@@ -82,6 +82,25 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void testDivideByZeroUsingIEEE754Semantics() throws Exception{
+    final String query = ""
+      + "SELECT\n"
+      + "  CAST (1.0 as double)/0.0 AS inf,\n"
+      + "  CAST (-1.0 as double)/0.0 AS ninf,\n"
+      + "  CAST (0.0 as double)/0.0 AS nan\n";
+    try(AutoCloseable option = withOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS, true)) {
+      testBuilder()
+        .optionSettingQueriesForTestQuery(
+          "alter system set \"planner.ieee_754_divide_semantics\" = true")
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("inf", "ninf", "nan")
+        .baselineValues(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN)
+        .go();
+    }
+  }
+
+  @Test
   public void testQueryWithOnlyOffset() throws Exception {
     final String sql = "SELECT columns[0] AS Key, columns[1] AS Country, columns[2] as Capital FROM cp.\"csv/nationsWithCapitals.csv\" OFFSET 4";
 
@@ -123,6 +142,30 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void testCovarPop() throws Exception {
+    final String sql = "SELECT covar_pop(val, val) as col from cp.\"parquet/dremio_int_max.parquet\"";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("col")
+      .baselineValues(8.3848836698679782E17)
+      .go();
+  }
+
+  @Test
+  public void testCovarSamp() throws Exception {
+    final String sql = "SELECT covar_samp(val, val) as col from cp.\"parquet/dremio_int_max.parquet\"";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("col")
+      .baselineValues(9.2233720368547763E17)
+      .go();
+  }
+
+  @Test
   public void testInvalidUtf() throws Exception {
     final String subQuery = "select columns[0] as col0, columns[1] as col1 from cp.\"csv/invalidUtf.csv\" limit 500";
     final String sql = "SELECT convert_from(col0, 'UTF8', '') as c1 FROM (" + subQuery +
@@ -135,6 +178,109 @@ public class TestExampleQueries extends PlanTestBase {
       .baselineValues("undeveopable")
       .baselineValues("donswing")
       .go();
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("c1")
+      .baselineValues("slcken")
+      .baselineValues("undeveopable")
+      .baselineValues("donswing")
+      .go();
+  }
+
+
+  @Test
+  public void testPrimaryCacheInCodeCompilerFlow() throws Exception {
+
+    final String subQuery = "select columns[0] as col0, columns[1] as col1 from cp.\"csv/invalidUtf.csv\" limit 500";
+    final String sql1 = "SELECT convert_from(col0, 'UTF8', '') as c1 FROM (" + subQuery +
+      ") where is_utf8(col0) is false";
+    testBuilder()
+      .sqlQuery(sql1)
+      .unOrdered()
+      .baselineColumns("c1")
+      .baselineValues("slcken")
+      .baselineValues("undeveopable")
+      .baselineValues("donswing")
+      .go();
+    String sql2 = "select cast(null as varbinary(10)) as a";
+    testBuilder()
+      .sqlQuery(sql2)
+      .unOrdered()
+      .baselineColumns("a")
+      .baselineValues(null)
+      .go();
+    String sql3 = "WITH t1 \n" +
+      "     AS (SELECT 0    AS \"A\", \n" +
+      "                'No' AS \"B\" \n" +
+      "         FROM   (VALUES ROW(1)) \n" +
+      "         UNION ALL \n" +
+      "         SELECT 1     AS \"A\", \n" +
+      "                'Yes' AS \"B\" \n" +
+      "         FROM   (VALUES ROW(1))) \n" +
+      "SELECT * \n" +
+      "FROM   t1 \n" +
+      "WHERE  \"B\" = 'No'";
+    testBuilder()
+      .sqlQuery(sql3)
+      .ordered()
+      .baselineColumns("A", "B")
+      .baselineValues(0, "No")
+      .go();
+
+    testBuilder()
+      .sqlQuery(sql2)
+      .unOrdered()
+      .baselineColumns("a")
+      .baselineValues(null)
+      .go();
+    testBuilder()
+      .sqlQuery(sql3)
+      .ordered()
+      .baselineColumns("A", "B")
+      .baselineValues(0, "No")
+      .go();
+    testBuilder()
+      .sqlQuery(sql1)
+      .unOrdered()
+      .baselineColumns("c1")
+      .baselineValues("slcken")
+      .baselineValues("undeveopable")
+      .baselineValues("donswing")
+      .go();
+
+  }
+
+  @Test
+  public void testCacheFlowWithAQueryWithSplitsInGandivaAndJava() throws Exception {
+    try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      final String SqlQuery = "SELECT o_orderkey,  extractYear(castDate(o_orderdate)) as y1,  " +
+        "extractYear(TO_DATE(o_orderdate, 'yyyy-mm-dd')) as y2 "
+        + "FROM "
+        + "cp.\"tpch/orders.parquet\" "
+        + "ORDER BY o_orderkey limit 1";
+      testBuilder()
+        .sqlQuery(SqlQuery)
+        .unOrdered()
+        .baselineColumns("o_orderkey", "y1", "y2")
+        .baselineValues(1, 1996l, 1996l)
+        .go();
+
+
+      testBuilder()
+        .sqlQuery("SELECT o_orderkey,  extractYear(castDate(o_orderdate)) as y1,  " +
+          "extractYear(TO_DATE(o_orderdate, 'yyyy-mm-dd')) as y2 "
+          + "FROM "
+          + "cp.\"tpch/orders.parquet\" "
+          + "ORDER BY o_orderkey limit 1")
+        .unOrdered()
+        .baselineColumns("o_orderkey", "y1", "y2")
+        .baselineValues(1, 1996l, 1996l)
+        .go();
+    } finally {
+      test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+    }
   }
 
   @Test
@@ -166,6 +312,12 @@ public class TestExampleQueries extends PlanTestBase {
       "SELECT * \n" +
       "FROM   t1 \n" +
       "WHERE  \"B\" = 'No'";
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("A", "B")
+      .baselineValues(0, "No")
+      .go();
     testBuilder()
       .sqlQuery(sql)
       .ordered()
@@ -2119,6 +2271,46 @@ public class TestExampleQueries extends PlanTestBase {
       .baselineColumns("C0")
       .baselineValues(2L)
       .baselineValues(5L)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testCopier1() throws Exception {
+    String query = "SELECT * FROM cp.\"json/30717-1.json\" where id = 'keyA' and (TIMESTAMPADD(SQL_TSI_DAY, 5, CAST(date_varchar as DATE)) >= CAST('2004-03-14' AS TIMESTAMP) AND TIMESTAMPADD(SQL_TSI_MONTH, 1, CAST(date_varchar as DATE)) <= CAST('2021-04-12' AS TIMESTAMP))";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .jsonBaselineFile("json/30717-1-result.json")
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testCopier2() throws Exception {
+    String query = "SELECT * FROM cp.\"parquet/30717-2.parquet\" where varchar_col='Doe' or varchar_col is null";
+
+    testBuilder()
+      .unOrdered()
+      .optionSettingQueriesForTestQuery("alter system set \"exec.operator.copier.complex.vectorize\" = true")
+      .sqlQuery(query)
+      .optionSettingQueriesForBaseline("alter system set \"exec.operator.copier.complex.vectorize\" = false")
+      .sqlBaselineQuery(query)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testCopier3() throws Exception {
+    String query = "SELECT * FROM cp.\"parquet/30717-3.parquet\" t where varchar_col='Doe' or t.\"structOfStruct\".\"struct\".\"string\" = 'row3' or t.\"structOfStructOfStruct\".\"structOfStruct\".\"struct\".\"string\" = 'row2'";
+
+    testBuilder()
+      .unOrdered()
+      .optionSettingQueriesForTestQuery("alter system set \"exec.operator.copier.complex.vectorize\" = true")
+      .sqlQuery(query)
+      .optionSettingQueriesForBaseline("alter system set \"exec.operator.copier.complex.vectorize\" = false")
+      .sqlBaselineQuery(query)
       .build()
       .run();
   }

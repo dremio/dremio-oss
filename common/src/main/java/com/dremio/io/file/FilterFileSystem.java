@@ -23,6 +23,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.AccessControlException;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -97,13 +98,18 @@ public class FilterFileSystem implements FileSystem {
   }
 
   @Override
+  public boolean supportsPathsWithScheme() {
+    return fs.supportsPathsWithScheme();
+  }
+
+  @Override
   public boolean mkdirs(Path f) throws IOException {
     return fs.mkdirs(f);
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(FileKey fileKey) throws IOException {
-    return fs.getAsyncByteReader(fileKey);
+  public AsyncByteReader getAsyncByteReader(FileKey fileKey, Map<String, String> options) throws IOException {
+    return fs.getAsyncByteReader(fileKey,options);
   }
 
   @Override

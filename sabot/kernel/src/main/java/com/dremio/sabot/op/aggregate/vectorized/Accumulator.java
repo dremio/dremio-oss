@@ -38,10 +38,10 @@ public interface Accumulator extends AutoCloseable {
   void accumulate(long offsetAddr, int count, int bitsInChunk, int chunkOffsetMask);
 
   /**
-   * Output the data for the provided the batch index to the output vectors.
+   * Output the data for the provided batch index to the output vectors.
    * @param batchIndex
    */
-  void output(int batchIndex);
+  void output(int batchIndex, int numRecords);
 
   /**
    * return the size of accumulator by looking at
@@ -66,6 +66,13 @@ public interface Accumulator extends AutoCloseable {
    */
   FieldVector getInput();
 
+  /**
+   * Get the output vector that has the accumulated data.
+   *
+   * @return output FieldVector.
+   */
+  FieldVector getOutput();
+
   int getValidityBufferSize();
 
   int getDataBufferSize();
@@ -81,4 +88,8 @@ public interface Accumulator extends AutoCloseable {
   void verifyBatchCount(int batches);
 
   void releaseBatch(final int batchIdx);
+
+  default boolean hasSpace(final int space, final int batchIndex) {
+    return true;
+  }
 }

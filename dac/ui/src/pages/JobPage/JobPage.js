@@ -29,13 +29,15 @@ import {
 
 import { getJobs, getDataWithItemsForFilters } from 'selectors/jobs';
 import { getViewState } from 'selectors/resources';
+import SideNav from '@app/components/SideNav/SideNav';
 
 import { parseQueryState } from 'utils/jobsQueryState';
 import jobsUtils from 'utils/jobsUtils';
-import MainHeader from 'components/MainHeader';
 
 import RunningJobsHeader from './components/RunningJobsHeader';
 import JobsContent from './components/JobsContent';
+
+import './JobPage.less';
 
 const VIEW_ID = 'JOB_PAGE_VIEW_ID';
 
@@ -101,23 +103,27 @@ export class JobPage extends PureComponent {
     return (
       <div style={style}>
         <DocumentTitle title={intl.formatMessage({ id: 'Job.Jobs' })} />
-        <MainHeader />
-        <RunningJobsHeader jobCount={runningJobsCount}/>
-        <JobsContent
-          className={flexElementAuto} // Page object adds flex in style
-          loadNextJobs={this.props.loadNextJobs}
-          // todo: update to react-router v3 so don't have to deep pass `location` anymore
-          location={location}
-          jobId={jobId}
-          jobs={jobs}
-          queryState={queryState}
-          next={this.props.next}
-          isNextJobsInProgress={this.props.isNextJobsInProgress}
-          viewState={viewState}
-          onUpdateQueryState={this.props.updateQueryState}
-          loadItemsForFilter={this.props.loadItemsForFilter}
-          dataWithItemsForFilters={this.props.dataWithItemsForFilters}
-        />
+        <div className={'jobsPageBody'}>
+          <SideNav/>
+          <div className={'jobPageContentDiv'}>
+            <RunningJobsHeader jobCount={runningJobsCount}/>
+            <JobsContent
+              className={flexElementAuto} // Page object adds flex in style
+              loadNextJobs={this.props.loadNextJobs}
+              // todo: update to react-router v3 so don't have to deep pass `location` anymore
+              location={location}
+              jobId={jobId}
+              jobs={jobs}
+              queryState={queryState}
+              next={this.props.next}
+              isNextJobsInProgress={this.props.isNextJobsInProgress}
+              viewState={viewState}
+              onUpdateQueryState={this.props.updateQueryState}
+              loadItemsForFilter={this.props.loadItemsForFilter}
+              dataWithItemsForFilters={this.props.dataWithItemsForFilters}
+            />
+          </div>
+        </div>
       </div>
     );
   }

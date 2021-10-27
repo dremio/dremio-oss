@@ -73,7 +73,8 @@ public class UiMapper {
       case FILTER_OVER_SPECIFIED:
         FilterOverSpecifiedExplanation filterOverSpecifiedExplanation =
           reflectionExplanation.getFilterOverSpecified();
-        return new ReflectionExplanationUI.FilterOverSpecified(filterOverSpecifiedExplanation.getFilter());
+        return new ReflectionExplanationUI.FilterOverSpecified(
+            filterOverSpecifiedExplanation.getFilter());
       default:
         return null;
     }

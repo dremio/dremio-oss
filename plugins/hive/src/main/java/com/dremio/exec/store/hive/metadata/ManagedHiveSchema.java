@@ -47,10 +47,9 @@ public class ManagedHiveSchema implements ManagedSchema {
   private final boolean varcharTruncationEnabled;
 
   public ManagedHiveSchema(final JobConf jobConf, final HiveReaderProto.HiveTableXattr tableXattr) {
-    final java.util.Properties tableProperties = new java.util.Properties();
-    HiveUtilities.addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
-    final String fieldNameProp = Optional.ofNullable(tableProperties.getProperty("columns")).orElse("");
-    final String fieldTypeProp = Optional.ofNullable(tableProperties.getProperty("columns.types")).orElse("");
+    HiveUtilities.addProperties(jobConf, null, HiveReaderProtoUtil.getTableProperties(tableXattr));
+    final String fieldNameProp = jobConf.get("columns", "");
+    final String fieldTypeProp = jobConf.get("columns.types", "");
     varcharTruncationEnabled = HiveDatasetOptions
         .enforceVarcharWidth(HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(tableXattr.getDatasetOptionMap()));
 

@@ -87,7 +87,7 @@ public class TestSqlBracketlessSyntax {
           @Override
           public void setPlanCacheable(boolean isplancacheable) {
           }
-        }))
+        }, false))
         .build();
     Planner planner = Frameworks.getPlanner(config);
 

@@ -16,16 +16,13 @@
 package com.dremio.exec.planner.sql;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.sql.fun.OracleSqlOperatorTable;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.util.ListSqlOperatorTable;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
 
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.google.common.collect.ArrayListMultimap;
@@ -35,21 +32,14 @@ import com.google.common.collect.Lists;
  * Dremio's hand rolled ChainedOperatorTable
  */
 public class OperatorTable implements SqlOperatorTable {
-  private static final SqlOperatorTable stdOperatorTable = SqlStdOperatorTable.instance();
-  private static final SqlOperatorTable oracleOperatorTable =
-      new ListSqlOperatorTable(OracleSqlOperatorTable.instance().getOperatorList().stream()
-        .filter(op -> op != OracleSqlOperatorTable.LTRIM)
-        .filter(op -> op != OracleSqlOperatorTable.RTRIM)
-        .filter(op -> op != OracleSqlOperatorTable.SUBSTR) // calcite does not support oracles substring CALCITE-4408
-        .filter(op -> op != OracleSqlOperatorTable.DECODE) // Dremio currently uses hive decode
-        .collect(Collectors.toList()));
+  private static final DremioCompositeSqlOperatorTable dremioCompositeOperatorTable =
+      new DremioCompositeSqlOperatorTable();
   private List<SqlOperator> operators;
   private ArrayListMultimap<String, SqlOperator> opMap = ArrayListMultimap.create();
 
   public OperatorTable(FunctionImplementationRegistry registry) {
     operators = Lists.newArrayList();
-    operators.addAll(stdOperatorTable.getOperatorList());
-    operators.addAll(oracleOperatorTable.getOperatorList());
+    operators.addAll(dremioCompositeOperatorTable.getOperatorList());
 
     registry.register(this);
   }
@@ -60,14 +50,16 @@ public class OperatorTable implements SqlOperatorTable {
   }
 
   @Override
-  public void lookupOperatorOverloads(SqlIdentifier opName, SqlFunctionCategory category, SqlSyntax syntax, List<SqlOperator> operatorList) {
+  public void lookupOperatorOverloads(SqlIdentifier opName,
+                                      SqlFunctionCategory category,
+                                      SqlSyntax syntax, List<SqlOperator> operatorList,
+                                      SqlNameMatcher nameMatcher) {
     // don't try to evaluate operators that have non name.
     if(opName == null || opName.names == null) {
       return;
     }
 
-    stdOperatorTable.lookupOperatorOverloads(opName, category, syntax, operatorList);
-    oracleOperatorTable.lookupOperatorOverloads(opName, category, syntax, operatorList);
+    dremioCompositeOperatorTable.lookupOperatorOverloads(opName,category,syntax,operatorList, nameMatcher);
 
     if (operatorList.isEmpty() && syntax == SqlSyntax.FUNCTION && opName.isSimple()) {
       List<SqlOperator> ops = opMap.get(opName.getSimple().toUpperCase());

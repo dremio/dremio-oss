@@ -370,9 +370,17 @@ public final class Metrics {
   }
 
   private static Timer asPublicTimer(com.codahale.metrics.Timer timer) {
-    return (tags) -> {
-      Context ctxt = timer.time();
-      return () -> ctxt.close();
+    return new Timer() {
+      @Override
+      public TimerContext start(String... tags) {
+        Context ctxt = timer.time();
+        return () -> ctxt.close();
+      }
+
+      @Override
+      public void update(long duration, TimeUnit timeUnit) {
+        timer.update(duration, timeUnit);
+      }
     };
   }
 

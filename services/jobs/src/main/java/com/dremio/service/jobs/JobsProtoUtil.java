@@ -22,14 +22,17 @@ import java.util.stream.Collectors;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.beans.NodeEndpoint;
+import com.dremio.exec.proto.beans.QueryProfile;
 import com.dremio.exec.store.Views;
 import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.SubstitutionSettings;
+import com.dremio.service.job.proto.DataSet;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobCancellationInfo;
 import com.dremio.service.job.proto.JobDetails;
@@ -41,6 +44,7 @@ import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.ParentDatasetInfo;
+import com.dremio.service.job.proto.Reflection;
 import com.dremio.service.jobs.metadata.QuerySemantics;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.jobs.metadata.proto.VirtualDatasetState;
@@ -120,6 +124,14 @@ public final class JobsProtoUtil {
     return JobsProtoUtil.toBuf(JobProtobuf.JobAttempt.getDefaultInstance().getParserForType(), attempt);
   }
 
+  public static JobProtobuf.Reflection toBuf(Reflection reflection) {
+    return JobsProtoUtil.toBuf(JobProtobuf.Reflection.getDefaultInstance().getParserForType(), reflection);
+  }
+
+  public static JobProtobuf.DataSet toBuf(DataSet dataSet) {
+    return JobsProtoUtil.toBuf(JobProtobuf.DataSet.getDefaultInstance().getParserForType(), dataSet);
+  }
+
   /**
    * Convert JobInfo Protostuff to Protobuf
    */
@@ -133,6 +145,14 @@ public final class JobsProtoUtil {
 
   public static JobDetails toStuff(JobProtobuf.JobDetails jobDetails) {
     return JobsProtoUtil.toStuff(JobDetails.getDefaultInstance().cachedSchema(), jobDetails);
+  }
+
+  public static Reflection toStuff(JobProtobuf.Reflection reflection) {
+    return JobsProtoUtil.toStuff(Reflection.getDefaultInstance().cachedSchema(), reflection);
+  }
+
+  public static DataSet toStuff(JobProtobuf.DataSet dataSet) {
+    return JobsProtoUtil.toStuff(DataSet.getDefaultInstance().cachedSchema(), dataSet);
   }
 
   /**
@@ -291,6 +311,14 @@ public final class JobsProtoUtil {
 
   public static JobProtobuf.MaterializationSummary toBuf(MaterializationSummary materializationSummary) {
     return toBuf(JobProtobuf.MaterializationSummary.getDefaultInstance().getParserForType(), materializationSummary);
+  }
+
+  public static UserBitShared.QueryProfile toBuf(QueryProfile queryProfile) {
+    return toBuf(UserBitShared.QueryProfile.getDefaultInstance().getParserForType(), queryProfile);
+  }
+
+  public static QueryProfile toStuff(UserBitShared.QueryProfile queryProfile) {
+    return toStuff(QueryProfile.getDefaultInstance().cachedSchema(), queryProfile);
   }
 
   public static com.dremio.service.job.JobState toBuf(JobState jobState) {

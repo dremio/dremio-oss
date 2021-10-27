@@ -16,8 +16,11 @@
 
 package com.dremio.exec.planner.physical;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.IntFunction;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
@@ -29,13 +32,15 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.FieldReference;
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.planner.common.JoinRelBase;
+import com.dremio.exec.planner.logical.ParseContext;
+import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.google.common.collect.Lists;
 
@@ -48,8 +53,8 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinPrel.class);
 
   protected JoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType, ImmutableBitSet projectedFields) {
-    super(cluster, traits, left, right, condition, joinType, projectedFields, false);
+      JoinRelType joinType) {
+    super(cluster, traits, left, right, condition, joinType, false);
   }
 
   protected static RelTraitSet adjustTraits(RelTraitSet traits) {
@@ -58,6 +63,8 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
         .adjustTraits(traits)
         .replaceIf(DistributionTraitDef.INSTANCE, () -> DistributionTrait.ANY);
   }
+
+  public abstract RexNode getExtraCondition();
 
   @Override
   public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
@@ -71,19 +78,17 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
 
   /**
    * Check to make sure that the fields of the inputs are the same as the output field names.  If not, insert a project renaming them.
-   * @param implementor
-   * @param i
    * @param offset
    * @param input
    * @return
    */
   public RelNode getJoinInput(int offset, RelNode input) {
     assert uniqueFieldNames(input.getRowType());
-    final List<String> fields = getInputRowType().getFieldNames();
+    final List<String> fields = getRowType().getFieldNames();
     final List<String> inputFields = input.getRowType().getFieldNames();
     final List<String> outputFields = fields.subList(offset, offset + inputFields.size());
 
-    if ((!outputFields.equals(inputFields))) {
+    if (!outputFields.equals(inputFields)) {
       // Ensure that input field names are the same as output field names.
       // If there are duplicate field names on left and right, fields will get
       // lost.
@@ -120,15 +125,16 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
    * null == null is FALSE whereas null IS NOT DISTINCT FROM null is TRUE
    * For a use case of the IS NOT DISTINCT FROM comparison, see
    * {@link org.apache.calcite.rel.rules.RemoveDistinctAggregateRule}
-   * @param conditions populated list of join conditions
    * @param leftFields join fields from the left input
    * @param rightFields join fields from the right input
+   * @return conditions populated list of join conditions
    */
-  protected void buildJoinConditions(List<JoinCondition> conditions,
+  protected List<JoinCondition> buildJoinConditions(
       List<String> leftFields,
       List<String> rightFields,
       List<Integer> leftKeys,
       List<Integer> rightKeys) {
+    final List<JoinCondition> conditions = new ArrayList<>();
     List<RexNode> conjuncts = RelOptUtil.conjunctions(this.getCondition());
     short i=0;
 
@@ -145,5 +151,39 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
           FieldReference.getWithQuotedRef(leftFields.get(pair.left)),
           FieldReference.getWithQuotedRef(rightFields.get(pair.right))));
     }
+
+    return conditions;
+  }
+
+  /**
+   * Build extra join condition for this join for inequality expressions.
+   */
+  protected LogicalExpression buildExtraJoinCondition(boolean vectorize) {
+    RexNode extraCondition = this.getExtraCondition();
+    if (vectorize && extraCondition != null && !extraCondition.isAlwaysTrue()) {
+      final PlannerSettings settings = PrelUtil.getSettings(getCluster());
+      final int leftCount = left.getRowType().getFieldCount();
+      final int rightCount = leftCount + right.getRowType().getFieldCount();
+
+      // map the fields to the correct input so that RexToExpr can generate appropriate InputReferences
+      IntFunction<Optional<Integer>> fieldIndexToInput = i -> {
+        if (i < leftCount) {
+          return Optional.of(0);
+        } else if (i < rightCount) {
+          return Optional.of(1);
+        } else {
+          throw new IllegalArgumentException("Unable to handle input number: " + i);
+        }
+      };
+
+      return RexToExpr.toExpr(
+        new ParseContext(settings),
+        getRowType(),
+        getCluster().getRexBuilder(),
+        extraCondition,
+        true,
+        fieldIndexToInput);
+    }
+    return null;
   }
 }

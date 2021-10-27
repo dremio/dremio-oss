@@ -141,8 +141,7 @@ public abstract class ScanRelBase extends TableScan {
 
   public abstract ScanRelBase cloneWithProject(List<SchemaPath> projection);
 
-  @Override
-  public boolean equals(final Object other) {
+  public boolean equalsTo(final Object other) {
     if (!(other instanceof ScanRelBase)) {
       return false;
     }
@@ -162,11 +161,6 @@ public abstract class ScanRelBase extends TableScan {
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
     return mq.getRowCount(this);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(getTable(), getTableMetadata().getName(), getPluginId());
   }
 
   public BatchSchema getBatchSchema(){

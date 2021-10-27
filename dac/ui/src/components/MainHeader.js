@@ -35,7 +35,7 @@ import AccountMenu from './AccountMenu';
 import HelpMenu from './HelpMenu';
 
 import './MainHeader.less';
-import './IconFont/css/DremioIcons.css';
+import './IconFont/css/DremioIcons-old.css';
 
 @injectIntl
 @Radium
@@ -59,13 +59,13 @@ export class MainHeader extends PureComponent {
   }
 
   render() {
-    let datasetsActiveStyle = 'datasetsIcon dremioIcon-HeaderDataset icon-type';
-    let jobsActiveStyle = 'jobsIcon dremioIcon-HeaderJobs icon-type';
+    let datasetsActiveStyle = 'datasetsIcon dremioIconOld-HeaderDataset icon-type';
+    let jobsActiveStyle = 'jobsIcon dremioIconOld-HeaderJobs icon-type';
     const {router} = this.context;
     if (router.isActive('/jobs')) {
-      jobsActiveStyle = 'jobsIcon dremioIcon-HeaderJobs icon-type active';
+      jobsActiveStyle = 'jobsIcon dremioIconOld-HeaderJobs icon-type active';
     } else if (!router.isActive('/admin')) {
-      datasetsActiveStyle = 'datasetsIcon dremioIcon-HeaderDataset icon-type active';
+      datasetsActiveStyle = 'datasetsIcon dremioIconOld-HeaderDataset icon-type active';
     }
     const { user, socketIsOpen } = this.props;
 
@@ -121,7 +121,7 @@ export class MainHeader extends PureComponent {
                 <div className='linkIcon'>
                   <a href='https://www.dremio.com/tutorials/' target='_blank'>
                     <div className='headerLinkContent'>
-                      <div className='tutorialsIcon dremioIcon-HeaderTutorials icon-type' title={'Dremio Tutorials'}></div>
+                      <div className='tutorialsIcon dremioIconOld-HeaderTutorials icon-type' title={'Dremio Tutorials'}></div>
                     </div>
                   </a>
                 </div>
@@ -129,7 +129,7 @@ export class MainHeader extends PureComponent {
             }
             <MainHeaderItem>
               <HeaderDropdown
-                icon='helpIcon dremioIcon-HeaderHelp icon-type'
+                icon='helpIcon dremioIconOld-HeaderHelp icon-type'
                 tooltip='Help'
                 hideArrow
                 menu={<HelpMenu />}/>

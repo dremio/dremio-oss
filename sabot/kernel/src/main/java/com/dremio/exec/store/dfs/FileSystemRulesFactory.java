@@ -36,6 +36,7 @@ import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnProject;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnSampleScan;
@@ -135,15 +136,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     @Override
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
-      byte[] byteBuffer = drel.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray();
-      IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr;
-      try {
-        icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER, byteBuffer);
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException(e);
-      }
-
-      String partitionStatsFile = icebergDatasetXAttr.getPartitionStatsFile();
+      String partitionStatsFile = getPartitionStatsFile(drel);
       return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
         drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
         drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(),
@@ -293,5 +286,16 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
       }
       return true;
     }
+  }
+
+  public static String getPartitionStatsFile(ScanRelBase drel) {
+    byte[] byteBuffer = drel.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray();
+    IcebergProtobuf.IcebergDatasetXAttr icebergDatasetXAttr;
+    try {
+      icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergProtobuf.IcebergDatasetXAttr.PARSER, byteBuffer);
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
+    return icebergDatasetXAttr.getPartitionStatsFile();
   }
 }

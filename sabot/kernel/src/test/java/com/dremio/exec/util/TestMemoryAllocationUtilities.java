@@ -205,13 +205,13 @@ public class TestMemoryAllocationUtilities extends ExecTest {
 
     // Fragment 1
     HashToRandomExchange hashToRandomExchange2 = new HashToRandomExchange(prop(1, 2),
-      secondFragmentProject0.getProps(), null, null, BatchSchema.SCHEMA_UNKNOWN_NO_DATA, secondFragmentProject1, null);
+      secondFragmentProject0.getProps(), null, null, BatchSchema.SCHEMA_UNKNOWN_NO_DATA, secondFragmentProject1, null, options);
     Project firstFragmentProject1 = new Project(prop(1, 1), hashToRandomExchange2, null);
     HashToRandomExchange hashToRandomExchange4 = new HashToRandomExchange(prop(1, 4),
-      thirdFragmentProject0.getProps(), null, null, BatchSchema.SCHEMA_UNKNOWN_NO_DATA, secondFragmentProject1, null);
+      thirdFragmentProject0.getProps(), null, null, BatchSchema.SCHEMA_UNKNOWN_NO_DATA, secondFragmentProject1, null, options);
     Project firstFragmentProject3 = new Project(prop(1, 3), hashToRandomExchange4, null);
     HashJoinPOP hashJoinPOP = new HashJoinPOP(prop(1, 0).cloneWithMemoryExpensive(true), firstFragmentProject1, firstFragmentProject3,
-      null, null, false, null);
+      null, null, null, false, null);
 
     MemoryAllocationUtilities.FindConsideredOperators fco = new MemoryAllocationUtilities.FindConsideredOperators(1);
     hashJoinPOP.accept(fco, null);

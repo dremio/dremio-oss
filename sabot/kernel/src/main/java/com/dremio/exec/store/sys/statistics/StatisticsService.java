@@ -16,11 +16,15 @@
 package com.dremio.exec.store.sys.statistics;
 
 import java.util.List;
+import java.util.Set;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
@@ -33,17 +37,26 @@ public interface StatisticsService extends Service, StatisticsAdministrationServ
   interface Histogram {
     double quantile(double q);
 
+    long estimateCount(Object e);
+
+    Set<Object>  getFrequentItems(long threshold);
     /**
      * For a filter condition, estimate the selectivity (matching rows/total rows) for this histogram.
      *
      * @return estimated selectivity or NULL if it could not be estimated for any reason
      */
     Double estimatedRangeSelectivity(final RexNode filter);
+
+    Long estimatedPointSelectivity(final RexNode filter);
+
+    boolean isTDigestSet();
+
+    boolean isItemsSketchSet();
   }
 
-  String requestStatistics(List<String> columns, NamespaceKey key);
+  String requestStatistics(List<Field> fields, NamespaceKey key);
 
-  List<String> deleteStatistics(List<String> columns, NamespaceKey key);
+  List<String> deleteStatistics(List<String> fields, NamespaceKey key);
 
   boolean deleteRowCountStatistics(NamespaceKey key);
 
@@ -60,7 +73,10 @@ public interface StatisticsService extends Service, StatisticsAdministrationServ
 
   Long getNullCount(String column, NamespaceKey key);
 
-  Histogram getHistogram(String column, NamespaceKey key);
+  Histogram getHistogram(String column, TableMetadata tableMetaData);
+
+  @VisibleForTesting
+  Histogram getHistogram(String column, NamespaceKey key, SqlTypeName sqlTypeName);
 
   @VisibleForTesting
   void setNdv(String column, Long val, NamespaceKey key) throws Exception;
@@ -83,7 +99,7 @@ public interface StatisticsService extends Service, StatisticsAdministrationServ
     }
 
     @Override
-    public String requestStatistics(List<String> columns, NamespaceKey key) {
+    public String requestStatistics(List<Field> fields,  NamespaceKey key) {
       throw new UnsupportedOperationException("StatisticsService.requestStatistics called on a non-coordinator node");
     }
 
@@ -103,12 +119,17 @@ public interface StatisticsService extends Service, StatisticsAdministrationServ
     }
 
     @Override
-    public Histogram getHistogram(String column, NamespaceKey key) {
+    public Histogram getHistogram(String column, TableMetadata tableMetaData) {
       throw new UnsupportedOperationException("StatisticsService.getHistogram called on a non-coordinator node");
     }
 
     @Override
-    public List<String> deleteStatistics(List<String> columns, NamespaceKey key) {
+    public Histogram getHistogram(String column, NamespaceKey key, SqlTypeName sqlTypeName) {
+      throw new UnsupportedOperationException("StatisticsService.getHistogram called on a non-coordinator node");
+    }
+
+    @Override
+    public List<String> deleteStatistics(List<String> fields, NamespaceKey key) {
       throw new UnsupportedOperationException("StatisticsService.deleteStatistics called on a non-coordinator node");
     }
 

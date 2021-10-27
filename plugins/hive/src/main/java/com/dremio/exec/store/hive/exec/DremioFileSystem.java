@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import static com.dremio.exec.hadoop.DremioHadoopUtils.toHadoopPath;
+import static com.dremio.io.file.UriSchemes.AZURE_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_AZURE_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_HDFS_SCHEME;
 import static com.dremio.io.file.UriSchemes.DREMIO_S3_SCHEME;
+import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
+import static com.dremio.io.file.UriSchemes.S3_SCHEME;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_KEY_PROPERTY_NAME;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT;
@@ -32,6 +36,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.compress.utils.Lists;
@@ -57,6 +62,8 @@ import com.dremio.io.FSOutputStream;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Wrapper file system used to work around class loader issues in Hive.
@@ -77,6 +84,10 @@ public class DremioFileSystem extends FileSystem {
   private Path workingDir;
   private String scheme;
   private URI originalURI;
+  private static final Map<String, Set<String>> SUPPORTED_SCHEME_MAP = ImmutableMap.of(
+    DREMIO_S3_SCHEME, ImmutableSet.of("s3a", S3_SCHEME,"s3n", DREMIO_S3_SCHEME),
+    DREMIO_GCS_SCHEME, ImmutableSet.of(GCS_SCHEME, DREMIO_GCS_SCHEME),
+    DREMIO_AZURE_SCHEME, ImmutableSet.of(AZURE_SCHEME, "wasb", "abfs", "abfss"));
 
   @Override
   public void initialize(URI name, Configuration conf) throws IOException {
@@ -323,10 +334,9 @@ public class DremioFileSystem extends FileSystem {
     try (Closeable swapper = swapClassLoader()) {
       attributes = underLyingFs.list(dremioPath);
       defaultBlockSize = underLyingFs.getDefaultBlockSize(dremioPath);
+      attributes.forEach(attribute -> fileStatusList.add(getFileStatusFromAttributes(attribute, defaultBlockSize)));
+      return fileStatusList.toArray(new FileStatus[0]);
     }
-    attributes.forEach(attribute -> fileStatusList.add(getFileStatusFromAttributes(path,
-      attribute, defaultBlockSize)));
-    return fileStatusList.toArray(new FileStatus[0]);
   }
 
   @Override
@@ -361,22 +371,68 @@ public class DremioFileSystem extends FileSystem {
     return getFileStatusFromAttributes(path, attributes, defaultBlockSize);
   }
 
+  @Override
+  protected void checkPath(Path path) {
+    URI uri = path.toUri();
+    String thatScheme = uri.getScheme();
+    if (thatScheme == null) {              // fs is relative
+      return;
+    }
+    URI thisUri = getCanonicalUri();
+    String thisScheme = thisUri.getScheme();
+    //authority and scheme are not case sensitive
+    if (thisScheme.equalsIgnoreCase(thatScheme) ||
+      (SUPPORTED_SCHEME_MAP.containsKey(thisScheme)
+        && SUPPORTED_SCHEME_MAP.get(thisScheme).contains(thatScheme))) {// schemes match
+      String thisAuthority = thisUri.getAuthority();
+      String thatAuthority = uri.getAuthority();
+      if (thatAuthority == null &&                // path's authority is null
+        thisAuthority != null) {                // fs has an authority
+        URI defaultUri = getDefaultUri(getConf());
+        if (thisScheme.equalsIgnoreCase(defaultUri.getScheme())) {
+          uri = defaultUri; // schemes match, so use this uri instead
+        } else {
+          uri = null; // can't determine auth of the path
+        }
+      }
+      if (uri != null) {
+        // canonicalize uri before comparing with this fs
+        uri = canonicalizeUri(uri);
+        thatAuthority = uri.getAuthority();
+        if (thisAuthority == thatAuthority ||       // authorities match
+          (thisAuthority != null &&
+            thisAuthority.equalsIgnoreCase(thatAuthority))) {
+          return;
+        }
+      }
+    }
+    throw new IllegalArgumentException("Wrong FS: " + path +
+      ", expected: " + this.getUri());
+  }
+
+  @Deprecated
   private FileStatus getFileStatusFromAttributes(Path path, FileAttributes attributes,
                                                  long defaultBlockSize) {
     return new FileStatus(attributes.size(), attributes.isDirectory(), 1,
       defaultBlockSize, attributes.lastModifiedTime().toMillis(), path);
   }
 
+  private FileStatus getFileStatusFromAttributes(FileAttributes attributes,
+                                                 long defaultBlockSize) {
+    return new FileStatus(attributes.size(), attributes.isDirectory(), 1,
+            defaultBlockSize, attributes.lastModifiedTime().toMillis(), new Path(String.valueOf(attributes.getPath())));
+  }
+
   public boolean supportsAsync() {
     return underLyingFs.supportsAsync();
   }
 
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, OperatorStats operatorStats) throws IOException {
+  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, OperatorStats operatorStats, Map<String, String> options) throws IOException {
     try (Closeable swapper = swapClassLoader()) {
       if (underLyingFs instanceof HadoopFileSystem) {
-        return ((HadoopFileSystem) underLyingFs).getAsyncByteReader(fileKey, operatorStats);
+        return ((HadoopFileSystem) underLyingFs).getAsyncByteReader(fileKey, operatorStats, options);
       } else {
-        return underLyingFs.getAsyncByteReader(fileKey);
+        return underLyingFs.getAsyncByteReader(fileKey,options);
       }
     }
   }

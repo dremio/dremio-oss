@@ -29,14 +29,15 @@ import com.dremio.exec.physical.config.HashSenderCalculator.BucketOptions;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class HashToMergeExchange extends AbstractExchange {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashToMergeExchange.class);
 
   private final LogicalExpression distExpr;
   private final List<Ordering> orderExprs;
   private final BucketOptions options;
+  private final OptionManager optionManager;
 
   public HashToMergeExchange(
       OpProps props,
@@ -46,11 +47,18 @@ public class HashToMergeExchange extends AbstractExchange {
       BatchSchema schema,
       PhysicalOperator child,
       LogicalExpression distExpr,
-      List<Ordering> orderExprs) {
-    super(props, senderProps, receiverProps, schema, child);
+      List<Ordering> orderExprs,
+      OptionManager optionManager) {
+    super(props, senderProps, receiverProps, schema, child, optionManager);
     this.distExpr = distExpr;
     this.orderExprs = orderExprs;
     this.options = options;
+    this.optionManager = optionManager;
+  }
+
+  @Override
+  public long getMemReserve() {
+    return computeMemReserve();
   }
 
   @Override
@@ -68,7 +76,7 @@ public class HashToMergeExchange extends AbstractExchange {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashToMergeExchange(props, senderProps, receiverProps, options, schema, child, distExpr, orderExprs);
+    return new HashToMergeExchange(props, senderProps, receiverProps, options, schema, child, distExpr, orderExprs, optionManager);
   }
 
   @JsonProperty("orderExpr")

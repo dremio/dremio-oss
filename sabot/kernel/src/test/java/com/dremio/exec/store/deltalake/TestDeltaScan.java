@@ -63,6 +63,7 @@ public class TestDeltaScan extends BaseTestQuery {
     copyFromJar("deltalake/emptyDataFilesNoStatsParsed", java.nio.file.Paths.get(testRootPath + "/emptyDataFilesNoStatsParsed"));
     copyFromJar("deltalake/extraAttrsRemovePath", java.nio.file.Paths.get(testRootPath + "/extraAttrsRemovePath"));
     copyFromJar("deltalake/multibatchCheckpointWithRemove", java.nio.file.Paths.get(testRootPath + "/multibatchCheckpointWithRemove"));
+    copyFromJar("deltalake/multiPartCheckpoint", java.nio.file.Paths.get((testRootPath + "/multiPartCheckpoint")));
     copyFromJar("deltalake/multi_partitioned_remove_only_checkpoint", java.nio.file.Paths.get(testRootPath + "/multi_partitioned_remove_only_checkpoint"));
     copyFromJar("deltalake/repartitioned", java.nio.file.Paths.get(testRootPath + "/repartitioned"));
     copyFromJar("deltalake/schema_change_partition", java.nio.file.Paths.get(testRootPath + "/schema_change_partition"));
@@ -435,6 +436,19 @@ public class TestDeltaScan extends BaseTestQuery {
               .baselineColumns("cnt")
               .baselineValues(2L)
               .unOrdered().go();
+    }
+  }
+
+  @Test
+  public void testDatasetWithMultiPartCheckpointParquet() throws Exception {
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT intcol, longcol FROM dfs.tmp.deltalake.multiPartCheckpoint limit 1";
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("intcol","longcol")
+        .baselineValues(2450811, 2450811L)
+        .unOrdered().go();
     }
   }
 }

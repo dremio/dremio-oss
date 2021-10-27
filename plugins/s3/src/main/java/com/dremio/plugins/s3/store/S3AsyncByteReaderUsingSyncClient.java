@@ -63,8 +63,12 @@ class S3AsyncByteReaderUsingSyncClient extends ReusableAsyncByteReader {
   private final Instant instant;
   private final String threadName;
   private final boolean requesterPays;
+  private final boolean ssecEnabled;
+  private final String ssecKey;
 
-  S3AsyncByteReaderUsingSyncClient(CloseableRef<S3Client> s3Ref, String bucket, String path, String version, boolean requesterPays) {
+  S3AsyncByteReaderUsingSyncClient(CloseableRef<S3Client> s3Ref, String bucket, String path,
+                                   String version, boolean requesterPays,
+                                   boolean ssecUsed, String sseCustomerKey) {
     this.s3Ref = s3Ref;
     this.s3 = s3Ref.acquireRef();
     this.bucket = bucket;
@@ -73,6 +77,8 @@ class S3AsyncByteReaderUsingSyncClient extends ReusableAsyncByteReader {
     this.instant = (mtime != 0) ? Instant.ofEpochMilli(mtime) : null;
     this.threadName = Thread.currentThread().getName();
     this.requesterPays = requesterPays;
+    this.ssecEnabled = ssecUsed;
+    this.ssecKey = sseCustomerKey;
   }
 
   @Override
@@ -145,6 +151,11 @@ class S3AsyncByteReaderUsingSyncClient extends ReusableAsyncByteReader {
         if (requesterPays) {
           requestBuilder.requestPayer(REQUESTER_PAYS);
         }
+        if (ssecEnabled) {
+          requestBuilder.sseCustomerAlgorithm("AES256");
+          requestBuilder.sseCustomerKey(ssecKey);
+        }
+
         final GetObjectRequest request = requestBuilder.build();
         final Stopwatch watch = Stopwatch.createStarted();
 

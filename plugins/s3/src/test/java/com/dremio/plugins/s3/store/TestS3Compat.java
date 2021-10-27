@@ -19,6 +19,7 @@ import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static org.junit.Assert.assertEquals;
 
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -26,7 +27,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.TestTools;
@@ -44,6 +47,9 @@ public class TestS3Compat extends BaseTestQuery {
 
   private S3Mock api;
   private int port;
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @Before
   public void setup() {

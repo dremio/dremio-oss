@@ -21,9 +21,14 @@ import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator
 
 import java.math.BigDecimal;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.ByteFunctionHelpers;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.MutableVarcharVector;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
 import com.dremio.exec.util.DecimalUtils;
 
@@ -526,6 +531,61 @@ public class MinAccumulators {
         /* store the accumulated values(new min or existing) at the target location of accumulation vector */
         PlatformDependent.putLong(minAddr, (minSwappedVal < newSwappedVal) ? minVal : newVal);
         PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+      }
+    }
+  }
+
+  public static class VarLenMinAccumulator extends BaseVarBinaryAccumulator {
+    NullableVarCharHolder holder = new NullableVarCharHolder();
+
+    public VarLenMinAccumulator(FieldVector input, FieldVector output,
+                                FieldVector transferVector, int maxValuesPerBatch,
+                                BufferAllocator computationVectorAllocator,
+                                int varLenAccumulatorCapacity,
+                                BaseVariableWidthVector tempAccumulatorHolder) {
+      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.MIN, maxValuesPerBatch,
+        computationVectorAllocator, varLenAccumulatorCapacity, tempAccumulatorHolder);
+    }
+
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
+      final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
+      final FieldVector inputVector = getInput();
+      final long inputValidityBufAddr = inputVector.getValidityBufferAddress();
+      final ArrowBuf inputOffsetBuf = inputVector.getOffsetBuffer();
+      final ArrowBuf inputDataBuf = inputVector.getDataBuffer();
+
+      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+
+        final int bitVal = (PlatformDependent.getByte(inputValidityBufAddr + (incomingIndex >>> 3)) >>> (incomingIndex & 7)) & 1;
+        //incoming record is null, skip it
+        if (bitVal == 0) {
+          continue;
+        }
+
+        // get the hash table ordinal
+        final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
+
+        //get the offset of incoming record
+        final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
+        final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
+
+        // get the hash table batch index
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
+
+        MutableVarcharVector mv = (MutableVarcharVector) this.accumulators[chunkIndex];
+        holder.isSet = 0;
+
+        if (mv.isIndexSafe(chunkOffset)) {
+          mv.get(chunkOffset, holder);
+        }
+
+        if (holder.isSet == 0 || // current min value is null, just replace it with incoming record
+            ByteFunctionHelpers.compare(inputDataBuf, startOffset, endOffset, holder.buffer, holder.start, holder.end) < 0) {
+          mv.set(chunkOffset, startOffset, (endOffset - startOffset), inputDataBuf);
+        }
       }
     }
   }

@@ -64,8 +64,8 @@ public class UnorderedMuxExchangePrel extends ExchangePrel {
         senderProps,
         receiverProps,
         props.getSchema(),
-        childPOP
-        );
+        childPOP,
+        creator.getOptionManager());
   }
 
   @Override

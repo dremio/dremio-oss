@@ -70,30 +70,28 @@ public class HashAggPrel extends AggPrelBase implements Prel{
   private HashAggPrel(RelOptCluster cluster,
                      RelTraitSet traits,
                      RelNode child,
-                     boolean indicator,
                      ImmutableBitSet groupSet,
                      List<ImmutableBitSet> groupSets,
                      List<AggregateCall> aggCalls,
                      OperatorPhase phase) throws InvalidRelException {
-    super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls, phase);
+    super(cluster, traits, child, groupSet, groupSets, aggCalls, phase);
   }
 
   public static HashAggPrel create(RelOptCluster cluster,
                      RelTraitSet traits,
                      RelNode child,
-                     boolean indicator,
                      ImmutableBitSet groupSet,
                      List<ImmutableBitSet> groupSets,
                      List<AggregateCall> aggCalls,
                      OperatorPhase phase) throws InvalidRelException {
     final RelTraitSet adjustedTraits = AggPrelBase.adjustTraits(traits, child, groupSet);
-    return new HashAggPrel(cluster, adjustedTraits, child, indicator, groupSet, groupSets, aggCalls, phase);
+    return new HashAggPrel(cluster, adjustedTraits, child, groupSet, groupSets, aggCalls, phase);
   }
 
   @Override
-  public Aggregate copy(RelTraitSet traitSet, RelNode input, boolean indicator, ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
+  public Aggregate copy(RelTraitSet traitSet, RelNode input, ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
     try {
-      return HashAggPrel.create(getCluster(), traitSet, input, indicator, groupSet, groupSets, aggCalls,
+      return HashAggPrel.create(getCluster(), traitSet, input, groupSet, groupSets, aggCalls,
           this.getOperatorPhase());
     } catch (InvalidRelException e) {
       throw new AssertionError(e);
@@ -103,7 +101,7 @@ public class HashAggPrel extends AggPrelBase implements Prel{
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     final RelNode child = this.getInput();
     double inputRows = mq.getRowCount(child);
@@ -181,7 +179,8 @@ public class HashAggPrel extends AggPrelBase implements Prel{
         final String functionName = ((FunctionHolderExpr) expr).getName();
         final boolean isMinMaxFn = (functionName.equals("min") || functionName.equals("max"));
         final boolean isNDVFn = (functionName.equals("hll") || functionName.equals("hll_merge"));
-        if (isNDVFn || (isMinMaxFn && expr.getCompleteType().isVariableWidthScalar())) {
+        if (isNDVFn || (isMinMaxFn && expr.getCompleteType().isVariableWidthScalar() &&
+                        !creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR))) {
           useSpill = false;
           break;
         }
@@ -227,6 +226,7 @@ public class HashAggPrel extends AggPrelBase implements Prel{
     }
 
     final boolean enabledVarcharNdv = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR);
+    final boolean enabledSpillVarchar = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR);
 
     for(NamedExpression ne : aggExprs){
       final LogicalExpression expr = ExpressionTreeMaterializer.materializeAndCheckErrors(ne.getExpr(), childSchema, creator.getContext().getFunctionRegistry());
@@ -266,6 +266,11 @@ public class HashAggPrel extends AggPrelBase implements Prel{
       case "min":
       case "max":
         switch(inputType.toMinorType()){
+        case VARCHAR:
+        case VARBINARY:
+          if (!enabledSpillVarchar && !enabledVarcharNdv) {
+            return false;
+          }
         case BIGINT:
         case FLOAT4:
         case FLOAT8:
@@ -277,11 +282,6 @@ public class HashAggPrel extends AggPrelBase implements Prel{
         case TIME:
         case TIMESTAMP:
         case DECIMAL:
-        case VARCHAR:
-        case VARBINARY:
-          if (!enabledVarcharNdv) {
-            return false;
-          }
           continue;
         }
 
@@ -293,7 +293,6 @@ public class HashAggPrel extends AggPrelBase implements Prel{
           return false;
         }
         continue;
-
 
       default:
         return false;

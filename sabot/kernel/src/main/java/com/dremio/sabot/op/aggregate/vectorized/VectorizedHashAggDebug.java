@@ -127,7 +127,6 @@ class VectorizedHashAggDebug {
 
   void setInfoBeforeInit(final long aggAllocatorInitReservation,
                          final long aggAllocatorLimit,
-                         final int maxVarBlockLength,
                          final int averageVarWidthFieldSize,
                          final int numVarColumns,
                          final int blockWidth,
@@ -136,7 +135,6 @@ class VectorizedHashAggDebug {
                          final int minHashTableSizePerPartition) {
     this.aggAllocatorInitReservation = aggAllocatorInitReservation;
     this.aggAllocatorLimit = aggAllocatorLimit;
-    this.maxVarBlockLength = maxVarBlockLength;
     this.averageVarColumnFieldLength = averageVarWidthFieldSize;
     this.numVarColumns = numVarColumns;
     this.blockWidth = blockWidth;

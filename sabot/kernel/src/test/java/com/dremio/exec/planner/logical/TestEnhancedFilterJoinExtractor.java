@@ -250,7 +250,7 @@ public class TestEnhancedFilterJoinExtractor {
       rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit20)),
       JoinRelType.LEFT,
       JoinRelType.LEFT,
-      "true",
+      "=($0, 10)",
       "=($1, 10)",
       "=($2, 20)");
   }
@@ -280,7 +280,7 @@ public class TestEnhancedFilterJoinExtractor {
   }
 
   private void testExtract(RexNode inputFilterCondition, RexNode inputJoinCondition,
-    JoinRelType joinRelType, JoinRelType expectedJoinType, String expectedJoinConditionFromFilterString,
+    JoinRelType joinRelType, JoinRelType expectedJoinType, String expectedJoinConditionString,
     String expectedLeftPushdownPredicateString, String expectedRightPushdownPredicateString) {
     Join joinRel = (Join) relBuilder
       .values(new String[] {"a", "b"}, 1, 2)
@@ -295,8 +295,8 @@ public class TestEnhancedFilterJoinExtractor {
     EnhancedFilterJoinExtraction extraction = new EnhancedFilterJoinExtractor(filterRel,
       joinRel, FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM).extract();
     Assert.assertEquals(expectedJoinType, extraction.getSimplifiedJoinType());
-    Assert.assertEquals(expectedJoinConditionFromFilterString,
-      extraction.getJoinConditionFromFilter().toString());
+    Assert.assertEquals(expectedJoinConditionString,
+      extraction.getJoinCondition().toString());
     Assert.assertEquals(expectedLeftPushdownPredicateString,
       extraction.getLeftPushdownPredicate().toString());
     Assert.assertEquals(expectedRightPushdownPredicateString,

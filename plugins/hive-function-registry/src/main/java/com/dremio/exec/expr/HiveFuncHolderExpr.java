@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.fn.FunctionHolder;
-import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.fn.HiveFuncHolder;
 
@@ -38,11 +36,6 @@ public class HiveFuncHolderExpr extends FunctionHolderExpression implements Iter
   @Override
   public CompleteType getCompleteType() {
     return holder.getReturnType();
-  }
-
-  @Override
-  public Iterator<LogicalExpression> iterator() {
-    return args.iterator();
   }
 
   @Override

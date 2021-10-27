@@ -15,10 +15,13 @@
  */
 package com.dremio.dac.model.job;
 
+import static com.dremio.dac.obfuscate.ObfuscationUtils.obfuscate;
+
 import java.util.Collections;
 import java.util.List;
 
 import com.dremio.dac.explore.DatasetTool;
+import com.dremio.dac.obfuscate.ObfuscationUtils;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.RequestType;
@@ -105,7 +108,7 @@ public class JobsUI {
     if (jobSummary.hasParent()) {
       final JobProtobuf.ParentDatasetInfo parentDatasetInfo = jobSummary.getParent();
       return new ParentDatasetInfo()
-        .setDatasetPathList(parentDatasetInfo.getDatasetPathList())
+        .setDatasetPathList(ObfuscationUtils.obfuscate(parentDatasetInfo.getDatasetPathList(), ObfuscationUtils::obfuscate))
         .setType(JobsProtoUtil.toStuff(parentDatasetInfo.getType()));
     }
     return UNKNOWN;
@@ -119,6 +122,7 @@ public class JobsUI {
       .transform(new Function<JobSummary, JobListItem>() {
         @Override
         public JobListItem apply(JobSummary input) {
+          input = obfuscate(input);
           final ParentDatasetInfo displayInfo = getDatasetToDisplay(input, service);
           return new JobListItem(input, displayInfo);
         }

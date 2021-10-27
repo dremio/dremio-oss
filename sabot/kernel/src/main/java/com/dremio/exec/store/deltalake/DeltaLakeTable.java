@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,12 +79,12 @@ public class DeltaLakeTable {
         this.manager = new DeltaMetadataFetchJobManager(context, fs, fileSelection, true);
     }
 
-    public DeltaLakeTable(SabotContext context, FileSystem fs, FileSelection fileSelection, long version) {
+    public DeltaLakeTable(SabotContext context, FileSystem fs, FileSelection fileSelection, long version, long subparts) {
       this.fs = fs;
       this.context = context;
       final Path rootDir = Path.of(fileSelection.getSelectionRoot());
       this.deltaLogDir = rootDir.resolve(DeltaConstants.DELTA_LOG_DIR);
-      this.manager = new DeltaMetadataFetchJobManager(context, fs, fileSelection, version);
+      this.manager = new DeltaMetadataFetchJobManager(context, fs, fileSelection, version, subparts);
     }
 
     public DeltaLogSnapshot getConsolidatedSnapshot() throws IOException {
@@ -170,13 +171,14 @@ public class DeltaLakeTable {
 
       if(oldVersion >= 0) {
         Path lastCheckpointPath = deltaLogDir.resolve(Path.of(DeltaConstants.DELTA_LAST_CHECKPOINT));
-        Optional<Long> lastVersion = DeltaLastCheckPointReader.getLastCheckPoint(fs, lastCheckpointPath);
+        Pair<Optional<Long>, Optional<Long>> lastCheckPointVersionAndSubparts = DeltaLastCheckPointReader.getLastCheckPoint(fs, lastCheckpointPath);
+        Optional<Long> lastVersion = lastCheckPointVersionAndSubparts.getKey();
         boolean stale = lastVersion.map(version -> {
           return version > oldVersion ? true : false;
         }).orElse(false);
         DeltaFilePathResolver resolver = new DeltaFilePathResolver();
-        Path newVersionFile = resolver.resolve(deltaLogDir, oldVersion + 1, FileType.JSON);
-        return stale || fs.exists(newVersionFile);
+        List<Path> newVersionFiles = resolver.resolve(deltaLogDir, oldVersion + 1, 1L, FileType.JSON);
+        return stale || fs.exists(newVersionFiles.get(0));
       }
 
       return true;

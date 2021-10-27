@@ -33,6 +33,7 @@ import org.apache.calcite.tools.RelBuilder;
 
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 
 /**
  * Rule the converts an NDV expression as HLL Aggregate + HLL_DECODE project.
@@ -65,7 +66,7 @@ public class RewriteNdvAsHll extends RelOptRule {
       }
 
       hllApplications.add(location);
-      calls.add(AggregateCall.create(HyperLogLog.HLL, false, c.getArgList(), -1, typeFactory.createSqlType(SqlTypeName.VARBINARY, HyperLogLog.HLL_VARBINARY_SIZE), c.getName()));
+      calls.add(AggregateCall.create(DremioSqlOperatorTable.HLL, false, c.getArgList(), -1, typeFactory.createSqlType(SqlTypeName.VARBINARY, HyperLogLog.HLL_VARBINARY_SIZE), c.getName()));
     }
 
     if(hllApplications.isEmpty()) {
@@ -84,7 +85,7 @@ public class RewriteNdvAsHll extends RelOptRule {
         continue;
       }
 
-      nodes.add(builder.call(HyperLogLog.HLL_DECODE, builder.field(field)));
+      nodes.add(builder.call(DremioSqlOperatorTable.HLL_DECODE, builder.field(field)));
     }
     builder.project(nodes);
     call.transformTo(builder.build());

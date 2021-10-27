@@ -79,7 +79,7 @@ public class TopNPrel extends SinglePrel {
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       //We use multiplier 0.05 for TopN operator, and 0.1 for Sort, to make TopN a preferred choice.
-      return super.computeSelfCost(planner).multiplyBy(0.05);
+      return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(0.05);
     }
     RelNode child = this.getInput();
     double inputRows = relMetadataQuery.getRowCount(child);

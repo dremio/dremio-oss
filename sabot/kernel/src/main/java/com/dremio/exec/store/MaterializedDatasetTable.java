@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -28,6 +29,8 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.TranslatableTable;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.calcite.logical.ScanCrel;
@@ -105,6 +108,16 @@ public class MaterializedDatasetTable implements TranslatableTable {
   @Override
   public TableType getJdbcTableType() {
     return TableType.TABLE;
+  }
+
+  @Override
+  public boolean isRolledUp(String column) {
+    return false;
+  }
+
+  @Override
+  public boolean rolledUpColumnValidInsideAgg(String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
+    return true;
   }
 
 

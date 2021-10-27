@@ -17,6 +17,7 @@ package com.dremio.reflection.hints.features;
 
 import java.util.Objects;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 
@@ -28,10 +29,12 @@ import org.apache.calcite.rex.RexUtil;
 public class FilterDisjointFeature implements HintFeature {
   private final RexNode userFilter;
   private final RexNode materializationFilter;
+  private final RelDataType datasetRowType;
 
-  public FilterDisjointFeature(RexNode userFilter, RexNode materializationFilter) {
+  public FilterDisjointFeature(RexNode userFilter, RexNode materializationFilter, RelDataType datasetRowType) {
     this.userFilter = userFilter;
     this.materializationFilter = materializationFilter;
+    this.datasetRowType = datasetRowType;
   }
 
   public RexNode getUserFilter() {
@@ -40,6 +43,10 @@ public class FilterDisjointFeature implements HintFeature {
 
   public RexNode getMaterializationFilter() {
     return materializationFilter;
+  }
+
+  public RelDataType getDatasetRowType() {
+    return datasetRowType;
   }
 
   @Override

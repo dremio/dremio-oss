@@ -22,6 +22,8 @@ const alias = '@inject/';
 // optional path that allows controlling where injection happens - used by the dev server
 const injectionPath = process.env.DREMIO_INJECTION_PATH ? path.resolve(__dirname, process.env.DREMIO_INJECTION_PATH) : null;
 
+const dcsPath = process.env.DREMIO_DCS_LOADER_PATH;
+
 /**
  * A resolver that allow to check module location in different folder and fallback to a default module
  *
@@ -42,12 +44,13 @@ class InjectionResolver {
     if (injectionPath) {
       pathsToCheck.push(this.createInfo(originalPath, `${injectionPath}/${relativePath}`));
     }
-
+    if (dcsPath) {
+      pathsToCheck.push(this.createInfo(originalPath, `@dcs/${relativePath}`));
+    }
     pathsToCheck.push(this.createInfo(originalPath, `dyn-load/${relativePath}`));
     pathsToCheck.push(this.createInfo(originalPath, `@app/${relativePath}`));
     // As last resort, go to the stub module that does nothing.
     pathsToCheck.push(this.createInfo(originalPath, stubModule, `'${originalPath}' is redirected to stub module: ${stubModule}`));
-
     return pathsToCheck;
   }
 
@@ -94,6 +97,13 @@ class InjectionResolver {
     const originalRequire = Module.prototype.require;
     Module.prototype.require = function(module) {
       if (module.startsWith(alias)) {
+        try {
+          if (dcsPath) {
+            return originalRequire.call(this, module.replace(alias, '@dcs/'));
+          }
+        } catch (e) {
+          // ignored
+        }
         try {
           return originalRequire.call(this, module.replace(alias, 'dyn-load/'));
         } catch (e) {

@@ -1,0 +1,225 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/color-schema.less";
+
+ @font-icon-size: 2.2rem;
+ @font-icon-resource-size: 2.3rem;
+ 
+ html {
+  font-size: 62.5%;
+}
+
+:global { 
+  .sideNav {
+    background-color: @sideBar-background-color;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.2s linear;
+    width: 6.4rem;
+    animation: shrink 1.5s forwards;
+
+      &.--wide {
+        width: 22.4rem;
+        animation: grow 1.5s forwards;
+      }
+
+      @keyframes shrink {
+        from {
+          width: 22.4rem;
+        }
+        to {
+          width: 6.4rem;
+        }
+      }
+
+      @keyframes grow {
+        from {
+          width: 6.4rem;
+        }
+        to {
+          width: 22.4rem;
+        }
+      }
+    }
+
+    .sideNav-item {
+      .sideNav__logo {
+        display: flex;
+        width: inherit;
+        height: 6.4rem;
+
+        .sideNav__imageDiv {
+          width: 6.4rem;
+
+          &.--wide {
+            width: 22.4rem;
+          }
+        }
+      }
+
+      .sideNav-item__link, .sideNav-item__hoverMenu {
+        width: inherit;
+        height: 6.4rem;
+        color: @sideBar-icon-image-color;
+        cursor: pointer;
+
+        a {
+          display: block;
+
+          &:hover {
+            color: @sideBar-icon-image-color-active !important;
+            text-decoration: none !important;
+          }
+        }
+
+        &:hover {
+          background-color:  @sideBar-hover-background;
+          color: @sideBar-icon-image-color-active;
+        }
+
+        &.--menuDisplayed {
+          background-color:  @sideBar-hover-background;
+          color: @sideBar-icon-image-color-active;
+        }
+
+        &.--active {
+          background-color:  @sideBar-icon-active-background;
+          color: @sideBar-icon-image-color-active !important;
+
+          &:hover {
+            background-color:  @sideBar-icon-active-background;
+          }
+        }
+
+        .sideNav-items {
+          display: flex;
+
+          .sideNav-item__icon {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 6.4rem;
+            height: 6.4rem;
+
+            .sideNav-item__iconType {
+              font-size: @font-icon-size;
+              padding: 0;
+              margin: 0;
+
+              &.--resourceIcon {
+                font-size: @font-icon-resource-size;
+              }
+            }
+          }
+
+          .sideNav-item__labelNext {
+            display: flex;
+            opacity: 1;
+            transition: 700ms ease all;
+            visibility: visible;
+            justify-self: left;
+            align-self: center;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: @sideBar-font-label-color;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            margin-right: 1.0rem;
+            margin-left: -1.2rem;
+
+            &.--show {
+              display: block;
+              width: 16.0rem;  // need for text-overflow: ellipsis
+            }
+
+            &.--hide {
+              opacity: 0;
+              visibility: hidden;
+            }
+          }
+        }
+      }
+
+      .sideNav-item__customHoverMenu {
+        width: 6.4rem;
+        height: 6.4rem;
+
+        &.--wide {
+          width: 22.4rem;
+        }
+
+        &.--active {
+          background-color:  @sideBar-icon-active-background;
+          color: @sideBar-icon-image-color-active !important;
+
+          &:hover {
+            background-color:  @sideBar-icon-active-background;
+          }
+        }
+
+        .sideNav__customOuter {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 6.4rem;
+          height: 6.4rem;
+
+          .sideNav__user {
+            font-size: 1.3rem;
+            line-height: 2.4rem;
+            background-color: @sideBar-account-background;
+            color: @sideBar-account-icon-text-color;
+            border-radius: 50%;
+            width: 2.4rem;
+            height: 2.4rem;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+
+          .sideNav__project {
+            font-size: 1.3rem;
+            line-height: 2.4rem;
+            background-color: @sideBar-account-background;
+            color: @sideBar-account-icon-text-color;
+            border-radius: 2px;
+            width: 2.4rem;
+            height: 2.4rem;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+          }
+        }
+      }
+    }
+
+    .sideNav__topSection {
+      width: inherit;
+      align-items: start;
+      flex: 1;
+    }
+
+    .sideNav__bottomSection {
+      align-self: flex-end;
+      margin-bottom: 1.0rem;
+      width: inherit;
+  }
+}

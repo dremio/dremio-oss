@@ -64,6 +64,7 @@ export default class DatasetsSearch extends PureComponent {
               inputValue={inputValue}
               fullPath={value.get('displayFullPath')}
               typeIcon={getIconDataTypeFromDatasetType(value.get('datasetType'))}
+              placement='right'
             />
           </div>
           {/* DX-11249 <div style={styles.parentDatasetsHolder} data-qa='ds-parent'>

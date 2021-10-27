@@ -54,7 +54,10 @@ import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.op.scan.ScanOperator;
+import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -83,6 +86,10 @@ public class FooterReadTableFunction extends AbstractTableFunction {
 
   private int currentRow;
   private boolean rowProcessed;
+  private OperatorStats operatorStats;
+
+  private int maxSchemaWidth = 0;
+  private int numberOfRowGroupsRead = 0;
 
   public FooterReadTableFunction(FragmentExecutionContext fec, OperatorContext context,
                                  OpProps props, TableFunctionConfig functionConfig)  {
@@ -92,7 +99,7 @@ public class FooterReadTableFunction extends AbstractTableFunction {
     FooterReaderTableFunctionContext functionContext = (FooterReaderTableFunctionContext) functionConfig.getFunctionContext();
     fileType = functionContext.getFileType();
     this.tableName = PathUtils.constructFullPath(functionContext.getTablePath().get(0));
-
+    this.operatorStats = context.getStats();
     try {
       storagePlugin = fec.getStoragePlugin(functionConfig.getFunctionContext().getPluginId());
     } catch (ExecutionSetupException e) {
@@ -178,6 +185,13 @@ public class FooterReadTableFunction extends AbstractTableFunction {
         recordCount = footer.getRowCount();
         mTime = mtimeVector.get(currentRow);
         fileSchema = footer.getSchema();
+
+        maxSchemaWidth = Math.max(maxSchemaWidth, fileSchema.getFieldCount());
+        if(footer instanceof ParquetFooter) {
+          ParquetFooter parquetFooter = (ParquetFooter) footer;
+          numberOfRowGroupsRead += parquetFooter.getRowGroupCount();
+        }
+
         if (fileSchema.getTotalFieldCount() > context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)) {
           throw new ColumnCountTooLargeException((int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
         }
@@ -280,6 +294,11 @@ public class FooterReadTableFunction extends AbstractTableFunction {
 
   @Override
   public void closeRow() throws Exception {
+    operatorStats.setReadIOStats();
+    if(numberOfRowGroupsRead != 0) {
+      operatorStats.setLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, numberOfRowGroupsRead);
+    }
+    operatorStats.setLongStat(TableFunctionOperator.Metric.MAX_SCHEMA_WIDTH, maxSchemaWidth);
   }
 
   /**

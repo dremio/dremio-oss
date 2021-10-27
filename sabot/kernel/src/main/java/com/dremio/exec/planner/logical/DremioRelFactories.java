@@ -31,10 +31,10 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
-import org.apache.calcite.sql.SemiJoinType;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.tools.RelBuilderFactory;
@@ -57,7 +57,6 @@ public class DremioRelFactories {
         RelFactories.DEFAULT_PROJECT_FACTORY,
         RelFactories.DEFAULT_FILTER_FACTORY,
         RelFactories.DEFAULT_JOIN_FACTORY,
-        RelFactories.DEFAULT_SEMI_JOIN_FACTORY,
         RelFactories.DEFAULT_SORT_FACTORY,
         RelFactories.DEFAULT_AGGREGATE_FACTORY,
      /* RelFactories.DEFAULT_MATCH_FACTORY, */
@@ -99,7 +98,7 @@ public class DremioRelFactories {
    */
   private static class ProjectFactoryImpl implements RelFactories.ProjectFactory {
     @Override
-    public RelNode createProject(RelNode child,
+    public RelNode createProject(RelNode child, List<RelHint> hints,
                                  List<? extends RexNode> childExprs, List<String> fieldNames) {
       final RelOptCluster cluster = child.getCluster();
       final RelDataType rowType = RexUtil.createStructType(cluster.getTypeFactory(), childExprs, fieldNames, SqlValidatorUtil.F_SUGGESTER);
@@ -115,7 +114,7 @@ public class DremioRelFactories {
    */
   private static class ProjectPropagateFactoryImpl implements RelFactories.ProjectFactory {
     @Override
-    public RelNode createProject(RelNode child,
+    public RelNode createProject(RelNode child, List<RelHint> hints,
                                  List<? extends RexNode> childExprs, List<String> fieldNames) {
       final RelOptCluster cluster = child.getCluster();
       final RelDataType rowType = RexUtil.createStructType(cluster.getTypeFactory(), childExprs, fieldNames, SqlValidatorUtil.F_SUGGESTER);
@@ -132,11 +131,12 @@ public class DremioRelFactories {
 
   private static class AggregateFactoryImpl implements RelFactories.AggregateFactory {
     @Override
-    public RelNode createAggregate(final RelNode child, final boolean indicator, final ImmutableBitSet groupSet, final ImmutableList<ImmutableBitSet> groupSets, final List<AggregateCall> aggCalls) {
+    public RelNode createAggregate(final RelNode child, List<RelHint> hints, final ImmutableBitSet groupSet,
+                                   final ImmutableList<ImmutableBitSet> groupSets, final List<AggregateCall> aggCalls) {
       final RelOptCluster cluster = child.getCluster();
       final RelTraitSet traitSet = child.getTraitSet().plus(Rel.LOGICAL);
       try {
-        return AggregateRel.create(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls);
+        return AggregateRel.create(cluster, traitSet, child, groupSet, groupSets, aggCalls);
       } catch (InvalidRelException e) {
         // Semantic error not possible. Must be a bug. Convert to
         // internal error.
@@ -152,12 +152,8 @@ public class DremioRelFactories {
   private static class SortFactoryImpl implements RelFactories.SortFactory {
     @Override
     public RelNode createSort(RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
-      return createSort(input.getTraitSet(), input, collation, offset, fetch);
-    }
-
-    @Override
-    public RelNode createSort(RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
       RelNode newInput;
+      RelTraitSet traits = input.getTraitSet();
       if (!collation.getFieldCollations().isEmpty()) {
         collation = RelCollationTraitDef.INSTANCE.canonize(collation);
         newInput = SortRel.create(input.getCluster(), traits, input, collation, null, null);
@@ -187,7 +183,7 @@ public class DremioRelFactories {
    */
   private static class CorrelateFactoryImpl implements RelFactories.CorrelateFactory {
     @Override
-    public RelNode createCorrelate(RelNode left, RelNode right, CorrelationId correlationId, ImmutableBitSet requiredColumns, SemiJoinType joinType) {
+    public RelNode createCorrelate(RelNode left, RelNode right, CorrelationId correlationId, ImmutableBitSet requiredColumns, JoinRelType joinType) {
       return new CorrelateRel(left.getCluster(), left.getTraitSet(), left, right, correlationId, requiredColumns, joinType);
     }
   }
@@ -248,16 +244,10 @@ public class DremioRelFactories {
   private static class JoinFactoryImpl implements RelFactories.JoinFactory {
     @Override
     public RelNode createJoin(RelNode left, RelNode right,
+                              List<RelHint> hints,
                               RexNode condition,
                               Set<CorrelationId> variablesSet,
                               JoinRelType joinType, boolean semiJoinDone) {
-      return JoinRel.create(left.getCluster(), left.getTraitSet(), left, right, condition, joinType);
-    }
-
-    @Override
-    public RelNode createJoin(RelNode left, RelNode right,
-                              RexNode condition, JoinRelType joinType,
-                              Set<String> variablesStopped, boolean semiJoinDone) {
       return JoinRel.create(left.getCluster(), left.getTraitSet(), left, right, condition, joinType);
     }
   }
@@ -269,6 +259,7 @@ public class DremioRelFactories {
   private static class JoinPropagateFactoryImpl implements RelFactories.JoinFactory {
     @Override
     public RelNode createJoin(RelNode left, RelNode right,
+                              List<RelHint> hints,
                               RexNode condition,
                               Set<CorrelationId> variablesSet,
                               JoinRelType joinType, boolean semiJoinDone) {
@@ -280,19 +271,5 @@ public class DremioRelFactories {
           condition,
           joinType);
     }
-
-    @Override
-    public RelNode createJoin(RelNode left, RelNode right,
-                              RexNode condition, JoinRelType joinType,
-                              Set<String> variablesStopped, boolean semiJoinDone) {
-      return JoinRel.create(
-          left.getCluster(),
-          left.getTraitSet().plus(Rel.LOGICAL),
-          RelOptRule.convert(left, left.getTraitSet().plus(Rel.LOGICAL).simplify()),
-          RelOptRule.convert(right, right.getTraitSet().plus(Rel.LOGICAL).simplify()),
-          condition,
-          joinType);
-    }
   }
-
 }

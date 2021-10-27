@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
-import Art from '@app/components/Art';
+import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 import './HelpSection.less';
 
@@ -134,7 +134,7 @@ export class HelpSection extends PureComponent {
 
   render() {
     const buttons = this.getButtons();
-    const { intl, className } = this.props;
+    const { intl } = this.props;
     if (!buttons.size) return null;
     let message = MESSAGES.download;
     if (buttons.has('chat') && buttons.has('email')) {
@@ -153,11 +153,11 @@ export class HelpSection extends PureComponent {
       <div className='helpSection__quoteWrapper'>
         <div className='helpSection__quoteBlock'>
           <div className='helpSection__quoteMessage'>{message}</div>
-          <div children={buttons.toArray()} className='helpSection__buttons' />
         </div>
-        <div className={classNames('helpSection__dremioLogo', className)}>
-          <Art src='GnarlySeaCloud.svg' alt='icon' title='icon' />
-        </div>
+        <div
+          children={localStorageUtils.getIsQVJobs() ? buttons.toArray().reverse() : buttons.toArray()}
+          className='helpSection__buttons'
+        />
       </div>
     </div>;
   }

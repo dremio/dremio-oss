@@ -83,7 +83,6 @@ const styles = {
     border: 'none',
     borderRadius: '4px',
     fontSize: 14,
-    lineHeight: 20,
     width: '300px',
     fontWeight: 'normal',
     outline: 'none'

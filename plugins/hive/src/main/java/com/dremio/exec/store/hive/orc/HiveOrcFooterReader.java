@@ -36,6 +36,7 @@ import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveFooterReaderTableFunction;
 import com.dremio.exec.store.metadatarefresh.footerread.Footer;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReader;
+import com.dremio.exec.store.metadatarefresh.footerread.OrcFooter;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -76,7 +77,7 @@ public class HiveOrcFooterReader implements FooterReader {
     } else {
       rows = getEstimatedRowCount(fileSize);
     }
-    return new Footer(tableSchema, rows, FileFormat.ORC);
+    return new OrcFooter(tableSchema, rows);
   }
 
   private long getEstimatedRowCount(long fileSize) {

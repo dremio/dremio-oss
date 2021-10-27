@@ -64,6 +64,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
   protected final boolean vectorize;
   protected final boolean enableDetailedTracing;
   protected final boolean supportsColocatedReads;
+  protected final boolean isConvertedIcebergDataset;
   protected final InputStreamProvider inputStreamProvider;
   protected UnifiedParquetReader currentReader;
   protected final List<RuntimeFilter> runtimeFilters = new ArrayList<>();
@@ -83,7 +84,8 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
     boolean vectorize,
     boolean enableDetailedTracing,
     boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider) {
+    InputStreamProvider inputStreamProvider,
+    boolean isConvertedIcebergDataset) {
     this.context = context;
     this.readerFactory = readerFactory;
     this.tableSchema = tableSchema;
@@ -99,6 +101,11 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
     this.enableDetailedTracing = enableDetailedTracing;
     this.supportsColocatedReads = supportsColocatedReads;
     this.inputStreamProvider = inputStreamProvider;
+    this.isConvertedIcebergDataset = isConvertedIcebergDataset;
+  }
+
+  public TransactionalTableParquetReader(OperatorContext context, ParquetReaderFactory readerFactory, BatchSchema tableSchema, ParquetScanProjectedColumns projectedColumns, Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap, List<ParquetFilterCondition> filterConditions, ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry, FileSystem fs, MutableParquetMetadata footer, GlobalDictionaries dictionaries, SchemaDerivationHelper schemaHelper, boolean vectorize, boolean enableDetailedTracing, boolean supportsColocatedReads, InputStreamProvider inputStreamProvider) {
+  this(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filterConditions, readEntry, fs, footer, dictionaries, schemaHelper, vectorize, enableDetailedTracing, supportsColocatedReads, inputStreamProvider, true);
   }
 
 
@@ -172,7 +179,8 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
             enableDetailedTracing,
             supportsColocatedReads,
             inputStreamProvider,
-            new ArrayList<>());
+            new ArrayList<>(),
+            isConvertedIcebergDataset);
     currentReader.setIgnoreSchemaLearning(true);
     this.runtimeFilters.forEach(currentReader::addRuntimeFilter);
     currentReader.setup(output);

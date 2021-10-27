@@ -38,14 +38,9 @@ import com.google.common.collect.ImmutableList;
 public abstract class AggregateRelBase extends Aggregate {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AggregateRelBase.class);
 
-  protected AggregateRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode child, boolean indicator,
+  protected AggregateRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode child,
       ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) throws InvalidRelException {
-    super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
-    for(AggregateCall a: aggCalls) {
-      if (a.filterArg >= 0) {
-        throw new InvalidRelException("Inline aggregate filtering is not currently supported");
-      }
-    }
+    super(cluster, traits, child, groupSet, groupSets, aggCalls);
   }
 
   static protected RelTraitSet adjustTraits(RelTraitSet traitSet) {

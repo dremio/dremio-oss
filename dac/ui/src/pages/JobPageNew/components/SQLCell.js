@@ -25,8 +25,9 @@ const SQLCell = ({ sql }) => {
   const TooltipInnerStyle = {
     width: 'auto',
     maxWidth: '33.31rem',
-    background: '#F5FCFF',
-    border: '1.5px solid #31D3DB',
+    maxHeight: '16.5rem',
+    background: '#F4FAFC', //DX-34369
+    border: '1.5px solid #43B8C9',
     padding: '12px 15px 12px 15px'
   };
 

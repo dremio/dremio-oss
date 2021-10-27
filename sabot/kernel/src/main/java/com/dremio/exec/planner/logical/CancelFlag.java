@@ -40,6 +40,14 @@ public class CancelFlag extends org.apache.calcite.util.CancelFlag {
     watch.start();
   }
 
+  /**
+   * stop the flag
+   */
+  public void stop() {
+    this.atomicBoolean.set(false);
+    watch.stop();
+  }
+
   public long getTimeoutInSecs() {
     final long inSecs = TimeUnit.MILLISECONDS.toSeconds(timeout);
     if (inSecs < 0) {

@@ -39,7 +39,7 @@ public class ProjectRule extends RelOptRule {
   public boolean matches(RelOptRuleCall call) {
     // this cannot operate on a project that has a flatten in it.
     final Project project = call.rel(0);
-    for (RexNode e : project.getChildExps()) {
+    for (RexNode e : project.getProjects()) {
       if (FlattenVisitors.hasFlatten(e)) {
         return false;
       }

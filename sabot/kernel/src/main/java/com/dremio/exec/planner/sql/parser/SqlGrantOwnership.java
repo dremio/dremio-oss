@@ -52,7 +52,8 @@ public class SqlGrantOwnership extends SqlCall implements SimpleDirectHandler.Cr
     PROJECT,
     ORG,
     CLOUD,
-    ENGINE
+    ENGINE,
+    ROLE
   }
 
   public enum GranteeType{

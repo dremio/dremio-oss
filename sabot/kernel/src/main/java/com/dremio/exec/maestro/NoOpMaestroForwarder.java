@@ -51,4 +51,14 @@ public class NoOpMaestroForwarder implements MaestroForwarder {
     logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.",
       QueryIdHelper.getQueryId(request.getHeader().getQueryId()));
   }
+
+  @Override
+  public void resultsCompleted(String queryId) {
+    logger.debug("No-op forwarder got results. Dropping it for query {}", queryId);
+  }
+
+  @Override
+  public void resultsError(String queryId, Throwable exception) {
+    logger.debug("No-op forwarder got results error. Dropping it for query {}", queryId);
+  }
 }

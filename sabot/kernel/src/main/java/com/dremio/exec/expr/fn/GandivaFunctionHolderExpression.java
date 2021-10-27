@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.expression.CompleteType;
@@ -42,11 +41,6 @@ public class GandivaFunctionHolderExpression extends FunctionHolderExpression im
   @Override
   public CompleteType getCompleteType() {
       return holder.getReturnType(args);
-    }
-
-  @Override
-  public Iterator<LogicalExpression> iterator() {
-      return args.iterator();
     }
 
   @Override

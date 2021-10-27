@@ -892,9 +892,9 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testQueryNonExistingTable() {
-    errorMsgTestHelper("SELECT * FROM hive.nonExistedTable", "Table 'hive.nonExistedTable' not found");
-    errorMsgTestHelper("SELECT * FROM hive.\"default\".nonExistedTable", "Table 'hive.default.nonExistedTable' not found");
-    errorMsgTestHelper("SELECT * FROM hive.db1.nonExistedTable", "Table 'hive.db1.nonExistedTable' not found");
+    errorMsgTestHelper("SELECT * FROM hive.nonExistedTable", "'nonExistedTable' not found within 'hive'");
+    errorMsgTestHelper("SELECT * FROM hive.\"default\".nonExistedTable", "'nonExistedTable' not found within 'hive.hive.\"default\"'");
+    errorMsgTestHelper("SELECT * FROM hive.db1.nonExistedTable", "'nonExistedTable' not found within 'hive.hive.db1'");
   }
 
   @Test
@@ -1048,6 +1048,80 @@ public class ITHiveStorage extends HiveTestBase {
       new NamespaceKey(parseFullPath("hive.\"default\".foo_bar")), Type.DATASET));
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
       new NamespaceKey(parseFullPath("hive.foo_bar")), Type.DATASET));
+  }
+
+  @Test
+  public void testShortNamesInAlterTableSet() throws Exception {
+    ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
+      new NamespaceKey("hive"),
+      new MetadataPolicy()
+        .setAuthTtlMs(0l)
+        .setDatasetUpdateMode(UpdateMode.PREFETCH)
+        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+    List<NamespaceKey> tables1 = Lists.newArrayList(getSabotContext()
+      .getNamespaceService(SystemUser.SYSTEM_USERNAME)
+      .getAllDatasets(new NamespaceKey("hive")));
+
+    // create an empty table
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS foo_bar(a INT, b STRING)");
+
+    // verify that the new table is visible
+    ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
+      new NamespaceKey("hive"),
+      new MetadataPolicy()
+        .setAuthTtlMs(0l)
+        .setDatasetUpdateMode(UpdateMode.PREFETCH)
+        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+    List<NamespaceKey> tables2 = Lists.newArrayList(getSabotContext()
+      .getNamespaceService(SystemUser.SYSTEM_USERNAME)
+      .getAllDatasets(new NamespaceKey("hive")));
+    assertEquals(tables1.size() + 1, tables2.size());
+
+    // verify that the newly created table is under default namespace
+    assertTrue(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
+      new NamespaceKey(parseFullPath("hive.\"default\".foo_bar")), Type.DATASET));
+    assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
+      new NamespaceKey(parseFullPath("hive.foo_bar")), Type.DATASET));
+
+    // execute queries & verify responses
+    testBuilder()
+      .sqlQuery("ALTER TABLE hive.\"default\".foo_bar SET enable_varchar_truncation = true")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Table [hive.\"default\".foo_bar] options updated")
+      .build().run();
+
+    testBuilder()
+      .sqlQuery("ALTER TABLE hive.foo_bar SET enable_varchar_truncation = true")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Table [hive.foo_bar] options did not change")
+      .build().run();
+
+    testBuilder()
+      .sqlQuery("ALTER TABLE hive.foo_bar SET enable_varchar_truncation = false")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Table [hive.foo_bar] options updated")
+      .build().run();
+
+    // drop table
+    dataGenerator.executeDDL("DROP TABLE foo_bar");
+
+    ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
+      new NamespaceKey("hive"),
+      new MetadataPolicy()
+        .setAuthTtlMs(0l)
+        .setDatasetUpdateMode(UpdateMode.PREFETCH)
+        .setNamesRefreshMs(0l), CatalogServiceImpl.UpdateType.FULL);
+
+    // check if table is deleted from namespace
+    List<NamespaceKey> tables3 = Lists.newArrayList(getSabotContext()
+      .getNamespaceService(SystemUser.SYSTEM_USERNAME)
+      .getAllDatasets(new NamespaceKey("hive")));
+    assertEquals(tables1.size(), tables3.size());
+    assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
+      new NamespaceKey(parseFullPath("hive.\"default\".foo_bar")), Type.DATASET));
   }
 
   @Test

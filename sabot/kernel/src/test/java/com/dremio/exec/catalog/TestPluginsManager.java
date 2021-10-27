@@ -357,7 +357,7 @@ public class TestPluginsManager {
       .setSchemaConfig(SchemaConfig.newBuilder("dremio").build())
       .setCheckValidity(false)
       .build();
-    assertFalse(pluginWithValidityCheck.isCompleteAndValid(incompleteDatasetConfig, metadataRequestOptions));
+    assertFalse(pluginWithValidityCheck.isCompleteAndValid(incompleteDatasetConfig, metadataRequestOptions, mockNamespaceService));
 
     final SourceConfig sourceConfigDisableValidity = new SourceConfig()
       .setType(INSPECTOR)
@@ -371,7 +371,7 @@ public class TestPluginsManager {
     pluginWithDisableValidity.startAsync().get();
 
     // Ensure for an incomplete datasetConfig, validity is not checked even if SourceConfig to disable validity is set
-    assertFalse(pluginWithDisableValidity.isCompleteAndValid(incompleteDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
+    assertFalse(pluginWithDisableValidity.isCompleteAndValid(incompleteDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true), mockNamespaceService));
 
     final ReadDefinition readDefinition = new ReadDefinition();
     readDefinition.setSplitVersion(0L);
@@ -385,16 +385,16 @@ public class TestPluginsManager {
     completeDatasetConfig.setTotalNumSplits(0);
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is set.
-    assertTrue(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions));
+    assertTrue(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions, mockNamespaceService));
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is not set but source config option is set to disable.
-    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions));
+    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, metadataRequestOptions, mockNamespaceService));
 
     // Ensure for a complete config, isStillValid is called and expiry is ignored if request option is set to true but source config option is set to disable.
-    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
+    assertTrue(pluginWithDisableValidity.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true), mockNamespaceService));
 
     // Ensure for a complete config, isStillValid is called and expiry is checked and fails if request option is set to false and source config option is not set to disable .
-    assertFalse(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true)));
+    assertFalse(pluginWithValidityCheck.isCompleteAndValid(completeDatasetConfig, ImmutableMetadataRequestOptions.copyOf(metadataRequestOptions).withCheckValidity(true), mockNamespaceService));
   }
 
 }

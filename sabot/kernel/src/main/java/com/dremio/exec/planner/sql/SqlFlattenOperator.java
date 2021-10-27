@@ -28,7 +28,6 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import com.google.common.base.Objects;
 
 public class SqlFlattenOperator extends SqlFunction {
-  public static final SqlFlattenOperator INSTANCE = new SqlFlattenOperator(0);
 
   private int index;
 

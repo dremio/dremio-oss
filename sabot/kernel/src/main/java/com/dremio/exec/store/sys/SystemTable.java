@@ -119,21 +119,21 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
   REFLECTIONS(false, ReflectionInfo.class, "reflections") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return sContext.getAccelerationListManager().getReflections().iterator();
+      return sContext.getAccelerationListManager().getReflections();
     }
   },
 
   REFRESH(false, AccelerationListManager.RefreshInfo.class, "refreshes") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return sContext.getAccelerationListManager().getRefreshInfos().iterator();
+      return sContext.getAccelerationListManager().getRefreshInfos();
     }
   },
 
   MATERIALIZATIONS(false, MaterializationInfo.class, "materializations") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return sContext.getAccelerationListManager().getMaterializations().iterator();
+      return sContext.getAccelerationListManager().getMaterializations();
     }
   },
 
@@ -154,7 +154,7 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
   DEPENDENCIES(false, AccelerationListManager.DependencyInfo.class, "dependencies") {
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return sContext.getAccelerationListManager().getReflectionDependencies().iterator();
+      return sContext.getAccelerationListManager().getReflectionDependencies();
     }
   },
 

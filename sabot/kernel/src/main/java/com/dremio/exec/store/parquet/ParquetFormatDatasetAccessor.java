@@ -330,6 +330,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
       final String pathString = rowGroupInfo.getFileAttributes().getPath().toString();
       final long splitRecordCount = rowGroupInfo.getRowCount();
       final long size = rowGroupInfo.getTotalBytes();
+      logger.debug("Processing row group info, path is {}, row count is {}.", pathString, splitRecordCount);
 
       final List<DatasetSplitAffinity> affinities = new ArrayList<>();
       for (ObjectLongCursor<HostAndPort> item : rowGroupInfo.getByteMap()) {
@@ -368,6 +369,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
             } else {
               throw new UnsupportedOperationException(String.format("Unable to handle value %s of type %s.", obj, obj.getClass().getName()));
             }
+            logger.debug("Adding partition value, name is {}, value is {}.", p.getName(), p.getValue());
             partitionValues.put(p.getName(), v);
             allImplicitColumns.add(p.getName());
           }

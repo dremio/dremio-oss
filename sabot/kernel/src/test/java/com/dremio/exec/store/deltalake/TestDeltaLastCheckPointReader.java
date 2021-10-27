@@ -40,7 +40,7 @@ public class TestDeltaLastCheckPointReader {
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
     Path path = Path.of(f.getAbsolutePath());
-    Optional<Long> lastCheckPoint = DeltaLastCheckPointReader.getLastCheckPoint(fs, path);
+    Optional<Long> lastCheckPoint = DeltaLastCheckPointReader.getLastCheckPoint(fs, path).getKey();
 
     assertEquals(lastCheckPoint.get(), (Object)10L);
   }

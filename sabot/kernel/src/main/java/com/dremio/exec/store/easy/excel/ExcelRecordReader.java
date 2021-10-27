@@ -23,6 +23,7 @@ import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
+import org.apache.poi.ooxml.POIXMLException;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -100,6 +101,16 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
               .message("There is no sheet with given name '%s' in Excel document located at '%s'",
                       pluginConfig.sheet, path)
               .build(logger);
+    } catch (POIXMLException e) {
+      // strict OOXML is not fully supported
+      if (e.getMessage().contains("Strict OOXML")) {
+        throw UserException.dataReadError(e)
+          .message("Strict OXMl is not supported. Please save %s in standard (.xlsx) format.", path)
+          .build(logger);
+      }
+      throw UserException.dataReadError(e)
+        .message("OOXML file structure broken/invalid - no core document found!")
+        .build(logger);
     } catch (Throwable e) {
       throw UserException.dataReadError(e)
               .message("Failure creating parser for entry '%s'", path)

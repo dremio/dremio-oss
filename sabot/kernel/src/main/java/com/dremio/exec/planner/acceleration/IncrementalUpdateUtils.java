@@ -210,7 +210,7 @@ public class IncrementalUpdateUtils {
       RelDataType incomingRowType = relBuilder.peek().getRowType();
       RelDataTypeField modField = incomingRowType.getField(UPDATE_COLUMN, false, false);
       ImmutableBitSet newGroupSet = aggregate.getGroupSet().rebuild().set(modField.getIndex()).build();
-      GroupKey groupKey = relBuilder.groupKey(newGroupSet, aggregate.indicator, null);
+      GroupKey groupKey = relBuilder.groupKey(newGroupSet, null);
 
       final int groupCount = aggregate.getGroupCount();
       final Pointer<Integer> ind = new Pointer<>(groupCount-1);
@@ -254,10 +254,12 @@ public class IncrementalUpdateUtils {
    */
   public static class MaterializationShuttle extends BaseShuttle {
     private final UpdateId value;
+    private final boolean isInitialRefresh;
 
 
-    public MaterializationShuttle(String refreshColumn, UpdateId value) {
+    public MaterializationShuttle(String refreshColumn, boolean isInitialRefresh, UpdateId value) {
       super(refreshColumn);
+      this.isInitialRefresh = isInitialRefresh;
       this.value = value;
     }
 
@@ -280,16 +282,22 @@ public class IncrementalUpdateUtils {
 
       final RelNode newScan = updateScan((IncrementallyUpdateable) tableScan);
 
+      if (isInitialRefresh) {
+        return newScan;
+      }
+
       // build new filter to apply refresh condition.
       final RexBuilder rexBuilder = tableScan.getCluster().getRexBuilder();
       RelDataTypeField field = newScan.getRowType().getField(UPDATE_COLUMN, false, false);
       final RexNode inputRef = rexBuilder.makeInputRef(newScan, field.getIndex());
       final Optional<RexNode> literal = generateLiteral(rexBuilder, tableScan.getCluster().getTypeFactory(), field.getType().getSqlTypeName());
+      RexNode condition;
       if (literal.isPresent()) {
-        RexNode condition = tableScan.getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.GREATER_THAN, ImmutableList.of(inputRef, literal.get()));
-        return LogicalFilter.create(newScan, condition);
+        condition = tableScan.getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.GREATER_THAN, ImmutableList.of(inputRef, literal.get()));
+      } else {
+        condition = tableScan.getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(inputRef));
       }
-      return newScan;
+      return LogicalFilter.create(newScan, condition);
     }
 
     @Override
@@ -308,7 +316,6 @@ public class IncrementalUpdateUtils {
       return aggregate.copy(
         aggregate.getTraitSet(),
         input,
-        aggregate.indicator,
         aggregate.getGroupSet(),
         null,
         aggCalls

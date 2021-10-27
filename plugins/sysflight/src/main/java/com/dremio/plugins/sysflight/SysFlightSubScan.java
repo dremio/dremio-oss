@@ -25,6 +25,7 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
 import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
 import com.dremio.exec.proto.FlightProtos.SysFlightTicket;
+import com.dremio.exec.proto.SearchProtos.SearchQuery;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
@@ -43,26 +44,35 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
   private final List<String> datasetPath;
   private final StoragePluginId pluginId;
   private final BatchSchema schema;
+  private final SearchQuery query;
+
 
   @JsonCreator
   public SysFlightSubScan(
-      @JsonProperty("props") OpProps props,
-      @JsonProperty("datasetPath") List<String> datasetPath,
-      @JsonProperty("schema") BatchSchema schema,
-      @JsonProperty("columns") List<SchemaPath> columns,
-      @JsonProperty("pluginId") StoragePluginId pluginId
-      ) {
+    @JsonProperty("props") OpProps props,
+    @JsonProperty("datasetPath") List<String> datasetPath,
+    @JsonProperty("schema") BatchSchema schema,
+    @JsonProperty("columns") List<SchemaPath> columns,
+    @JsonProperty("query") SearchQuery query,
+    @JsonProperty("pluginId") StoragePluginId pluginId
+  ) {
     super(props, schema, datasetPath);
     this.schema = schema;
     this.columns = columns;
     this.datasetPath = datasetPath;
     this.pluginId = pluginId;
+
+    this.query = query;
   }
 
   CoordinatorFlightTicket getTicket() {
-    return CoordinatorFlightTicket.newBuilder()
-      .setSyFlightTicket(SysFlightTicket.newBuilder().setDatasetName(datasetPath.get(datasetPath.size()-1)).build())
-      .build();
+    SysFlightTicket.Builder ticketBuilder = SysFlightTicket.newBuilder()
+      .setDatasetName(datasetPath.get(datasetPath.size() - 1))
+      .setUserName(props.getUserName());
+    if(query != null) {
+      ticketBuilder.setQuery(query);
+    }
+    return CoordinatorFlightTicket.newBuilder().setSyFlightTicket(ticketBuilder.build()).build();
   }
 
   @Override
@@ -72,6 +82,10 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
 
   public StoragePluginId getPluginId() {
     return pluginId;
+  }
+
+  public SearchQuery getQuery() {
+    return query;
   }
 
   @Override

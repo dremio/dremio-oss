@@ -56,7 +56,7 @@ import com.dremio.common.dialect.arp.transformer.CallTransformer;
 import com.dremio.common.dialect.arp.transformer.NoOpTransformer;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.rel2sql.DremioRelToSqlConverter;
-import com.dremio.exec.expr.fn.FunctionRegistry;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.dremio.exec.planner.sql.SqlOperatorImpl;
 
 /**
@@ -148,13 +148,26 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
         writer,
         PI_FUNCTION.createCall(new SqlNodeList(call.getOperandList(), SqlParserPos.ZERO)),
         leftPrec, rightPrec);
-    } else if (call.getOperator().equals(FunctionRegistry.E_FUNCTION)) {
+    } else if (call.getOperator().equals(DremioSqlOperatorTable.E_FUNCTION)) {
       // Translate the E() function call to EXP(1)
       final SqlCall newCall = SqlStdOperatorTable.EXP.createCall(
         SqlParserPos.ZERO, SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO));
       super.unparseCall(writer, newCall, leftPrec, rightPrec);
     } else if (call.getKind() == SqlKind.JOIN) {
       this.unparseJoin(writer, (SqlJoin) call, leftPrec, rightPrec);
+    } else if (call.getKind() == SqlKind.UNION) {
+      final SqlOperator operator = call.getOperator();
+      final SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.SETOP);
+      SqlWriter.Frame braceFrame = writer.startList(SqlWriter.FrameTypeEnum.SETOP, "(", ")");
+      call.operand(0).unparse(writer, leftPrec, operator.getLeftPrec());
+      writer.endList(braceFrame);
+      writer.setNeedWhitespace(true);
+      writer.sep(operator.getName());
+      writer.setNeedWhitespace(true);
+      braceFrame = writer.startList(SqlWriter.FrameTypeEnum.SETOP, "(", ")");
+      call.operand(1).unparse(writer, operator.getRightPrec(), rightPrec);
+      writer.endList(braceFrame);
+      writer.endList(frame);
     } else {
       super.unparseCall(writer, call, leftPrec, rightPrec);
     }

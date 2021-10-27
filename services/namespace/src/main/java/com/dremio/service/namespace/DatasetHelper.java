@@ -17,6 +17,7 @@ package com.dremio.service.namespace;
 
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.base.Preconditions;
@@ -51,7 +52,9 @@ public final class DatasetHelper {
   public static boolean isPhysicalDataset(DatasetType t) {
     return t == DatasetType.PHYSICAL_DATASET ||
       t == DatasetType.PHYSICAL_DATASET_SOURCE_FILE ||
-      t == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
+      t == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER ||
+      t == DatasetType.PHYSICAL_DATASET_HOME_FILE ||
+      t == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
   }
 
   /**
@@ -91,6 +94,12 @@ public final class DatasetHelper {
   public static boolean isIcebergDataset(DatasetConfig dataset) {
     if (dataset.getPhysicalDataset() == null) {
       return false;
+    }
+
+    IcebergMetadata icebergMetadata = dataset.getPhysicalDataset().getIcebergMetadata();
+    if (icebergMetadata != null && icebergMetadata.getFileType() != null &&
+            icebergMetadata.getFileType() == FileType.ICEBERG) {
+      return true;
     }
 
     return DatasetHelper.isIcebergFile(dataset.getPhysicalDataset().getFormatSettings());

@@ -21,15 +21,19 @@ import org.apache.iceberg.Table;
  * Loads an Iceberg table
  */
 public class IcebergTableLoader {
-    private final Table icebergTable;
+    private Table icebergTable;
+    private final IcebergCommand icebergCommand;
     private final String rootPointer;
     public IcebergTableLoader(IcebergCommand icebergCommand) {
-        this.icebergTable = icebergCommand.loadTable();
+        this.icebergCommand = icebergCommand;
         this.rootPointer = icebergCommand.getRootPointer();
     }
 
     public Table getIcebergTable() {
-        return icebergTable;
+      if (icebergTable == null) {
+        return icebergTable = icebergCommand.loadTable();
+      }
+      return icebergTable;
     }
 
     public String getRootPointer() {

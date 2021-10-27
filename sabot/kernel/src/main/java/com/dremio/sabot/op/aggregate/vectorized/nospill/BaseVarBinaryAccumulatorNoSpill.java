@@ -16,9 +16,9 @@
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
 
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.MutableVarcharVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VariableWidthVector;
 
 import com.dremio.common.AutoCloseables;
@@ -81,7 +81,7 @@ abstract class BaseVarBinaryAccumulatorNoSpill implements AccumulatorNoSpill {
     MutableVarcharVector mv = (MutableVarcharVector) accumulators[batchIndex];
     ((VariableWidthVector) output).allocateNew(mv.getUsedByteCapacity(), LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
 
-    mv.copyToVarchar((VarCharVector) output, 0, LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
+    mv.copyToVarWidthVec((BaseVariableWidthVector) output, LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
   }
 
   @SuppressWarnings("unchecked")

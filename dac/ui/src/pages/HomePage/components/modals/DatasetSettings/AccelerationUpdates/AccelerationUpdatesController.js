@@ -24,6 +24,7 @@ import {constructFullPath} from '@app/utils/pathUtils';
 import {getEntity, getViewState} from '@app/selectors/resources';
 import {updateViewState} from '@app/actions/resources';
 import {
+  clearDataSetAccelerationSettings,
   loadDatasetAccelerationSettings,
   updateDatasetAccelerationSettings
 } from '@app/actions/resources/datasetAccelerationSettings';
@@ -54,6 +55,7 @@ export class AccelerationUpdatesController extends Component {
     onCancel: PropTypes.func,
     onDone: PropTypes.func,
     loadFileFormat: PropTypes.func,
+    clearDataSetAccelerationSettings: PropTypes.func,
     loadDatasetAccelerationSettings: PropTypes.func,
     updateDatasetAccelerationSettings: PropTypes.func,
     updateFormDirtyState: PropTypes.func,
@@ -132,9 +134,13 @@ export class AccelerationUpdatesController extends Component {
   }
 
   submit = (form) => {
+    const fullPathList = this.props.entity.get('fullPathList');
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.updateDatasetAccelerationSettings(this.props.entity.get('fullPathList'), form)
-    ).then(() => this.props.onDone(null, true));
+      this.props.updateDatasetAccelerationSettings(fullPathList, form)
+    ).then(() => {
+      this.props.clearDataSetAccelerationSettings(fullPathList);
+      this.props.onDone(null, true);
+    });
   };
 
   render() {
@@ -197,6 +203,7 @@ function mapStateToProps(state, ownProps) {
 
 export default connect(mapStateToProps, {
   loadFileFormat,
+  clearDataSetAccelerationSettings,
   loadDatasetAccelerationSettings,
   updateDatasetAccelerationSettings,
   updateViewState: updateViewStateWrapper

@@ -81,7 +81,7 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
 
   @Override
   public Prel visitProject(ProjectPrel topRel, Void voidValue) throws RuntimeException {
-    final List<RexNode> expressions = topRel.getChildExps();
+    final List<RexNode> expressions = topRel.getProjects();
     final RelNode inputRel = ((Prel) topRel.getInput()).accept(this, null);
 
     final List<ConversionColumn> conversions = new ArrayList<>();

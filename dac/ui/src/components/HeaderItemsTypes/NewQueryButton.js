@@ -41,7 +41,8 @@ export class NewQueryButton extends Component {
 
     showConfirmationDialog: PropTypes.func,
     resetNewQuery: PropTypes.func,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    fromSideBar: PropTypes.bool
   };
 
   static contextTypes = {
@@ -89,6 +90,23 @@ export class NewQueryButton extends Component {
   };
 
   render() {
+    const {fromSideBar, intl} = this.props;
+    if (fromSideBar) {
+      const {mouseOver} = this.state;
+      let iconType = 'PlusSignGray';
+      if (mouseOver) {
+        iconType = 'PlusSign';
+      }
+
+      return (
+        <div className='new-query-button' style={styles.baseSideBar} onMouseEnter={this.mouseEnter} onMouseLeave={this.mouseLeave}>
+          <a href={this.getNewQueryHref()} data-qa='new-query-button' onClick={this.handleClick} style={styles.linkSideBar}>
+            <FontIcon theme={styles.iconSideBar} type={iconType} tooltip={intl.formatMessage({id: 'NewQuery.NewQuery'})}/>
+          </a>
+        </div>
+      );
+    }
+
     return (
       <div className='new-query-button' style={styles.base}>
         <a href={this.getNewQueryHref()} data-qa='new-query-button' onClick={this.handleClick} style={styles.link}>
@@ -119,6 +137,10 @@ const styles = {
     display: 'flex',
     alignItems: 'center'
   },
+  baseSideBar: {
+    width: 45,
+    height: 45
+  },
   link: {
     display: 'block',
     lineHeight: '28px',
@@ -138,6 +160,20 @@ const styles = {
       border: '1px solid rgba(255, 255, 255, .25)'
     }
   },
+  linkSideBar: {
+    display: 'block',
+    lineHeight: '20px',
+    textDecoration: 'none',
+    color: '#fff',
+    fontSize: '20px',
+    padding: '12px', // chris thinks this looks better
+    textAlign: 'left',
+    cursor: 'pointer',
+
+    ':hover': {
+      color: 'white'
+    }
+  },
   icon: {
     'Icon': {
       width: '1.05em',
@@ -150,5 +186,16 @@ const styles = {
       marginRight: 9,
       fontSize: 'inherit'
     }
+  },
+  iconSideBar: {
+    'Icon': {
+      width: '1.05em',
+      height: '1.05em'
+    },
+    'Container': {
+      display: 'inline-block',
+      fontSize: 'inherit'
+    }
   }
 };
+

@@ -89,7 +89,7 @@ public class FilterNLJMergeRule extends RelOptRule {
     long maxNodes = PrelUtil.getPlannerSettings(call.getPlanner()).getMaxNLJConditionNodesPerPlan();
     List<RexNode> residue = new ArrayList<>();
     RexNode condition = trimCondition(maxNodes, filter.getCondition(), filter.getCluster().getRexBuilder(), residue);
-    RelNode result = NestedLoopJoinPrel.create(join.getCluster(), join.getTraitSet(), join.getLeft(), join.getRight(), join.getJoinType(), RelOptUtil.andJoinFilters(join.getCluster().getRexBuilder(), join.getCondition(), condition), join.getProjectedFields());
+    RelNode result = NestedLoopJoinPrel.create(join.getCluster(), join.getTraitSet(), join.getLeft(), join.getRight(), join.getJoinType(), RelOptUtil.andJoinFilters(join.getCluster().getRexBuilder(), join.getCondition(), condition));
     if (!residue.isEmpty()) {
       result = filter.copy(filter.getTraitSet(), result, RexUtil.composeConjunction(filter.getCluster().getRexBuilder(), residue, false));
     }

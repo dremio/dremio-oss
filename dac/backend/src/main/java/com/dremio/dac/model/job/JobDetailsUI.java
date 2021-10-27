@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import org.apache.calcite.util.Util;
 
 import com.dremio.dac.model.job.acceleration.AccelerationDetailsUI;
+import com.dremio.dac.obfuscate.ObfuscationUtils;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
@@ -172,6 +173,7 @@ public class JobDetailsUI {
 
   public static JobDetailsUI of(com.dremio.service.job.JobDetails jobDetails, String currentUser) {
     final List<JobAttempt> attempts = jobDetails.getAttemptsList().stream()
+      .map(ja -> ObfuscationUtils.obfuscate(ja)) // to be future-proof, obfuscating all attempts, but only when needed.
       .map(JobsProtoUtil::toStuff)
       .collect(Collectors.toList());
     final JobAttempt lastJobAttempt = Util.last(attempts);
@@ -182,7 +184,7 @@ public class JobDetailsUI {
     final JobId jobId = JobsProtoUtil.toStuff(jobDetails.getJobId());
     return new JobDetailsUI(
         jobId,
-        lastJobAttempt.getDetails(),
+        ObfuscationUtils.obfuscate(lastJobAttempt.getDetails()),
         JobResource.getPaginationURL(jobId),
         attempts,
         JobResource.getDownloadURL(jobDetails),

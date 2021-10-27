@@ -79,8 +79,8 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
     }
 
     @Override
-    public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, FileAttributes fileAttributes, long version) throws IOException {
-      final Path commitFilePath = fileAttributes.getPath();
+    public DeltaLogSnapshot parseMetadata(Path rootFolder, SabotContext context, FileSystem fs, List<FileAttributes> fileAttributes, long version) throws IOException {
+      final Path commitFilePath = fileAttributes.get(0).getPath();
         try (final FSInputStream commitFileIs = fs.open(commitFilePath);
              final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))) {
             /*
@@ -109,7 +109,7 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
                 }
             }
 
-            snapshot.setSplits(generateSplits(fileAttributes, snapshot.getDataFileEntryCount(), version));
+            snapshot.setSplits(generateSplits(fileAttributes.get(0), snapshot.getDataFileEntryCount(), version));
             if (snapshot.isMissingRequiredValues()) {
               logger.debug("{} has missing required values", commitFilePath);
               // the snapshot is missing required values

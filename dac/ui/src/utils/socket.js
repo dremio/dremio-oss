@@ -28,7 +28,9 @@ export const WS_MESSAGE_JOB_DETAILS = 'job-details';
 export const WS_MESSAGE_JOB_DETAILS_LISTEN = 'job-details-listen';
 export const WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN = 'reflection-job-details-listen';
 export const WS_MESSAGE_JOB_PROGRESS = 'job-progress';
+export const WS_MESSAGE_QV_JOB_PROGRESS = 'job-progress-newListingUI';
 export const WS_MESSAGE_JOB_PROGRESS_LISTEN = 'job-progress-listen';
+export const WS_MESSAGE_QV_JOB_PROGRESS_LISTEN = 'qv-job-progress-listen';
 export const WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN = 'reflection-job-progress-listen';
 export const WS_MESSAGE_JOB_RECORDS = 'job-records';
 export const WS_MESSAGE_JOB_RECORDS_LISTEN = 'job-records-listen';
@@ -228,6 +230,14 @@ export class Socket {
 
   stopListenToJobProgress(jobId) {
     this._stopListenToJob(jobId, WS_MESSAGE_JOB_PROGRESS_LISTEN);
+  }
+
+  startListenToQVJobProgress(jobId, forceSend) {
+    this._startListenToJob(jobId, WS_MESSAGE_QV_JOB_PROGRESS_LISTEN, forceSend);
+  }
+
+  stoptListenToQVJobProgress(jobId) {
+    this._stopListenToJob(jobId, WS_MESSAGE_QV_JOB_PROGRESS_LISTEN);
   }
 
   startListenToReflectionJobProgress(jobId, reflectionId, forceSend) {

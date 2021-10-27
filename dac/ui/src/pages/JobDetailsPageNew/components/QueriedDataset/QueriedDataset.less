@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/color-schema.less";
-@import "~@app/pages/JobDetailsPageNew/components/OverView/OverView.less";
+@font-size:16px;
+@line-height:20px;
+@font-weight:600;
 :global {
   .queriedDataset {
     &-title {
@@ -59,6 +61,9 @@
           line-height: 16px;
           color: @font-color1;
         }
+      }
+      &__label {
+        width: 32px !important;
       }
     }
     &-buttonStyle {

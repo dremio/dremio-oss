@@ -84,7 +84,8 @@ public abstract class ReflectionExplanationUI {
     private final String filter;
 
     @JsonCreator
-    public FilterOverSpecified(@JsonProperty("filter") String filter) {
+    public FilterOverSpecified(
+      @JsonProperty("filter") String filter) {
       this.filter = filter;
     }
 

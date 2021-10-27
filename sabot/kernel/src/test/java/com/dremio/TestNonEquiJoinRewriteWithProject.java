@@ -19,6 +19,8 @@ import java.util.regex.Pattern;
 
 import org.junit.Test;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
+
 public class TestNonEquiJoinRewriteWithProject extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestNonEquiJoinRewriteWithProject.class);
 
@@ -61,8 +63,13 @@ public class TestNonEquiJoinRewriteWithProject extends PlanTestBase {
 
   @Test
   public void negativeCase() throws Exception {
-    String sql = "select r_name from cp.\"tpch/region.parquet\" right join cp.\"tpch/nation.parquet\"\n" +
-      "on n_regionkey = r_regionkey and n_name <> r_name and r_name like '%ASIA%'";
-    testPlanMatchingPatterns(sql, new String[]{Pattern.quote("NestedLoopJoin(condition=[AND(=($1, $2), <>($0, $3))]")});
+    try (AutoCloseable ignored = withOption(PlannerSettings.EXTRA_CONDITIONS_HASHJOIN, true)) {
+      String sql = "select r_name from cp.\"tpch/region.parquet\" right join cp.\"tpch/nation.parquet\"\n" +
+        "on n_regionkey = r_regionkey and n_name <> r_name and r_name like '%ASIA%'";
+      testPlanMatchingPatterns(sql, new String[]{
+          Pattern.quote("HashJoin(condition=[=($1, $2)], joinType=[left], extraCondition=[<>($0, $3)])")
+        }
+        , "NestedLoopJoin");
+    }
   }
 }

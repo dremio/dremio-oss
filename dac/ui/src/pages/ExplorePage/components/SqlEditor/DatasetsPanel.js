@@ -30,6 +30,7 @@ import { datasetTitle } from 'uiTheme/radium/typography';
 import { PALE_GREY, SECONDARY_BORDER } from 'uiTheme/radium/colors';
 import DatasetList from 'components/DatasetList/DatasetList';
 import * as sqlEditorStyles from 'uiTheme/radium/sqlEditor';
+import datasetsPanelConfig from '@inject/pages/ExplorePage/components/SqlEditor/datasetsPanelConfig';
 
 export const PARENTS_TAB = 'PARENTS_TAB';
 export const BROWSE_TAB = 'BROWSE_TAB';
@@ -70,11 +71,16 @@ export class DatasetsPanel extends Component {
      * used for display headertabs in Datasetspanel
      * @type {Array}
      */
-    this.tabs = [
-      { name: props.intl.formatMessage({id: 'Dataset.Parents'}), id: PARENTS_TAB},
-      { name: props.intl.formatMessage({id: 'Dataset.Browse'}), id: BROWSE_TAB},
-      { name: props.intl.formatMessage({id: 'Dataset.Search'}), id: SEARCH_TAB}
-    ];
+    this.tabs = datasetsPanelConfig.hideSearchTab
+      ? [
+        { name: props.intl.formatMessage({id: 'Dataset.Parents'}), id: PARENTS_TAB},
+        { name: props.intl.formatMessage({id: 'Dataset.Browse'}), id: BROWSE_TAB}
+      ]
+      : [
+        { name: props.intl.formatMessage({id: 'Dataset.Parents'}), id: PARENTS_TAB},
+        { name: props.intl.formatMessage({id: 'Dataset.Browse'}), id: BROWSE_TAB},
+        { name: props.intl.formatMessage({id: 'Dataset.Search'}), id: SEARCH_TAB}
+      ];
 
     this.state = {
       activeTabId: undefined

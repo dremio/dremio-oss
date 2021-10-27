@@ -79,6 +79,36 @@ public class Retryer<T> implements ExponentialBackoff {
     throw new OperationFailedAfterRetriesException();
   }
 
+  public void run(Runnable runnable) {
+    for (int attemptNo = 1; attemptNo <= maxRetries; attemptNo++) {
+      try {
+        runnable.run();
+        return;
+      } catch (Exception e) {
+        boolean retryable = isRetriable.apply(e);
+        if (!retryable || attemptNo == maxRetries) {
+          throw new OperationFailedAfterRetriesException(e);
+        }
+        final StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        logger.warn("Retry attempt {} for the failure at {}:{}:{}, Error - {}",
+          attemptNo, caller.getClassName(), caller.getMethodName(), caller.getLineNumber(), e.getMessage());
+        switch (waitStrategy) {
+          case EXPONENTIAL:
+            backoffWait(attemptNo);
+            break;
+          case FLAT:
+            flatWait();
+            break;
+          default:
+            throw new UnsupportedOperationException("Strategy not implemented: " + waitStrategy.name());
+        }
+      }
+    }
+
+    // will ever reach here
+    throw new OperationFailedAfterRetriesException();
+  }
+
   @Override
   public int getBaseMillis() {
     return baseMillis;

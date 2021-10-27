@@ -159,7 +159,11 @@ class SplitStageExecutor implements AutoCloseable {
     TypedFieldId fid = intermediateOutputs.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
     boolean useSetSafe = !(vector instanceof FixedWidthVector);
     ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, useSetSafe);
-    cg.addExpr(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+    if (context.getOptions().getOption(ExecConstants.LAZYEXPEVAL_ENABLED)) {
+      cg.lazyAddExp(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+    } else {
+      cg.addExpr(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+    }
 
     if (expr instanceof ValueVectorReadExpression) {
       final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) expr;

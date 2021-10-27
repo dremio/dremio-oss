@@ -48,30 +48,38 @@ const theme = {
         color: 'inherit'
       },
       rounded: {
-        borderRadius: 3
+        borderRadius: '0px 0px 3px 3px'
       }
     },
     MuiDialog: {
-      paperWidthXs: {
-        maxWidth: 'unset',
-        width: 450,
-        height: 200
+      container: {
+        top: '10%',
+        bottom: '10%',
+        height: 'unset',
+        position: 'relative',
+        minWidth: 1280
+      },
+      paper: {
+        margin: 'unset'
       },
       paperWidthSm: {
-        width: 670,
-        height: 360
+        width: '25%',
+        minWidth: 320,
+        minHeight: 200
       },
       paperWidthMd: {
-        width: 840,
-        height: 480
+        width: '50%',
+        minWidth: 640,
+        minHeight: 200
       },
       paperWidthLg: {
-        width: 840,
-        height: 600
+        width: '75%',
+        minWidth: 960,
+        minHeight: 200
       },
       paperWidthXl: {
-        width: '80%',
-        height: 720,
+        width: '95%',
+        minHeight: 200,
         maxWidth: 1200
       }
     },
@@ -79,6 +87,16 @@ const theme = {
       tooltip: {
         backgroundColor: '#2A394A',
         fontSize: '12px'
+      }
+    },
+    MuiBackdrop: {
+      root: {
+        backgroundColor: 'rgba(41, 56, 73, 0.5)'
+      }
+    },
+    MuiChip: {
+      root: {
+        fontSize: 'unset'
       }
     }
   }

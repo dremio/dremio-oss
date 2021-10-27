@@ -18,7 +18,6 @@ package com.dremio.exec.physical.config;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.calcite.rel.core.JoinRelType;
 
@@ -44,8 +43,6 @@ public class NestedLoopJoinPOP extends AbstractBase {
   private final LogicalExpression condition;
   private final boolean vectorized;
   private final LogicalExpression vectorOp;
-  private final Set<Integer> buildProjected;
-  private final Set<Integer> probeProjected;
 
   @JsonCreator
   public NestedLoopJoinPOP(
@@ -55,9 +52,7 @@ public class NestedLoopJoinPOP extends AbstractBase {
       @JsonProperty("joinType") JoinRelType joinType,
       @JsonProperty("condition") LogicalExpression condition,
       @JsonProperty("vectorized") boolean vectorized,
-      @JsonProperty("vectorOp") LogicalExpression vectorOp,
-      @JsonProperty("buildProjected") Set<Integer> buildProjected,
-      @JsonProperty("probeProjected") Set<Integer> probeProjected) {
+      @JsonProperty("vectorOp") LogicalExpression vectorOp) {
     super(props);
     this.probe = probe;
     this.build = build;
@@ -65,8 +60,6 @@ public class NestedLoopJoinPOP extends AbstractBase {
     this.condition = condition;
     this.vectorized = vectorized;
     this.vectorOp = vectorOp;
-    this.buildProjected = buildProjected;
-    this.probeProjected = probeProjected;
   }
 
   @Override
@@ -77,7 +70,7 @@ public class NestedLoopJoinPOP extends AbstractBase {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.size() == 2);
-    return new NestedLoopJoinPOP(props, children.get(0), children.get(1), joinType, condition, vectorized, vectorOp, buildProjected, probeProjected);
+    return new NestedLoopJoinPOP(props, children.get(0), children.get(1), joinType, condition, vectorized, vectorOp);
   }
 
   @Override
@@ -95,14 +88,6 @@ public class NestedLoopJoinPOP extends AbstractBase {
 
   public JoinRelType getJoinType() {
     return joinType;
-  }
-
-  public Set<Integer> getBuildProjected() {
-    return buildProjected;
-  }
-
-  public Set<Integer> getProbeProjected() {
-    return probeProjected;
   }
 
   public LogicalExpression getCondition() {

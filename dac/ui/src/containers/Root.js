@@ -25,14 +25,9 @@ import routes from 'routes';
 
 import intercomUtils from 'utils/intercomUtils';
 
-import { addLocaleData, IntlProvider } from 'react-intl';
-import enData from 'react-intl/locale-data/en';
+import {IntlProvider } from 'react-intl';
 import { getLocale } from '../utils/locale';
-
-addLocaleData([...enData]);
-
 export default class Root extends Component {
-
   static propTypes = {
     store: PropTypes.object.isRequired
   };

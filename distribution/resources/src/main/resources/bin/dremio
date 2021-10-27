@@ -112,7 +112,6 @@ dremio_internal_start() {
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.plugins.path=${DREMIO_PLUGINS_DIR}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+PrintClassHistogramAfterFullGC"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
     # netty options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=0 -Dio.netty.tryReflectionSetAccessible=true"
@@ -121,7 +120,11 @@ dremio_internal_start() {
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_GC_OPTS"
     # User options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS "
-
+    # Add this option only if it is Java 8
+    if [ "$JAVA_MAJOR_VERSION" -eq 8 ]; then
+      DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+PrintClassHistogramBeforeFullGC"
+      DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+PrintClassHistogramAfterFullGC"
+    fi
     # Add to the command log file vital stats on our environment.
     echo "`date` Starting $command on `hostname`" >> $logout
     echo "`ulimit -a`" >> $logout 2>&1
@@ -134,7 +137,8 @@ dremio_internal_start() {
           exit 1
         fi
     fi
-    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon $DREMIO_DAC_DEAMON_AWS_OPTIONS
+
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon $DREMIO_DAC_DAEMON_EXTRA_OPTIONS
 }
 
 check_before_start() {
@@ -185,8 +189,10 @@ if [ "$JAVA_HOME" = "" ]; then
   exit 1
 fi
 
+DREMIO_GC_LOG_FILENAME=${DREMIO_GC_LOG_FILENAME:-"server.gc"}
+
 # The JVM GC logs
-loggc="${DREMIO_LOG_DIR}/server.gc"
+loggc="${DREMIO_LOG_DIR}/${DREMIO_GC_LOG_FILENAME}"
 # stdout messages
 logout="${DREMIO_LOG_DIR}/server.out"
 pid="$DREMIO_PID_DIR/dremio.pid"

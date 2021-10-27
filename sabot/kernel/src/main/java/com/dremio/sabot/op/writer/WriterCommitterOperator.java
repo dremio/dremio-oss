@@ -58,6 +58,8 @@ import com.google.common.collect.ImmutableList;
 public class WriterCommitterOperator implements SingleInputOperator {
 
   public enum Metric implements MetricDef {
+    ICEBERG_METADATA_WRITE_TIME,
+    ICEBERG_CATALOG_UPDATE_TIME,
     ICEBERG_COMMIT_TIME;
 
     @Override

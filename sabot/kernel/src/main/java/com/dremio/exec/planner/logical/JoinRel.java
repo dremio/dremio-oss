@@ -22,7 +22,6 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexChecker;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Litmus;
 
 import com.dremio.exec.planner.common.JoinRelBase;
@@ -37,12 +36,12 @@ public class JoinRel extends JoinRelBase implements Rel {
    * */
   private JoinRel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
       JoinRelType joinType)  {
-    this(cluster, traits, left, right, condition, joinType, null, false);
+    this(cluster, traits, left, right, condition, joinType, false);
   }
 
   private JoinRel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                  JoinRelType joinType, ImmutableBitSet projectedFields, boolean allowRowTypeMismatch)  {
-    super(cluster, traits, left, right, condition, joinType, projectedFields, allowRowTypeMismatch);
+                  JoinRelType joinType, boolean allowRowTypeMismatch)  {
+    super(cluster, traits, left, right, condition, joinType, allowRowTypeMismatch);
     assert traits.contains(Rel.LOGICAL);
   }
 
@@ -54,10 +53,10 @@ public class JoinRel extends JoinRelBase implements Rel {
   }
 
   public static JoinRel create(RelOptCluster cluster, RelTraitSet traitSet, RelNode left, RelNode right, RexNode condition,
-                               JoinRelType joinType, ImmutableBitSet projectedFields, boolean allowRowTypeMismatch) {
+                               JoinRelType joinType, boolean allowRowTypeMismatch) {
     final RelTraitSet traits = adjustTraits(traitSet);
 
-    return new JoinRel(cluster, traits, left, right, condition, joinType, projectedFields, allowRowTypeMismatch);
+    return new JoinRel(cluster, traits, left, right, condition, joinType, allowRowTypeMismatch);
   }
 
   @Override public boolean isValid(Litmus litmus, Context context) {
@@ -86,14 +85,6 @@ public class JoinRel extends JoinRelBase implements Rel {
 
   @Override
   public JoinRel copy(RelTraitSet traitSet, RexNode condition, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    if (getProjectedFields() == null) {
-      return new JoinRel(getCluster(), traitSet, left, right, condition, joinType);
-    }
-    return new JoinRel(getCluster(), traitSet, left, right, condition, joinType, getProjectedFields(), false);
-  }
-
-  @Override
-  public JoinRel copy(RelTraitSet traitSet, RexNode condition, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields) {
-    return new JoinRel(getCluster(), traitSet, left, right, condition, joinType, projectedFields, false);
+    return new JoinRel(getCluster(), traitSet, left, right, condition, joinType);
   }
 }

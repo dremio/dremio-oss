@@ -71,6 +71,11 @@ class TimeUtils {
     return moment(timestamp).fromNow();
   }
 
+  formatDateToMonthDayYearTimeStamp(time, invalidDateString = INVALID_DATE_MSG) {
+    const t = moment(time);
+    return t.isValid() ? t.format('MMM DD, YYYY h:mm:ss A') : invalidDateString;
+  }
+
   formatTime(time, invalidDateString = la(INVALID_DATE_MSG), locale = window.navigator.language, format = 'x') {
     moment.locale(locale);
     const t = moment(time, format);
@@ -107,6 +112,24 @@ class TimeUtils {
       return 'unknown';
     }
     return moment(timestamp).toNow(true);
+  }
+
+  durationWithMS(duration, isNumberFormat = false) { // todo: loc
+    const seconds = this.zeroesPadding(duration.seconds(), 2);
+    const minutes = this.zeroesPadding(duration.minutes(), 2);
+    const hours = this.zeroesPadding(Math.floor(duration.asHours()), 2);
+    if (Math.floor(duration.asHours()) <= 0 && duration.minutes() <= 0 && duration.seconds() < 1) {
+      return '<1s';
+    } else if (Math.floor(duration.asHours()) <= 0 && duration.minutes() < 1 && duration.seconds() >= 1) {
+      return moment.utc(duration.as('milliseconds')).format('ss.SS[s]', {
+        minValue: 1
+      });
+    } else if (isNumberFormat) {
+      return `${hours}:${minutes}:${seconds}`;
+    }
+    // todo: loc
+    return hours > 0 ? moment.utc(duration.as('milliseconds')).format('HH[h]:mm[m]:ss[s]') :
+      moment.utc(duration.as('milliseconds')).format('mm[m]:ss[s]');
   }
 }
 

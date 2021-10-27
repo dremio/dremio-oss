@@ -101,3 +101,5 @@ export const dataLakeTableType = {
 };
 
 export const SHARING_TAB_JSON_TEMPLATE = {};
+
+export const USE_LEGACY_DIALECT_PROPERTY_NAME = 'useLegacyDialect';

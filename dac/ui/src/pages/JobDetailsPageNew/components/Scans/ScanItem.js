@@ -34,7 +34,7 @@ const renderScanTooltip = (tooltip, scanName) => {
 };
 
 const renderIcon = (iconName, className) => {
-  return <Art src={iconName} alt='icon' title='icon' className={className} />;
+  return <Art src={iconName} alt='Reflection' title='Reflection' className={className} />;
 };
 const ScanItem = ({ scan, scansForFilter, intl: { formatMessage } }) => {
   const [isScanOpen, setIsScanOpen] = useState(false);

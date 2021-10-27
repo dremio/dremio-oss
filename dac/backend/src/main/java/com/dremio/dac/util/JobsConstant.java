@@ -18,7 +18,7 @@ package com.dremio.dac.util;
 public interface JobsConstant {
   String DOT_BACKSLASH = "\\.\"";
   String QUOTES = "\"";
-  String ACCELERATOR = "__accelerator";
+  String __ACCELERATOR = "__accelerator";
   String REFLECTION = "REFLECTION";
   String PDS = "PHYSICAL_DATASET_SOURCE_FILE";
   String BYTES = " B";
@@ -30,10 +30,21 @@ public interface JobsConstant {
   String TOTAL_BYTES_READ = "TOTAL_BYTES_READ";
   String ERROR_JOB_STATE_NOT_SET = "JobState must be set";
   String DEFAULT_DATASET_TYPE = "OTHERS";
-  String VIRTUAL_DATASET= "VIRTUAL_DATASET";
+  String VIRTUAL_DATASET = "VIRTUAL_DATASET";
   String EXTERNAL_QUERY = "external_query";
   String OTHERS = "OTHERS";
   String UNAVAILABLE = "Unavailable";
   String METADATA = "Catalog";
   String EMPTY_DATASET_FIELD= "";
+  String RECORDS = " Records";
+  String FORWARD_SLASH = " / ";
+  String DATASET_GRAPH_ERROR = "Something went wrong while accessing one or more components of Dataset Graph. Please check your privileges.";
+  String DOT= ".";
+  String SCANNED_DATASET = "ScannedDataset";
+  String ACCELERATOR = "ACCELERATOR";
+  String DATASETGRAPH = "DatasetGraph";
+  String ALGEBRAIC_REFLECTIONS = "AlgebraicReflections";
+  String REFLECTIONS_MATCHED_OR_USED = "ReflectionsMatchedOrUsed";
+  String AGGREGATION = "AGGREGATION";
+  String  TMP_UNTITLED = "tmp.UNTITLED";
 }

@@ -35,7 +35,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Correlate;
 import org.apache.calcite.rel.core.CorrelationId;
-import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Window;
@@ -77,9 +76,7 @@ import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
-import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.LimitRel;
-import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.service.Pointer;
@@ -547,8 +544,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     }
 
     // add in fields used in the all the conditions; including the ones requested in "fieldsUsed"
-    final RelOptUtil.InputFinder inputFinder = new RelOptUtil.InputFinder();
-    inputFinder.inputBitSet.addAll(fieldsUsed);
+    final RelOptUtil.InputFinder inputFinder = new RelOptUtil.InputFinder(null, fieldsUsed);
     originalJoinFilter.accept(inputFinder);
     originalOuterJoinConditions.forEach(
         rexNode -> {
@@ -559,7 +555,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     if (originalPostJoinFilter != null) {
       originalPostJoinFilter.accept(inputFinder);
     }
-    final ImmutableBitSet fieldsUsedPlus = inputFinder.inputBitSet.build();
+    final ImmutableBitSet fieldsUsedPlus = inputFinder.build();
 
     int offset = 0;
     int changeCount = 0;
@@ -677,34 +673,6 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     return result(newMultiJoin, mapping);
   }
 
-  /**
-   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for
-   * {@link com.dremio.exec.planner.logical.JoinRel}.
-   * This sets ImmutableBitSet to JoinRel which indicates inputs used by its consumer
-   */
-  public TrimResult trimFields(
-    JoinRel join,
-    ImmutableBitSet fieldsUsed,
-    Set<RelDataTypeField> extraFields) {
-    if (fieldsUsed.cardinality() == 0) {
-      fieldsUsed = fieldsUsed.set(0);
-    }
-    TrimResult result = super.trimFields(join, fieldsUsed, extraFields);
-    Join rel = (Join) result.left;
-    Mapping mapping = result.right;
-    ImmutableBitSet projectedFields = ImmutableBitSet.of(fieldsUsed.asList().stream().map(mapping::getTarget).collect(Collectors.toList()));
-    RelNode newJoin = JoinRel.create(rel.getCluster(), rel.getTraitSet(), rel.getLeft(), rel.getRight(), rel.getCondition(), rel.getJoinType(), projectedFields, true);
-    final Mapping map = Mappings.create(MappingType.INVERSE_SURJECTION, join.getRowType().getFieldCount(), newJoin.getRowType().getFieldCount());
-    int j = 0;
-    for (int i = 0; i < join.getRowType().getFieldCount() ; i++) {
-      if (fieldsUsed.get(i)) {
-        map.set(i, j);
-        j++;
-      }
-    }
-    return result(addProjectOnProjectedJoin((JoinRel) newJoin), map);
-  }
-
   public TrimResult trimFields(LogicalWindow window, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
     // Fields:
     //
@@ -748,7 +716,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     final int inputFieldCount = input.getRowType().getFieldCount();
 
     final Set<RelDataTypeField> inputExtraFields = new LinkedHashSet<>(extraFields);
-    final RelOptUtil.InputFinder inputFinder = new RelOptUtil.InputFinder(inputExtraFields);
+    ImmutableBitSet.Builder inputBitSet = ImmutableBitSet.builder();
 
     //
     // 1. Identify input fields and constants in use
@@ -758,8 +726,11 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
         // exit if it goes over the input fields
         break;
       }
-      inputFinder.inputBitSet.set(bit);
+      inputBitSet.set(bit);
     }
+
+    final RelOptUtil.InputFinder inputFinder = new RelOptUtil.InputFinder(inputExtraFields, inputBitSet.build());
+    inputBitSet = ImmutableBitSet.builder();
 
     // number of agg calls and agg calls actually used
     int aggCalls = 0;
@@ -791,15 +762,16 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       group.upperBound.accept(inputFinder);
 
       // Add partition fields
-      inputFinder.inputBitSet.addAll(group.keys);
+      inputBitSet.addAll(group.keys);
 
       // Add collation fields
       for(RelFieldCollation fieldCollation: group.collation().getFieldCollations()) {
-        inputFinder.inputBitSet.set(fieldCollation.getFieldIndex());
+        inputBitSet.set(fieldCollation.getFieldIndex());
       }
     }
     // Create the final bitset containing both input and constants used
-    final ImmutableBitSet inputAndConstantsFieldsUsed = inputFinder.inputBitSet.build();
+    inputBitSet.addAll(inputFinder.build());
+    final ImmutableBitSet inputAndConstantsFieldsUsed = inputBitSet.build();
 
     //
     // 2. Trim input
@@ -1004,20 +976,5 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       refCounts[inputRef.getIndex()]++;
       return null;
     }
-  }
-
-  private static RelNode addProjectOnProjectedJoin(JoinRel join) {
-    if (join.getProjectedFields() != null) {
-      RelNode newJoin = join.copy(join.getTraitSet(), join.getCondition(), join.getLeft(), join.getRight(), join.getJoinType(), join.isSemiJoinDone());
-      List<RexNode> exprs = new ArrayList<>();
-      final RelDataType rowType = join.getRowType();
-      final List<Integer> projectedFields = join.getProjectedFields().asList();
-      final List<RelDataTypeField> fields = rowType.getFieldList();
-      for (final Ord<Integer> pair : Ord.zip(projectedFields)) {
-        exprs.add(join.getCluster().getRexBuilder().makeInputRef(fields.get(pair.i).getType(), pair.e));
-      }
-      return ProjectRel.create(join.getCluster(), join.getTraitSet(), newJoin, exprs, rowType);
-    }
-    return join;
   }
 }

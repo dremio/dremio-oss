@@ -18,27 +18,34 @@ package com.dremio.plugins.sysflight;
 import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.flight.FlightClient;
+import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStream;
 import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.util.TransferPair;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.dremio.service.flight.FlightRpcUtils;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+
+import io.grpc.Context;
 
 /**
  * RecordReader for SysFlight
@@ -49,11 +56,17 @@ public class SysFlightRecordReader extends AbstractRecordReader {
   private final BatchSchema schema;
   private final FlightClient client;
   private final Ticket ticket;
+  private final int targetBatchSize;
 
   private List<Field> selectedFields;
   private ValueVector[] valueVectors;
-  private int recordsRead = -1;
-  private int batchRecordCount = 0;
+
+  private Context.CancellableContext cancellableContext;
+  private FlightStream stream;
+  private VectorSchemaRoot batchHolder;
+
+  private boolean batchHolderIsEmpty = true;
+  private int ptrToNextRecord = 0;
 
   public SysFlightRecordReader(OperatorContext context, List<SchemaPath> columns,
     BatchSchema schema, FlightClient client, Ticket ticket) {
@@ -61,10 +74,14 @@ public class SysFlightRecordReader extends AbstractRecordReader {
     this.schema = schema;
     this.client = client;
     this.ticket = ticket;
+    targetBatchSize = context.getTargetBatchSize();
+    LOGGER.debug("Target batch size is {}", targetBatchSize);
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
+    cancellableContext = Context.current().fork().withCancellation();
+
     final Set<String> selectedColumns = new HashSet<>();
     if(this.getColumns() != null){
       for(SchemaPath path : getColumns()) {
@@ -73,7 +90,6 @@ public class SysFlightRecordReader extends AbstractRecordReader {
       }
     }
     selectedFields = new ArrayList<>();
-
     for (Field field : schema.getFields()) {
       if(selectedColumns.contains(field.getName().toLowerCase())) {
         selectedFields.add(field);
@@ -81,49 +97,83 @@ public class SysFlightRecordReader extends AbstractRecordReader {
     }
 
     valueVectors = new ValueVector[selectedFields.size()];
-
     int i = 0;
     for (Field field : selectedFields) {
       final Class<? extends ValueVector> vvClass = (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(getMinorTypeForArrowType(field.getType()));
       valueVectors[i] = output.addField(field, vvClass);
       i++;
     }
+
+    cancellableContext.run(() -> {
+      try{
+        stream = client.getStream(ticket);
+      } catch (FlightRuntimeException fre) {
+        Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
+        throw ue.isPresent() ? ue.get() : fre;
+      } catch (Exception e) {
+        Throwables.throwIfUnchecked(e);
+        throw new RuntimeException(e);
+      }
+    });
   }
 
   @Override
   public int next() {
-    if (recordsRead >= batchRecordCount) {
-      return 0;
-    }
+    int toRead = targetBatchSize;
 
-    // todo: handle multiple batches within a stream
-    // todo: maintain recommended batchRecordCount to the scan output
-    try (FlightStream stream = client.getStream(ticket)) {
-      while (stream.next()) {
-        try (final VectorSchemaRoot root = stream.getRoot()) {
-          final int currentBatchCount = root.getRowCount();
-          batchRecordCount = currentBatchCount;
-          recordsRead = currentBatchCount;
-
-          int j = 0;
-          for (Field f : selectedFields) {
-            ValueVector dataVector = root.getVector(f);
-            TransferPair tp = dataVector.makeTransferPair(valueVectors[j]);
-            tp.transfer();
-            j++;
+    while(toRead > 0){
+      try {
+        if (batchHolderIsEmpty) {
+          if (stream.next()) {
+            batchHolder = stream.getRoot();
+            batchHolderIsEmpty = false;
+            ptrToNextRecord = 0;
+          } else {
+            return targetBatchSize - toRead;
           }
-          return currentBatchCount;
         }
-      }
 
-      return 0;
-    } catch (Exception e) {
-      Throwables.throwIfUnchecked(e);
-      throw new RuntimeException(e);
+        int currBatchSize = batchHolder.getRowCount();
+
+        int i = ptrToNextRecord;
+        int k = toRead;
+        int j = 0;
+        for (Field f: selectedFields) {
+          i = ptrToNextRecord;
+          k = toRead;
+          for (; i < currBatchSize && k > 0; i++, k--) {
+            ValueVector dataVector = batchHolder.getVector(f);
+            if (dataVector != null) {
+              valueVectors[j].copyFromSafe(i, targetBatchSize - k, dataVector);
+            }
+          }
+          j++;
+        }
+        ptrToNextRecord = i;
+        toRead = k;
+
+        if (ptrToNextRecord == currBatchSize) {
+          batchHolder.close();
+          batchHolderIsEmpty = true;
+        }
+      } catch (FlightRuntimeException fre) {
+        Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
+        throw ue.isPresent() ? ue.get() : fre;
+      } catch (Exception e) {
+        Throwables.throwIfUnchecked(e);
+        throw new RuntimeException(e);
+      }
     }
+
+    return targetBatchSize - toRead;
   }
 
   @Override
   public void close() throws Exception {
+    AutoCloseables.close(stream, batchHolder, AutoCloseables.all(Arrays.asList(valueVectors)));
+    if (cancellableContext != null) {
+      cancellableContext.close();
+    }
+    cancellableContext = null;
   }
 }

@@ -249,10 +249,10 @@ public class RuntimeFilterVisitor extends BasePrelVisitor<Prel, Void, RuntimeExc
 
     @Override
     public List<ColumnOriginScan> visitProject(ProjectPrel prel, Integer idx) {
-      if (!(prel.getChildExps().get(idx) instanceof RexInputRef)) {
+      if (!(prel.getProjects().get(idx) instanceof RexInputRef)) {
         return ImmutableList.of();
       }
-      RexInputRef ref = (RexInputRef) prel.getChildExps().get(idx);
+      RexInputRef ref = (RexInputRef) prel.getProjects().get(idx);
       if (prel.getInput(0) instanceof Prel) {
         return ((Prel) prel.getInput(0)).accept(this, ref.getIndex());
       }

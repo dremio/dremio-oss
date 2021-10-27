@@ -75,7 +75,7 @@ public abstract class ProjectRelBase extends Project {
 
     boolean foundContains = false;
     int i = 0;
-    for (RexNode rex : this.getChildExps()) {
+    for (RexNode rex : this.getProjects()) {
       if (ContainsRexVisitor.hasContainsCheckOrigin(this, rex, i)) {
         foundContains = true;
         break;
@@ -105,7 +105,7 @@ public abstract class ProjectRelBase extends Project {
     }
 
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(.1);
     }
 
     // cost is proportional to the number of rows and number of columns being projected

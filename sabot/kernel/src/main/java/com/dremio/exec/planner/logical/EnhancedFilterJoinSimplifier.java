@@ -122,9 +122,9 @@ public final class EnhancedFilterJoinSimplifier {
       return RexUtil.composeDisjunction(rexBuilder, originalFilters, false);
     }
 
-    // Else, return disjunction of simplified non-entirely pushed child nodes and entirely pushed
-    // child nodes. We need to preserve the order of child nodes in the disjunction because we have
-    // checks whether a child gets entirely pushed elsewhere
+    // Else, return disjunction of simplified non-entirely pushed child nodes (need to supply
+    // non-common part) and entirely pushed child nodes. We need to preserve the order of child nodes
+    // in the disjunction because we have checks whether a child gets entirely pushed elsewhere
     else {
       // Record the order of extractions
       Map<RexNode, Integer> extractionIndex = Maps.newHashMap();
@@ -132,17 +132,26 @@ public final class EnhancedFilterJoinSimplifier {
         extractionIndex.put(extractions.get(i).getKey(), i);
       }
 
-      // Collect simplified filters
+      // Variables to collect simplified filters
       List<RexNode> simplifiedFilters = Lists.newArrayList();
       Map<RexNode, RexNode> simplifiedToExtractionMap = Maps.newHashMap();
-      // Simplify non-entirely pushed filters
+
+      // Simplify non-entirely pushed filters by common part and supply non-common part
       for (Pair<RexNode, RexNode> extraction: nonEntirelyPushedExtractions) {
+        RexNode extractedFilter = extraction.getKey();
         RexNode remainingFilter = extraction.getValue();
+        // Simplify non-entirely pushed filters by common part
         RexNode simplifiedFilter = removeChildNodes(remainingFilter, commonExtractedFilter,
           SqlKind.AND, rexBuilder);
-        simplifiedFilters.add(simplifiedFilter);
-        simplifiedToExtractionMap.put(simplifiedFilter, extraction.getKey());
+        // Supply non-common part
+        RexNode nonCommonSupply = removeChildNodes(extractedFilter, commonExtractedFilter,
+          SqlKind.AND, rexBuilder);
+        RexNode simplifiedFilterSupplied = RexUtil.composeConjunction(rexBuilder,
+          Lists.newArrayList(simplifiedFilter, nonCommonSupply), false);
+        simplifiedFilters.add(simplifiedFilterSupplied);
+        simplifiedToExtractionMap.put(simplifiedFilterSupplied, extraction.getKey());
       }
+
       // Add entirely pushed filters
       for (Pair<RexNode, RexNode> extraction: entirelyPushedExtractions) {
         simplifiedFilters.add(extraction.getValue());

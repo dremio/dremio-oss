@@ -52,11 +52,19 @@ public class DremioInputFile implements InputFile {
     this.context = context;
     this.dataset = dataset;
     this.datasourcePluginUID = datasourcePluginUID; // this can be null if it is same as the plugin which created fs
-    String scheme = fs != null ? fs.getScheme() : DremioHadoopUtils.getHadoopFSScheme(
-      DremioHadoopUtils.toHadoopPath(path),
-      conf);
-    this.locationWithScheme = IcebergUtils.getValidIcebergPath(new org.apache.hadoop.fs.Path(path.toString()), conf, scheme);
-    this.hadoopInputFile = HadoopInputFile.fromLocation(this.path.toString(), conf);
+    String scheme;
+    String filePath;
+    if (fs == null) {
+      filePath = Path.getContainerSpecificRelativePath(path);
+      scheme = DremioHadoopUtils.getHadoopFSScheme(
+                  DremioHadoopUtils.toHadoopPath(filePath),
+                  conf);
+    } else {
+      scheme = fs.getScheme();
+      filePath = this.path.toString();
+    }
+    this.locationWithScheme = IcebergUtils.getValidIcebergPath(new org.apache.hadoop.fs.Path(filePath), conf, scheme);
+    this.hadoopInputFile = HadoopInputFile.fromLocation(filePath, conf);
   }
 
   @Override

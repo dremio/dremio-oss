@@ -87,8 +87,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public class TestManifestRecordWriter extends BaseTestQuery {
-
-  private static final long HALF_MB = 524288;
+  private static final long QUARTER_MB = 262144;
 
   @Test
   public void testWriterWithOneBatch() throws Exception {
@@ -178,7 +177,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
         fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
         partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
 
-      refillIncomingVector(incomingVector, 3000, getTestPartitionSpec(), 0);
+      refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
       for (int i = 0; i < 60; i++) {
         manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
       }
@@ -205,7 +204,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
       assertEquals(1, Objects.requireNonNull(metadataFolder.listFiles(new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
-          return (new File(dir, name)).length() >= HALF_MB - DataFileConstants.DEFAULT_SYNC_INTERVAL;
+          return (new File(dir, name)).length() >= QUARTER_MB - DataFileConstants.DEFAULT_SYNC_INTERVAL;
         }
       })).length);
     } finally {
@@ -337,7 +336,7 @@ public class TestManifestRecordWriter extends BaseTestQuery {
 
           @Override
           public boolean hasReachedMaxLen() {
-            return length() + DataFileConstants.DEFAULT_SYNC_INTERVAL >= HALF_MB;
+            return length() + DataFileConstants.DEFAULT_SYNC_INTERVAL >= QUARTER_MB;
           }
         };
       }

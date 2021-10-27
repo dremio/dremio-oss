@@ -70,6 +70,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
 
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
@@ -541,30 +542,46 @@ public final class JobsServiceUtil {
     final JobAttempt lastJobAttempt = job.getJobAttempt();
     final JobInfo lastJobAttemptInfo = lastJobAttempt.getInfo();
 
-    ActiveJobSummary.Builder activeJobSummaryBuilder = ActiveJobSummary.newBuilder()
+    ActiveJobSummary.Builder builder = ActiveJobSummary.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(job.getJobId()).getId())
       .setStatus(JobsProtoUtil.toBuf(lastJobAttempt.getState()).toString())
       .setUserName(firstJobAttemptInfo.getUser())
       .setQueryType(JobsProtoUtil.toBuf(lastJobAttemptInfo.getQueryType()).toString())
       .setAccelerated(lastJobAttemptInfo.getAcceleration() != null);
 
-    if (lastJobAttempt.getDetails() != null && lastJobAttempt.getDetails().getOutputRecords() != null) {
-      activeJobSummaryBuilder.setRowCount(lastJobAttempt.getDetails().getOutputRecords());
+    if (firstJobAttemptInfo.getStartTime() != null) {
+      builder.setSubmit(Timestamp.newBuilder().setSeconds(firstJobAttemptInfo.getStartTime()).build());
+    }
+    AttemptsHelper helper = new AttemptsHelper(lastJobAttempt);
+    if (helper.getPlanningTime() != null) {
+      builder.setQueryPlanningTime(helper.getPlanningTime());
+    }
+    if (helper.getQueuedTimeStamp() != null) {
+      builder.setQueue(Timestamp.newBuilder().setSeconds(helper.getQueuedTimeStamp()).build());
+    }
+    if (helper.getQueuedTime() != null) {
+      builder.setQueueTime(helper.getQueuedTime());
+    }
+    if (helper.getExecutionPlanningTime() != null) {
+      builder.setExecutionPlanningTime(helper.getExecutionPlanningTime());
+    }
+    if (helper.getRunningTimeStamp() != null) {
+      builder.setStart(Timestamp.newBuilder().setSeconds(helper.getRunningTimeStamp()).build());
+    }
+    if (helper.getRunningTime() != null) {
+      builder.setExecutionTime(helper.getRunningTime());
     }
 
-    if(lastJobAttemptInfo.getFailureInfo() != null) {
-      activeJobSummaryBuilder.setErrorMsg(lastJobAttemptInfo.getFailureInfo());
+    if (lastJobAttemptInfo.getResourceSchedulingInfo() != null) {
+      if (lastJobAttemptInfo.getResourceSchedulingInfo().getQueueName() != null) {
+        builder.setQueueName(lastJobAttemptInfo.getResourceSchedulingInfo().getQueueName());
+      }
+      if (lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName() != null) {
+        builder.setEngine(lastJobAttemptInfo.getResourceSchedulingInfo().getEngineName());
+      }
     }
 
-    if(firstJobAttemptInfo.getStartTime() != null) {
-      activeJobSummaryBuilder.setStart(firstJobAttemptInfo.getStartTime());
-    }
-
-    if(lastJobAttemptInfo.getFinishTime() != null) {
-      activeJobSummaryBuilder.setFinish(lastJobAttemptInfo.getFinishTime());
-    }
-
-  return activeJobSummaryBuilder.build();
+  return builder.build();
   }
 
   static JobDetails toJobDetails(Job job, boolean provideResultInfo) {

@@ -16,16 +16,24 @@
 package com.dremio.exec.store.hive;
 
 import java.io.IOException;
+import java.util.Map;
 
+import org.apache.hadoop.conf.Configuration;
+
+import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.AsyncStreamConf;
+import com.dremio.exec.store.dfs.FormatPlugin;
+import com.dremio.exec.store.iceberg.IcebergFormatConfig;
+import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
+import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 /**
  * Base class which all hive storage plugins extend
  */
-public abstract class BaseHiveStoragePlugin {
+public abstract class BaseHiveStoragePlugin implements SupportsIcebergRootPointer {
   private final SabotContext sabotContext;
   private final String name;
 
@@ -51,4 +59,24 @@ public abstract class BaseHiveStoragePlugin {
     sabotContext.getJobsRunner().get().runQueryAsJob(query, userName, queryType);
   }
 
+  @Override
+  public Configuration getFsConfCopy() {
+    Configuration conf = new Configuration();
+    for (Map.Entry<String, String> property: getConfigProperties()) {
+      conf.set(property.getKey(), property.getValue());
+    }
+    return conf;
+  }
+
+  @Override
+  public FormatPlugin getFormatPlugin(FormatPluginConfig formatConfig) {
+    if (formatConfig instanceof IcebergFormatConfig) {
+      IcebergFormatPlugin icebergFormatPlugin = new IcebergFormatPlugin("iceberg", sabotContext, (IcebergFormatConfig) formatConfig, null);
+      icebergFormatPlugin.initialize((IcebergFormatConfig) formatConfig, this);
+      return icebergFormatPlugin;
+    }
+    throw new UnsupportedOperationException("Format plugins for non iceberg use cases are not supported.");
+  }
+
+  public abstract Iterable<Map.Entry<String, String>> getConfigProperties();
 }

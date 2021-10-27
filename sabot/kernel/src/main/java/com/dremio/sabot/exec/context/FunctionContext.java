@@ -125,6 +125,8 @@ public interface FunctionContext {
    */
   FunctionErrorContext getFunctionErrorContext();
 
+  int getFunctionErrorContextSize();
+
   OptionResolver getOptions();
 
   /**

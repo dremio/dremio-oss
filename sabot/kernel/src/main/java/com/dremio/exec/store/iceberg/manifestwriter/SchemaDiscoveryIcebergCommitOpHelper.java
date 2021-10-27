@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.iceberg.manifestwriter;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,8 +26,6 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
@@ -42,8 +39,6 @@ import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.util.VectorUtil;
-import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 
@@ -57,7 +52,6 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
     private List<ManifestFile> icebergManifestFiles = new ArrayList<>();
     private List<DataFile> deletedDataFiles = new ArrayList<>();
     private List<String> partitionColumns;
-    private FileSystem fsToCheckIfPartitionExists;
     private final int implicitColSize;
 
   protected SchemaDiscoveryIcebergCommitOpHelper(OperatorContext context, WriterCommitterPOP config) {
@@ -75,7 +69,6 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
         TypedFieldId id = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
         icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, id.getFieldIds()).getValueVector();
         partitionDataVector = (ListVector) VectorUtil.getVectorFromSchemaPath(incoming, RecordWriter.PARTITION_DATA_COLUMN);
-        createPartitionExistsPredicate(config);
     }
 
     @Override
@@ -127,7 +120,7 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
 
     private void initializeIcebergOpCommitter() throws Exception {
         // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
-        IcebergModel icebergModel = config.getPlugin().getIcebergModel();
+        IcebergModel icebergModel = config.getPlugin().getIcebergModel(context);
         IcebergTableProps icebergTableProps = config.getIcebergTableProps();
 
         switch (icebergTableProps.getIcebergOpType()) {
@@ -178,27 +171,4 @@ public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper 
           deletedDataFiles.forEach(icebergOpCommitter::consumeDeleteDataFile);
         }
     }
-
-  private void createPartitionExistsPredicate(WriterCommitterPOP config) {
-    partitionExistsPredicate = (path) ->
-    {
-      try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
-        return getFS(config).exists(Path.of(path));
-      } catch (Exception e) {
-        throw UserException.ioExceptionError(e).buildSilently();
-      }
-    };
-  }
-
-  private FileSystem getFS(WriterCommitterPOP config) throws IOException {
-    if (fsToCheckIfPartitionExists == null) {
-      fsToCheckIfPartitionExists = config.getSourceTablePlugin().createFS(null, config.getProps().getUserName(), context);
-    }
-    return fsToCheckIfPartitionExists;
-  }
-
-  @Override
-  public void close() throws Exception {
-    AutoCloseables.close(fsToCheckIfPartitionExists);
-  }
 }

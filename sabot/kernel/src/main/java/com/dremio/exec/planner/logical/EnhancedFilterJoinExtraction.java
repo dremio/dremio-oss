@@ -19,26 +19,37 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexNode;
 
 public final class EnhancedFilterJoinExtraction {
-  private final RexNode joinConditionFromFilter;
+  private final RexNode inputFilterConditionPruned;
+  private final RexNode inputJoinConditionPruned;
+  private final RexNode joinCondition;
   private final RexNode leftPushdownPredicate;
   private final RexNode rightPushdownPredicate;
   private final RexNode remainingFilterCondition;
-  private final RexNode remainingJoinCondition;
   private final JoinRelType simplifiedJoinType;
 
-  public EnhancedFilterJoinExtraction(RexNode joinConditionFromFilter,
-    RexNode leftPushdownPredicate, RexNode rightPushdownPredicate, RexNode remainingFilterCondition,
-    RexNode remainingJoinCondition, JoinRelType simplifiedJoinType) {
-    this.joinConditionFromFilter = joinConditionFromFilter;
+  public EnhancedFilterJoinExtraction(RexNode inputFilterConditionPruned,
+    RexNode inputJoinConditionPruned, RexNode joinCondition,
+    RexNode leftPushdownPredicate, RexNode rightPushdownPredicate,
+    RexNode remainingFilterCondition, JoinRelType simplifiedJoinType) {
+    this.inputFilterConditionPruned = inputFilterConditionPruned;
+    this.inputJoinConditionPruned = inputJoinConditionPruned;
+    this.joinCondition = joinCondition;
     this.leftPushdownPredicate = leftPushdownPredicate;
     this.rightPushdownPredicate = rightPushdownPredicate;
     this.remainingFilterCondition = remainingFilterCondition;
-    this.remainingJoinCondition = remainingJoinCondition;
     this.simplifiedJoinType = simplifiedJoinType;
   }
 
-  public RexNode getJoinConditionFromFilter() {
-    return joinConditionFromFilter;
+  public RexNode getInputFilterConditionPruned() {
+    return inputFilterConditionPruned;
+  }
+
+  public RexNode getInputJoinConditionPruned() {
+    return inputJoinConditionPruned;
+  }
+
+  public RexNode getJoinCondition() {
+    return joinCondition;
   }
 
   public RexNode getLeftPushdownPredicate() {
@@ -51,10 +62,6 @@ public final class EnhancedFilterJoinExtraction {
 
   public RexNode getRemainingFilterCondition() {
     return remainingFilterCondition;
-  }
-
-  public RexNode getRemainingJoinCondition() {
-    return remainingJoinCondition;
   }
 
   public JoinRelType getSimplifiedJoinType() {

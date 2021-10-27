@@ -19,10 +19,15 @@ import static com.dremio.plugins.elastic.ElasticsearchType.KEYWORD;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 import static org.junit.Assume.assumeFalse;
 
+import java.util.concurrent.TimeUnit;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.util.TestTools;
 import com.dremio.plugins.elastic.ElasticBaseTestQuery.AllowPushdownNormalizedOrAnalyzedFields;
 import com.google.common.collect.ImmutableMap;
 
@@ -30,6 +35,9 @@ import com.google.common.collect.ImmutableMap;
 public class ITTestPushdownNormalized extends ElasticBaseTestQuery {
 
   private static final Logger logger = LoggerFactory.getLogger(ITTestPushdownNormalized.class);
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   @Test
   public void testLikeOnAnalyzedText() throws Exception {

@@ -15,22 +15,22 @@
  */
 package com.dremio.exec.planner;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import com.dremio.exec.planner.physical.Prel;
 
 public class CachedPlan {
   private final String queryText;
-  private Prel prel;
-  private String textPlan;
-  private int estimatedSize;   //estimated size in byte
-  private int useCount;
-  private long creationTime;
+  private final Prel prel;
+  private final int estimatedSize;   //estimated size in byte
+  private AtomicInteger useCount;
+  private final long creationTime;
   private CachedAccelDetails accelDetails;
 
   private CachedPlan(String query, Prel prel, String textPlan, int useCount, int estimatedSize) {
     this.queryText = query;
     this.prel = prel;
-    this.textPlan = textPlan;
-    this.useCount = useCount;
+    this.useCount = new AtomicInteger(useCount);
     this.estimatedSize = estimatedSize;
     this.creationTime = System.currentTimeMillis();
   }
@@ -43,10 +43,6 @@ public class CachedPlan {
     return prel;
   }
 
-  public String getTextPlan() {
-    return textPlan;
-  }
-
   public void setAccelDetails(CachedAccelDetails accelDetails) {
     this.accelDetails = accelDetails;
   }
@@ -55,20 +51,16 @@ public class CachedPlan {
     return accelDetails;
   }
 
-  public void updateUseCount() {
-    this.useCount += 1;
+  public int updateUseCount() {
+    return this.useCount.incrementAndGet();
   }
 
   public int getUseCount() {
-    return useCount;
+    return useCount.get();
   }
 
   public int getEstimatedSize() {
     return estimatedSize;
-  }
-
-  public void setEstimatedSize(int estimatedSize) {
-    this.estimatedSize = estimatedSize;
   }
 
   public long getCreationTime() {

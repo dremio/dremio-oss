@@ -30,25 +30,19 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.parquet.ParquetFilterCondition;
-import com.dremio.exec.store.parquet.ParquetTypeCoercion;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
- * FilteringCoercionReader for files
+ * FilteringCoercionReader for excel, json and mongo sources
  */
-public class EasyCoercionReader extends HiveParquetCoercionReader {
+public class EasyCoercionReader extends FilteringFileCoercionReader {
   private static final Logger logger = LoggerFactory.getLogger(EasyCoercionReader.class);
   private final List<String> tableSchemaPath;
 
-  public EasyCoercionReader(OperatorContext context,
-                            List<SchemaPath> columns,
-                            RecordReader inner,
-                            BatchSchema targetSchema,
-                            List<String> tableSchemaPath,
-                            List<ParquetFilterCondition> parqfilterConditions) {
-    super(context, columns, inner, targetSchema, getParquetTypeCoercion(targetSchema), parqfilterConditions);
+  public EasyCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
+                            BatchSchema targetSchema, List<String> tableSchemaPath) {
+    super(context, columns, inner, targetSchema, toTypeCoercion(targetSchema));
     this.tableSchemaPath = tableSchemaPath;
   }
 
@@ -125,8 +119,8 @@ public class EasyCoercionReader extends HiveParquetCoercionReader {
     return finalSchema;
   }
 
-  private static ParquetTypeCoercion getParquetTypeCoercion(BatchSchema targetSchema) {
-    return new ParquetTypeCoercion(targetSchema.getFields().stream().collect(Collectors.toMap(field -> field.getName(), field -> field)));
+  private static FileTypeCoercion toTypeCoercion(BatchSchema targetSchema) {
+    return new FileTypeCoercion(targetSchema.getFields().stream().collect(Collectors.toMap(Field::getName, field -> field)));
   }
 
   /**

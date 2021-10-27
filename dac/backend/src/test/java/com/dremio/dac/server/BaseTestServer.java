@@ -118,11 +118,13 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.file.FilePath;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidator;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.Binder;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
@@ -130,6 +132,7 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -428,24 +431,18 @@ public abstract class BaseTestServer extends BaseClientUtils {
   @BeforeClass
   public static void init() throws Exception {
     try (TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      init(isMultinode());
+      initializeCluster(new DACDaemonModule());
     }
   }
 
-  public static void init(boolean multiMode) throws Exception {
-    try (TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      initializeCluster(multiMode, new DACDaemonModule());
-    }
+  protected static void initializeCluster(DACModule dacModule) throws Exception {
+    initializeCluster(dacModule, o -> o);
   }
 
-  protected static void initializeCluster(final boolean isMultiNode, DACModule dacModule) throws Exception {
-    initializeCluster(isMultiNode, dacModule, o -> o);
-  }
-
-  protected static void initializeCluster(final boolean isMultiNode, DACModule dacModule, Function<ObjectMapper, ObjectMapper> mapperUpdate) throws Exception {
+  protected static void initializeCluster(DACModule dacModule, Function<ObjectMapper, ObjectMapper> mapperUpdate) throws Exception {
     final String hostname = InetAddress.getLocalHost().getCanonicalHostName();
     Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
-    if (isMultiNode) {
+    if (isMultinode()) {
       logger.info("Running tests in multinode mode");
 
       // run all tests on remote coordinator node relying on additional remote executor node
@@ -1075,8 +1072,12 @@ public abstract class BaseTestServer extends BaseClientUtils {
     }
   }
 
-  protected UserBitShared.QueryProfile getQueryProfile(JobRequest request) throws Exception {
+  protected static UserBitShared.QueryProfile getQueryProfile(JobRequest request) throws Exception {
     return JobsServiceTestUtils.getQueryProfile(l(JobsService.class), request);
+  }
+
+  protected static void setSystemOption(final OptionValidator option, final String value) {
+    setSystemOption(option.getOptionName(), value);
   }
 
   protected static void setSystemOption(String optionName, String optionValue) {
@@ -1108,6 +1109,21 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return () -> resetSystemOption(optionName);
   }
 
+  protected static UserBitShared.QueryProfile getTestProfile() throws Exception {
+    String query = "select sin(val_int_64) + 10 from cp" +
+      ".\"parquet/decimals/mixedDecimalsInt32Int64FixedLengthWithStats.parquet\"";
+
+    UserBitShared.QueryProfile queryProfile = getQueryProfile(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .setDatasetVersion(DatasetVersion.NONE)
+        .build()
+    );
+    return queryProfile;
+  }
+
   protected static AutoCloseable enableIcebergTables() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG.getOptionName(), "true");
     setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG.getOptionName(), "true");
@@ -1120,4 +1136,19 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
 
+
+  protected static AutoCloseable enableUnlimitedSplitsSupportFlags() {
+    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "true");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
+    setSystemOption(ExecConstants.MIXED_TYPES_DISABLED, "true");
+
+    return () -> {
+      setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT,
+        PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.ENABLE_ICEBERG,
+        ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.MIXED_TYPES_DISABLED,
+        ExecConstants.MIXED_TYPES_DISABLED.getDefault().getBoolVal().toString());
+    };
+  }
 }

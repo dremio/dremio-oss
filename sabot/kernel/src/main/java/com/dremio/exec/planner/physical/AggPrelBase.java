@@ -35,12 +35,12 @@ import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.expr.fn.ItemsSketch.ItemsSketchFunctions;
-import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.expr.fn.tdigest.TDigest;
 import com.dremio.exec.planner.common.AggregateRelBase;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -58,12 +58,11 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
   protected AggPrelBase(RelOptCluster cluster,
                         RelTraitSet traits,
                         RelNode child,
-                        boolean indicator,
                         ImmutableBitSet groupSet,
                         List<ImmutableBitSet> groupSets,
                         List<AggregateCall> aggCalls,
                         OperatorPhase phase) throws InvalidRelException {
-    super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
+    super(cluster, traits, child, groupSet, groupSets, aggCalls);
     Preconditions.checkArgument(groupSets == null || groupSets.size() < 2);
     this.operPhase = phase;
     this.keys = RexToExpr.groupSetToExpr(child, groupSet);
@@ -86,8 +85,8 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
               aggCall.e.getName());
 
           phase2AggCallList.add(newAggCall);
-        } else if (aggCall.e.getAggregation().getName().equals(HyperLogLog.HLL.getName())) {
-          SqlAggFunction hllMergeFunction = HyperLogLog.HLL_MERGE;
+        } else if (aggCall.e.getAggregation().getName().equals(DremioSqlOperatorTable.HLL.getName())) {
+          SqlAggFunction hllMergeFunction = DremioSqlOperatorTable.HLL_MERGE;
           AggregateCall newAggCall =
             AggregateCall.create(
               hllMergeFunction,

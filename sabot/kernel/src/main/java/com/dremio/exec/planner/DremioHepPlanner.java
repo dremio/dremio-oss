@@ -80,6 +80,8 @@ public class DremioHepPlanner extends HepPlanner {
       } else {
         throw ex;
       }
+    } finally {
+      cancelFlag.stop();
     }
   }
 

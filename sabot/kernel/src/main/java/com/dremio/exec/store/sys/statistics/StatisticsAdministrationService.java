@@ -17,15 +17,16 @@ package com.dremio.exec.store.sys.statistics;
 
 import java.util.List;
 
-import com.dremio.service.namespace.NamespaceKey;
+import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.service.namespace.NamespaceKey;
 /**
  * Interface for administrating statistics.
  */
 public interface StatisticsAdministrationService {
-  String requestStatistics(List<String> columns, NamespaceKey key);
+  String requestStatistics(List<Field> fields, NamespaceKey key);
 
-  List<String> deleteStatistics(List<String> columns, NamespaceKey key);
+  List<String> deleteStatistics(List<String> fields, NamespaceKey key);
 
   boolean deleteRowCountStatistics(NamespaceKey key);
 

@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -126,11 +127,13 @@ import com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.iceberg.IcebergModelCreator;
 import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
+import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.metadatarefresh.UnlimitedSplitsFileDatasetHandle;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
@@ -146,6 +149,7 @@ import com.dremio.io.file.MorePosixFilePermissions;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitXAttr;
 import com.dremio.service.namespace.DatasetHelper;
@@ -159,6 +163,7 @@ import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.FileFormat;
@@ -188,7 +193,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
  * Storage plugin for file system
  */
 public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements StoragePlugin, MutablePlugin,
-  SupportsReadSignature, AuthorizationCacheService, SupportsInternalIcebergTable {
+  SupportsReadSignature, AuthorizationCacheService, SupportsInternalIcebergTable, SupportsIcebergRootPointer {
   /**
    * Default {@link Configuration} instance. Use this instance through {@link #getNewFsConf()} to create new copies
    * of {@link Configuration} objects.
@@ -290,10 +295,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       this.getConfig().getConnection().toLowerCase().startsWith(adlsConnection) ||
       this.getConfig().getConnection().toLowerCase().startsWith(azureConnection);
 
-    boolean hadoopCatalog = this.getFsConf().get(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.NESSIE.name())
+    boolean hadoopCatalog = this.getFsConf().get(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.HADOOP.name())
             .equalsIgnoreCase(IcebergCatalogType.HADOOP.name());
 
-    boolean nessieCatalog = this.getFsConf().get(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.NESSIE.name())
+    boolean nessieCatalog = this.getFsConf().get(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.HADOOP.name())
               .equalsIgnoreCase(IcebergCatalogType.NESSIE.name());
 
     return nessieCatalog || (supportsAtomicRename && hadoopCatalog);
@@ -307,6 +312,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return context.getOptionManager().getOption(ExecConstants.CTAS_CAN_USE_ICEBERG);
   }
 
+  @Override
   public boolean supportsColocatedReads() {
     return true;
   }
@@ -329,6 +335,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public boolean allowUnlimitedSplits(DatasetHandle handle, DatasetConfig datasetConfig, String user) {
+
+    if (!MetadataRefreshUtils.unlimitedSplitsSupportEnabled(context.getOptionManager())) {
+      return false;
+    }
     if (!metadataSourceAvailable(context.getCatalogService())) {
       return false;
     }
@@ -405,8 +415,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes) {
-    return new ParquetSplitCreator(context);
+  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable) {
+    return new ParquetSplitCreator(context, true);
   }
 
   @Override
@@ -437,6 +447,16 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+    return createFS(userName, operatorContext);
+  }
+
+  @Override
+  public FileSystem createFSWithAsyncOptions(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+    return createFS(userName, operatorContext);
+  }
+
+  @Override
+  public FileSystem createFSWithoutHDFSCache(String filePath, String userName, OperatorContext operatorContext) throws IOException {
     return createFS(userName, operatorContext);
   }
 
@@ -1546,10 +1566,41 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return getIcebergModel(fs, null, null);
   }
 
+  public IcebergModel getIcebergModel(OperatorContext operatorContext) {
+    return getIcebergModel(null, operatorContext, null);
+  }
+
   /* if fs is null it will use iceberg HadoopFileIO class instead of DremioFileIO class */
   public IcebergModel getIcebergModel(FileSystem fs, OperatorContext operatorContext, List<String> dataset) {
     return IcebergModelCreator.createIcebergModel(
-      getFsConfCopy(), context, fs, operatorContext, dataset);
+            getFsConfCopy(), context, fs, operatorContext, dataset);
+  }
+
+  @Override
+  public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key, NamespaceService userNamespaceService) {
+    Iterator<PartitionChunkMetadata> chunks = DatasetSplitsPointer.of(userNamespaceService, config).getPartitionChunks().iterator();
+    // Expecting only single partition chunk and single dataset split for Iceberg datasets.
+    if (chunks.hasNext()) {
+      Iterator<PartitionProtobuf.DatasetSplit> splits = chunks.next().getDatasetSplits().iterator();
+      try {
+        if (splits.hasNext()) {
+          Path existingRootPointer = Path.of(EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(splits.next().getSplitExtendedProperty()).getPath());
+          final String rootFolder = existingRootPointer.getParent().getParent().toString();
+          IcebergModel icebergModel = getIcebergModel();
+          IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(icebergModel.getTableIdentifier(rootFolder));
+          final String latestRootPointer = Path.getContainerSpecificRelativePath(Path.of(icebergTableLoader.getRootPointer()));
+
+          if (!latestRootPointer.equals(existingRootPointer.toString())) {
+            logger.debug("Iceberg Dataset {} metadata is not valid. Existing root pointer in catalog: {}. Latest Iceberg table root pointer: {}.",
+              key, existingRootPointer, latestRootPointer);
+            return false;
+          }
+        }
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException("Could not deserialize split info", e);
+      }
+    }
+    return true;
   }
 
   @Override

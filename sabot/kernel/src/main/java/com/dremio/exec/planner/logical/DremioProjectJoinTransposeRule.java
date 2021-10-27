@@ -26,7 +26,6 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.core.SemiJoin;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.rules.PushProjector;
@@ -55,7 +54,7 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
     Join join = (Join)call.rel(1);
     Project wrappedProj = RexFieldAccessUtils.wrapProject(origProj, join, true);
 
-    if (!(join instanceof SemiJoin)) {
+    if (!join.isSemiJoin()) {
       RexNode joinFilter = (RexNode)join.getCondition().accept(new RexShuttle() {
         public RexNode visitCall(RexCall rexCall) {
           RexNode node = super.visitCall(rexCall);

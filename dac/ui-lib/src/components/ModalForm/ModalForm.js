@@ -21,6 +21,7 @@ import { Formik, Form } from 'formik';
 import Dialog from '../Dialog';
 import FormikUnsavedWarningHOC from '../FormikUnsavedWarningHOC';
 
+
 const DialogWithUnsavedWarning = FormikUnsavedWarningHOC(Dialog);
 
 const ModalForm = (props) => {
@@ -57,12 +58,14 @@ const ModalForm = (props) => {
     disableUnsavedWarning
   } = props;
 
-  const DialogComp = disableUnsavedWarning ? Dialog : DialogWithUnsavedWarning;
-
   const handleClose = ({ resetForm }) => {
     resetForm();
     onClose();
   };
+
+  const DialogComp = disableUnsavedWarning ?
+    Dialog :
+    DialogWithUnsavedWarning;
 
   return (
     <Formik
@@ -123,7 +126,7 @@ ModalForm.propTypes = {
   validationSchema: PropTypes.object,
 
   // Dialog Props
-  size: PropTypes.oneOf(['xs', 'sm', 'md', 'lg', 'xl']),
+  size: PropTypes.oneOf(['sm', 'md', 'lg', 'xl']),
   onClose: PropTypes.func,
   onEnter: PropTypes.func,
   onEntered: PropTypes.func,

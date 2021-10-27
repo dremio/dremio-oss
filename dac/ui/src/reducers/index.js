@@ -26,6 +26,7 @@ import roles from '@inject/reducers/roles';
 import init from '@app/reducers/init';
 import privileges from '@inject/reducers/privileges';
 import user from '@inject/reducers/user';
+import userMapping from '@inject/reducers/userMapping';
 import { getExploreState } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
 
@@ -67,7 +68,8 @@ const appReducers = combineReducers({
   modulesState,
   passDataBetweenModalTabs,
   privileges,
-  user
+  user,
+  userMapping
 });
 
 const actionCancelGroups = {};

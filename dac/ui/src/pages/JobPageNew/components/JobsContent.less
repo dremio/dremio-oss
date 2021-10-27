@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "~@app/uiTheme/less/color-schema.less";
-:global {
-  .jobsContent {
+ @import "~@app/uiTheme/less/color-schema.less";
+ :global {
+  .jobsContent {     
     &__durationSpill{
       display: flex;
       align-items: center;
@@ -45,7 +45,7 @@
     }
     &__sqlTooltipText {
       color: @font-color1;
-      font-family: Menlo;
+      font-family: 'Menlo';
       font-size: 12px;
       line-height: 20px;
     }
@@ -64,8 +64,8 @@
       color: @greyish-blue;
     }
     &__tableHeaders {
-      display: flex;
-      justify-content: flex-end;
+    display: flex;
+    justify-content: flex-end;
     }
     &__twoColumnWrapper {
       display: flex;
@@ -102,7 +102,6 @@
         overflow: hidden;
       }
       &__label {
-        font-family: Inter;
         font-style: normal;
         font-weight: 600;
         font-size: 12px;
@@ -130,15 +129,14 @@
     height: 8px;
     border-radius: 8px;
     background-color: @white;
-
   }
   .ReactVirtualized__Table__Grid::-webkit-scrollbar-thumb{
     width: 8px;
     height: 5px;
     border-radius: 8px;
-    background-color: fade( @chinese-silver, 80% ) ;
+    background-color: @DARK_600;
   }
   .ReactVirtualized__Table .ReactVirtualized__Table__row:hover {
-    background: #E9F5F9;
+    background: @PRIMARY_100 !important;
   }
-}
+ }

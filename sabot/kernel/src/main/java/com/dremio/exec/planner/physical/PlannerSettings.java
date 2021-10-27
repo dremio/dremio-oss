@@ -64,6 +64,7 @@ public class PlannerSettings implements Context{
   public static final int MAX_BROADCAST_THRESHOLD = Integer.MAX_VALUE;
   public static final int DEFAULT_IDENTIFIER_MAX_LENGTH = 1024;
 
+  public static final double DEFAULT_PARITTION_FILTER_FACTOR = 0.9d;
   public static final double DEFAULT_FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR_WITH_STATISTICS = 0.005d;
   public static final double DEFAULT_FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR = 0.5d;
   public static final double DEFAULT_FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR = 1.0d;
@@ -71,6 +72,7 @@ public class PlannerSettings implements Context{
   private static final long DEFAULT_MAX_OFF_HEAP_ALLOCATION_IN_BYTES = 256 * 1024 * 1024;
   private static final long DEFAULT_BROADCAST_THRESHOLD = 10000000;
   private static final long DEFAULT_CELL_COUNT_THRESHOLD = 10 * DEFAULT_BROADCAST_THRESHOLD; // 10 times DEFAULT_BROADCAST_THRESHOLD
+  public static final long MAX_METADATA_VALIDITY_CHECK_INTERVAL = 60 * 60;
   public static final LongValidator PLANNER_MEMORY_RESERVATION = new RangeLongValidator("planner.reservation_bytes",
     0L, Long.MAX_VALUE, 0L);
   public static final LongValidator PLANNER_MEMORY_LIMIT = new RangeLongValidator("planner.memory_limit",
@@ -85,6 +87,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator HASHAGG = new BooleanValidator("planner.enable_hashagg", true);
   public static final BooleanValidator STREAMAGG = new BooleanValidator("planner.enable_streamagg", true);
   public static final BooleanValidator HASHJOIN = new BooleanValidator("planner.enable_hashjoin", true);
+  public static final BooleanValidator EXTRA_CONDITIONS_HASHJOIN = new BooleanValidator("planner.enable_extra_conditions_in_hashjoin", true);
   public static final BooleanValidator MERGEJOIN = new BooleanValidator("planner.enable_mergejoin", false);
   public static final BooleanValidator NESTEDLOOPJOIN = new BooleanValidator("planner.enable_nestedloopjoin", true);
   public static final BooleanValidator MULTIPHASE = new BooleanValidator("planner.enable_multiphase_agg", true);
@@ -111,7 +114,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator STREAM_AGG_WITH_GROUPS = new BooleanValidator("planner.streamagg.allow_grouping", false);
   public static final String ENABLE_DECIMAL_DATA_TYPE_KEY = "planner.enable_decimal_data_type";
   public static final LongValidator HEP_PLANNER_MATCH_LIMIT = new PositiveLongValidator("planner.hep_match_limit", Integer.MAX_VALUE, Integer.MAX_VALUE);
-  public static final BooleanValidator ENHANCED_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.enhanced_filter_join_pushdown", false);
+  public static final BooleanValidator ENHANCED_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.enhanced_filter_join_pushdown", true);
   public static final BooleanValidator TRANSITIVE_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown", true);
   public static final BooleanValidator TRANSITIVE_FILTER_NOT_NULL_EXPR_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown_not_null_expr", false); // Until DX-26452 is fixes
   public static final BooleanValidator ENABLE_RUNTIME_FILTER = new BooleanValidator("planner.filter.runtime_filter", true);
@@ -126,6 +129,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator UNIONALL_DISTRIBUTE = new BooleanValidator(UNIONALL_DISTRIBUTE_KEY, true);
   public static final LongValidator PLANNING_MAX_MILLIS = new LongValidator("planner.timeout_per_phase_ms", 60_000);
   public static final BooleanValidator RELATIONAL_PLANNING = new BooleanValidator("planner.enable_relational_planning", true);
+  public static final BooleanValidator SORT_IN_JOIN_REMOVER = new BooleanValidator("planner.enable_sort_in_join_remover", true);
   public static final BooleanValidator FULL_NESTED_SCHEMA_SUPPORT = new BooleanValidator("planner.enable_full_nested_schema", true);
   public static final BooleanValidator COMPLEX_TYPE_FILTER_PUSHDOWN = new BooleanValidator("planner.complex_type_filter_pushdown", true);
 
@@ -136,6 +140,8 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_OUTPUT_LIMITS = new BooleanValidator("planner.output_limit_enable", false);
   public static final RangeLongValidator OUTPUT_LIMIT_SIZE  = new RangeLongValidator("planner.output_limit_size", 1, Long.MAX_VALUE, 1_000_000);
   public static final DoubleValidator COLUMN_UNIQUENESS_ESTIMATION_FACTOR = new RangeDoubleValidator("planner.column_uniqueness_estimation_factor", 0d, 1d, 0.1d);
+  public static final DoubleValidator PARTITION_FILTER_FACTOR = new RangeDoubleValidator("planner.partition_filter_factor", 0d, 1d, DEFAULT_PARITTION_FILTER_FACTOR);
+  public static final BooleanValidator IEEE_754_DIVIDE_SEMANTICS = new BooleanValidator("planner.ieee_754_divide_semantics", false);
 
   // number of records (per minor fragment) is truncated to at-least MIN_RECORDS_PER_FRAGMENT
   // if num of records for the fragment is greater than this.
@@ -153,7 +159,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator REDUCE_ALGEBRAIC_EXPRESSIONS = new BooleanValidator("planner.reduce_algebraic_expressions", false);
   public static final BooleanValidator FILTER_EXTRACT_CONJUNCTIONS = new BooleanValidator("planner.filter.extract_conjunctions", false);
 
-  public static final BooleanValidator ENABlE_PROJCT_NLJ_MERGE = new BooleanValidator("planner.nlj.enable_project_merge", true);
+  public static final BooleanValidator ENABlE_PROJCT_NLJ_MERGE = new BooleanValidator("planner.nlj.enable_project_merge", false);
 
   public static final String ENABLE_DECIMAL_V2_KEY = "planner" +
     ".enable_decimal_v2";
@@ -181,11 +187,13 @@ public class PlannerSettings implements Context{
 
   public static final DoubleValidator MIN_FILES_CHANGED_DURING_REFRESH = new DoubleValidator("dremio.metadata.minimum_files_changed", 100);
 
+  public static final PositiveLongValidator METADATA_EXPIRY_CHECK_INTERVAL_SECS = new PositiveLongValidator("dremio.metadata_expiry_check_interval_in_secs", MAX_METADATA_VALIDITY_CHECK_INTERVAL, 60);
 
   public static final BooleanValidator ENABLE_AGGRESSIVE_MEMORY_CALCULATION =
     new BooleanValidator("planner.memory.aggressive", false);
   public static final TypeValidators.LongValidator ADJUST_RESERVED_WHEN_AGGRESSIVE =
     new TypeValidators.LongValidator("planner.memory.adjust_aggressive_by_mb", 1024);
+  public static final BooleanValidator ENABLE_ACCURATE_MEMORY_ESTIMATION = new BooleanValidator("planner.memory.accurate.estimation", true);
 
   /**
    * Policy regarding storing query results
@@ -417,6 +425,10 @@ public class PlannerSettings implements Context{
     return options.getOption(JOIN_ROW_COUNT_ESTIMATE_FACTOR);
   }
 
+  public double getPartitionFilterFactor(){
+    return options.getOption(PARTITION_FILTER_FACTOR);
+  }
+
   public double getBroadcastFactor(){
     return options.getOption(BROADCAST_FACTOR);
   }
@@ -475,6 +487,10 @@ public class PlannerSettings implements Context{
 
   public boolean isRelPlanningEnabled() {
     return options.getOption(RELATIONAL_PLANNING);
+  }
+
+  public boolean isSortInJoinRemoverEnabled() {
+    return options.getOption(SORT_IN_JOIN_REMOVER);
   }
 
   public boolean isPlanCacheEnabled() {
@@ -720,19 +736,12 @@ public class PlannerSettings implements Context{
     return null;
   }
 
-  public static final Config CONFIG = new Config();
-
-  public static class Config extends CalciteConnectionConfigImpl {
-
-    public Config() {
-      super(new Properties());
-    }
-
+  public static final CalciteConnectionConfigImpl CONFIG = new CalciteConnectionConfigImpl(new Properties()) {
     @Override
     public boolean materializationsEnabled() {
       return true;
     }
-  }
+  };
 
   public void cancelPlanning(String cancelReason, NodeEndpoint nodeEndpoint, String cancelContext, boolean isCancelledByHeapMonitor) {
     this.cancelReason = cancelReason;

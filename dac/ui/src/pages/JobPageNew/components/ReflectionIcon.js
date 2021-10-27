@@ -33,8 +33,8 @@ const ReflectionIcon = ({ isAcceleration }) => {
     {
       isAcceleration && <Art
         src='Reflection.svg'
-        alt='icon'
-        title='icon'
+        alt='Query was accelerated Icon'
+        title='Query was accelerated'
         className='jobsContent-dataset__accelerationIcon'
       />
     }

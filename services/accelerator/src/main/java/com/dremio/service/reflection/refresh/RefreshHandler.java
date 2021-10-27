@@ -49,6 +49,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
+import com.dremio.resource.common.ReflectionRoutingManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.reflection.ReflectionGoalChecker;
@@ -217,16 +218,26 @@ public class RefreshHandler implements SqlToPlanHandler {
         PrelTransformer.log(config, "Dremio Plan", plan, logger);
       }
 
-      //before return, check and set routing queue information
-      try {
-        final String datasetId = goal.getDatasetId();
-        final Catalog catalog = config.getContext().getCatalog();
-        final String queueName = config.getContext().getRoutingQueueManager().getQueueNameById(catalog.getTable(datasetId).getDatasetConfig().getQueueId());
-        if (queueName != null) {
-          config.getContext().getSession().setRoutingQueue(queueName);
+      //before return, check and set reflection routing information
+      final String datasetId = goal.getDatasetId();
+      final Catalog catalog = config.getContext().getCatalog();
+      ReflectionRoutingManager reflectionRoutingManager = config.getContext().getReflectionRoutingManager();
+      if (reflectionRoutingManager != null) {
+        if (reflectionRoutingManager.getIsQueue()) {
+          final String queueName = reflectionRoutingManager.getQueueNameById(catalog.getTable(datasetId).getDatasetConfig().getQueueId());
+          if (queueName != null && reflectionRoutingManager.checkQueueExists(queueName)) {
+            config.getContext().getSession().setRoutingQueue(queueName);
+          } else if (queueName != null) {
+            logger.warn(String.format("Cannot route to queue %s. Using the default queue instead.", queueName));
+          }
+        } else {
+          final String engineName = catalog.getTable(datasetId).getDatasetConfig().getEngineName();
+          if (engineName != null && reflectionRoutingManager.checkEngineExists(engineName)) {
+            config.getContext().getSession().setRoutingEngine(engineName);
+          } else if (engineName != null) {
+            logger.warn(String.format("Cannot route to engine %s. Using the default engine instead.", engineName));
+          }
         }
-      } catch (Exception e) {
-        logger.warn("Error occurred with reflection routing");
       }
 
       return plan;

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
@@ -22,9 +23,7 @@ import com.dremio.common.util.Closeable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
-import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.PathFilters;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
@@ -46,9 +45,12 @@ public class HiveDirListingRecordReader extends DirListingRecordReader {
   }
 
   @Override
-  protected void initDirIterator(boolean isFile) {
+  protected void initDirIterator(boolean isFile) throws IOException {
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       super.initDirIterator(false);
+    }
+    catch (FileNotFoundException e) {
+      logger.debug("FNF error while listing directory " + operatingPath, e);
     }
   }
 

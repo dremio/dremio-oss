@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.store.hive.metadata;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
 import java.util.List;
 import java.util.Objects;
 
@@ -23,6 +27,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 
 public class HiveDatasetMetadata implements DatasetMetadata {
 
@@ -31,24 +36,35 @@ public class HiveDatasetMetadata implements DatasetMetadata {
   private final List<String> sortColumns;
   private final BytesOutput extraInfo;
   private final MetadataAccumulator metadataAccumulator;
+  private final byte[] icebergMetadata;
+  private final DatasetStats manifestStats;
 
   private HiveDatasetMetadata(
     final Schema schema,
     final List<String> partitionColumns,
     final List<String> sortColumns,
     final BytesOutput extraInfo,
-    final MetadataAccumulator metadataAccumulator
+    final MetadataAccumulator metadataAccumulator,
+    final byte[] icebergMetadata,
+    final DatasetStats manifestStats
   ) {
     this.schema = schema;
     this.partitionColumns = partitionColumns;
     this.sortColumns = sortColumns;
     this.extraInfo = extraInfo;
     this.metadataAccumulator = metadataAccumulator;
+    this.icebergMetadata = icebergMetadata;
+    this.manifestStats = manifestStats;
   }
 
   @Override
   public DatasetStats getDatasetStats() {
     return metadataAccumulator.getDatasetStats();
+  }
+
+  @Override
+  public DatasetStats getManifestStats() {
+    return manifestStats;
   }
 
   @Override
@@ -71,6 +87,11 @@ public class HiveDatasetMetadata implements DatasetMetadata {
     return extraInfo;
   }
 
+  @Override
+  public byte[] getIcebergMetadata() {
+    return icebergMetadata;
+  }
+
   public MetadataAccumulator getMetadataAccumulator() {
     return metadataAccumulator;
   }
@@ -85,6 +106,8 @@ public class HiveDatasetMetadata implements DatasetMetadata {
     private List<String> sortColumns;
     private BytesOutput extraInfo;
     private MetadataAccumulator metadataAccumulator;
+    private byte[] icebergMetadata;
+    private DatasetStats manifestStats;
 
     private Builder() {
     }
@@ -114,6 +137,27 @@ public class HiveDatasetMetadata implements DatasetMetadata {
       return this;
     }
 
+    public Builder icebergMetadata(IcebergMetadata icebergMetadata) {
+      if (icebergMetadata == null) {
+        this.icebergMetadata = new byte[0];
+        return this;
+      }
+
+      try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+           ObjectOutput out = new ObjectOutputStream(bos)) {
+        out.writeObject(icebergMetadata);
+        this.icebergMetadata = bos.toByteArray();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return this;
+    }
+
+    public Builder manifestStats(DatasetStats manifestStats) {
+      this.manifestStats = manifestStats;
+      return this;
+    }
+
     public HiveDatasetMetadata build() {
 
       Objects.requireNonNull(metadataAccumulator, "metadata accumulator is required");
@@ -121,8 +165,9 @@ public class HiveDatasetMetadata implements DatasetMetadata {
       Objects.requireNonNull(partitionColumns, "partition columns is required");
       Objects.requireNonNull(sortColumns, "sort columns is required");
       Objects.requireNonNull(extraInfo, "extra info is required");
+      Objects.requireNonNull(icebergMetadata, "Iceberg metadata is required");
 
-      return new HiveDatasetMetadata(schema, partitionColumns, sortColumns, extraInfo, metadataAccumulator);
+      return new HiveDatasetMetadata(schema, partitionColumns, sortColumns, extraInfo, metadataAccumulator, icebergMetadata, manifestStats);
     }
   }
 }

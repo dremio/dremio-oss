@@ -219,6 +219,10 @@ public class CatalogImpl implements Catalog {
 
   @Override
   public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
+    if (table.getDatasetConfig().getReadDefinition() == null) {
+      return null;
+    }
+
     try {
       final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(table.getPath().getRoot(), true);
       return plugin.getPlugin().parseColumnExtendedProperties(table.getDatasetConfig().getReadDefinition().getExtendedProperty());
@@ -787,7 +791,9 @@ public class CatalogImpl implements Catalog {
       String tableUuid = "";
       try {
         boolean isIcebergMetadata = false;
-        if (dataset.getPhysicalDataset().getIcebergMetadata() != null) {
+        if (dataset.getPhysicalDataset().getIcebergMetadataEnabled() != null &&
+              dataset.getPhysicalDataset().getIcebergMetadataEnabled() &&
+              dataset.getPhysicalDataset().getIcebergMetadata() != null) {
           tableUuid = dataset.getPhysicalDataset().getIcebergMetadata().getTableUuid();
           isIcebergMetadata = true;
         }
@@ -848,7 +854,8 @@ public class CatalogImpl implements Catalog {
    */
   @Override
   public boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes) {
-    final DatasetConfig datasetConfig;
+    DatasetConfig datasetConfig;
+
     try {
       datasetConfig = systemNamespaceService.getDataset(key);
       if (datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
@@ -859,17 +866,39 @@ public class CatalogImpl implements Catalog {
         }
         return changed;
       }
-    } catch (NamespaceException | ConcurrentModificationException ex) {
+    } catch (ConcurrentModificationException ex) {
       throw UserException.validationError(ex)
         .message("Failure while accessing dataset")
         .buildSilently();
+    } catch (NamespaceException handleLater) {
+      datasetConfig = null;
     }
+
     final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), true);
     if (plugin == null) {
       throw UserException.validationError()
-                         .message("Unknown source [%s]", key.getRoot())
-                         .buildSilently();
+        .message("Unknown source [%s]", key.getRoot())
+        .buildSilently();
     }
+
+    if (datasetConfig == null) {
+      try {
+        // try resolving names with "default" namespace; for example, if the key is
+        // hivestore.datatab then try to resolve it using hivestore."default".datatab
+        final Optional<DatasetHandle> handle = plugin.getDatasetHandle(key, null, plugin.getDefaultRetrievalOptions());
+        final NamespaceKey namespaceKey = MetadataObjectsUtils.toNamespaceKey(handle.get().getDatasetPath());
+        datasetConfig = systemNamespaceService.getDataset(namespaceKey);
+      } catch (ConnectorException e) {
+        throw UserException.validationError(e)
+          .message("Failure while retrieving dataset")
+          .buildSilently();
+      } catch (NamespaceException e) {
+        throw UserException.validationError(e)
+          .message("Unable to find requested dataset")
+          .buildSilently();
+      }
+    }
+
     return plugin.alterDataset(key, datasetConfig, attributes);
   }
 

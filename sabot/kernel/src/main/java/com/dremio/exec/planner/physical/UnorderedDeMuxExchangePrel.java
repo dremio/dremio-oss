@@ -69,8 +69,8 @@ public class UnorderedDeMuxExchangePrel extends ExchangePrel {
         receiverProps,
         props.getSchema(),
         childPOP,
-        HashPrelUtil.getHashExpression(this.fields, getInput().getRowType())
-        );
+        HashPrelUtil.getHashExpression(this.fields, getInput().getRowType()),
+        creator.getOptionManager());
   }
 
   @Override

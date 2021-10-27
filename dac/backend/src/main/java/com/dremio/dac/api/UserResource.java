@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.api;
 
-import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
@@ -83,7 +82,7 @@ public class UserResource {
     return User.fromUser(userGroupService.getUser(new UID(id)));
   }
 
-  @RolesAllowed({"admin"})
+  @RolesAllowed({"admin", "user"})
   @POST
   public User createUser(User user) throws IOException {
     final com.dremio.service.users.User userConfig = UserResource.addUser(of(user, Optional.empty()), user.getPassword(),
@@ -132,11 +131,6 @@ public class UserResource {
       throw new IllegalArgumentException("No user id provided");
     }
     final com.dremio.service.users.User savedUser = userGroupService.getUser(new UID(id));
-
-    if (!securityContext.isUserInRole("admin") && !securityContext.getUserPrincipal().getName().equals(savedUser.getUserName())) {
-      throw new DACUnauthorizedException(format("User %s is not allowed to update user %s",
-        securityContext.getUserPrincipal().getName(), savedUser.getUserName()));
-    }
 
     if (!savedUser.getUserName().equals(user.getName())) {
       throw new NotSupportedException("Changing of user name is not supported");

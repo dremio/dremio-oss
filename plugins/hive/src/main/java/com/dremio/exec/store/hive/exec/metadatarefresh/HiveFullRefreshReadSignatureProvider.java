@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.apache.arrow.util.Preconditions;
 
@@ -38,8 +39,8 @@ public class HiveFullRefreshReadSignatureProvider extends AbstractReadSignatureP
   protected final List<String> partitionPaths;
   protected final Set<String> pathsInReadSignature;
 
-  public HiveFullRefreshReadSignatureProvider(String tableRoot, long queryStartTime, List<String> partitionPaths) {
-    super(tableRoot, queryStartTime, path -> true);
+  public HiveFullRefreshReadSignatureProvider(String tableRoot, long queryStartTime, List<String> partitionPaths, Predicate<String> partitionExists) {
+    super(tableRoot, queryStartTime, partitionExists);
     this.partitionPaths = partitionPaths;
     pathsInReadSignature = new HashSet<>();
   }
@@ -57,9 +58,11 @@ public class HiveFullRefreshReadSignatureProvider extends AbstractReadSignatureP
     final List<HiveReaderProto.FileSystemPartitionUpdateKey> fileSystemPartitionUpdateKeys = new ArrayList<>();
 
     pathsInReadSignature
+      .stream()
+      .filter(path -> doesPartitionExist.test(path))
       .forEach(path -> fileSystemPartitionUpdateKeys.add(createFileSystemPartitionUpdateKey(path, queryStartTime)));
 
-    return HiveReaderProto.HiveReadSignature.newBuilder()
+    return fileSystemPartitionUpdateKeys.isEmpty() ? ByteString.EMPTY : HiveReaderProto.HiveReadSignature.newBuilder()
       .setType(HiveReaderProto.HiveReadSignatureType.FILESYSTEM)
       .addAllFsPartitionUpdateKeys(fileSystemPartitionUpdateKeys)
       .build()

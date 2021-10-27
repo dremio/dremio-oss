@@ -39,4 +39,8 @@ public interface TypeCoercion {
    * @return
    */
   TypeCoercion getChildTypeCoercion(String fieldName, BatchSchema childSchema);
+
+  default boolean isVarcharTruncationRequired(Field field) {
+    return false;
+  }
 }

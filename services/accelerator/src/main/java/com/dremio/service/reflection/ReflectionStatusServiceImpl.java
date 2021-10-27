@@ -19,6 +19,7 @@ import static com.dremio.common.utils.SqlUtils.quotedCompound;
 import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -32,9 +33,9 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.ReflectionRPC;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -284,12 +285,12 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   }
 
   @Override
-  public Iterable<AccelerationListManager.ReflectionInfo> getReflections() {
+  public Iterator<AccelerationListManager.ReflectionInfo> getReflections() {
     final Iterable<ReflectionGoal> goalReflections = ReflectionUtils.getAllReflections(goalsStore);
     final Iterable<ExternalReflection> externalReflections = externalReflectionStore.getExternalReflections();
     Stream<AccelerationListManager.ReflectionInfo> reflections = StreamSupport.stream(goalReflections.spliterator(),
       false).map(goal -> {
-      final String dataset = quotedCompound(namespaceService.get().findDatasetByUUID(goal.getDatasetId()).getFullPathList());
+      final DatasetConfig datasetConfig = namespaceService.get().findDatasetByUUID(goal.getDatasetId());
       final Optional<ReflectionStatus> statusOpt = getNoThrowStatus(goal.getId());
       String combinedStatus = "UNKNOWN";
       int numFailures = 0;
@@ -304,7 +305,9 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         goal.getType().toString(),
         combinedStatus,
         numFailures,
-        dataset,
+        datasetConfig.getId().getId(),
+        quotedCompound(datasetConfig.getFullPathList()),
+        datasetConfig.getType().toString(),
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getSortFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getPartitionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDistributionFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
@@ -327,7 +330,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
           if (targetDataset == null) {
             return null;
           }
-          String datasetPath = quotedCompound(dataset.getFullPathList());
           String targetDatasetPath = quotedCompound(targetDataset.getFullPathList());
           final Optional<ExternalReflectionStatus> statusOptional = getNoThrowStatusForExternal(new ReflectionId(externalReflection.getId()));
           final String status = statusOptional.isPresent() ? statusOptional.get().getConfigStatus().toString() : "UNKNOWN";
@@ -337,7 +339,9 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
             "EXTERNAL",
             status,
             0,
-            datasetPath,
+            dataset.getId().getId(),
+            quotedCompound(dataset.getFullPathList()),
+            dataset.getType().toString(),
             null,
             null,
             null,
@@ -348,17 +352,17 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
             false
           );
       }).filter(Objects::nonNull);
-    return Stream.concat(reflections, externalReflectionsInfo).collect(Collectors.toList());
+    return Stream.concat(reflections, externalReflectionsInfo).iterator();
   }
 
   @Override
-  public Iterable<ReflectionRPC.RefreshInfo> getRefreshInfos() {
+  public Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> getRefreshInfos() {
     return StreamSupport.stream(materializationStore.getAllRefreshes().spliterator(), false)
-      .map(this::toProto).collect(Collectors.toList());
+      .map(this::toProto).iterator();
   }
 
-  private ReflectionRPC.RefreshInfo toProto(Refresh refreshInfo) {
-    ReflectionRPC.RefreshInfo.Builder refreshInfoBuilder = ReflectionRPC.RefreshInfo.newBuilder();
+  private ReflectionDescriptionServiceRPC.GetRefreshInfoResponse toProto(Refresh refreshInfo) {
+    ReflectionDescriptionServiceRPC.GetRefreshInfoResponse.Builder refreshInfoBuilder = ReflectionDescriptionServiceRPC.GetRefreshInfoResponse.newBuilder();
 
     if (refreshInfo.getId() != null) {
       refreshInfoBuilder.setId(refreshInfo.getId().getId());

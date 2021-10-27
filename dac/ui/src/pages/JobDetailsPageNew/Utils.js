@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import jobsUtils from '@app/utils/jobsUtils';
 
 export const getFormatMessageIdForQueryType = (jobDetails) => {
 
@@ -68,12 +67,4 @@ export const getFormatMessageIdForQueryType = (jobDetails) => {
   default:
     return 'File.Unknown';
   }
-};
-
-export const formatInputOutputRecords = (record) => {
-  const splitRecord = record.split('/');
-  const splitData = splitRecord[1].split(' ');
-  const formattedNumber = jobsUtils.getFormattedNumber(splitData[1]);
-  const formattedRecord = splitRecord[0] + '/ ' + formattedNumber + ' ' + splitData[2];
-  return formattedRecord;
 };

@@ -104,9 +104,9 @@ public class ClassPathFileSystem extends FileSystem{
 
     // Special handling for directories
     if (url.getPath().endsWith("/")) {
-      return new FileStatus(0, true, 0, 0, System.currentTimeMillis(), arg0);
+      return new FileStatus(0, true, 0, 0, url.openConnection().getLastModified(), arg0);
     }
-    return new FileStatus(Resources.asByteSource(url).size(), false, 1, 8096, System.currentTimeMillis(), arg0);
+    return new FileStatus(Resources.asByteSource(url).size(), false, 1, 8096, url.openConnection().getLastModified(), arg0);
   }
 
   @Override

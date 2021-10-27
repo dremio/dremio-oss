@@ -67,7 +67,6 @@ import com.dremio.exec.store.iceberg.IcebergManifestListPrel;
 import com.dremio.exec.store.iceberg.InternalIcebergScanTableMetadata;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.options.Options;
-import com.dremio.sabot.op.join.JoinUtils;
 import com.google.common.collect.ImmutableList;
 
 @Options
@@ -182,7 +181,7 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
 
     // exchange above manifest list scan, which is a leaf level easy scan
     HashToRandomExchangePrel manifestSplitsExchange = new HashToRandomExchangePrel(getCluster(), relTraitSet,
-      manifestListPrel, distributionTrait.getFields(), TableFunctionUtil.getHashExchangeTableFunctionCreator(tableMetadata, true));
+      manifestListPrel, distributionTrait.getFields(), TableFunctionUtil.getHashExchangeTableFunctionCreator(icebergScanTableMetadata, true));
 
 
     BatchSchema manifestFileReaderSchema = MetadataRefreshExecConstants.PathGeneratingDataFileProcessor.OUTPUT_SCHEMA.BATCH_SCHEMA;
@@ -244,7 +243,7 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
       rexBuilder.makeInputRef(rightSidePath.right.getType(), dirListingScanPrel.getRowType().getFieldCount() + rightSidePath.left));
 
     HashJoinPrel hashJoinPrel = HashJoinPrel.create(getCluster(), traitSet, dirListingScanPrel, icebergScanPrel,
-      joinCondition, JoinRelType.FULL, JoinUtils.projectAll(dirListingScanPrel.getRowType().getFieldCount() + icebergScanPrel.getRowType().getFieldCount()));
+      joinCondition, null, JoinRelType.FULL);
 
     return hashJoinPrel;
   }

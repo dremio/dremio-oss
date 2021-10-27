@@ -1,0 +1,146 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.exec.catalog;
+
+import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.Mockito.mock;
+
+import java.util.Map;
+
+import org.junit.rules.ExternalResource;
+
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.JobsTable;
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.MaterializationsTable;
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.ReflectionDependenciesTable;
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.ReflectionsTable;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceImplBase;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListMaterializationsRequest;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListMaterializationsResponse;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionDependenciesRequest;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionDependenciesResponse;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionsRequest;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListReflectionsResponse;
+import com.dremio.service.job.ActiveJobSummary;
+import com.dremio.service.job.ActiveJobsRequest;
+import com.dremio.service.job.ChronicleGrpc;
+import com.dremio.service.sysflight.SysFlightDataProvider;
+import com.dremio.service.sysflight.SystemTableManager.TABLES;
+import com.google.common.collect.Maps;
+
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.stub.StreamObserver;
+
+/**
+ * Sys Flight test resource
+ */
+public class TestSysFlightResource extends ExternalResource {
+
+  private Server server;
+  private ManagedChannel channel;
+
+  // mock ChronicleGrpc service
+  private final ChronicleGrpc.ChronicleImplBase chronicleService =
+    mock(ChronicleGrpc.ChronicleImplBase.class,
+      delegatesTo(
+        new ChronicleGrpc.ChronicleImplBase(){
+          @Override
+          public void getActiveJobs(ActiveJobsRequest jobsRequest,
+            io.grpc.stub.StreamObserver<com.dremio.service.job.ActiveJobSummary> responseObserver){
+            responseObserver.onNext(ActiveJobSummary.newBuilder()
+              .setJobId("1")
+              .setStatus("RUNNING")
+              .setQueryType("UI_RUN")
+              .setUserName("user")
+              .setRowCount(0)
+              .setAccelerated(false)
+              .setErrorMsg("err")
+              .build());
+            responseObserver.onNext(ActiveJobSummary.getDefaultInstance());
+            responseObserver.onCompleted();
+          }
+        }
+      ));
+
+  private final ReflectionDescriptionServiceImplBase acclService =
+    mock(ReflectionDescriptionServiceImplBase.class,
+      delegatesTo(
+        new ReflectionDescriptionServiceImplBase() {
+          @Override
+          public void listReflections(ListReflectionsRequest request,
+            StreamObserver<ListReflectionsResponse> responseObserver) {
+            ListReflectionsResponse resp = ListReflectionsResponse.getDefaultInstance();
+            responseObserver.onNext(resp);
+            responseObserver.onCompleted();
+          }
+
+          @Override
+          public void listReflectionDependencies(ListReflectionDependenciesRequest request,
+            StreamObserver<ListReflectionDependenciesResponse> responseObserver) {
+            ListReflectionDependenciesResponse resp = ListReflectionDependenciesResponse.getDefaultInstance();
+            responseObserver.onNext(resp);
+            responseObserver.onCompleted();
+          }
+
+          @Override
+          public void listMaterializations(ListMaterializationsRequest request,
+            StreamObserver<ListMaterializationsResponse> responseObserver) {
+            ListMaterializationsResponse resp = ListMaterializationsResponse.getDefaultInstance();
+            responseObserver.onNext(resp);
+            responseObserver.onCompleted();
+          }
+        }
+      ));
+
+  @Override
+  public void before() throws Exception {
+    setupServer();
+  }
+
+  /** instantiates in-process gRPC server with mock implementation & creates a channel to it */
+  private void setupServer() throws Exception {
+    String serverName = InProcessServerBuilder.generateName();
+    server = InProcessServerBuilder.forName(serverName).directExecutor()
+      .addService(chronicleService).addService(acclService).build().start();
+    channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+  }
+
+  private ChronicleGrpc.ChronicleStub getChronicleStub(){
+    return  ChronicleGrpc.newStub(channel);
+  }
+
+  private ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub getReflectionStub() {
+    return ReflectionDescriptionServiceGrpc.newStub(channel);
+  }
+
+  Map<TABLES, SysFlightDataProvider> getTablesProvider() {
+    Map<TABLES, SysFlightDataProvider> tablesMap = Maps.newHashMap();
+    tablesMap.put(TABLES.JOBS, new JobsTable(this::getChronicleStub));
+    tablesMap.put(TABLES.REFLECTIONS, new ReflectionsTable(this::getReflectionStub));
+    tablesMap.put(TABLES.MATERIALIZATIONS, new MaterializationsTable(this::getReflectionStub));
+    tablesMap.put(TABLES.REFLECTION_DEPENDENCIES, new ReflectionDependenciesTable(this::getReflectionStub));
+    return tablesMap;
+  }
+
+  @Override
+  public void after() {
+    channel.shutdownNow();
+    server.shutdownNow();
+  }
+}

@@ -139,6 +139,7 @@ export default class AboutModal extends Component {
     if (getAboutMode() === 'versionOnly') {
       return null;
     }
+
     return (<div className='tabs-holder' style={styles.base}>
       {
         this.state.tabs.map(item => (
@@ -163,6 +164,7 @@ export default class AboutModal extends Component {
         </dl>
       );
     }
+
     return activeTab === 'build' ? this.renderVersion() : this.renderCluterData();
   };
 

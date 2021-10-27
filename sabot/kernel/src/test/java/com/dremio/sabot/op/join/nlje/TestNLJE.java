@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.core.JoinRelType;
@@ -42,7 +41,6 @@ import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.sabot.Fixtures.DataRow;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.join.BaseTestJoin;
-import com.google.common.collect.ImmutableSet;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
@@ -103,7 +101,7 @@ public class TestNLJE extends BaseTestJoin {
         );
 
     validateDual(
-        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null, ImmutableSet.of(0), ImmutableSet.of(0)),
+        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null),
         NLJEOperator.class,
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
@@ -148,7 +146,7 @@ public class TestNLJE extends BaseTestJoin {
         );
 
     validateDual(
-        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null, ImmutableSet.of(0), ImmutableSet.of(0)),
+        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null),
         NLJEOperator.class,
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
@@ -197,7 +195,7 @@ public class TestNLJE extends BaseTestJoin {
 
 
     validateDual(
-      new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null, ImmutableSet.of(0), ImmutableSet.of(0, 1)),
+      new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, true, null),
       NLJEOperator.class,
       t1.toGenerator(getTestAllocator()),
       t2.toGenerator(getTestAllocator()),
@@ -228,36 +226,6 @@ public class TestNLJE extends BaseTestJoin {
     Assume.assumeFalse(true);
   }
 
-  @Test
-  public void manyColumnsPartialLeft() throws Exception {
-    baseManyColumnsPartialProjectLeft();
-  }
-
-  @Test
-  public void partialInnerJoin() throws Exception {
-    basePartialInnerJoin();
-  }
-
-  @Test
-  public void partialLeftJoin() throws Exception {
-    basePartialLeftJoin();
-  }
-
-  @Test
-  public void partialLeftJoinEmptyBuild() throws Exception {
-    basePartialLeftJoinEmptyBuild();
-  }
-
-  @Test
-  public void partialLeftJoinEmptyProbe() throws Exception {
-    basePartialLeftJoinEmptyProbe();
-  }
-
-  @Test
-  public void partialInnerJoinMultipleFields() throws Exception {
-    basePartialInnerJoinMultipleFields();
-  }
-
   @Override
   public void runRightAndOuter() {
     Assume.assumeTrue(false);
@@ -265,12 +233,12 @@ public class TestNLJE extends BaseTestJoin {
 
 
   @Override
-  protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type, Set<Integer> buildProjected, Set<Integer> probeProjected) {
+  protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
     BooleanOperator be = new BooleanOperator("booleanAnd", conditions.stream().map(c -> new FunctionCall("EQUALS".equals(c.getRelationship()) ? "=" : "is_not_distinct_from", Arrays.asList(
         new InputReference(0, (SchemaPath) c.getLeft()),
         new InputReference(1, (SchemaPath) c.getRight())
         ))).collect(Collectors.toList()));
-    return new JoinInfo(NLJEOperator.class, new NestedLoopJoinPOP(PROPS, null, null, type, be, true, null, buildProjected, probeProjected));
+    return new JoinInfo(NLJEOperator.class, new NestedLoopJoinPOP(PROPS, null, null, type, be, true, null));
   }
 
 }

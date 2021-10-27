@@ -26,6 +26,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.ExecConstants;
 import com.dremio.test.TemporarySystemProperties;
 
 public class TestStarQueries extends BaseTestQuery{
@@ -415,15 +416,20 @@ public class TestStarQueries extends BaseTestQuery{
 
   @Test // DRILL-1500
   public void testStarPartitionFilterOrderBy() throws Exception {
-    String query = String.format("select * from dfs.\"%s/multilevel/parquet\" where dir0=1994 and dir1='Q1' order by dir0 limit 1", TEST_RES_PATH);
-    org.joda.time.LocalDateTime mydate = new org.joda.time.LocalDateTime("1994-01-20T00:00:00.000");
+    try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      String query = String.format("select * from dfs.\"%s/multilevel/parquet\" where dir0=1994 and dir1='Q1' order by dir0 limit 1", TEST_RES_PATH);
+      org.joda.time.LocalDateTime mydate = new org.joda.time.LocalDateTime("1994-01-20T00:00:00.000");
 
-    testBuilder()
-    .sqlQuery(query)
-    .ordered()
-    .baselineColumns("dir0", "dir1", "o_clerk", "o_comment", "o_custkey", "o_orderdate", "o_orderkey",  "o_orderpriority", "o_orderstatus", "o_shippriority",  "o_totalprice")
-    .baselineValues("1994", "Q1", "Clerk#000000743", "y pending requests integrate", 1292, mydate, 66, "5-LOW", "F",  0, 104190.66)
-    .build().run();
+      testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("dir0", "dir1", "o_clerk", "o_comment", "o_custkey", "o_orderdate", "o_orderkey",  "o_orderpriority", "o_orderstatus", "o_shippriority",  "o_totalprice")
+        .baselineValues("1994", "Q1", "Clerk#000000743", "y pending requests integrate", 1292, mydate, 66, "5-LOW", "F",  0, 104190.66)
+        .build().run();
+    } finally {
+      test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+    }
   }
 
   @Test // DRILL-2069

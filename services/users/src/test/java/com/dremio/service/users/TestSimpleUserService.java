@@ -21,12 +21,15 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchQueryUtils;
@@ -48,6 +51,8 @@ import com.google.common.collect.Iterables;
  * user/admin/group management tests.
  */
 public class TestSimpleUserService {
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   public void good(String passwd) throws Exception {
     SimpleUserService.validatePassword(passwd);
@@ -378,6 +383,55 @@ public class TestSimpleUserService {
       } catch (Exception ex) {
         assertTrue(ex instanceof UserAlreadyExistException);
       }
+    }
+  }
+
+  @Test
+  public void testDeleteUserWithVersion() throws Exception {
+    try (final LegacyKVStoreProvider kvstore =
+           LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
+      LegacyIndexedStore<UID, UserInfo> userGroupStore = kvstore.getStore(UserGroupStoreBuilder.class);
+      // save an remote user
+      final UID uid = new UID(UUID.randomUUID().toString());
+      final UserConfig userConfig = new UserConfig()
+        .setUid(uid)
+        .setUserName("DavidBrown")
+        .setCreatedAt(System.currentTimeMillis())
+        .setType(UserType.REMOTE)
+        .setEmail("david.brown@dremio.test")
+        .setFirstName("David")
+        .setLastName("Brown");
+      userGroupStore.put(uid, new UserInfo().setConfig(userConfig));
+
+      // cleanup
+      userGroupService.deleteUser(uid, userConfig.getTag());
+    }
+  }
+
+  @Test
+  public void testDeleteUserWithWrongVersion() throws Exception {
+    try(final LegacyKVStoreProvider kvstore =
+          LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
+      final LegacyIndexedStore<UID, UserInfo> userGroupStore = kvstore.getStore(UserGroupStoreBuilder.class);
+      // save an remote user
+      final UID uid = new UID(UUID.randomUUID().toString());
+      final UserConfig userConfig = new UserConfig()
+        .setUid(uid)
+        .setUserName("DavidBrown")
+        .setCreatedAt(System.currentTimeMillis())
+        .setType(UserType.REMOTE)
+        .setEmail("david.brown@dremio.test")
+        .setFirstName("David")
+        .setLastName("Brown");
+      userGroupStore.put(uid, new UserInfo().setConfig(userConfig));
+
+      // cleanup
+      thrown.expect(ConcurrentModificationException.class);
+      userGroupService.deleteUser(uid, userConfig.getTag() + UUID.randomUUID());
     }
   }
 }

@@ -183,6 +183,7 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.DatasetsUtil.ExtractRuleVisitor;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
@@ -1062,21 +1063,23 @@ public class TestServerExplore extends BaseTestServer {
 
   @Test
   public void testReplaceDateRange() throws Exception {
-    JobDataFragment data = testConvert(
-            "case\n  when TIMESTAMP '1992-02-19 00:00:00.000' < l_shipdate AND TIMESTAMP '1998-10-29 00:00:00.000' > l_shipdate then TIMESTAMP '2014-03-26 08:24:33.000'\n  else l_shipdate\nend as foo",
-            new FieldReplaceRange(false)
-                    .setLowerBound("1992-02-19 00:00:00.000")
-                    .setUpperBound("1998-10-29 00:00:00.000")
-                    .setReplacementValue("2014-03-26 08:24:33.000")
-                    .setReplacementType(DATETIME),
-            "l_shipdate", "cp.\"tpch/lineitem.parquet\"");
+    try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES, "true")) {
+      JobDataFragment data = testConvert(
+        "case\n  when TIMESTAMP '1992-02-19 00:00:00.000' < l_shipdate AND TIMESTAMP '1998-10-29 00:00:00.000' > l_shipdate then TIMESTAMP '2014-03-26 08:24:33.000'\n  else l_shipdate\nend as foo",
+        new FieldReplaceRange(false)
+          .setLowerBound("1992-02-19 00:00:00.000")
+          .setUpperBound("1998-10-29 00:00:00.000")
+          .setReplacementValue("2014-03-26 08:24:33.000")
+          .setReplacementType(DATETIME),
+        "l_shipdate", "cp.\"tpch/lineitem.parquet\"");
 
-    Column col = checkNotNull(data.getColumn("foo"), data.getColumns());
-    Set<String> actual = new TreeSet<>();
-    for (int i=0; i<data.getReturnedRowCount(); i++) {
-      actual.add(data.extractString(col.getName(), i).substring(0, 4));
+      Column col = checkNotNull(data.getColumn("foo"), data.getColumns());
+      Set<String> actual = new TreeSet<>();
+      for (int i=0; i<data.getReturnedRowCount(); i++) {
+        actual.add(data.extractString(col.getName(), i).substring(0, 4));
+      }
+      assertEquals(new TreeSet<>(Arrays.asList("1992", "1998", "2014")), actual);
     }
-    assertEquals(new TreeSet<>(Arrays.asList("1992", "1998", "2014")), actual);
   }
 
   @Test

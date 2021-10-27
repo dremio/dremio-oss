@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Collections;
-import java.util.Iterator;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.LogicalExpression;
@@ -35,11 +32,6 @@ public class HoldingContainerExpression implements LogicalExpression{
     this.container = container;
     this.evaluationType = new EvaluationType();
     evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
-  }
-
-  @Override
-  public Iterator<LogicalExpression> iterator() {
-    return Collections.emptyIterator();
   }
 
   @Override

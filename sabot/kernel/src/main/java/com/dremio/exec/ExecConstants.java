@@ -79,6 +79,9 @@ public interface ExecConstants {
   // Splits are enabled when this is set to true and QUERY_EXEC_OPTION is set to Gandiva
   BooleanValidator SPLIT_ENABLED = new BooleanValidator("exec.expression.split.enabled", true);
 
+  String LAZYEXPEVAL_ENABLED_KEY = "exec.expression.lazyEval.enabled";
+  BooleanValidator LAZYEXPEVAL_ENABLED = new BooleanValidator(LAZYEXPEVAL_ENABLED_KEY, true);
+
   String MAX_SPLITS_PER_EXPR_KEY = "exec.expression.split.max_splits_per_expression";
   PositiveLongValidator MAX_SPLITS_PER_EXPRESSION = new PositiveLongValidator(MAX_SPLITS_PER_EXPR_KEY, Long.MAX_VALUE, 10);
 
@@ -153,6 +156,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_VECTORIZED_HASHJOIN = new BooleanValidator("exec.operator.join.vectorize", true);
   BooleanValidator ENABLE_VECTORIZED_HASHJOIN_SPECIFIC = new BooleanValidator("exec.operator.join.vectorize.specific", false);
   BooleanValidator ENABLE_VECTORIZED_COPIER = new BooleanValidator("exec.operator.copier.vectorize", true);
+  BooleanValidator ENABLE_VECTORIZED_COMPLEX_COPIER = new BooleanValidator("exec.operator.copier.complex.vectorize", true);
   BooleanValidator ENABLE_VECTORIZED_PARTITIONER = new BooleanValidator("exec.operator.partitioner.vectorize", true);
   BooleanValidator DEBUG_HASHJOIN_INSERTION = new BooleanValidator("exec.operator.join.debug-insertion", false);
 
@@ -210,7 +214,7 @@ public interface ExecConstants {
   BooleanValidator PARQUET_RECORD_READER_IMPLEMENTATION_VALIDATOR = new BooleanValidator(PARQUET_NEW_RECORD_READER, false);
 
   String PARQUET_AUTO_CORRECT_DATES = "store.parquet.auto.correct.dates";
-  BooleanValidator PARQUET_AUTO_CORRECT_DATES_VALIDATOR = new BooleanValidator(PARQUET_AUTO_CORRECT_DATES, true);
+  BooleanValidator PARQUET_AUTO_CORRECT_DATES_VALIDATOR = new BooleanValidator(PARQUET_AUTO_CORRECT_DATES, false);
 
   BooleanValidator PARQUET_READER_VECTORIZE = new BooleanValidator("store.parquet.vectorize", true);
   BooleanValidator ENABLED_PARQUET_TRACING = new BooleanValidator("store.parquet.vectorize.tracing.enable", false);
@@ -473,6 +477,9 @@ public interface ExecConstants {
   BooleanValidator ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_nospill.varchar_ndv", true);
   BooleanValidator ENABLE_NDV_REDUCE_HEAP = new BooleanValidator("exec.operator.ndv_reduce_heap", true);
 
+  /* XXX: Disable due to DX-37194 */
+  BooleanValidator ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_spill.varchar", false);
+
   BooleanValidator TRIM_ROWGROUPS_FROM_FOOTER = new BooleanValidator("exec.parquet.memory.trim_rowgroups", true);
   BooleanValidator TRIM_COLUMNS_FROM_ROW_GROUP = new BooleanValidator("exec.parquet.memory.trim_columns", true);
 
@@ -560,8 +567,6 @@ public interface ExecConstants {
   // Option to log the generated Java code on code generation exceptions
   BooleanValidator JAVA_CODE_DUMP = new BooleanValidator("exec.codegen.dump_java_code", false);
 
-  // Option to enable SysFlight Storage Plugin
-  BooleanValidator ENABLE_SYSFLIGHT_SOURCE = new BooleanValidator("sys.flight.enabled", false);
   BooleanValidator METADATA_CLOUD_CACHING_ENABLED = new BooleanValidator("metadata.cloud.cache.enabled", true);
 
   // default Nessie namespace used for internal iceberg tables created during refresh dataset
@@ -569,4 +574,10 @@ public interface ExecConstants {
 
   // option used to determine whether footer reader needs to read footer for accurate row counts or not
   BooleanValidator STORE_ACCURATE_PARTITION_STATS = new BooleanValidator("store.accurate.partition_stats", false);
+
+  // Option to enable SysFlight Storage Plugin
+  BooleanValidator ENABLE_SYSFLIGHT_SOURCE = new BooleanValidator("sys.flight.enabled", false);
+
+  // option used to determine S3AsyncClient should get used or S3SyncWithAsync wrapper, false value to support prev implementation
+  BooleanValidator S3_NATIVE_ASYNC_CLIENT = new BooleanValidator("dremio.s3.use_native_async_client", false);
 }

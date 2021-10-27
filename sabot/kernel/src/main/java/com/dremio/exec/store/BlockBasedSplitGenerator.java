@@ -34,8 +34,8 @@ public class BlockBasedSplitGenerator {
   private long currentOffset;
 
   public BlockBasedSplitGenerator(OperatorContext context, SupportsInternalIcebergTable plugin,
-                                  StoragePluginId pluginId, OpProps props, byte[] extendedBytes) {
-    this.splitCreator = plugin.createSplitCreator(context, extendedBytes);
+                                  StoragePluginId pluginId, OpProps props, byte[] extendedBytes, boolean isInternalIcebergTable) {
+    this.splitCreator = plugin.createSplitCreator(context, extendedBytes, isInternalIcebergTable);
   }
 
   public long getCurrentOffset() {

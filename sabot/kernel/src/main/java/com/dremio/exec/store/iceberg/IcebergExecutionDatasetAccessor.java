@@ -20,9 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
-import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 
@@ -70,7 +68,7 @@ import com.google.common.base.Throwables;
 public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
   private final NamespaceKey tableSchemaPath;
   private final DatasetType type;
-  private final FileSystemPlugin<?> fsPlugin;
+  private final FileSystemPlugin fsPlugin;
   private final FileSelection fileSelection;
   private final FormatPlugin formatPlugin;
   private final FileSystem fs;
@@ -79,7 +77,7 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
                                          FileSystem fs,
                                          FormatPlugin formatPlugin,
                                          FileSelection fileSelection,
-                                         FileSystemPlugin<?> fsPlugin,
+                                         FileSystemPlugin fsPlugin,
                                          NamespaceKey tableSchemaPath) {
     this.fs = fs;
     this.tableSchemaPath = tableSchemaPath;
@@ -123,6 +121,7 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
     Table table = icebergTableLoader.getIcebergTable();
     SchemaConverter schemaConverter = new SchemaConverter(table.name());
     BatchSchema batchSchema = schemaConverter.fromIceberg(table.schema());
+    List<String> partitionColumns = schemaConverter.getPartitionColumns(table);
     final Snapshot snapshot = table.currentSnapshot();
     long numRecords = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-records", "0")) : 0L;
     long numDataFiles = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0")) : 0L;
@@ -151,13 +150,7 @@ public class IcebergExecutionDatasetAccessor implements FileDatasetHandle {
 
       @Override
       public List<String> getPartitionColumns() {
-        return table
-          .spec()
-          .fields()
-          .stream()
-          .map(PartitionField::sourceId)
-          .map(table.schema()::findColumnName) // column name from schema
-          .collect(Collectors.toList());
+        return partitionColumns;
       }
 
       @Override

@@ -59,6 +59,7 @@ import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -186,10 +187,9 @@ public class SimpleUserService implements UserService, Service {
       .setCreatedAt(originalUserConfig.getCreatedAt());
 
     if (newUser instanceof SimpleUser) {
-      // field that is not provided
+      // SimpleUser does not handle type, so maintain the already set type
       updatedUserConfig.setType(originalUserConfig.getType());
     }
-
     // if fields are blank in the request, use the original info
     if (updatedUserConfig.getEmail() == null) {
       updatedUserConfig.setEmail(originalUserConfig.getEmail());
@@ -220,42 +220,42 @@ public class SimpleUserService implements UserService, Service {
   @Override
   public User updateUser(final User userGroup, final String authKey)
     throws IOException, IllegalArgumentException, UserNotFoundException {
-    final String userName = userGroup.getUserName();
-    final UserInfo oldUserInfo = findUserByUserName(userName);
-    if (oldUserInfo == null) {
-      throw new UserNotFoundException(userName);
-    }
-    if (!Strings.isNullOrEmpty(userName) && !oldUserInfo.getConfig().getUserName().equals(userName)) {
-      throw new IllegalArgumentException("Updating username is not supported.");
-    }
-    return updateUserHelper(merge(userGroup, oldUserInfo.getConfig()), oldUserInfo, authKey);
+    final UserInfo oldUserInfo = findUserByUserName(userGroup.getUserName());
+    return doUpdateUser(oldUserInfo, userGroup, authKey);
   }
 
   @Override
   public User updateUserById(final User userGroup, final String authKey)
     throws IllegalArgumentException, UserNotFoundException {
+    Preconditions.checkNotNull(userGroup.getUID());
+    final UserInfo oldUserInfo = userStore.get().get(userGroup.getUID());
+    return doUpdateUser(oldUserInfo, userGroup, authKey);
+  }
 
-    final String userName = userGroup.getUserName();
-    final UID userId = userGroup.getUID();
-
-    UserInfo oldUserInfo = null;
-    if (userId != null && !Strings.isNullOrEmpty(userId.getId())) {
-      oldUserInfo = userStore.get().get(userId);
-    }
+  /**
+   * Given existing oldUserInfo, update it with fields from newUser. If a non-null
+   * authKey is provided, treat that as an attempted password change.
+   */
+  protected User doUpdateUser(UserInfo oldUserInfo, User newUser, String authKey)
+    throws UserNotFoundException {
+    // Handle exception if user was not found
+    final String userName = newUser.getUserName();
     if (oldUserInfo == null) {
-      throw new UserNotFoundException(userName);
+      if (Strings.isNullOrEmpty(userName)) {
+        throw new UserNotFoundException(newUser.getUID());
+      } else {
+        throw new UserNotFoundException(userName);
+      }
     }
 
+    // reject userName changes
     if (!Strings.isNullOrEmpty(userName) && !oldUserInfo.getConfig().getUserName().equals(userName)) {
       throw new IllegalArgumentException("Updating username is not supported.");
     }
 
-    return updateUserHelper(merge(userGroup, oldUserInfo.getConfig()), oldUserInfo, authKey);
-  }
-
-  private User updateUserHelper(UserConfig updatedUserConfig, UserInfo oldUserInfo, final String authKey) {
+    // Start creating an updated user config
+    final UserConfig updatedUserConfig = merge(newUser, oldUserInfo.getConfig());
     updatedUserConfig.setModifiedAt(System.currentTimeMillis());
-
     UserInfo newUserInfo = new UserInfo();
     newUserInfo.setConfig(updatedUserConfig);
 
@@ -472,10 +472,7 @@ public class SimpleUserService implements UserService, Service {
   public void deleteUser(final String userName, String version) throws UserNotFoundException, IOException {
     final UserInfo info = findUserByUserName(userName);
     if (info != null) {
-      userStore.get().delete(info.getConfig().getUid(), version);
-      if (!getAllUsers(1).iterator().hasNext()) {
-        anyUserFound.set(false);
-      }
+      deleteUser(info.getConfig().getUid(), version);
     } else {
       throw new UserNotFoundException(userName);
     }
@@ -483,11 +480,21 @@ public class SimpleUserService implements UserService, Service {
 
   @Override
   public void deleteUser(final UID uid) throws UserNotFoundException, IOException {
+    deleteUser(uid, null);
+  }
+
+  @Override
+  public void deleteUser(final UID uid, String version) throws UserNotFoundException, IOException {
     final UserInfo userInfo = userStore.get().get(uid);
     if (userInfo == null) {
       throw new UserNotFoundException(uid);
     }
-    userStore.get().delete(userInfo.getConfig().getUid(), userInfo.getConfig().getTag());
+
+    if (version == null) {
+      version = userInfo.getConfig().getTag();
+    }
+
+    userStore.get().delete(userInfo.getConfig().getUid(), version);
     if (!getAllUsers(1).iterator().hasNext()) {
       anyUserFound.set(false);
     }

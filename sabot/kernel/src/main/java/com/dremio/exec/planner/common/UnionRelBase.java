@@ -52,10 +52,4 @@ public abstract class UnionRelBase extends Union {
     }
     return true;
   }
-
-  @Override
-  public boolean isDistinct() {
-    return !this.all;
-  }
-
 }

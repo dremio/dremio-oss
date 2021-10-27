@@ -102,7 +102,7 @@ public static class ${type.inputType}${aggrtype.className} implements AggrFuncti
     xMean.value += ((xIn.value - xMean.value) / count.value);
     yMean.value += ((yIn.value - yMean.value) / count.value);
 
-    xyMean.value += ((xIn.value * yIn.value) - xyMean.value) / count.value;
+    xyMean.value += ((((double) xIn.value) * ((double) yIn.value)) - xyMean.value) / count.value;
     count.value++;
     <#if type.inputType?starts_with("Nullable")>
     } // end of sout block

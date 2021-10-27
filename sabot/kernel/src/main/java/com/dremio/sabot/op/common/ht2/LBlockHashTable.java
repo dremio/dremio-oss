@@ -30,6 +30,10 @@ import java.util.concurrent.TimeUnit;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.arrow.vector.BaseFixedWidthVector;
+import org.apache.arrow.vector.BitVectorHelper;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.collections.CollectionUtils;
@@ -42,6 +46,8 @@ import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.LBlockHashTableKeyReader;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.exec.util.ValueListFilterBuilder;
+import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartition;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -86,6 +92,7 @@ public final class LBlockHashTable implements AutoCloseable {
 
   private int capacity;
   private int maxSize;
+  /* XXX: batches is not any useful. Can be safely removed. */
   private int batches;
 
   private int currentOrdinal;
@@ -157,7 +164,8 @@ public final class LBlockHashTable implements AutoCloseable {
     this.maxOrdinalBeforeExpand = 0;
     internalInit(LHashCapacities.capacity(this.config, initialSize, false));
 
-    logger.debug("initialized hashtable, maxSize:{}, capacity:{}, batches:{}, maxVariableBlockLength:{}, maxValuesPerBatch:{}", maxSize, capacity, batches, variableBlockMaxLength, MAX_VALUES_PER_BATCH);
+    logger.debug("initialized hashtable, maxSize:{}, capacity:{}, batches:{}, maxVariableBlockLength:{}, maxValuesPerBatch:{}",
+      maxSize, capacity, batches, variableBlockMaxLength, MAX_VALUES_PER_BATCH);
   }
 
   public int getMaxValuesPerBatch() {
@@ -263,10 +271,35 @@ public final class LBlockHashTable implements AutoCloseable {
   public int getOrInsertWithRetry(final long keyFixedAddr, final long keyVarAddr,
                                   final int  keyVarLen, final int keyHash,
                                   final int dataWidth, final boolean insertNew) {
-    int returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, insertNew);
-    if (returnValue == RETRY_RETURN_CODE) {
-      returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, insertNew);
-    }
+    int returnValue = RETRY_RETURN_CODE;
+    int iters = 0;
+
+    do {
+      Preconditions.checkArgument(iters < 2);
+      returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, insertNew,
+        0, null, 0, 0, 0);
+      iters++;
+    } while (returnValue == RETRY_RETURN_CODE);
+
+    return returnValue;
+  }
+
+  public int getOrInsertWithAccumSpaceCheck(
+       final long keyFixedAddr, final long keyVarAddr, final int keyVarLen,
+       final int keyHash, final int dataWidth, final int varRowSpace,
+       final VectorizedHashAggPartition partition, final int bitsInChunk,
+       final int chunkOffsetMask, final long seed) {
+    int returnValue;
+
+    do {
+      /*
+       * In worst case, we may splice every batch. Additionally additional retry
+       * due to rehash.  BTW, no guarantee how many times a single batch can splice.
+       */
+      returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, true,
+        varRowSpace, partition, bitsInChunk, chunkOffsetMask, seed);
+    } while (returnValue == RETRY_RETURN_CODE);
+
     return returnValue;
   }
 
@@ -285,67 +318,61 @@ public final class LBlockHashTable implements AutoCloseable {
    * @return for find operation (ordinal if the key exists, -1 otherwise)
    *         for add operation (ordinal if the key exists or new ordinal after insertion or -2 if the caller should retry)
    */
+  /*
+   * XXX: It is not a good idea to hae VectctorizeHashAggPartition exposed to HashTable
+   * implementation. Instead of, a space check interface should be implemented and
+   * probeOrInsert generically query for the accumulator space check.
+   */
   private int probeOrInsert(final long keyFixedAddr, final long keyVarAddr, final int keyVarLen,
-                            final int keyHash, final int dataWidth, final boolean insertNew) {
+                            final int keyHash, final int dataWidth, final boolean insertNew,
+                            final int varRowSpace, final VectorizedHashAggPartition partition,
+                            final int bitsInChunk, final int chunkMaskOffset, final long seed) {
     final boolean fixedOnly =  this.fixedOnly;
     final int blockWidth = pivot.getBlockWidth();
     final long[] tableControlAddresses = this.tableControlAddresses;
     final long[] tableFixedAddresses = this.tableFixedAddresses;
     final long[] initVariableAddresses = this.initVariableAddresses;
+    long tableControlAddr;
 
     // start with a hash index.
     int controlIndex = keyHash & (capacity - 1);
 
-    int controlChunkIndex = controlIndex >>> BITS_IN_CHUNK;
-    int offsetInChunk = controlIndex & CHUNK_OFFSET_MASK;
-    long tableControlAddr = tableControlAddresses[controlChunkIndex] + (offsetInChunk * CONTROL_WIDTH);
-    long control = PlatformDependent.getLong(tableControlAddr);
-
-    keyAbsent: if (control != LFREE) {
-      int dataChunkIndex;
-      long tableDataAddr;
+    while (true) {
+      int controlChunkIndex = getBatchIndexForOrdinal(controlIndex);
+      int offsetInChunk = controlIndex & CHUNK_OFFSET_MASK;
+      tableControlAddr = tableControlAddresses[controlChunkIndex] + (offsetInChunk * CONTROL_WIDTH);
+      long control = PlatformDependent.getLong(tableControlAddr);
+      if (control == LFREE) {
+        break;
+      }
 
       int ordinal = (int) control;
-      if (keyHash == (int) (control >>> 32)){
-        dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+      if (keyHash == (int) (control >>> 32)) {
+        int dataChunkIndex = getBatchIndexForOrdinal(ordinal);
         offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
-        tableDataAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
-        if(fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth) && (fixedOnly || variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] + PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))){
-          return ordinal;
-        }
-      }
-
-      while (true) {
-        controlIndex = (controlIndex - 1) & (capacity - 1);
-        controlChunkIndex = controlIndex >>> BITS_IN_CHUNK;
-        offsetInChunk = controlIndex & CHUNK_OFFSET_MASK;
-        tableControlAddr = tableControlAddresses[controlChunkIndex] + (offsetInChunk * CONTROL_WIDTH);
-        control = PlatformDependent.getLong(tableControlAddr);
-
-        if (control == LFREE) {
-          break keyAbsent;
-        } else if(keyHash == (int) (control >>> 32)){
-          ordinal = (int) control;
-          dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
-          offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
-          tableDataAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
-          if(fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth) && (fixedOnly || variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] + PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))){
-            // key is present
+        long tableDataAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
+        if (fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth) &&
+          (fixedOnly ||
+           variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] +
+                                         PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))) {
+          if (!insertNew || varRowSpace == 0 ||
+            listener.hasSpace(varRowSpace + partition.getBatchUsedSpace(dataChunkIndex), dataChunkIndex)) {
             return ordinal;
           }
+          return splice(ordinal, varRowSpace, partition, bitsInChunk, chunkMaskOffset, seed);
         }
-
       }
+
+      controlIndex = (controlIndex - 1) & (capacity - 1);
     }
 
     // key not found
-    if(!insertNew) {
-      // caller doesn't want to add key so return
+    if (!insertNew) {
       return -1;
-    } else {
-      // caller wants to add key so insert
-      return insert(blockWidth, tableControlAddr, keyHash, dataWidth, keyFixedAddr, keyVarAddr, keyVarLen);
     }
+    // caller wants to add key so insert
+    return insert(blockWidth, tableControlAddr, keyHash, dataWidth, keyFixedAddr, keyVarAddr, keyVarLen,
+      varRowSpace, partition, bitsInChunk, chunkMaskOffset, seed);
   }
 
     // Get the length of the variable keys for the record specified by ordinal.
@@ -436,15 +463,16 @@ public final class LBlockHashTable implements AutoCloseable {
 
     // check the value of currentOrdinal and decide if we need to add new block
     boolean addNewBlocks = false;
-    if(currentOrdinal == maxOrdinalBeforeExpand) {
+    if (currentOrdinal == maxOrdinalBeforeExpand) {
       // this condition covers all cases -- preallocated 0th block or not, using power of 2 batchsize or not
       // new blocks need to be added if currentOrdinal is a multiple of max number of
       // (ACTUAL_VALUES_PER_BATCH) we can store within a single batch of hash table
       addNewBlocks = true;
     }
 
-    boolean blocksAdded = false;
     if (addNewBlocks) {
+      final int oldChunkIndex = getBatchIndexForOrdinal(currentOrdinal);
+
       // need to add new blocks
       if (ACTUAL_VALUES_PER_BATCH < MAX_VALUES_PER_BATCH && currentOrdinal > 0) {
         // skip ordinals for optimizing the use of direct memory if using a non power of two batchsize
@@ -464,17 +492,24 @@ public final class LBlockHashTable implements AutoCloseable {
 
         // no need to resize, so add new blocks and proceed
         addDataBlocks();
+
+        gaps += newCurrentOrdinal - currentOrdinal;
+
         // it is important that currentOrdinal is set only after successful return from addDataBlocks()
         // as the latter can fail with OOM
         currentOrdinal = newCurrentOrdinal;
-        blocksAdded = true;
       } else {
         // if we are using power of 2 batch size then
         // no need to skip ordinals; there is no need to check for rehash
         // as currentOrdinal hasn't moved, just add the data blocks and proceed
         addDataBlocks();
-        blocksAdded = true;
       }
+
+      /* bump these stats iff we are going to skip ordinals */
+      final long curFixedBlockWritePos = fixedBlocks[oldChunkIndex].getBufferLength();
+      unusedForFixedBlocks += fixedBlocks[oldChunkIndex].getCapacity() - curFixedBlockWritePos;
+      final long curVarBlockWritePos = variableBlocks[oldChunkIndex].getBufferLength();
+      unusedForVarBlocks += variableBlocks[oldChunkIndex].getCapacity() - curVarBlockWritePos;
 
       // if we are here, it means we have added a new block
       // track max ordinal for block addition in future
@@ -499,11 +534,7 @@ public final class LBlockHashTable implements AutoCloseable {
       return false;
     }
 
-    /* bump these stats iff we are going to skip ordinals */
-    final long curFixedBlockWritePos = fixedBlocks[currentChunkIndex].getBufferLength();
-    final long curVarBlockWritePos = variableBlocks[currentChunkIndex].getBufferLength();
-    unusedForFixedBlocks += fixedBlocks[currentChunkIndex].getCapacity() - curFixedBlockWritePos;
-    unusedForVarBlocks += variableBlocks[currentChunkIndex].getCapacity() - curVarBlockWritePos;
+    Preconditions.checkState(!addNewBlocks, "Error: detected inconsistent state ");
 
     // skip ordinals to fix this varchar key in next block; move to first ordinal in next batch
     int newCurrentOrdinal = (currentChunkIndex + 1) * MAX_VALUES_PER_BATCH;
@@ -516,9 +547,15 @@ public final class LBlockHashTable implements AutoCloseable {
     }
 
     // do sanity check
-    Preconditions.checkState(!blocksAdded, "Error: detected inconsistent state ");
     addDataBlocks();
+
+    /* bump these stats iff we are going to skip ordinals */
+    final long curFixedBlockWritePos = fixedBlocks[currentChunkIndex].getBufferLength();
+    final long curVarBlockWritePos = variableBlocks[currentChunkIndex].getBufferLength();
+    unusedForFixedBlocks += fixedBlocks[currentChunkIndex].getCapacity() - curFixedBlockWritePos;
+    unusedForVarBlocks += variableBlocks[currentChunkIndex].getCapacity() - curVarBlockWritePos;
     gaps += newCurrentOrdinal - currentOrdinal;
+
     currentOrdinal = newCurrentOrdinal;
     maxOrdinalBeforeExpand = currentOrdinal + ACTUAL_VALUES_PER_BATCH;
     return false;
@@ -530,14 +567,17 @@ public final class LBlockHashTable implements AutoCloseable {
       return true;
     }
 
-    if((currentOrdinal & CHUNK_OFFSET_MASK) == 0) {
+    if ((currentOrdinal & CHUNK_OFFSET_MASK) == 0) {
       addDataBlocks();
     }
 
     return false;
   }
 
-  private int insert(final long blockWidth, long tableControlAddr, final int keyHash, final int dataWidth, final long keyFixedAddr, final long keyVarAddr, final int keyVarLen) {
+  private int insert(final int blockWidth, long tableControlAddr, final int keyHash,
+                     final int dataWidth, final long keyFixedAddr, final long keyVarAddr,
+                     final int keyVarLen, final int varRowSpace, final VectorizedHashAggPartition partition,
+                     final int bitsInChunk, final int chunkOffsetMask, final long seed) {
     final boolean retry;
     if (enforceVarWidthBufferLimit) {
       retry = moveToNextValidOrdinal(keyVarLen);
@@ -549,10 +589,20 @@ public final class LBlockHashTable implements AutoCloseable {
       // different control address which is determined by the caller of this method.
       return RETRY_RETURN_CODE;
     }
+
     final int insertedOrdinal = currentOrdinal;
 
     // first we need to make sure we are up to date on the
     final int dataChunkIndex = insertedOrdinal >>> BITS_IN_CHUNK;
+
+    if (varRowSpace != 0 &&
+        !listener.hasSpace(partition.getBatchUsedSpace(dataChunkIndex) + varRowSpace, dataChunkIndex)) {
+      int returnValue = splice(insertedOrdinal, varRowSpace, partition, bitsInChunk, chunkOffsetMask, seed);
+      if (returnValue != insertedOrdinal) {
+        return returnValue;
+      }
+    }
+
     final int offsetInChunk = insertedOrdinal & CHUNK_OFFSET_MASK;
     final long tableDataAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
 
@@ -565,7 +615,7 @@ public final class LBlockHashTable implements AutoCloseable {
     final ArrowBuf fixedBlockBuffer = fixedBlocks[dataChunkIndex].getUnderlying();
     fixedBlockBuffer.writerIndex(fixedBlockBuffer.writerIndex() + dataWidth);
 
-    if(!fixedOnly) {
+    if (!fixedOnly) {
       long tableVarAddr = openVariableAddresses[dataChunkIndex];
       final VariableBlockVector block = variableBlocks[dataChunkIndex];
       final int tableVarOffset = (int) (tableVarAddr - initVariableAddresses[dataChunkIndex]);
@@ -617,7 +667,7 @@ public final class LBlockHashTable implements AutoCloseable {
    */
   public int getRecordsInBatch(final int batchIndex) {
     Preconditions.checkArgument(batchIndex < blocks(), "Error: invalid batch index");
-    final int records = LargeMemoryUtil.checkedCastToInt((fixedBlocks[batchIndex].getUnderlying().readableBytes())/pivot.getBlockWidth());
+    final int records = LargeMemoryUtil.checkedCastToInt((fixedBlocks[batchIndex].getUnderlying().readableBytes()) / pivot.getBlockWidth());
     Preconditions.checkArgument(records <= MAX_VALUES_PER_BATCH, "Error: detected invalid number of records in batch");
     return records;
   }
@@ -897,7 +947,7 @@ public final class LBlockHashTable implements AutoCloseable {
     return this == obj;
   }
 
-  public int size(){
+  public int size() {
     return currentOrdinal;
   }
 
@@ -905,8 +955,8 @@ public final class LBlockHashTable implements AutoCloseable {
     return currentOrdinal - gaps;
   }
 
-  public int blocks(){
-    return (int) Math.ceil( currentOrdinal / (MAX_VALUES_PER_BATCH * 1.0d) );
+  public int blocks() {
+    return (int) Math.ceil(currentOrdinal / (MAX_VALUES_PER_BATCH * 1.0d) );
   }
 
   public int capacity() {
@@ -958,9 +1008,8 @@ public final class LBlockHashTable implements AutoCloseable {
     initTimer.start();
     /* tentative new state */
     capacity = Math.max(Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH), capacity);
-    final int newCapacity = capacity;
     final int newMaxSize = !LHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
-    final int newBatches = (int) Math.ceil( capacity / (MAX_VALUES_PER_BATCH * 1.0d) );
+    final int newBatches = (int) Math.ceil(capacity / (MAX_VALUES_PER_BATCH * 1.0d));
     /* new memory allocation */
     final ControlBlock[] newControlBlocks = new ControlBlock[newBatches];
     final long[] newTableControlAddresses = new long[newBatches];
@@ -971,7 +1020,7 @@ public final class LBlockHashTable implements AutoCloseable {
        * state is anyway unchanged since their state is updated only
        * after allocation for all control blocks is successful.
        */
-      for(int i =0; i < newBatches; i++){
+      for (int i = 0; i < newBatches; i++) {
         newControlBlocks[i] = new ControlBlock(allocator, MAX_VALUES_PER_BATCH);
         rollbackable.add(newControlBlocks[i]);
         newTableControlAddresses[i] = newControlBlocks[i].getMemoryAddress();
@@ -981,7 +1030,7 @@ public final class LBlockHashTable implements AutoCloseable {
       /* memory allocation successful so update ControlBlock arrays and state */
       this.controlBlocks = newControlBlocks;
       this.tableControlAddresses = newTableControlAddresses;
-      this.capacity = newCapacity;
+      this.capacity = capacity;
       this.batches = newBatches;
       this.maxSize = newMaxSize;
       rollbackable.commit();
@@ -1012,8 +1061,8 @@ public final class LBlockHashTable implements AutoCloseable {
   // Tracing support
   // When tracing is started, the hashtable allocates an ArrowBuf that will contain the following information:
   // 1. hashtable state before the insertion (recorded at {@link #traceStartInsert()})
-  //       | int capacityMask | int capacity | int maxSize | int batches | int currentOrdinal | int rehashCount |
-  //               4B                4B             4B            4B              4B                   4B
+  //       | int capacity | int maxSize | int batches | int currentOrdinal | int rehashCount | int numRecords |
+  //              4B             4B           4B                4B                4B                 4B
   //
   // 2. insertion record:
   //    - an int containing the count of insertions
@@ -1025,7 +1074,7 @@ public final class LBlockHashTable implements AutoCloseable {
   // Please note that the batch# and ordinal-within-batch together form the hash table's currentOrdinal
   //
   // 3. hashtable state after the insertion
-  //    (same structure as #1)
+  //    (same structure as #1 without numRecords)
 
   /**
    * Start tracing the insert() operation of this table
@@ -1098,7 +1147,7 @@ public final class LBlockHashTable implements AutoCloseable {
     int reportSize = 17 * numEntries + 1024;  // it's really 16 bytes tops per entry, with a newline every 16 entries
     StringBuilder sb = new StringBuilder(reportSize);
     Formatter formatter = new Formatter(sb);
-    int origOrdinal = PlatformDependent.getInt(traceBufAddr + 4 * 4) - 1;
+    int origOrdinal = PlatformDependent.getInt(traceBufAddr + 3 * 4) - 1;
     formatter.format("Pre-insert: capacity: %1$d, maxSize: %2$d, batches: %3$d (%3$#X), currentOrdinal: %4$d, rehashCount: %5$d %n",
                      PlatformDependent.getInt(traceBufAddr + 0 * 4),
                      PlatformDependent.getInt(traceBufAddr + 1 * 4),
@@ -1106,7 +1155,7 @@ public final class LBlockHashTable implements AutoCloseable {
                      PlatformDependent.getInt(traceBufAddr + 3 * 4),
                      PlatformDependent.getInt(traceBufAddr + 4 * 4));
 
-    long traceBufCurr = traceBufAddr + 6 * 4;
+    long traceBufCurr = traceBufAddr + 7 * 4; // skip the numEntries as well
     long traceBufLast = traceBufCurr + numEntries * 4;
     formatter.format("Number of entries: %1$d%n", numEntries);
     for (int i = 0; traceBufCurr < traceBufLast; traceBufCurr += 4, i++) {
@@ -1141,15 +1190,13 @@ public final class LBlockHashTable implements AutoCloseable {
    * Resets the HashTable to minimum size which has capacity to contain {@link #MAX_VALUES_PER_BATCH}.
    */
   public void resetToMinimumSize() throws Exception {
-    if (capacity() <= MAX_VALUES_PER_BATCH) {
-      /* if there is only 1 batch, we don't need to shrink hashtable
-       * just reset the state for first batch
-       */
-      resetToMinimumSizeHelper();
-      return;
-    }
-
     final List<AutoCloseable> toRelease = Lists.newArrayList();
+
+    Preconditions.checkArgument(fixedBlocks.length >= 1);
+    /*
+     * Even if fixedBlocks.length == 1, controlBlocks.length might not be 1 so
+     * remove all controlBlocks as well as we are going to reset the capacy to minimum.
+     */
 
     // Release all except the first entry
     toRelease.addAll(asList(copyOfRange(controlBlocks, 1, controlBlocks.length)));
@@ -1172,6 +1219,7 @@ public final class LBlockHashTable implements AutoCloseable {
 
   private void resetToMinimumSizeHelper() throws Exception {
     controlBlocks[0].reset();
+    initControlBlock(tableControlAddresses[0]);
     fixedBlocks[0].reset();
     variableBlocks[0].reset();
     currentOrdinal = 0;
@@ -1182,23 +1230,25 @@ public final class LBlockHashTable implements AutoCloseable {
     batches = 1;
     openVariableAddresses[0] = initVariableAddresses[0];
 
-    initControlBlock(tableControlAddresses[0]);
-
     listener.resetToMinimumSize();
   }
 
-
+  /*
+   * XXX: releaseBatch() should be removed. We are releasing fixedBlocks and variableBlocks without
+   * touching the controlBlocks, which means controlBlocks can satisfy the looking even no corresponding
+   * data in fixedBlocks and variableBlocks. Also everything, batches, blocks, all are inconsistent...
+   * The only purpose of this function is to have some memory released immediately, before spilling
+   * the next batch.
+   * For now, it is okay as until resetToMinimumSize() we don't touch the data.
+   */
   public void releaseBatch(final int batchIdx) throws Exception {
     if (batchIdx == 0) {
-      controlBlocks[0].reset();
       fixedBlocks[0].reset();
       variableBlocks[0].reset();
-      initControlBlock(tableControlAddresses[0]);
       return;
     }
 
-    initControlBlock(tableControlAddresses[batchIdx]);
-    AutoCloseables.close(controlBlocks[batchIdx], fixedBlocks[batchIdx], variableBlocks[batchIdx]);
+    AutoCloseables.close(fixedBlocks[batchIdx], variableBlocks[batchIdx]);
 
     //release memory from accumulator
     listener.releaseBatch(batchIdx);
@@ -1256,7 +1306,7 @@ public final class LBlockHashTable implements AutoCloseable {
   public static long keyHashCode(long keyDataAddr, int dataWidth, final long keyVarAddr,
                                   int varDataLen, long seed){
     final long fixedValue = XXH64.xxHash64(keyDataAddr, dataWidth, seed);
-    return mix(XXH64.xxHash64(keyVarAddr + 4, varDataLen, fixedValue));
+    return mix(XXH64.xxHash64(keyVarAddr + VAR_LENGTH_SIZE, varDataLen, fixedValue));
   }
 
   public static long mix(long hash) {
@@ -1377,5 +1427,319 @@ public final class LBlockHashTable implements AutoCloseable {
             .setTableFixedAddresses(tableFixedAddresses)
             .setTableVarAddresses(initVariableAddresses)
             .setTotalNumOfRecords(size());
+  }
+
+  /**
+   * A branch free copier of FIXED keys from source batch to target.
+   * @param batchIndex source batch
+   * @param sourceStartOrdinal start ordinal of the source
+   * @param sourceStartIndex index at which to start copying keys
+   * @param sourceEndIndex index upto which to copy (exclusive)
+   * @param newCurrentOrdinal start ordinal at which to copy the keys
+   * @param seed hash seed
+   * @return final ordinal after moving the keys
+   */
+  private int copyWithFixedKeyOnly(final int batchIndex, final int sourceStartOrdinal,
+                                   final int sourceStartIndex, final int sourceEndIndex,
+                                   final int newCurrentOrdinal, final long seed) {
+    Preconditions.checkState(fixedOnly == true);
+
+    final int dstChunkIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
+    long dstFixedAddr = tableFixedAddresses[dstChunkIndex];
+    final int blockWidth = pivot.getBlockWidth();
+    int targetOrdinal = newCurrentOrdinal;
+    int srcOrdinal = sourceStartOrdinal;
+
+    for (int startIdx = sourceStartIndex; startIdx < sourceEndIndex; ++startIdx, dstFixedAddr += blockWidth, ++targetOrdinal, ++srcOrdinal) {
+      final long srcFixedAddr = tableFixedAddresses[batchIndex] + (startIdx * blockWidth);
+      //1. copy key to target
+      Copier.copy(srcFixedAddr, dstFixedAddr, blockWidth);
+
+      final long keyHash = LBlockHashTable.fixedKeyHashCode(srcFixedAddr, blockWidth, seed);
+      final int keyHashInt = (int) keyHash;
+      int controlIndex = keyHashInt & (capacity - 1);
+
+      while (true) {
+        final int controlChunkIndex = controlIndex >>> BITS_IN_CHUNK;
+        final int offsetInChunk = controlIndex & CHUNK_OFFSET_MASK;
+        final long tableControlAddr = tableControlAddresses[controlChunkIndex] + (offsetInChunk * CONTROL_WIDTH);
+        final long control = PlatformDependent.getLong(tableControlAddr);
+
+        //must not get a free slot before finding the target key, as we always probe up when inserting
+        Preconditions.checkArgument(control != LFREE);
+
+        final int storedOrdinal = (int)control;
+        // fix the ordinal, if it matches
+        if (keyHashInt == (int)(control >>> 32) && (storedOrdinal == srcOrdinal)) {
+          PlatformDependent.putInt(tableControlAddr, targetOrdinal);
+          break;
+        }
+        controlIndex = (controlIndex - 1) & (capacity - 1);
+      }
+    }
+
+    //new insert location
+    return targetOrdinal;
+  }
+
+  /**
+   * Same as above, except when the schema has varlen keys as well.
+   * @param batchIndex
+   * @param sourceStartOrdinal
+   * @param sourceStartIndex
+   * @param sourceEndIndex
+   * @param newCurrentOrdinal
+   * @param seed
+   * @return
+   */
+  private int copyWithVarKey(final int batchIndex, final int sourceStartOrdinal, final int sourceStartIndex,
+                             final int sourceEndIndex, final int newCurrentOrdinal, final long seed) {
+    Preconditions.checkArgument(fixedOnly == false);
+
+    final int dstChunkIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
+    Preconditions.checkArgument((newCurrentOrdinal & CHUNK_OFFSET_MASK) == 0);
+    long dstFixedAddr = tableFixedAddresses[dstChunkIndex];
+    final long dstVarKeyAddr = openVariableAddresses[dstChunkIndex];
+    final int blockWidth = pivot.getBlockWidth();
+    int targetOrdinal = newCurrentOrdinal;
+    int srcOrdinal = sourceStartOrdinal;
+
+    int varOffset = 0;
+    for (int startIdx = sourceStartIndex; startIdx < sourceEndIndex; ++startIdx, dstFixedAddr += blockWidth, ++targetOrdinal, ++srcOrdinal) {
+      final long srcFixedAddr = tableFixedAddresses[batchIndex] + (startIdx * pivot.getBlockWidth());
+      //1. copy the fixed key
+      Copier.copy(srcFixedAddr, dstFixedAddr, blockWidth - VAR_OFFSET_SIZE);
+
+      //2. copy the offset
+      PlatformDependent.putInt(dstFixedAddr + (blockWidth - VAR_OFFSET_SIZE), varOffset);
+
+      //3. copy the var key
+      final long srcVarOffsetAddr = srcFixedAddr + (blockWidth - VAR_OFFSET_SIZE);
+      final int offset = PlatformDependent.getInt(srcVarOffsetAddr);
+      final int varLen = PlatformDependent.getInt(initVariableAddresses[batchIndex] + offset) + VAR_LENGTH_SIZE;
+      Copier.copy(initVariableAddresses[batchIndex] + offset, dstVarKeyAddr + varOffset, varLen);
+      varOffset += varLen;
+
+      final long keyVarAddr = initVariableAddresses[batchIndex] + offset;
+      final long keyHash = LBlockHashTable.keyHashCode(srcFixedAddr, (blockWidth - VAR_OFFSET_SIZE),
+        keyVarAddr, (varLen - VAR_LENGTH_SIZE), seed);
+      final int keyHashInt = (int) keyHash;
+      int controlIndex = keyHashInt & (capacity - 1);
+
+      //4 lookup the key & fix the ordinal
+      while (true) {
+        final int controlChunkIndex = controlIndex >>> BITS_IN_CHUNK;
+        final int offsetInChunk = controlIndex & CHUNK_OFFSET_MASK;
+        final long tableControlAddr = tableControlAddresses[controlChunkIndex] + (offsetInChunk * CONTROL_WIDTH);
+        final long control = PlatformDependent.getLong(tableControlAddr);
+
+        //must not get a free slot before finding the target key, as we always probe up when inserting
+        if (control == LFREE) {
+          Preconditions.checkArgument(control != LFREE,
+            "Error: Cannot lookup ordinal duing splice remap");
+        }
+
+        final int storedOrdinal = (int) control;
+        // fix the ordinal, if it matches
+        if (keyHashInt == (int)(control >>> 32) && (storedOrdinal == srcOrdinal)) {
+          PlatformDependent.putInt(tableControlAddr, targetOrdinal);
+          break;
+        }
+        controlIndex = (controlIndex - 1) & (capacity - 1);
+      }
+    }
+
+    //fix the usage of dest varlen buffer
+    variableBlocks[dstChunkIndex].getUnderlying().writerIndex(varOffset);
+    openVariableAddresses[dstChunkIndex] = initVariableAddresses[dstChunkIndex] + varOffset;
+
+    //new insert location
+    return targetOrdinal;
+  }
+
+  /**
+   * copies the keys from batchIndex to the new batch (identified by newCurrentOrdinal).
+   * also fixes the ordinal of keys.
+   * @param batchIndex source batch from which to copy the keys
+   * @param sourceStartIndex the index in fixedBlockVector from which to copy keys
+   * @param sourceEndIndex index (exclusive) upto which the keys are copied (equivalent to 'numRecords')
+   * @param newCurrentOrdinal the starting ordinal of the target batch
+   * @return returns the new cardinal value
+   */
+  @VisibleForTesting
+  private int copyKeysToNewBatch(final int batchIndex, final int sourceStartOrdinal, final int sourceStartIndex,
+                                 final int sourceEndIndex, final int newCurrentOrdinal, final long seed) {
+    /* Code duplication to avoid any 'if' conditions inside the for loop. */
+    if (fixedOnly) {
+      return copyWithFixedKeyOnly(batchIndex, sourceStartOrdinal, sourceStartIndex, sourceEndIndex, newCurrentOrdinal, seed);
+    } else {
+      return copyWithVarKey(batchIndex, sourceStartOrdinal, sourceStartIndex, sourceEndIndex, newCurrentOrdinal, seed);
+    }
+  }
+
+  /**
+   * Copies the records from 1 batch to another, starting from a given index. And,
+   * frees up the space in the source accumulator.
+   * @param srcBatchIndex batch num of source accumulator
+   * @param dstBatchIndex batch num of destination
+   * @param sourceStartIndex  start index of source
+   * @param dstStartIndex  start index of source
+   * @return
+   */
+  @VisibleForTesting
+  private int moveAccumulatedRecords(final int srcBatchIndex, final int dstBatchIndex,
+                                           final int sourceStartIndex, final int dstStartIndex,
+                                           final int numRecords) {
+    //1. copy any variable length accumulators
+    final int bytesCopied = moveVarLenAccumulatedRecords(srcBatchIndex, dstBatchIndex, sourceStartIndex, dstStartIndex, numRecords);
+
+    //2. copy fixed width accumulators
+    moveFixedLenAccumulatedRecords(srcBatchIndex, dstBatchIndex, sourceStartIndex, dstStartIndex, numRecords);
+    return bytesCopied;
+  }
+
+  /**
+   * Same as above, but for variable length accumulators - i.e. mutablevarchar vector
+   * @param srcBatchIndex batch num of source accumulator
+   * @param dstBatchIndex batch num of destination
+   * @param sourceStartIndex  start index of source
+   * @param dstStartIndex  start index of source
+   * @param numRecords  total records to move
+   * @return
+   */
+  @VisibleForTesting
+  private int moveVarLenAccumulatedRecords(final int srcBatchIndex, final int dstBatchIndex,
+                                           final int sourceStartIndex, final int dstStartIndex,
+                                           final int numRecords)
+  {
+    final List<FieldVector> srcVectors = ((AccumulatorSet)listener).getVarlenAccumulators(srcBatchIndex);
+    final List<FieldVector> dstVectors = ((AccumulatorSet)listener).getVarlenAccumulators(dstBatchIndex);
+
+    Preconditions.checkArgument(srcVectors.size() == dstVectors.size());
+    Preconditions.checkArgument(srcVectors.size() > 0);
+
+    int total_moved = 0;
+    for (int i = 0; i < srcVectors.size(); ++i) {
+      final MutableVarcharVector srcMv = ((MutableVarcharVector)srcVectors.get(i));
+      final int moved = srcMv.moveToAndFreeSpace(sourceStartIndex, dstStartIndex, numRecords, dstVectors.get(i));
+      total_moved += moved;
+    }
+
+    return total_moved;
+  }
+
+  /**
+   * Same as above, but for fixed length accumulators.
+   * @param srcBatchIndex batch num of source accumulator
+   * @param dstBatchIndex batch num of destination
+   * @param sourceStartIndex  start index of source
+   * @param dstStartIndex  start index of destination
+   * @param numRecords  total records to move
+   * @return
+   */
+  @VisibleForTesting
+  private void moveFixedLenAccumulatedRecords(final int srcBatchIndex, final int dstBatchIndex,
+                                             final int sourceStartIndex, final int dstStartIndex,
+                                             final int numRecords) {
+    final List<FieldVector> srcVectors = ((AccumulatorSet)listener).getFixedlenAccumulators(srcBatchIndex);
+    final List<FieldVector> dstVectors = ((AccumulatorSet)listener).getFixedlenAccumulators(dstBatchIndex);
+
+    Preconditions.checkArgument(srcVectors.size() == dstVectors.size());
+
+    for (int i = 0; i < srcVectors.size(); ++i) {
+      final BaseFixedWidthVector src = ((BaseFixedWidthVector)srcVectors.get(i));
+      final BaseFixedWidthVector dst = ((BaseFixedWidthVector)dstVectors.get(i));
+      int dstIndex = dstStartIndex;
+      int count = 0;
+      final ArrowBuf srcValidityBuf = src.getValidityBuffer();
+      //copy each record from source to destination
+      for (int srcIndex = sourceStartIndex; count < numRecords; ++srcIndex, ++dstIndex, ++count) {
+        dst.copyFrom(srcIndex, dstIndex, src);
+        BitVectorHelper.setValidityBit(srcValidityBuf, srcIndex, 0);
+      }
+    }
+  }
+
+  /**
+   * Splits a batch, by creating a new batch and copying some records from old to new.
+   * The copied records are then marked as 'free' in the original batch.
+   * @param expectedOrdinal the ordinal at which the entry trying to be inserted
+   * @seed seed to use when rehashing the keys
+   * @return
+   */
+  public int splice(final int expectedOrdinal, final int varRowSpace, final VectorizedHashAggPartition partition,
+                     final int bitsInChunk, final int chunkOffsetMask, final long seed) {
+    final int batchIndex = getBatchIndexForOrdinal(expectedOrdinal);
+    /* First accumulate the existing records */
+    if (partition.getRecords() > 0) {
+      listener.accumulate(partition.getBuffer().memoryAddress(), partition.getRecords(),
+        bitsInChunk, chunkOffsetMask);
+      partition.resetRecords();
+
+      /* If the batch has enough space after accumulation, no need to splice */
+      if (listener.hasSpace(varRowSpace, batchIndex)) {
+        return expectedOrdinal;
+      }
+    }
+
+    final int numRecords = this.getRecordsInBatch(batchIndex);
+    Preconditions.checkArgument(numRecords > 1);
+
+    listener.verifyBatchCount(fixedBlocks.length);
+    Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
+      "Error: detected inconsistent state in hashtable before starting splice");
+
+    //1. create a fresh batch, to which the records are going to be copied
+    //(may throw an OOM exception, the caller must handle this)
+    addDataBlocks();
+
+    listener.verifyBatchCount(fixedBlocks.length);
+    Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
+      "Error: detected inconsistent state in hashtable during splice");
+
+    //2. set the start of target ordinal
+    final int newCurrentOrdinal = blocks() * MAX_VALUES_PER_BATCH;
+    Preconditions.checkArgument(getBatchIndexForOrdinal(newCurrentOrdinal) != batchIndex);
+    Preconditions.checkArgument(currentOrdinal <= newCurrentOrdinal);
+
+    //split this chunk into half by default
+    final int recordsToCopy = numRecords / 2;
+    final int sourceStartIndex = (numRecords - recordsToCopy);
+
+    //3. move the keys
+    final int srcStartOrdinal = (batchIndex * MAX_VALUES_PER_BATCH) + sourceStartIndex;
+    final int targetOrdinal = copyKeysToNewBatch(batchIndex, srcStartOrdinal, sourceStartIndex, numRecords, newCurrentOrdinal, seed);
+
+    //4 move accumulated records and free space
+    final int dstBatchIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
+    final int total_moved = moveAccumulatedRecords(batchIndex, dstBatchIndex, sourceStartIndex, 0, recordsToCopy);
+
+    //5 fix the usage of fixed & varlen key buffers post copying
+    if (!fixedOnly) {
+      final long srcFixedAddr = tableFixedAddresses[batchIndex] + (sourceStartIndex * pivot.getBlockWidth());
+      final long srcVarOffsetAddr = srcFixedAddr + (pivot.getBlockWidth() - VAR_OFFSET_SIZE);
+      final int offset = PlatformDependent.getInt(srcVarOffsetAddr);
+      //dst buffer gets fixed during copying
+      Preconditions.checkArgument(offset <= variableBlocks[batchIndex].getUnderlying().writerIndex());
+      unusedForVarBlocks += variableBlocks[batchIndex].getUnderlying().writerIndex() - offset;
+      variableBlocks[batchIndex].getUnderlying().writerIndex(offset);
+      openVariableAddresses[batchIndex] = (initVariableAddresses[batchIndex] + offset);
+    }
+
+    fixedBlocks[batchIndex].getUnderlying().writerIndex(sourceStartIndex * pivot.getBlockWidth());
+    unusedForFixedBlocks += recordsToCopy * pivot.getBlockWidth();
+    gaps += recordsToCopy;
+    fixedBlocks[dstBatchIndex].getUnderlying().writerIndex(recordsToCopy * pivot.getBlockWidth());
+
+    //6. fix the ordinal to its new position
+    //logger.debug("spliceop batch: {} old ordinal: {}, new ordinal: {}", batchIndex, currentOrdinal, targetOrdinal);
+    maxOrdinalBeforeExpand = newCurrentOrdinal + ACTUAL_VALUES_PER_BATCH;
+    currentOrdinal = targetOrdinal;
+    return RETRY_RETURN_CODE;
+  }
+
+  public final int getBatchIndexForOrdinal(final int ordinal) {
+    final int batchIndex = ordinal >>> BITS_IN_CHUNK;
+    return batchIndex;
   }
 }

@@ -55,12 +55,12 @@ import com.dremio.exec.store.RuntimeFilterEvaluator;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.EmptySplitReaderCreator;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PrefetchingIterator;
 import com.dremio.exec.store.dfs.SplitReaderCreator;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
+import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
@@ -86,7 +86,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIterator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetSplitReaderCreatorIterator.class);
   private final ParquetSubScan config;
-  private final FileSystemPlugin<?> plugin;
+  private final SupportsIcebergRootPointer plugin;
   private final FileSystem fs;
   private final boolean isAccelerator;
   private final ParquetReaderFactory readerFactory;
@@ -162,7 +162,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.trimRowGroups = context.getOptions().getOption(ExecConstants.TRIM_ROWGROUPS_FROM_FOOTER);
     this.plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
     try {
-      this.fs = plugin.createFS(config.getProps().getUserName(), context);
+      this.fs = plugin.createFS(null, config.getProps().getUserName(), context);
     } catch (IOException e) {
       throw new ExecutionSetupException("Cannot access plugin filesystem", e);
     }
@@ -226,7 +226,15 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.trimRowGroups = context.getOptions().getOption(ExecConstants.TRIM_ROWGROUPS_FROM_FOOTER);
     this.plugin = fragmentExecContext.getStoragePlugin(config.getFunctionContext().getPluginId());
     try {
-      this.fs = plugin.createFS(props.getUserName(), context);
+      // hive iceberg tables go through native iceberg path. so, need async options injected
+      if (config.getFunctionContext().getInternalTablePluginId() == null) {
+        this.fs = plugin.createFSWithAsyncOptions(config.getFunctionContext().getFormatSettings().getLocation(),
+                props.getUserName(), context);
+      } else {
+        // fs native iceberg, or all internal iceberg tables are handled correctly by respective plugins
+        this.fs = plugin.createFS(config.getFunctionContext().getFormatSettings().getLocation(),
+                props.getUserName(), context);
+      }
     } catch (IOException e) {
       throw new ExecutionSetupException("Cannot access plugin filesystem", e);
     }
@@ -523,12 +531,17 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       return;
     }
 
+    Path splitPath = Path.of(blockSplit.getPath());
+    if (fs != null && !fs.supportsPathsWithScheme()) {
+      splitPath = Path.of(Path.getContainerSpecificRelativePath(splitPath));
+    }
+
     long fileLength, fileLastModificationTime;
     if (blockSplit.hasFileLength() && blockSplit.hasLastModificationTime()) {
       fileLength = blockSplit.getFileLength();
       fileLastModificationTime = blockSplit.getLastModificationTime();
     } else {
-      final FileAttributes fileAttributes = fs.getFileAttributes(Path.of(blockSplit.getPath()));
+      final FileAttributes fileAttributes = fs.getFileAttributes(splitPath);
       fileLength = fileAttributes.size();
       fileLastModificationTime = fileAttributes.lastModifiedTime().toMillis();
     }
@@ -558,7 +571,6 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       return rowGroupNums.get(0);
     };
 
-    final Path splitPath = Path.of(blockSplit.getPath());
     if(lastInputStreamProvider != null && !splitPath.equals(lastInputStreamProvider.getStreamPath())) {
       logger.debug("Block splits are for different files so reusing stream providers is not possible. Setting last input stream provider to null");
       setLastInputStreamProvider(null);
@@ -575,7 +587,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     for (int rowGroupNum : rowGroupNums) {
       rowGroupSplitAttrs.add(ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
               .setRowGroupIndex(rowGroupNum)
-              .setPath(blockSplit.getPath())
+              .setPath(splitPath.toString())
               .setStart(0L)
               .setLength(blockSplit.getLength()) // max row group size possible
               .setFileLength(fileLength)
@@ -639,7 +651,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     final List<String> dataset = referencedTables == null || referencedTables.isEmpty() ? null : referencedTables.iterator().next();
 
     Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
-    ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields);
+    ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields, isConvertedIcebergDataset);
 
     // If the ExecOption to ReadColumnIndexes is True and the configuration has a Filter, set readColumnIndices to true.
     boolean readColumnIndices = (context.getOptions().getOption(READ_COLUMN_INDEXES) &&

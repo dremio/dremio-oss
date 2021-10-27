@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive.metadata;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -22,14 +23,18 @@ import java.util.Objects;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.exec.catalog.DatasetSaverImpl;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
+import com.dremio.hive.proto.HiveReaderProto;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.AbstractIterator;
 
@@ -51,6 +56,9 @@ import com.google.common.collect.AbstractIterator;
  * single {@link com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto} object.
  * - For {@link SplitType#INPUT_SPLIT}, if a {@link Partition} has "too many" {@link org.apache.hadoop.mapred.InputSplit} objects,
  * then > 1 {@link PartitionChunk} will be generated, each with the same {@link Partition} and
+ * - For {@link SplitType#ICEBERG_MANIFEST_SPLIT}, The partition files are not read directly,
+ * it simply returns a partition chunk with the metadata json file with additional table property
+ * to identify whether the table type is iceberg.
  * a batch of associated {@link org.apache.hadoop.mapred.InputSplit} objects.
  * - {@link InputSplitBatchIterator} is used to manage a list of
  * {@link org.apache.hadoop.mapred.InputSplit} objects as batches.
@@ -75,7 +83,8 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
   public enum SplitType {
     UNKNOWN,
     INPUT_SPLIT,
-    DIR_LIST_INPUT_SPLIT
+    DIR_LIST_INPUT_SPLIT,
+    ICEBERG_MANIFEST_SPLIT
   }
 
   private HivePartitionChunkListing(final boolean storageImpersonationEnabled, final boolean enforceVarcharWidth, final TableMetadata tableMetadata,
@@ -97,7 +106,35 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
     Partition partition = null;
     currentPartitionIndex++;
 
-    if (null == partitions) {
+    if (SplitType.ICEBERG_MANIFEST_SPLIT.equals(splitType)) {
+      if (logger.isDebugEnabled()) {
+        logger.debug("Table '{}', data read from iceberg root pointer.",
+          tableMetadata.getTable().getTableName());
+      }
+      //If it's a iceberg table only the partition xattr is needed.
+      currentPartitionMetadata = PartitionMetadata.newBuilder().partition(null)
+        .partitionXattr(HiveMetadataUtils.getPartitionXattr(tableMetadata.getTable(),
+          HiveMetadataUtils.fromProperties(tableMetadata.getTableProperties())))
+        .partitionValues(Collections.EMPTY_LIST)
+        .inputSplitBatchIterator(
+          InputSplitBatchIterator.newBuilder()
+            .partition(null)
+            .tableMetadata(tableMetadata)
+            .inputSplits(Collections.EMPTY_LIST)
+            .maxInputSplitsPerPartition(maxInputSplitsPerPartition)
+            .build())
+        .build();
+
+      metadataAccumulator.accumulateReaderType(MapredParquetInputFormat.class);
+      metadataAccumulator.setIsExactRecordCount(true);
+      metadataAccumulator.accumulateTotalEstimatedRecords(tableMetadata.getRecordCount());
+      metadataAccumulator.setNotAllFSBasedPartitions();
+      HiveReaderProto.RootPointer rootPointer = HiveReaderProto.RootPointer.newBuilder()
+        .setPath(tableMetadata.getTableProperties().getProperty(HiveMetadataUtils.METADATA_LOCATION, ""))
+        .build();
+      metadataAccumulator.setRootPointer(rootPointer);
+      return;
+    } else if (null == partitions) {
       if (logger.isDebugEnabled()) {
         logger.debug("Table '{}', 1 partition exists.",
           tableMetadata.getTable().getTableName());
@@ -188,6 +225,13 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
           currentPartitionMetadata = HiveMetadataUtils.getPartitionMetadata(
             storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, metadataAccumulator, partition,
             hiveConf, currentPartitionIndex, maxInputSplitsPerPartition, splitType);
+
+          // throw error if partitions found using different input format
+          if (!metadataAccumulator.isAllPartitionsUseSameInputFormat()) {
+            String errorMsg = String.format(DatasetSaverImpl.unsupportedPartitionListingError + " [%s]", tableMetadata.getTable().getTableName());
+            logger.error(errorMsg);
+            throw UserException.unsupportedError().message(errorMsg).build(logger);
+          }
         }
 
         final List<DatasetSplit> datasetSplits = HiveMetadataUtils.getDatasetSplitsFromDirListSplits(tableMetadata, currentPartitionMetadata);
@@ -243,6 +287,11 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
         return new HivePartitionChunkIteratorForInputSplit();
       case DIR_LIST_INPUT_SPLIT:
         return new HivePartitionChunkIteratorForDirListInputSplit();
+      case ICEBERG_MANIFEST_SPLIT:
+        return Arrays.asList(
+          PartitionChunk.of(HiveMetadataUtils.getDatasetSplitsForIcebergTables(tableMetadata),
+            os -> os.write(currentPartitionMetadata.getPartitionXattr().toByteArray())))
+          .iterator();
       case UNKNOWN:
       default:
         throw new UnsupportedOperationException("Invalid Split type " + splitType);

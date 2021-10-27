@@ -29,19 +29,22 @@ final class DatasetMetadataImpl implements DatasetMetadata {
   private final List<String> partitionColumns;
   private final List<String> sortColumns;
   private final BytesOutput extraInfo;
+  private final byte[] icebergMetadata;
 
   DatasetMetadataImpl(
       DatasetStats stats,
       Schema schema,
       List<String> partitionColumns,
       List<String> sortColumns,
-      BytesOutput extraInfo
+      BytesOutput extraInfo,
+      byte[] icebergMetadata
   ) {
     this.stats = stats;
     this.schema = schema;
     this.partitionColumns = partitionColumns;
     this.sortColumns = sortColumns;
     this.extraInfo = extraInfo;
+    this.icebergMetadata = icebergMetadata;
   }
 
   @Override
@@ -67,5 +70,10 @@ final class DatasetMetadataImpl implements DatasetMetadata {
   @Override
   public BytesOutput getExtraInfo() {
     return extraInfo;
+  }
+
+  @Override
+  public byte[] getIcebergMetadata() {
+    return icebergMetadata;
   }
 }

@@ -28,8 +28,8 @@ const DatasetCell = ({ job }) => {
   const TooltipInnerStyle = {
     width: 'auto',
     maxWidth: '450px',
-    background: '#F5FCFF',
-    border: '1.5px solid #31D3DB',
+    background: '#F4FAFC', //DX-34369
+    border: '1.5px solid #43B8C9',
     padding: '0px 8px 12px 8px'
   };
 
@@ -87,7 +87,7 @@ const DatasetCell = ({ job }) => {
           const description = job.get('description');
           const datasetDescription = !queryText || queryText === 'NA'
             ? description : datasetPath;
-            const datasetType = dataset.get('datasetType');
+          const datasetType = dataset.get('datasetType');
           return (
             <div key={`datasetCell-${index}`} className='jobsContent-dataset__tooltipWrapper'>
               <FontIcon

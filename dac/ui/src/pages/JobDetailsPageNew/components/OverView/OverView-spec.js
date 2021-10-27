@@ -41,8 +41,10 @@ describe('OverView', () => {
       wlmQueue: 'queue',
       queriedDatasets: [],
       scannedDatasets: [],
-      input: '20 Mb / 25000 Records',
-      output: '20 Mb / 25000 Records'
+      inputBytes: '20',
+      outputBytes: '20',
+      inputRecords: '25',
+      outputRecords: '20'
     })
   };
 

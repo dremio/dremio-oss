@@ -23,4 +23,6 @@ export function getEditionFromConfig() {
   return config && config.edition;
 }
 
-export const getAboutMode = () => 'full';
+export function getAboutMode() {
+  return 'full';
+}

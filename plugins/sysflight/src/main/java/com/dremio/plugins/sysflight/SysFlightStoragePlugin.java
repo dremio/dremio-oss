@@ -18,7 +18,6 @@ package com.dremio.plugins.sysflight;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.apache.arrow.flight.Criteria;
@@ -38,7 +37,6 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.exec.planner.logical.ViewTable;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
@@ -47,6 +45,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import io.grpc.ManagedChannel;
@@ -62,7 +61,8 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   private final String name;
   private final Boolean useConduit;
   private final BufferAllocator allocator;
-  private FlightClient flightClient;
+  private volatile FlightClient flightClient;
+  private volatile ManagedChannel prevChannel;
   private final Predicate<String> userPredicate;
 
   public SysFlightStoragePlugin(SysFlightPluginConf conf, SabotContext context, String name, Boolean useConduit, Predicate<String> userPredicate) {
@@ -75,32 +75,37 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   }
 
   public FlightClient getFlightClient() {
-    if (flightClient == null) {
+    final ManagedChannel curChannel;
+    if (useConduit) {
+      curChannel = context.getConduitProvider().getOrCreateChannelToMaster();
+    } else {
+      curChannel = context.getConduitProvider().getOrCreateChannel(conf.endpoint);
+    }
+
+    if (prevChannel != curChannel) {
       synchronized (this) {
-        if (flightClient == null) {
-          NodeEndpoint ep;
-          if (useConduit) {
-            ep = context.getEndpoint();
-          } else {
-            ep = conf.endpoint;
-          }
-          final ManagedChannel channel = context.getConduitProvider().getOrCreateChannel(ep);
-          flightClient = FlightGrpcUtils.createFlightClientWithSharedChannel(allocator, channel);
+        if (prevChannel != curChannel) {
+          AutoCloseables.closeNoChecked(flightClient);
+          prevChannel = curChannel;
+          flightClient = FlightGrpcUtils.createFlightClient(allocator, prevChannel);
         }
       }
     }
+
+    Preconditions.checkNotNull(flightClient, "FlightClient not instantiated");
     return flightClient;
   }
+
+  BufferAllocator getAllocator() {
+    return allocator;
+  }
+
   SysFlightStoragePlugin(SysFlightPluginConf conf, SabotContext context, String name, Boolean useConduit) {
     this(conf, context, name, useConduit, s -> true);
   }
 
   public SabotContext getSabotContext() {
     return context;
-  }
-
-  public SysFlightPluginConf getPluginConf() {
-    return conf;
   }
 
   @Override
@@ -178,9 +183,5 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
       return Optional.empty();
     }
     return Optional.of(new SysFlightTable(entityPath, getFlightClient()));
-  }
-
-  private static EntityPath canonicalize(EntityPath entityPath) {
-    return new EntityPath(entityPath.getComponents().stream().map(String::toLowerCase).collect(Collectors.toList()));
   }
 }

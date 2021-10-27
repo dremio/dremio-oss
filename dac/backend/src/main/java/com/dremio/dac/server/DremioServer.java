@@ -19,13 +19,11 @@ import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.security.KeyStore;
 import java.util.EnumSet;
+import java.util.function.Consumer;
 
-import javax.inject.Provider;
 import javax.servlet.DispatcherType;
-import javax.ws.rs.container.DynamicFeature;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
@@ -37,15 +35,8 @@ import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
 
-import com.dremio.dac.daemon.DremioBinder;
-import com.dremio.dac.server.socket.SocketServlet;
-import com.dremio.options.OptionManager;
 import com.dremio.service.SingletonRegistry;
-import com.dremio.service.jobs.JobsService;
-import com.dremio.service.tokens.TokenManager;
 import com.dremio.telemetry.api.tracing.http.ServerTracingFilter;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -76,69 +67,14 @@ public class DremioServer {
   public void startDremioServer(
     SingletonRegistry registry,
     DACConfig config,
-    Provider<RestServerV2> restServerProvider,
-    Provider<APIServer> apiServerProvider,
-    Provider<ScimServer> scimServerProvider,
-    DremioBinder dremioBinder,
     String uiType,
-    boolean isInternalUS
+    Consumer<ServletContextHandler> servletRegistrer
   ) throws Exception {
     try {
       if (!embeddedJetty.isRunning()) {
         createConnector(config);
         addHandlers();
       }
-
-      // security header filters
-      SecurityHeadersFilter securityHeadersFilter = new SecurityHeadersFilter(registry.provider(OptionManager.class));
-      servletContextHandler.addFilter(new FilterHolder(securityHeadersFilter), "/*", EnumSet.of(DispatcherType.REQUEST));
-
-      // Generic Response Headers filter for api responses
-      servletContextHandler.addFilter(GenericResponseHeadersFilter.class.getName(), "/apiv2/*", EnumSet.of(DispatcherType.REQUEST));
-      servletContextHandler.addFilter(GenericResponseHeadersFilter.class.getName(), "/api/*", EnumSet.of(DispatcherType.REQUEST));
-
-      // add the font mime type.
-      final MimeTypes mimeTypes = servletContextHandler.getMimeTypes();
-      mimeTypes.addMimeMapping("woff2", "application/font-woff2; charset=utf-8");
-      servletContextHandler.setMimeTypes(mimeTypes);
-
-      // WebSocket API
-      final SocketServlet servlet = new SocketServlet(registry.lookup(JobsService.class), registry.lookup(TokenManager.class));
-      final ServletHolder wsHolder = new ServletHolder(servlet);
-      wsHolder.setInitOrder(3);
-      servletContextHandler.addServlet(wsHolder, "/apiv2/socket");
-
-      // Rest API
-      ResourceConfig restServer = restServerProvider.get();
-
-      restServer.property(RestServerV2.ERROR_STACKTRACE_ENABLE, config.sendStackTraceToClient);
-      restServer.property(RestServerV2.TEST_API_ENABLE, config.allowTestApis);
-      restServer.property(RestServerV2.FIRST_TIME_API_ENABLE, isInternalUS);
-
-      restServer.register(dremioBinder);
-      restServer.register((DynamicFeature) (resourceInfo, context) -> context.register(TracingFilter.class));
-
-      final ServletHolder restHolder = new ServletHolder(new ServletContainer(restServer));
-      restHolder.setInitOrder(2);
-      servletContextHandler.addServlet(restHolder, "/apiv2/*");
-
-      // Public API
-      ResourceConfig apiServer = apiServerProvider.get();
-      apiServer.register(dremioBinder);
-      apiServer.register((DynamicFeature) (resourceInfo, context) -> context.register(TracingFilter.class));
-
-      final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
-      apiHolder.setInitOrder(3);
-      servletContextHandler.addServlet(apiHolder, "/api/v3/*");
-
-      // SCIM API
-      ResourceConfig scimServer = scimServerProvider.get();
-      scimServer.register(dremioBinder);
-      scimServer.register((DynamicFeature) (resourceInfo, context) -> context.register(TracingFilter.class));
-
-      final ServletHolder scimHolder = new ServletHolder(new ServletContainer(scimServer));
-      scimHolder.setInitOrder(4);
-      servletContextHandler.addServlet(scimHolder, "/scim/v2/*");
 
       if (config.verboseAccessLog) {
         accessLogFilter = new AccessLogFilter();
@@ -155,6 +91,10 @@ public class DremioServer {
         final ServletHolder fallbackServletHolder = new ServletHolder("fallback-servlet", registry.lookup(DremioServlet.class));
         addStaticPath(fallbackServletHolder, basePath, markerPath);
         servletContextHandler.addServlet(fallbackServletHolder, "/*");
+      }
+
+      if (servletRegistrer != null) {
+        servletRegistrer.accept(servletContextHandler);
       }
 
       if (!embeddedJetty.isRunning()) {

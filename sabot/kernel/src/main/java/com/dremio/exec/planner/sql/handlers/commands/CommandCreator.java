@@ -41,7 +41,6 @@ import com.dremio.exec.planner.sql.handlers.direct.AccelDropReflectionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AccelToggleHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AddColumnsHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterClearPlanCacheHandler;
-import com.dremio.exec.planner.sql.handlers.direct.AlterReflectionRoutingHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTableChangeColumnSetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AlterTableSetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AnalyzeTableStatisticsHandler;
@@ -72,7 +71,6 @@ import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlAccelToggle;
 import com.dremio.exec.planner.sql.parser.SqlAddExternalReflection;
 import com.dremio.exec.planner.sql.parser.SqlAlterClearPlanCache;
-import com.dremio.exec.planner.sql.parser.SqlAlterDatasetReflectionRouting;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumnSetOption;
@@ -380,8 +378,6 @@ public class CommandCreator {
           return direct.create(new AlterClearPlanCacheHandler(context));
         } else if (sqlNode instanceof SqlAnalyzeTableStatistics) {
           return direct.create(new AnalyzeTableStatisticsHandler(catalog, config, context.getStatisticsAdministrationFactory()));
-        } else if (sqlNode instanceof SqlAlterDatasetReflectionRouting) {
-          return direct.create (new AlterReflectionRoutingHandler(catalog, config));
         }
 
         // fallthrough

@@ -88,7 +88,7 @@ public class TestParquetGroupScan extends BaseTestQuery {
       runSQL("SELECT COUNT(*) AS \"count\" FROM dfs_test.\"4376_3/604*\"");
       fail("Query should've failed!");
     } catch (UserRemoteException uex) {
-      final String expectedMsg = "Table 'dfs_test.4376_3/604*' not found";
+      final String expectedMsg = "Object '4376_3/604*' not found within 'dfs_test'";
       assertTrue(String.format("Error message should contain \"%s\" but was instead \"%s\"", expectedMsg,
         uex.getMessage()), uex.getMessage().contains(expectedMsg));
     }
@@ -116,7 +116,7 @@ public class TestParquetGroupScan extends BaseTestQuery {
       runSQL("SELECT COUNT(*) AS \"count\" FROM dfs_test.\"4376_5/6041\"");
       fail("Query should've failed!");
     } catch (UserRemoteException uex) {
-      final String expectedMsg = "Table 'dfs_test.4376_5/6041' not found";
+      final String expectedMsg = "VALIDATION ERROR: Object 'dfs_test' not found";
       assertTrue(String.format("Error message should contain \"%s\" but was instead \"%s\"", expectedMsg,
         uex.getMessage()), uex.getMessage().contains(expectedMsg));
     }

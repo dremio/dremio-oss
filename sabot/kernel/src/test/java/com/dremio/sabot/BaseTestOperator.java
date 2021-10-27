@@ -131,6 +131,7 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.test.DremioTest;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
@@ -307,6 +308,7 @@ public class BaseTestOperator extends ExecTest {
     }
   }
 
+
   protected static class OperatorTestContext implements AutoCloseable{
 
     SabotConfig config = DEFAULT_SABOT_CONFIG;
@@ -357,6 +359,11 @@ public class BaseTestOperator extends ExecTest {
       }catch(Exception e){
         throw new RuntimeException(e);
       }
+    }
+
+    public void invalidateExpToCompiledClazzCacheInCodeCompiler() {
+      Preconditions.checkNotNull(compiler, "Compiler must have been initialized");
+      compiler.invalidateExpToCompiledClazzCache();
     }
 
     public OptionManager getOptions(){

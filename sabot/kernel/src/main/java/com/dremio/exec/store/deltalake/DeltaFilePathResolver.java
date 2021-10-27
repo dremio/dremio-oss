@@ -16,6 +16,9 @@
 
 package com.dremio.exec.store.deltalake;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.file.proto.FileType;
 
@@ -28,12 +31,22 @@ import com.dremio.service.namespace.file.proto.FileType;
  */
 public class DeltaFilePathResolver {
 
-  public Path resolve(Path metaDir, Long version, FileType type) {
-    String versionWithZeroPadding = String.format("%20s", version.toString()).replace(' ', '0');
+  public List<Path> resolve(Path metaDir, Long version, Long subparts, FileType type) {
+    List<Path> resolvedPathsList = new ArrayList<>(subparts.intValue());
+    if (subparts > 1) {
+      for(Long i = 1L; i <= subparts; i++) {
+        String versionWithZeroPadding = String.format("%20s.checkpoint.%10s.%10s.parquet", version.toString(), i.toString(), subparts.toString()).replace(' ', '0');
 
-    versionWithZeroPadding = versionWithZeroPadding + getExtension(type);
+        resolvedPathsList.add(metaDir.resolve(Path.of(versionWithZeroPadding)));
+      }
+    }else {
+      String versionWithZeroPadding = String.format("%20s", version.toString()).replace(' ', '0');
 
-    return metaDir.resolve(Path.of(versionWithZeroPadding));
+      versionWithZeroPadding = versionWithZeroPadding + getExtension(type);
+
+      resolvedPathsList.add(metaDir.resolve(Path.of(versionWithZeroPadding)));
+    }
+    return resolvedPathsList;
   }
 
   private String getExtension(FileType type) {
@@ -46,4 +59,5 @@ public class DeltaFilePathResolver {
         throw new IllegalArgumentException("File type is not supported " + type);
     }
   }
+
 }

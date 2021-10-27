@@ -104,6 +104,10 @@ public class EvaluationVisitor {
     this.constantArrayThreshold = functionContext.getCompilationOptions().getConstantArrayThreshold();
   }
 
+  public int getFunctionErrorContextsCount() {
+    return functionContext.getFunctionErrorContextSize();
+  }
+
   public HoldingContainer addExpr(LogicalExpression e, ClassGenerator<?> generator, boolean allowInnerMethods) {
     Set<LogicalExpression> constantBoundaries;
     if (generator.getMappingSet().hasEmbeddedConstant()) {
@@ -619,9 +623,6 @@ public class EvaluationVisitor {
       final boolean listVector = e.getTypedFieldId().isListVector();
 
       int[] fieldIds = e.getFieldId().getFieldIds();
-      for (int i = 1; i < fieldIds.length; i++) {
-
-      }
 
       if (!hasReadPath && !complex) {
         JBlock eval = new JBlock();
@@ -1110,7 +1111,7 @@ public class EvaluationVisitor {
 
     private boolean shouldNestMethod() {
       return ((caseConditionCount.isEmpty() && exprCount.peekLast() > newMethodThreshold)
-        || (!caseConditionCount.isEmpty() && caseConditionCount.peek() > newMethodThreshold));
+        || (!caseConditionCount.isEmpty() && caseConditionCount.peek() > newMethodThreshold)) && allowNewMethods;
     }
 
     private void addCaseDepth() {
@@ -1128,7 +1129,7 @@ public class EvaluationVisitor {
     @Override
     public HoldingContainer visitFunctionHolderExpression(FunctionHolderExpression holder, ClassGenerator<?> generator) throws RuntimeException {
       inc();
-      if (allowNewMethods && shouldNestMethod()) {
+      if (shouldNestMethod()) {
         exprCount.push(0);
         addCaseDepth();
         HoldingContainer out = generator.declare(holder.getCompleteType(), false);

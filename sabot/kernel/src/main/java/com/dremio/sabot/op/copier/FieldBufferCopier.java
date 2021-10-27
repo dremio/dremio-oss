@@ -15,12 +15,16 @@
  */
 package com.dremio.sabot.op.copier;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.expression.CompleteType;
@@ -49,6 +53,16 @@ public abstract class FieldBufferCopier {
 
     // index in the target data vector (used in variable width copiers).
     private int targetDataIndex;
+
+    public Cursor () {
+      this.targetIndex = 0;
+      this.targetDataIndex = 0;
+    }
+
+    public Cursor (Cursor cursor) {
+      this.targetIndex = cursor.targetIndex;
+      this.targetDataIndex = cursor.targetDataIndex;
+    }
   }
 
   public abstract void copy(long offsetAddr, int count);
@@ -70,11 +84,33 @@ public abstract class FieldBufferCopier {
     throw new UnsupportedOperationException("copy with cursor not supported");
   }
 
+  /**
+   * Copy data from source to target vector. This method is only called for the inner vectors of a list vector
+   * In case of inner data vectors of list vectors the sv index won't correspond to the actual indices, so we
+   * set the start and end offsets on a tmp buffer in the copy call of parent list vector and update the offsets
+   * for the inner data vector in each copyInnerList call of inner list vector. The leaf level copyInnerList call will
+   * make use of the offsets to copy the values.
+   * (Another approach would have been to setting the selection vector for each inner list, instead of setting the offsets,
+   * which would enable us to make use of existing copy methods instead of introducing this new method. However the issue
+   * with that is the inner vector record count can be large and so might not fit in the 2-byte limit of sv. Also
+   * it would need allocating a large buffer for each level and setting the sv index for each inner vector member)
+   * @param listOffsetBufAddr
+   * @param count
+   * @param seekTo
+   * @return
+   */
+  public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+    throw new UnsupportedOperationException("copyInnerList() is not supported");
+  }
+
   // Ensure that the vector is sized upto capacity 'size'.
-  protected void ensure(FixedWidthVector vector, int size) {
+  protected boolean resizeIfNeeded(FixedWidthVector vector, int size) {
+    boolean resized = false;
     while (vector.getValueCapacity() < size) {
+      resized = true;
       vector.reAlloc();
     }
+    return resized;
   }
 
   static abstract class FixedWidthCopier extends FieldBufferCopier {
@@ -106,7 +142,7 @@ public abstract class FieldBufferCopier {
       if (cursor == null) {
         cursor = new Cursor();
       }
-      ensure(targetAlt, cursor.targetIndex + count);
+      resizeIfNeeded(targetAlt, cursor.targetIndex + count);
       seekAndCopy(offsetAddr, count, cursor.targetIndex);
       cursor.targetIndex += count;
       return cursor;
@@ -136,6 +172,29 @@ public abstract class FieldBufferCopier {
                 srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
       }
     }
+
+    @Override
+    public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      final long srcAddr = source.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
+      long prevDataBufAddr = target.getDataBufferAddress();
+      int dstIndex = seekTo;
+
+      for (long addr = listOffsetBufAddr; addr < listOffsetBufAddr + 2 * count * ListVector.OFFSET_WIDTH; addr += 2 * ListVector.OFFSET_WIDTH) {
+        long startAndEndOffset = PlatformDependent.getLong(addr);
+        int startOffset = (int) startAndEndOffset;
+        int endOffset = (int) (startAndEndOffset >> 32);
+        dstIndex += endOffset - startOffset;
+        if(resizeIfNeeded(targetAlt, dstIndex)) {
+          dstAddr += target.getDataBufferAddress() - prevDataBufAddr;
+          prevDataBufAddr = target.getDataBufferAddress();
+        }
+
+        assert target.getValueCapacity() >= dstIndex : "Target vector does not have enough capacity to copy records";
+        PlatformDependent.copyMemory(srcAddr + startOffset * SIZE, dstAddr, (endOffset - startOffset) * SIZE);
+        dstAddr += (endOffset - startOffset) * SIZE;
+      }
+    }
   }
 
   static final class EightByteCopier extends FixedWidthCopier {
@@ -157,6 +216,29 @@ public abstract class FieldBufferCopier {
             srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
       }
     }
+
+    @Override
+    public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      final long srcAddr = source.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
+      long prevDataBufAddr = target.getDataBufferAddress();
+      int dstIndex = seekTo;
+
+      for (long addr = listOffsetBufAddr; addr < listOffsetBufAddr + 2 * count * ListVector.OFFSET_WIDTH; addr += 2 * ListVector.OFFSET_WIDTH) {
+        long startAndEndOffset = PlatformDependent.getLong(addr);
+        int startOffset = (int) startAndEndOffset;
+        int endOffset = (int) (startAndEndOffset >> 32);
+        dstIndex += endOffset - startOffset;
+        if(resizeIfNeeded(targetAlt, dstIndex)) {
+          dstAddr += target.getDataBufferAddress() - prevDataBufAddr;
+          prevDataBufAddr = target.getDataBufferAddress();
+        }
+
+        assert target.getValueCapacity() >= dstIndex : "Target vector does not have enough capacity to copy records";
+        PlatformDependent.copyMemory(srcAddr + startOffset * SIZE, dstAddr, (endOffset - startOffset) * SIZE);
+        dstAddr += (endOffset - startOffset) * SIZE;
+      }
+    }
   }
 
   static final class SixteenByteCopier extends FixedWidthCopier {
@@ -175,6 +257,29 @@ public abstract class FieldBufferCopier {
         final int offset = Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr + offset));
         PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(srcAddr + offset + 8));
+      }
+    }
+
+    @Override
+    public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      final long srcAddr = source.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
+      long prevDataBufAddr = target.getDataBufferAddress();
+      int dstIndex = seekTo;
+
+      for (long addr = listOffsetBufAddr; addr < listOffsetBufAddr + 2 * count * ListVector.OFFSET_WIDTH; addr += 2 * ListVector.OFFSET_WIDTH) {
+        long startAndEndOffset = PlatformDependent.getLong(addr);
+        int startOffset = (int) startAndEndOffset;
+        int endOffset = (int) (startAndEndOffset >> 32);
+        dstIndex += endOffset - startOffset;
+        if(resizeIfNeeded(targetAlt, dstIndex)) {
+          dstAddr += target.getDataBufferAddress() - prevDataBufAddr;
+          prevDataBufAddr = target.getDataBufferAddress();
+        }
+
+        assert target.getValueCapacity() >= dstIndex : "Target vector does not have enough capacity to copy records";
+        PlatformDependent.copyMemory(srcAddr + startOffset * SIZE, dstAddr, (endOffset - startOffset) * SIZE);
+        dstAddr += (endOffset - startOffset) * SIZE;
       }
     }
   }
@@ -263,6 +368,62 @@ public abstract class FieldBufferCopier {
         targetAlt.reAlloc();
       }
       return seekAndCopy(sv2, count, cursor);
+    }
+
+    @Override
+    public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      final Reallocator realloc = this.realloc;
+      // make sure vectors are internally consistent
+      VariableLengthValidator.validateVariable(source, source.getValueCount());
+
+      final long srcOffsetAddr = source.getOffsetBufferAddress();
+      final long srcDataAddr = source.getDataBufferAddress();
+
+      long dstOffsetAddr = target.getOffsetBufferAddress() + (seekTo + 1) * ListVector.OFFSET_WIDTH;
+      long dstOffsetAddrPrev = target.getOffsetBufferAddress();
+      int targetDataIndex = seekTo > 0 ? PlatformDependent.getInt(dstOffsetAddr - ListVector.OFFSET_WIDTH): 0;
+      long curDataAddr = realloc.addr() + targetDataIndex; // start address for next copy in target
+      long maxDataAddr = realloc.max(); // max bytes we can copy to target before we need to reallocate
+      int offsetCount = 0;
+      int recordsCopied = seekTo;
+
+      for (int idx = 0; idx < count; ++idx) {
+        final long listOffsets = PlatformDependent.getLong(listOffsetBufAddr + idx * Long.BYTES);
+        final int listStartOffset = (int) listOffsets;
+        final int listEndOffset = (int) (listOffsets >> 32);
+
+        // Check enough capacity for offset buffer
+        recordsCopied += listEndOffset - listStartOffset;
+        while (targetAlt.getValueCapacity() <= recordsCopied) {
+          targetAlt.reAlloc();
+          dstOffsetAddr += target.getOffsetBufferAddress() - dstOffsetAddrPrev;
+          dstOffsetAddrPrev = target.getOffsetBufferAddress();
+          curDataAddr = realloc.addr() + targetDataIndex;
+          maxDataAddr = realloc.max();
+        }
+        assert target.getValueCapacity() > recordsCopied : "Target vector does not have enough capacity to copy records";
+
+        int lastOffset = PlatformDependent.getInt(srcOffsetAddr + listStartOffset * 4);
+        for (int listOffset = listStartOffset + 1; listOffset <= listEndOffset; ++listOffset) {
+          int currOffset = PlatformDependent.getInt(srcOffsetAddr + listOffset * 4);
+          int len = currOffset - lastOffset;
+          // check if we need to reallocate target data buffer
+          if (curDataAddr + len > maxDataAddr) {
+            curDataAddr = realloc.ensure(targetDataIndex + len) + targetDataIndex;
+            maxDataAddr = realloc.max();
+          }
+          assert maxDataAddr >= (curDataAddr + len) : "Target vector does not have enough capacity to copy records";
+          targetDataIndex += len;
+          PlatformDependent.putInt(dstOffsetAddr, targetDataIndex);
+          com.dremio.sabot.op.common.ht2.Copier.copy(srcDataAddr + lastOffset, curDataAddr, len);
+          curDataAddr += len;
+          dstOffsetAddr += 4;
+          offsetCount++;
+
+          lastOffset = currOffset;
+        }
+      }
+      realloc.setCount(seekTo + offsetCount);
     }
 
     public void allocate(int records){
@@ -378,6 +539,79 @@ public abstract class FieldBufferCopier {
       }
     }
 
+    @Override
+    public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      long srcAddr;
+      long dstAddr;
+      switch (bufferOrdinal) {
+        case NULL_BUFFER_ORDINAL:
+          srcAddr = source.getValidityBufferAddress();
+          dstAddr = target.getValidityBufferAddress();
+          break;
+        case VALUE_BUFFER_ORDINAL:
+          srcAddr = source.getDataBufferAddress();
+          dstAddr = target.getDataBufferAddress();
+          break;
+        default:
+          throw new UnsupportedOperationException("unexpected buffer ordinal");
+      }
+
+      int recordsCopied = seekTo;
+      int targetIdx = seekTo;
+      for (long addr = listOffsetBufAddr; addr < listOffsetBufAddr + 2 * count * ListVector.OFFSET_WIDTH; addr += 2 * ListVector.OFFSET_WIDTH) {
+        long startAndEndOffset = PlatformDependent.getLong(addr);
+        int startOffset = (int) startAndEndOffset;
+        int endOffset = (int) (startAndEndOffset >> 32);
+
+        recordsCopied += endOffset - startOffset;
+        while (target.getValueCapacity() < recordsCopied) {
+          target.reAlloc();
+          switch (bufferOrdinal) {
+            case NULL_BUFFER_ORDINAL:
+              dstAddr = target.getValidityBufferAddress();
+              break;
+            case VALUE_BUFFER_ORDINAL:
+              dstAddr = target.getDataBufferAddress();
+              break;
+          }
+        }
+        assert target.getValueCapacity() >= recordsCopied : "Target vector does not have enough capacity to copy records";
+        // Optimize copy when startOffset and targetIdx are aligned
+        // and when the bytes containing bits for startOffset and endOffset have atleast one byte between them
+        if ((startOffset % 8 == targetIdx % 8) && (((endOffset >>> 3) - (startOffset >>> 3) - 1) > 0)) {
+
+          // Do bit by bit copy from the bit for srcOffset to the end of the byte containing the bit for srcOffset
+          int byteValue = PlatformDependent.getByte(srcAddr + (startOffset >>> 3));
+          for (int offset = startOffset; offset < ((startOffset / 8 + 1) * 8); ++offset, ++targetIdx) {
+            final int bitValue = ((byteValue >>> (offset & 7)) & 1) << (targetIdx & 7);
+            final long finalDstAddr = dstAddr + (targetIdx >>> 3);
+            PlatformDependent.putByte(finalDstAddr, (byte) (PlatformDependent.getByte(finalDstAddr) | bitValue));
+          }
+
+          // Do direct byte-wise memory copy for the bytes between the byte containing bit for startOffset and the byte containing bit for endOffset
+          PlatformDependent.copyMemory(srcAddr + (startOffset >>> 3) + 1, dstAddr + (targetIdx >>> 3), ((endOffset >>> 3) - (startOffset >>> 3) - 1));
+          targetIdx += ((endOffset >>> 3) - (startOffset >>> 3) - 1) * 8;
+
+          // Do bit by bit copy from the start of byte containing the bit for endOffset to the bit for endOffset
+          byteValue = PlatformDependent.getByte(srcAddr + (endOffset >>> 3));
+          for (int offset = (endOffset / 8 * 8); offset < endOffset; ++offset, ++targetIdx) {
+            final int bitValue = ((byteValue >>> (offset & 7)) & 1) << (targetIdx & 7);
+            final long finalDstAddr = dstAddr + (targetIdx >>> 3);
+            PlatformDependent.putByte(finalDstAddr, (byte) (PlatformDependent.getByte(finalDstAddr) | bitValue));
+          }
+
+        } else {
+          // Do a bit by bit copy
+          for (int offset = startOffset; offset < endOffset; ++offset, ++targetIdx) {
+            final int byteValue = PlatformDependent.getByte(srcAddr + (offset >>> 3));
+            final int bitValue = ((byteValue >>> (offset & 7)) & 1) << (targetIdx & 7);
+            final long finalDstAddr = dstAddr + (targetIdx >>> 3);
+            PlatformDependent.putByte(finalDstAddr, (byte) (PlatformDependent.getByte(finalDstAddr) | bitValue));
+          }
+        }
+      }
+    }
+
     public void allocate(int records){
       if(targetAlt != null){
         targetAlt.allocateNew(records);
@@ -386,13 +620,247 @@ public abstract class FieldBufferCopier {
 
   }
 
+  static class StructCopier extends FieldBufferCopier {
+    private final FieldVector source;
+    private final FieldVector target;
+    private final ImmutableList<FieldBufferCopier> childCopiers;
+    private ArrayList<Cursor> childVariableCopierCursorStore;
+
+    public StructCopier(FieldVector source, FieldVector target) {
+      this.source = source;
+      this.target = target;
+      childCopiers = getCopiers(source.getChildrenFromFields(), target.getChildrenFromFields(), true);
+      childVariableCopierCursorStore = new ArrayList<>();
+    }
+
+    private void seekAndCopy(long offsetAddr, int count, Cursor cursor, boolean freshStart) {
+      if (freshStart) {
+        childVariableCopierCursorStore.clear();
+      }
+      int childVariableCopierTracker = 0;
+      for (FieldBufferCopier childCopier: childCopiers) {
+        if (childCopier instanceof VariableCopier) {
+          // Preserve the targetDataIndex for each string field in the struct
+          childVariableCopierTracker++;
+          if (childVariableCopierCursorStore.size() < childVariableCopierTracker) {
+            // A cursor has not yet been allotted to this field
+            childVariableCopierCursorStore.add(new Cursor());
+          }
+          childCopier.copy(offsetAddr, count, childVariableCopierCursorStore.get(childVariableCopierTracker - 1));
+        }
+        else if (childCopier instanceof StructCopier && freshStart) {
+          // Send a null cursor to inform the child StructCopier that it is a fresh start
+          childCopier.copy(offsetAddr, count, null);
+        }
+        else {
+          // Send a copy of Cursor so that next childCopier will get a copy of Cursor
+          childCopier.copy(offsetAddr, count, new Cursor(cursor));
+        }
+      }
+    }
+
+    @Override
+    public void allocate(int records) {
+      target.setInitialCapacity(records);
+      target.allocateNew();
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count) {
+      allocate(count);
+      childCopiers.forEach(c -> c.copy(offsetAddr, count));
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      copy(offsetAddr, count);
+    }
+
+    @Override
+    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
+      boolean freshStart = false;
+      if (cursor == null) {
+        cursor = new Cursor();
+        freshStart = true;
+      }
+      while (target.getValueCapacity() < cursor.targetIndex + count) {
+        target.reAlloc();
+      }
+      seekAndCopy(offsetAddr, count, cursor, freshStart);
+      cursor.targetIndex += count;
+      return cursor;
+    }
+
+    @Override
+    public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      long dstIndex = seekTo;
+      final long max = listOffsetBufAddr + 2 * count * ListVector.OFFSET_WIDTH;
+
+      /* This is to ensure that the validity buf capacity of the struct is properly adjusted */
+      for (long addr = listOffsetBufAddr; addr < max; addr += 2 * ListVector.OFFSET_WIDTH) {
+        long startAndEndOffset = PlatformDependent.getLong(addr);
+        int startOffset = (int) startAndEndOffset;
+        int endOffset = (int) (startAndEndOffset >> 32);
+        dstIndex += endOffset - startOffset;
+      }
+      while (target.getValueCapacity() < dstIndex) {
+        target.reAlloc();
+      }
+      assert target.getValueCapacity() >= dstIndex : "Target vector does not have enough capacity to copy records";
+      childCopiers.forEach(c -> c.copyInnerList(listOffsetBufAddr, count, seekTo));
+    }
+  }
+
+  static class ListCopier extends FieldBufferCopier {
+    private final FieldVector source;
+    private final FieldVector target;
+    private final List<FieldBufferCopier> childCopiers;
+
+    public ListCopier(FieldVector source, FieldVector target) {
+      this.source = source;
+      this.target = target;
+      this.childCopiers = getCopiers(source.getChildrenFromFields(), target.getChildrenFromFields(), true);
+    }
+
+    @Override
+    public void allocate(int records) {
+      target.setInitialCapacity(records);
+      target.allocateNew();
+    }
+
+    private void seekAndCopy(long offsetAddr, int count, int seekTo) {
+      if (count == 0) {
+        return;
+      }
+
+      /* addr of offset buffer of source list vector */
+      long srcOffsetAddr = source.getOffsetBufferAddress();
+      /* adrr of offset buffer of target list vector starting corresponding to the seekTo position */
+      long targetOffsetAddr = target.getOffsetBufferAddress() + (seekTo + 1) * ListVector.OFFSET_WIDTH;
+
+      /* seek position of child data vector */
+      int childSeekto = seekTo > 0 ? PlatformDependent.getInt(targetOffsetAddr - ListVector.OFFSET_WIDTH) : 0;
+      // This is Zero when it's a first time copy call
+      // If not, then initialize this value to last offset set by previous call, thus making subsequent offset values consistent
+      int targetOffsetIdx = PlatformDependent.getInt(targetOffsetAddr - ListVector.OFFSET_WIDTH);
+      try (ArrowBuf tmpBuf = target.getAllocator().buffer(count * 2 * ListVector.OFFSET_WIDTH)) {
+        int tmpBufIdx = 0;
+        int oldsv = -2;
+        int offsetStart, offsetEnd = -1; /* offsetStart and offsetEnd are list offsets corresponding to the current SV index */
+        for (long addr = offsetAddr; addr < offsetAddr + count * STEP_SIZE; addr += STEP_SIZE, targetOffsetAddr += ListVector.OFFSET_WIDTH) {
+          int sv = Short.toUnsignedInt(PlatformDependent.getShort(addr));
+          /* reuse prev offsetEnd if possible to save one mem access */
+          offsetStart = (sv == oldsv + 1) ? offsetEnd : PlatformDependent.getInt(srcOffsetAddr + sv * ListVector.OFFSET_WIDTH);
+          offsetEnd = PlatformDependent.getInt(srcOffsetAddr + (sv + 1) * ListVector.OFFSET_WIDTH);
+          /* fill up the tmp offset buffer */
+          /* tmpBuf contains the start and end offsets into the inner data vector corresponding to the sv */
+          /* setting this way allows us to copy nested list vectors */
+          tmpBuf.setInt(tmpBufIdx * 4L, offsetStart);
+          tmpBuf.setInt((tmpBufIdx + 1) * 4L, offsetEnd);
+          tmpBufIdx += 2;
+
+          /* set the list offsets in the target vector*/
+          targetOffsetIdx += offsetEnd - offsetStart;
+          PlatformDependent.putInt(targetOffsetAddr, targetOffsetIdx);
+          oldsv = sv;
+        }
+
+        childCopiers.forEach(c -> c.copyInnerList(tmpBuf.memoryAddress(), count, childSeekto));
+
+        ((ListVector) target).setLastSet(seekTo + count - 1);
+      }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count) {
+      allocate(count);
+      seekAndCopy(offsetAddr, count, 0);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      copy(offsetAddr, count);
+    }
+
+    @Override
+    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
+      if (cursor == null) {
+        cursor = new Cursor();
+      }
+      while (target.getValueCapacity() < cursor.targetIndex + count) {
+        target.reAlloc();
+      }
+      seekAndCopy(offsetAddr, count, cursor.targetIndex);
+      cursor.targetIndex += count;
+      return cursor;
+    }
+
+    @Override
+    public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      /* addr of source offset buffer */
+      long srcOffsetAddr = source.getOffsetBufferAddress();
+      /* addr of target offset buffer corresponding to the seek position */
+      long targetOffsetAddr = target.getOffsetBufferAddress() + (seekTo + 1) * ListVector.OFFSET_WIDTH;
+      long targetOffsetBufAddrPrev = target.getOffsetBufferAddress();
+
+      /* seek position of the inner data vector */
+      int childSeekTo = seekTo > 0 ? PlatformDependent.getInt(targetOffsetAddr - ListVector.OFFSET_WIDTH) : 0;
+
+      try (ArrowBuf tmpBuf = target.getAllocator().buffer(2 * count * ListVector.OFFSET_WIDTH)) {
+        /* addr of temp list offset buffer for the child copyInnerList call */
+        long childListOffsetBufAddr = tmpBuf.memoryAddress();
+
+        /* offest into the inner data vector already set */
+        int offsetTilNow = childSeekTo;
+        int offsetCount = seekTo;
+        int recordsCopied = seekTo;
+
+        for (int idx = 0; idx < count; ++idx) {
+          /* startOffset and endOffset are offsets into the offset buffer of the current vector. This is derived
+          * from the parent tmp offset buffer and basically marks the portion of the list to be copied based on the
+          * actual selection vector */
+          long startAndEndOffset = PlatformDependent.getLong(listOffsetBufAddr + (2 * idx) * ListVector.OFFSET_WIDTH);
+          int startOffset = (int) (startAndEndOffset);
+          int endOffset = (int) (startAndEndOffset >> 32);
+
+          recordsCopied += endOffset - startOffset;
+          while (target.getValueCapacity() <= recordsCopied) {
+            target.reAlloc();
+            targetOffsetAddr += target.getOffsetBufferAddress() - targetOffsetBufAddrPrev;
+            targetOffsetBufAddrPrev = target.getOffsetBufferAddress();
+          }
+          assert target.getValueCapacity() > recordsCopied : "Target vector does not have enough capacity to copy records";
+
+          int innerStartOffset = PlatformDependent.getInt(srcOffsetAddr + startOffset * ListVector.OFFSET_WIDTH);
+          int innerEndOffset = innerStartOffset;
+          int lastOffset = innerStartOffset;
+          for (int offset = startOffset + 1; offset <= endOffset; ++ offset, targetOffsetAddr += ListVector.OFFSET_WIDTH, offsetCount++) {
+            innerEndOffset = PlatformDependent.getInt(srcOffsetAddr + offset * ListVector.OFFSET_WIDTH);
+            offsetTilNow += innerEndOffset - lastOffset;
+            PlatformDependent.putInt(targetOffsetAddr, offsetTilNow);
+            lastOffset = innerEndOffset;
+          }
+
+          PlatformDependent.putInt(childListOffsetBufAddr + (2 * idx) * ListVector.OFFSET_WIDTH, innerStartOffset);
+          PlatformDependent.putInt(childListOffsetBufAddr + (2 * idx + 1) * ListVector.OFFSET_WIDTH, innerEndOffset);
+        }
+
+        childCopiers.forEach(c -> c.copyInnerList(tmpBuf.memoryAddress(), count, childSeekTo));
+
+        ((ListVector) target).setLastSet(offsetCount - 1);
+      }
+    }
+  }
+
   static class GenericCopier extends FieldBufferCopier {
     private final TransferPair transfer;
     private final FieldVector dst;
+    private final FieldVector src;
 
     public GenericCopier(FieldVector source, FieldVector dst){
       this.transfer = source.makeTransferPair(dst);
       this.dst = dst;
+      this.src = source;
     }
 
     private void seekAndCopy(long offsetAddr, int count, int seekTo) {
@@ -427,12 +895,48 @@ public abstract class FieldBufferCopier {
       return cursor;
     }
 
+    @Override
+    public void copyInnerList(long listOffsetBufAddr, int count, int seekTo) {
+      // This method gets called only for Unions when the support key ENABLE_VECTORIZED_COMPLEX_COPIER is turned ON
+      // This is because copyInnerList() can only be initiated from a copy() call of an ancestor ListCopier
+      // ListVector will make use of ListCopier only when support key is ON.
+      // If support key is turned OFF, ListVector, StructVector & UnionVector will make use of GenericCopier's seekAndCopy()
+
+      // Get copiers associated with the child arrays of this union
+      final List<FieldBufferCopier> childCopiers = getCopiers(src.getChildrenFromFields(), dst.getChildrenFromFields(), true);
+
+      // UNION does not have validity buffer
+      long srcTypeBufAddr = ((UnionVector) src).getTypeBufferAddress();
+      long dstTypeBufAddr = ((UnionVector) dst).getTypeBufferAddress() + (seekTo * UnionVector.TYPE_WIDTH);
+      long dstTypeBufAddrPrev = ((UnionVector) dst).getTypeBufferAddress();
+      long dstIndex = seekTo;
+      for (long addr = listOffsetBufAddr; addr < listOffsetBufAddr + 2 * count * ListVector.OFFSET_WIDTH; addr += 2 * ListVector.OFFSET_WIDTH) {
+        long startAndEndOffset = PlatformDependent.getLong(addr);
+        int startOffset = (int) startAndEndOffset;
+        int endOffset = (int) (startAndEndOffset >> 32);
+        dstIndex += endOffset - startOffset;
+        // Ensure target type buffer has enough size
+        while (dst.getValueCapacity() < dstIndex) {
+          dst.reAlloc();
+          dstTypeBufAddr += ((UnionVector) dst).getTypeBufferAddress() - dstTypeBufAddrPrev;
+          dstTypeBufAddrPrev = ((UnionVector) dst).getTypeBufferAddress();
+        }
+        assert dst.getValueCapacity() >= dstIndex : "Target vector does not have enough capacity to copy records";
+        // Copy type buffer
+        PlatformDependent.copyMemory(srcTypeBufAddr + startOffset * UnionVector.TYPE_WIDTH, dstTypeBufAddr, (endOffset - startOffset) * UnionVector.TYPE_WIDTH);
+        dstTypeBufAddr += (endOffset - startOffset) * UnionVector.TYPE_WIDTH;
+      }
+
+      childCopiers.forEach(c -> c.copyInnerList(listOffsetBufAddr, count, seekTo));
+    }
+
     public void allocate(int records){
       AllocationHelper.allocate(dst, records, 10);
     }
   }
 
-  private static void addValueCopier(final FieldVector source, final FieldVector target, ImmutableList.Builder<FieldBufferCopier> copiers){
+  private static void addValueCopier(final FieldVector source, final FieldVector target, ImmutableList.Builder<FieldBufferCopier> copiers,
+                                     boolean vectorizedComplexCopier){
     Preconditions.checkArgument(source.getClass() == target.getClass(), "Input and output vectors must be same type.");
     switch(CompleteType.fromField(source.getField()).toMinorType()){
 
@@ -469,8 +973,24 @@ public abstract class FieldBufferCopier {
       copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
       break;
 
-    case LIST:
     case STRUCT:
+      if (vectorizedComplexCopier) {
+        copiers.add(new StructCopier(source, target));
+        copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+      } else {
+        copiers.add(new GenericCopier(source, target));
+      }
+      break;
+
+    case LIST:
+      if (vectorizedComplexCopier) {
+        copiers.add(new ListCopier(source, target));
+        copiers.add(new BitCopier(source, target, NULL_BUFFER_ORDINAL, false));
+      } else {
+        copiers.add(new GenericCopier(source, target));
+      }
+      break;
+
     case UNION:
       copiers.add(new GenericCopier(source, target));
       break;
@@ -480,14 +1000,18 @@ public abstract class FieldBufferCopier {
     }
   }
 
-  public static ImmutableList<FieldBufferCopier> getCopiers(List<FieldVector> inputs, List<FieldVector> outputs){
+  public static ImmutableList<FieldBufferCopier> getCopiers(List<FieldVector> inputs, List<FieldVector> outputs) {
+    return getCopiers(inputs, outputs, false);
+  }
+
+  public static ImmutableList<FieldBufferCopier> getCopiers(List<FieldVector> inputs, List<FieldVector> outputs, boolean vectorizedComplexCopier){
     ImmutableList.Builder<FieldBufferCopier> copiers = ImmutableList.builder();
 
     Preconditions.checkArgument(inputs.size() == outputs.size(), "Input and output lists must be same size.");
     for(int i = 0; i < inputs.size(); i++){
       final FieldVector input = inputs.get(i);
       final FieldVector output = outputs.get(i);
-      addValueCopier(input, output, copiers);
+      addValueCopier(input, output, copiers, vectorizedComplexCopier);
     }
     return copiers.build();
   }

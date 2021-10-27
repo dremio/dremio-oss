@@ -15,8 +15,10 @@
  */
 package com.dremio.service.reflection;
 
-import com.dremio.exec.proto.ReflectionRPC;
+import java.util.Iterator;
+
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC;
 import com.dremio.service.reflection.proto.ReflectionId;
 
 /**
@@ -28,9 +30,9 @@ public interface ReflectionStatusService {
 
   ExternalReflectionStatus getExternalReflectionStatus(ReflectionId reflectionId);
 
-  Iterable<AccelerationListManager.ReflectionInfo> getReflections();
+  Iterator<AccelerationListManager.ReflectionInfo> getReflections();
 
-  Iterable<ReflectionRPC.RefreshInfo> getRefreshInfos();
+  Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> getRefreshInfos();
 
   ReflectionStatusService NOOP = new ReflectionStatusService() {
 
@@ -45,12 +47,12 @@ public interface ReflectionStatusService {
     }
 
     @Override
-    public Iterable<AccelerationListManager.ReflectionInfo> getReflections() {
+    public Iterator<AccelerationListManager.ReflectionInfo> getReflections() {
       throw new UnsupportedOperationException("getReflections");
     }
 
     @Override
-    public Iterable<ReflectionRPC.RefreshInfo> getRefreshInfos() {
+    public Iterator<ReflectionDescriptionServiceRPC.GetRefreshInfoResponse> getRefreshInfos() {
       throw new UnsupportedOperationException("getRefreshInfos");
     }
   };

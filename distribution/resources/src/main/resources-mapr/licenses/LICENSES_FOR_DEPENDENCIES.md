@@ -4,6 +4,13 @@
 |------------------------------------------------------------|--------------------|--------------------|
 |@babel/runtime                                              |7.13.10             |MIT                 |
 |@emotion/hash                                               |0.8.0               |MIT                 |
+|@formatjs/ecma402-abstract                                  |1.9.4               |MIT                 |
+|@formatjs/fast-memoize                                      |1.1.1               |ISC                 |
+|@formatjs/icu-messageformat-parser                          |2.0.7               |MIT                 |
+|@formatjs/icu-skeleton-parser                               |1.2.8               |MIT                 |
+|@formatjs/intl                                              |1.13.2              |MIT                 |
+|@formatjs/intl-displaynames                                 |5.1.6               |MIT                 |
+|@formatjs/intl-listformat                                   |6.2.6               |MIT                 |
 |@material-ui/core                                           |4.11.0              |MIT                 |
 |@material-ui/core                                           |4.11.3              |MIT                 |
 |@material-ui/styles                                         |4.11.3              |MIT                 |
@@ -16,6 +23,7 @@
 |@sentry/minimal                                             |5.13.2              |BSD-3-Clause        |
 |@sentry/types                                               |5.13.2              |BSD-3-Clause        |
 |@sentry/utils                                               |5.13.2              |BSD-3-Clause        |
+|@types/hoist-non-react-statics                              |3.3.1               |MIT                 |
 |@types/lodash                                               |4.14.168            |MIT                 |
 |@types/node                                                 |10.12.18            |MIT                 |
 |@types/prop-types                                           |15.7.3              |MIT                 |
@@ -33,7 +41,8 @@
 |ANTLR StringTemplate                                        |3.2.1               |BSD 3-clause        |
 |aopalliance version 1.0 repackaged as a module              |2.6.1               |CDDL 1.1            |
 |Apache Avro                                                 |1.9.2               |Apache 2.0          |
-|Apache Calcite Avatica (Shaded)                             |1.12.0              |Apache 2.0          |
+|Apache Calcite Avatica                                      |1.18.0              |Apache 2.0          |
+|Apache Calcite Avatica Metrics                              |1.18.0              |Apache 2.0          |
 |Apache Commons BeanUtils                                    |1.9.4               |Apache 2.0          |
 |Apache Commons Collections                                  |4.4                 |Apache 2.0          |
 |Apache Commons Compress                                     |1.20                |Apache 2.0          |
@@ -114,21 +123,24 @@
 |Audit Component                                             |1.1.0               |Apache 2.0          |
 |AutoValue Annotations                                       |1.7.2               |Apache 2.0          |
 |AWS Event Stream                                            |1.0.1               |Apache 2.0          |
-|AWS Java SDK :: Annotations                                 |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: Auth                                        |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: AWS Core                                    |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: AWS Json Protocol      |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: Protocol Core          |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: HTTP Client Interface                       |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: HTTP Clients :: Apache                      |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: HTTP Clients :: Netty Non Blocking I/O      |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: Profiles                                    |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: Regions                                     |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: SDK Core                                    |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Secrets Manager             |2.11.13             |Apache 2.0          |
-|AWS Java SDK :: Utilities                                   |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Annotations                                 |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: Auth                                        |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: AWS Core                                    |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: AWS Json Protocol      |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: Protocol Core          |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: HTTP Client Interface                       |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: HTTP Clients :: Apache                      |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: HTTP Clients :: Netty Non Blocking I/O      |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: Metrics SPI                                 |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: Profiles                                    |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: Regions                                     |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: SDK Core                                    |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: Services :: AWS Secrets Manager             |2.16.104            |Apache 2.0          |
+|AWS Java SDK :: Utilities                                   |2.16.104            |Apache 2.0          |
 |AWS Java SDK For Amazon Redshift                            |1.11.761            |Apache 2.0          |
+|AWS Java SDK For Amazon Redshift                            |1.12.75             |Apache 2.0          |
 |AWS SDK for Java - Core                                     |1.11.761            |Apache 2.0          |
+|AWS SDK for Java - Core                                     |1.12.75             |Apache 2.0          |
 |babel-plugin-transform-runtime                              |6.23.0              |MIT                 |
 |babel-runtime                                               |6.25.0              |MIT                 |
 |base16                                                      |1.0.0               |MIT                 |
@@ -140,8 +152,8 @@
 |Byte Buddy                                                  |1.10.19             |Apache 2.0          |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202108042226350839-779444f|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202108042226350839-779444f|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202110140531410732-6a46ce2e|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202110140531410732-6a46ce2e|Apache 2.0          |
 |CDI APIs                                                    |2.0.2               |Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.8.1               |MIT                 |
@@ -156,8 +168,6 @@
 |Codemodel Core                                              |2.6                 |GPL v2 w/ CPE       |
 |Collection of advanced monitoring metrics with rolling time window semantic|2.0.5               |Apache 2.0          |
 |color-space                                                 |1.15.0              |MIT                 |
-|com.yahoo.datasketches:memory                               |0.10.3              |Apache 2.0          |
-|com.yahoo.datasketches:sketches-core                        |0.11.1-dremio-01    |Apache 2.0          |
 |commander                                                   |2.19.0              |MIT                 |
 |common-tags                                                 |1.4.0               |MIT                 |
 |Commons CLI                                                 |1.2                 |Apache 2.0          |
@@ -203,6 +213,8 @@
 |d3-zoom                                                     |2.0.0               |BSD-3-Clause        |
 |dagre                                                       |0.8.5               |MIT                 |
 |Data Mapper For Jackson                                     |1.9.13              |Apache 2.0          |
+|DataSketches Java                                           |2.0.0               |Apache 2.0          |
+|DataSketches Memory                                         |1.3.0               |Apache 2.0          |
 |deep-diff                                                   |0.3.4               |MIT                 |
 |deep-equal                                                  |1.0.1               |MIT                 |
 |deepmerge                                                   |2.2.1               |MIT                 |
@@ -303,7 +315,6 @@
 |gud                                                         |1.0.0               |MIT                 |
 |Hadoop Winutils                                             |3.2.0               |Apache 2.0          |
 |Hadoop YARN Client                                          |2.7.0-mapr-1803     |Apache 2.0          |
-|has                                                         |1.0.1               |MIT                 |
 |has                                                         |1.0.3               |MIT                 |
 |has-symbols                                                 |1.0.0               |MIT                 |
 |HdrHistogram                                                |2.1.8               |CC0 1.0 Universal   |
@@ -333,13 +344,10 @@
 |inherits                                                    |2.0.3               |ISC                 |
 |inline-style-prefixer                                       |2.0.5               |MIT                 |
 |IntelliJ IDEA Annotations                                   |12.0                |Apache 2.0          |
-|intl-format-cache                                           |2.0.5               |BSD-3-Clause        |
 |intl-format-cache                                           |2.2.9               |BSD-3-Clause        |
-|intl-messageformat                                          |2.1.0               |BSD-3-Clause        |
 |intl-messageformat                                          |2.2.0               |BSD-3-Clause        |
-|intl-messageformat-parser                                   |1.2.0               |BSD-3-Clause        |
+|intl-messageformat                                          |9.7.1               |BSD-3-Clause        |
 |intl-messageformat-parser                                   |1.4.0               |BSD-3-Clause        |
-|intl-relativeformat                                         |2.0.0               |BSD-3-Clause        |
 |intl-relativeformat                                         |2.2.0               |BSD-3-Clause        |
 |invariant                                                   |2.2.2               |BSD-3-Clause        |
 |invariant                                                   |2.2.4               |MIT                 |
@@ -361,7 +369,7 @@
 |J2ObjC Annotations                                          |1.3                 |Apache 2.0          |
 |Jackson                                                     |1.9.13              |Apache 2.0          |
 |Jackson 2 extensions to the Google HTTP Client Library for Java.|1.35.0              |Apache 2.0          |
-|Jackson Datatype Protobuf                                   |0.9.10-jackson2.9-proto2|Apache 2.0          |
+|Jackson Datatype Protobuf                                   |0.9.12              |Apache 2.0          |
 |Jackson datatype: Guava                                     |2.11.4              |Apache 2.0          |
 |Jackson module: Afterburner                                 |2.11.4              |Apache 2.0          |
 |Jackson-annotations                                         |2.11.4              |Apache 2.0          |
@@ -427,32 +435,33 @@
 |jersey-media-jaxb                                           |2.30                |CDDL 1.1            |
 |jersey-media-multipart                                      |2.30                |CDDL 1.1            |
 |JetBrains Java Annotations                                  |13.0                |Apache 2.0          |
-|Jetty :: Asynchronous HTTP Client                           |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Continuation                                       |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Http Utility                                       |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: IO Utility                                         |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Security                                           |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Server Core                                        |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Servlet Handling                                   |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Utilities                                          |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Utility Servlets and Filters                       |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Webapp Application Support                         |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Websocket :: API                                   |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Websocket :: Client                                |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Websocket :: Common                                |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Websocket :: Server                                |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: Websocket :: Servlet Interface                     |9.4.26.v20200117    |Apache 2.0          |
-|Jetty :: XML utilities                                      |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Asynchronous HTTP Client                           |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Continuation                                       |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Http Utility                                       |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: IO Utility                                         |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Security                                           |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Server Core                                        |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Servlet Handling                                   |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Utilities                                          |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Utilities :: Ajax(JSON)                            |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Utility Servlets and Filters                       |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Webapp Application Support                         |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Websocket :: API                                   |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Websocket :: Client                                |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Websocket :: Common                                |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Websocket :: Server                                |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: Websocket :: Servlet Interface                     |9.4.43.v20210629    |Apache 2.0          |
+|Jetty :: XML utilities                                      |9.4.43.v20210629    |Apache 2.0          |
 |Jetty Server                                                |6.1.26              |Apache 2.0          |
 |Jetty Utilities                                             |6.1.26              |Apache 2.0          |
 |JLine                                                       |0.9.94              |BSD 3-clause        |
 |JMES Path Query library                                     |1.11.761            |Apache 2.0          |
+|JMES Path Query library                                     |1.12.75             |Apache 2.0          |
 |Joda-Time                                                   |2.9                 |Apache 2.0          |
 |JOpt Simple                                                 |3.2                 |MIT                 |
 |JOpt Simple                                                 |5.0.2               |MIT                 |
 |jquery                                                      |3.5.1               |MIT                 |
 |jquery-param                                                |0.2.0               |MIT                 |
-|js-tokens                                                   |3.0.2               |MIT                 |
 |js-tokens                                                   |4.0.0               |MIT                 |
 |JSch                                                        |0.1.54              |BSD 3-clause        |
 |JSON In Java                                                |20080701            |provided without support or warranty|
@@ -551,8 +560,8 @@
 |Nessie Services                                             |0.4.0               |Apache 2.0          |
 |Nessie Versioned Memory Store                               |0.4.0               |Apache 2.0          |
 |Nessie Versioned Store SPI                                  |0.4.0               |Apache 2.0          |
-|Netty Reactive Streams HTTP Support                         |2.0.4               |Apache 2.0          |
-|Netty Reactive Streams Implementation                       |2.0.4               |Apache 2.0          |
+|Netty Reactive Streams HTTP Support                         |2.0.5               |Apache 2.0          |
+|Netty Reactive Streams Implementation                       |2.0.5               |Apache 2.0          |
 |Netty/Buffer                                                |4.1.48.Final        |Apache 2.0          |
 |Netty/Codec                                                 |4.1.48.Final        |Apache 2.0          |
 |Netty/Codec/HTTP                                            |4.1.48.Final        |Apache 2.0          |
@@ -681,8 +690,8 @@
 |react-flow-renderer                                         |7.1.2               |MIT                 |
 |react-gtm-module                                            |2.0.11              |MIT                 |
 |react-immutable-proptypes                                   |2.1.0               |MIT                 |
-|react-intl                                                  |2.4.0               |BSD-3-Clause        |
 |react-intl                                                  |2.9.0               |BSD-3-Clause        |
+|react-intl                                                  |5.20.4              |BSD-3-Clause        |
 |react-is                                                    |16.13.1             |MIT                 |
 |react-json-tree                                             |0.10.3              |MIT                 |
 |react-lazy-cache                                            |3.0.1               |MIT                 |
@@ -702,7 +711,7 @@
 |react-test-renderer                                         |16.14.0             |MIT                 |
 |react-transition-group                                      |4.4.1               |BSD-3-Clause        |
 |react-virtualized                                           |9.10.1              |MIT                 |
-|Reactive Streams                                            |1.0.2               |CC0                 |
+|Reactive Streams                                            |1.0.3               |CC0                 |
 |readable-stream                                             |2.3.6               |MIT                 |
 |readable-stream                                             |3.1.1               |MIT                 |
 |recompose                                                   |0.30.0              |MIT                 |
@@ -775,7 +784,9 @@
 |ts-toolbelt                                                 |8.4.0               |Apache-2.0          |
 |tslib                                                       |1.10.0              |Apache-2.0          |
 |tslib                                                       |1.14.1              |0BSD                |
+|tslib                                                       |2.3.0               |0BSD                |
 |typed-styles                                                |0.0.7               |MIT                 |
+|typescript                                                  |4.2.4               |Apache-2.0          |
 |typo-js                                                     |1.0.3               |BSD-3-Clause        |
 |ua-parser-js                                                |0.7.14              |MIT                 |
 |ua-parser-js                                                |0.7.28              |MIT                 |

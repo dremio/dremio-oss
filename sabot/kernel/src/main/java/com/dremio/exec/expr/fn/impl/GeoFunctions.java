@@ -18,10 +18,6 @@ package com.dremio.exec.expr.fn.impl;
 import org.apache.arrow.vector.holders.BitHolder;
 import org.apache.arrow.vector.holders.Float4Holder;
 import org.apache.arrow.vector.holders.Float8Holder;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.type.ReturnTypes;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
@@ -33,49 +29,7 @@ import com.dremio.exec.expr.annotations.Param;
  * Geo functions
  */
 public class GeoFunctions {
-  public static final SqlFunction GEO_DISTANCE = new SqlFunction(
-      "GEO_DISTANCE",
-      SqlKind.OTHER_FUNCTION,
-      ReturnTypes.DOUBLE,
-      null,
-      new DremioArgChecker(
-          true,
-          DremioArgChecker.ofFloat("lat1_deg"),
-          DremioArgChecker.ofFloat("lon1_deg"),
-          DremioArgChecker.ofFloat("lat2_deg"),
-          DremioArgChecker.ofFloat("lon2_deg")
-          ),
-      SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
-  public static final SqlFunction GEO_NEARBY = new SqlFunction(
-      "GEO_NEARBY",
-      SqlKind.OTHER_FUNCTION,
-      ReturnTypes.BOOLEAN,
-      null,
-      new DremioArgChecker(
-          false,
-          DremioArgChecker.ofFloat("lat1_deg"),
-          DremioArgChecker.ofFloat("lon1_deg"),
-          DremioArgChecker.ofFloat("lat2_deg"),
-          DremioArgChecker.ofFloat("lon2_deg"),
-          DremioArgChecker.ofDouble("distance_meters")
-          ),
-      SqlFunctionCategory.USER_DEFINED_FUNCTION);
-
-  public static final SqlFunction GEO_BEYOND = new SqlFunction(
-      "GEO_BEYOND",
-      SqlKind.OTHER_FUNCTION,
-      ReturnTypes.BOOLEAN,
-      null,
-      new DremioArgChecker(
-          false,
-          DremioArgChecker.ofFloat("lat1_deg"),
-          DremioArgChecker.ofFloat("lon1_deg"),
-          DremioArgChecker.ofFloat("lat2_deg"),
-          DremioArgChecker.ofFloat("lon2_deg"),
-          DremioArgChecker.ofDouble("distance_meters")
-          ),
-      SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
   @FunctionTemplate(name = "geo_distance", nulls = NullHandling.NULL_IF_NULL)
   public static class GeoDistance implements SimpleFunction {
@@ -128,6 +82,5 @@ public class GeoFunctions {
     public void eval() {
       out.value = com.dremio.exec.expr.fn.impl.GeoHelper.isNear(lat1.value, lon1.value, lat2.value, lon2.value, distance.value) ? 0 : 1;
     }
-
   }
 }

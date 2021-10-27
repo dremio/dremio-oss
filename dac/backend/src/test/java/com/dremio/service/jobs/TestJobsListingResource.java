@@ -118,9 +118,9 @@ public class TestJobsListingResource extends BaseTestServer {
     assertEquals(jobId, jobsListingUI.getJobs().get(0).getId());
     assertEquals(3, jobsListingUI.getJobs().get(0).getState().getNumber());
     assertEquals(QueryType.UI_RUN, jobsListingUI.getJobs().get(0).getQueryType());
-    assertEquals("A", jobsListingUI.getJobs().get(0).getQueryUser());
+    assertEquals("A", jobsListingUI.getJobs().get(0).getUser());
     assertEquals(sql, jobsListingUI.getJobs().get(0).getQueryText());
-    assertEquals(true, jobsListingUI.getJobs().get(0).getFinalState());
+    assertEquals(true, jobsListingUI.getJobs().get(0).isComplete());
     assertEquals(null, jobsListingUI.getJobs().get(0).getEnqueuedTime());
     assertEquals(false, jobsListingUI.getJobs().get(0).isAccelerated());
     assertEquals("1.0", jobsListingUI.getJobs().get(0).getPlannerEstimatedCost().toString());
@@ -128,10 +128,10 @@ public class TestJobsListingResource extends BaseTestServer {
     assertEquals("", jobsListingUI.getJobs().get(0).getSubEngine());
     assertEquals("", jobsListingUI.getJobs().get(0).getWlmQueue());
     assertEquals(JobState.COMPLETED, jobsListingUI.getJobs().get(0).getState());
-    assertEquals(true, jobsListingUI.getJobs().get(0).getFinalState());
+    assertEquals(true, jobsListingUI.getJobs().get(0).isComplete());
     assertNotNull(jobsListingUI.getJobs().get(0).getDurationDetails());
     assertEquals("0", jobsListingUI.getJobs().get(0).getRowsScanned().toString());
-    assertEquals("0", jobsListingUI.getJobs().get(0).getRowsReturned().toString());
+    assertEquals("0", jobsListingUI.getJobs().get(0).getOutputRecords().toString());
     assertEquals("0 B / 0 Records", jobsListingUI.getJobs().get(0).getInput());
     assertEquals("0 B / 0 Records", jobsListingUI.getJobs().get(0).getOutput());
     assertEquals(1L, jobsListingUI.getJobs().get(0).getWaitInClient());

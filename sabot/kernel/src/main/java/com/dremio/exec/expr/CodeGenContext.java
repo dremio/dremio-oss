@@ -196,6 +196,12 @@ public class CodeGenContext implements LogicalExpression {
     return child.iterator();
   }
 
+  @Override
+  public int getSizeOfChildren() {
+    return child.getSizeOfChildren();
+  }
+
+
   public String toString() {
     LogicalExpression childWithoutContext = CodeGenerationContextRemover.removeCodeGenContext
       (child);

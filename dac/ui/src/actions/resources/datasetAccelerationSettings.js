@@ -73,3 +73,14 @@ export function updateDatasetAccelerationSettings(fullPathList, form) {
     }
   };
 }
+
+export const CLEAR_DATASET_ACCELERATION_SETTINGS = 'CLEAR_DATASET_ACCELERATION_SETTINGS';
+
+export function clearDataSetAccelerationSettings(fullPathList) {
+  return function(dispatch) {
+    dispatch({
+      type: CLEAR_DATASET_ACCELERATION_SETTINGS,
+      payload: constructFullPath(fullPathList)
+    });
+  };
+}

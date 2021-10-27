@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.expression.BooleanOperator;
@@ -42,9 +43,8 @@ import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
-import com.google.common.collect.Lists;
 
-class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpression,RuntimeException> {
+public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpression,RuntimeException> {
 
   @Override
   public Boolean visitFunctionCall(FunctionCall call, LogicalExpression value) throws RuntimeException {
@@ -253,6 +253,8 @@ class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpression,Runt
       return visitValueVectorReadExpression((ValueVectorReadExpression) e, (ValueVectorReadExpression) value);
     } else if (e instanceof InExpression && value instanceof InExpression) {
       return visitInExpression((InExpression) e, (InExpression) value);
+    } else if(e instanceof ValueVectorWriteExpression && value instanceof ValueVectorWriteExpression) {
+      return visitValueVectorWriteExpression((ValueVectorWriteExpression) e, (ValueVectorWriteExpression) value);
     }
     return false;
   }
@@ -287,18 +289,28 @@ class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpression,Runt
     return e.getTypedFieldId().equals(value.getTypedFieldId());
   }
 
+  private Boolean visitValueVectorWriteExpression(ValueVectorWriteExpression e, ValueVectorWriteExpression value) {
+    return e.getFieldId().equals(value.getFieldId()) && e.isSafe() == value.isSafe()
+                                && e.getChild().accept(this, value.getChild());
+  }
+
 
   private boolean checkChildren(LogicalExpression thisExpr, LogicalExpression thatExpr) {
-    List<LogicalExpression> theseChildren = Lists.newArrayList(thisExpr);
-    List<LogicalExpression> thoseChildren = Lists.newArrayList(thatExpr);
+    Iterator<LogicalExpression> theseIterator = thisExpr.iterator();
+    Iterator<LogicalExpression> thoseIterator = thatExpr.iterator();
 
-    if (theseChildren.size() != thoseChildren.size()) {
+    if (thisExpr.getSizeOfChildren() != thatExpr.getSizeOfChildren()) {
       return false;
     }
-    for (int i = 0; i < theseChildren.size(); i++) {
-      if (!theseChildren.get(i).accept(this, thoseChildren.get(i))) {
+    while (theseIterator.hasNext() && thoseIterator.hasNext()) {
+      LogicalExpression theseChildren = theseIterator.next();
+      LogicalExpression thoseChildren = thoseIterator.next();
+      if (!theseChildren.accept(this, thoseChildren)) {
         return false;
       }
+    }
+    if (theseIterator.hasNext() != thoseIterator.hasNext()) {
+      return false;
     }
     return true;
   }

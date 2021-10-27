@@ -86,6 +86,10 @@ public class TestUtilities {
       InternalFileConf conf = new InternalFileConf();
       conf.connection = "file:///";
       conf.path = "/";
+      conf.propertyList = Arrays.asList(
+              new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "nessie"),
+              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE)
+      );
       c.setConnectionConf(conf);
       c.setName("dfs");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -99,6 +103,10 @@ public class TestUtilities {
       conf.connection = "file:///";
       conf.path = tmpDirPath;
       conf.mutability = SchemaMutability.ALL;
+      conf.propertyList = Arrays.asList(
+              new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "nessie"),
+              new Property(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE)
+      );
       c.setConnectionConf(conf);
       c.setName("dfs_test");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -151,7 +159,6 @@ public class TestUtilities {
       InternalFileConf conf = new InternalFileConf();
       conf.connection = "file:///";
       conf.path = "/";
-      conf.propertyList = Arrays.asList(new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "hadoop"));
       c.setConnectionConf(conf);
       c.setName("dfs_hadoop");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
@@ -165,7 +172,6 @@ public class TestUtilities {
       conf.connection = "file:///";
       conf.path = tmpDirPath;
       conf.mutability = SchemaMutability.ALL;
-      conf.propertyList = Arrays.asList(new Property(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, "hadoop"));
       c.setConnectionConf(conf);
       c.setName("dfs_test_hadoop");
       c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);

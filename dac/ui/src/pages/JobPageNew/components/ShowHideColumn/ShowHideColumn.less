@@ -18,7 +18,14 @@
   .showHideColumn {
     &__checkBox {
       border-radius: 50px;
-      background: @gainsboro;
+      background: @DARK_100;
+      border: 0.5px solid @PRIMARY_600;
+      &.--disabled {
+        border-radius: 50px;
+        background: @grey;
+        border: 0.5px solid @grey;
+        color: @grey;
+      }
     }
     &__label {
       display: flex;
@@ -31,9 +38,8 @@
     }
   }
   .showHideBackgroundColor {
-    background-color: @DISABLED_DRAG_AREA;
     height: 54px;
-    width: 100px;
+    width: 116px;
     display: flex;
     align-items: center;
     justify-content: center;

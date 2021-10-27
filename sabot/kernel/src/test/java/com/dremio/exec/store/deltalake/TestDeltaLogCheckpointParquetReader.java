@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -56,7 +57,7 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     String path = "src/test/resources/deltalake/checkpointParquet/00000000000000000020.checkpoint.parquet";
     File f = new File(path);
     DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
-    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, fs, fs.getFileAttributes(Path.of(f.toURI())), 20);
+    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(f.toURI())))), 20);
     assertTrue(snapshot.containsCheckpoint());
     assertEquals(snapshot.getSchema(), "{\"type\":\"struct\",\"fields\":[{\"name\":\"Year\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Month\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"DayofMonth\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"DayOfWeek\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"DepTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CRSDepTime\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"ArrTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CRSArrTime\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"UniqueCarrier\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"FlightNum\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"TailNum\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"ActualElapsedTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CRSElapsedTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"AirTime\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"ArrDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"DepDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Origin\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Dest\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Distance\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"TaxiIn\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"TaxiOut\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Cancelled\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CancellationCode\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"Diverted\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}},{\"name\":\"CarrierDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"WeatherDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"NASDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"SecurityDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"LateAircraftDelay\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}}]}");
     assertEquals(snapshot.getNetFilesAdded(), 135);
@@ -69,7 +70,7 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     String path = "src/test/resources/deltalake/checkpointParquet/00000000000000000210.checkpoint.parquet";
     File f = new File(path);
     DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
-    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, fs, fs.getFileAttributes(Path.of(f.toURI())), 210);
+    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(f.toURI())))), 210);
     assertTrue(snapshot.containsCheckpoint());
     assertEquals(snapshot.getSchema(), "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"continent\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"total_cases\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_cases\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_cases_smoothed\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"total_deaths\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_deaths\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_deaths_smoothed\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"total_cases_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_cases_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_cases_smoothed_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"total_deaths_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_deaths_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_deaths_smoothed_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"reproduction_rate\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"icu_patients\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"icu_patients_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"hosp_patients\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"hosp_patients_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"weekly_icu_admissions\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"weekly_icu_admissions_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"weekly_hosp_admissions\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"weekly_hosp_admissions_per_million\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_tests\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"total_tests\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"total_tests_per_thousand\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_tests_per_thousand\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_tests_smoothed\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_tests_smoothed_per_thousand\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"positive_rate\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"tests_per_case\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"tests_units\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"stringency_index\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"population\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"population_density\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"median_age\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"aged_65_older\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"aged_70_older\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"gdp_per_capita\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"extreme_poverty\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"cardiovasc_death_rate\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"diabetes_prevalence\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"female_smokers\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"male_smokers\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"handwashing_facilities\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"hospital_beds_per_thousand\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"life_expectancy\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"human_development_index\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}");
     assertEquals(snapshot.getNetFilesAdded(), 211);
@@ -83,7 +84,7 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     File f = new File(path);
     FileAttributes fAttrs = fs.getFileAttributes(Path.of(f.toURI()));
     DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
-    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, fs, fAttrs, 290);
+    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, fs, new ArrayList<>(Arrays.asList(fAttrs)), 290);
     assertTrue(snapshot.containsCheckpoint());
     assertEquals(snapshot.getSchema(), "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"continent\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"total_cases\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"new_cases\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"life_expectancy\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}");
     assertEquals(snapshot.getNetFilesAdded(), 1164);
@@ -126,7 +127,7 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     File f = new File(path);
     Path checkpointFilePath = Path.of(f.toURI());
     DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
-    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, fs, fs.getFileAttributes(checkpointFilePath), 28554);
+    DeltaLogSnapshot snapshot = reader.parseMetadata(null, sabotContext, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(checkpointFilePath))), 28554);
     assertTrue(snapshot.containsCheckpoint());
     assertEquals(12, snapshot.getNetFilesAdded());
     assertEquals(12, snapshot.getNetOutputRows());
@@ -140,10 +141,55 @@ public class TestDeltaLogCheckpointParquetReader extends BaseTestQuery {
     Path checkpointFilePath = Path.of(f.toURI());
     Path rootDir = checkpointFilePath.getParent();
     DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
-    DeltaLogSnapshot snapshot = reader.parseMetadata(rootDir, sabotContext, fs, fs.getFileAttributes(checkpointFilePath), 10);
+    DeltaLogSnapshot snapshot = reader.parseMetadata(rootDir, sabotContext, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(checkpointFilePath))), 10);
     assertTrue(snapshot.containsCheckpoint());
     assertEquals(10, snapshot.getNetFilesAdded());
     assertEquals(10, snapshot.getNetOutputRows());
     assertEquals(6311, snapshot.getNetBytesAdded());
+  }
+
+  @Test
+  public void testMultiPartCheckpointParquet() throws IOException {
+    String path1 = "src/test/resources/deltalake/multiPartCheckpoint/_delta_log/00000000000000000010.checkpoint.0000000001.0000000002.parquet";
+    File f1 = new File(path1);
+    Path checkpointFilePath1 = Path.of(f1.toURI());
+    String path2 = "src/test/resources/deltalake/multiPartCheckpoint/_delta_log/00000000000000000010.checkpoint.0000000002.0000000002.parquet";
+    File f2 = new File(path2);
+    Path checkpointFilePath2 = Path.of(f2.toURI());
+    Path rootDir = checkpointFilePath1.getParent();
+    DeltaLogCheckpointParquetReader reader = new DeltaLogCheckpointParquetReader();
+    DeltaLogSnapshot snapshot = reader.parseMetadata(rootDir, sabotContext, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(checkpointFilePath1), fs.getFileAttributes(checkpointFilePath2))), 10);
+    assertTrue(snapshot.containsCheckpoint());
+    assertEquals(4, snapshot.getNetFilesAdded());
+    assertEquals(4, snapshot.getNetOutputRows());
+    assertEquals(3792, snapshot.getNetBytesAdded());
+
+    List<DatasetSplit> splits = snapshot.getSplits();
+    assertEquals(2, splits.size());
+    assertEquals(splits.get(0).getSizeInBytes(), 1760);
+    assertEquals(splits.get(0).getRecordCount(), 4);
+    EasyProtobuf.EasyDatasetSplitXAttr splitXAttr0 = getXAttr(splits.get(0));
+    assertEquals(checkpointFilePath1.toString(), splitXAttr0.getPath());
+    assertEquals(4, splitXAttr0.getStart());
+    assertEquals(1760, splitXAttr0.getLength());
+    DeltaLakeProtobuf.DeltaCommitLogSplitXAttr commitXAttr0 = DeltaLakeProtobuf.DeltaCommitLogSplitXAttr.parseFrom(splitXAttr0.getExtendedProperty());
+    assertEquals(0, commitXAttr0.getRowGroupIndex());
+    FileProtobuf.FileSystemCachedEntity updateKey = FileProtobuf.FileSystemCachedEntity.parseFrom(splitXAttr0.getUpdateKey().toByteString());
+    assertEquals(0, updateKey.getLastModificationTime()); // split is immutable
+    assertEquals(checkpointFilePath1.toString(), updateKey.getPath());
+    assertEquals(fs.getFileAttributes(checkpointFilePath1).size(), updateKey.getLength());
+
+    assertEquals(splits.get(1).getSizeInBytes(), 1889);
+    assertEquals(splits.get(1).getRecordCount(), 3);
+    EasyProtobuf.EasyDatasetSplitXAttr splitXAttr1 = getXAttr(splits.get(1));
+    assertEquals(checkpointFilePath2.toString(), splitXAttr1.getPath());
+    assertEquals(4, splitXAttr1.getStart());
+    assertEquals(1889, splitXAttr1.getLength());
+    DeltaLakeProtobuf.DeltaCommitLogSplitXAttr commitXAttr1 = DeltaLakeProtobuf.DeltaCommitLogSplitXAttr.parseFrom(splitXAttr1.getExtendedProperty());
+    assertEquals(0, commitXAttr1.getRowGroupIndex());
+    FileProtobuf.FileSystemCachedEntity updateKey1 = FileProtobuf.FileSystemCachedEntity.parseFrom(splitXAttr1.getUpdateKey().toByteString());
+    assertEquals(0, updateKey1.getLastModificationTime()); // split is immutable
+    assertEquals(checkpointFilePath2.toString(), updateKey1.getPath());
+    assertEquals(fs.getFileAttributes(checkpointFilePath2).size(), updateKey1.getLength());
   }
 }

@@ -44,14 +44,14 @@ import com.google.common.collect.ImmutableMap;
 
 public class WriterPathUpdater extends BasePrelVisitor<Prel, CreateTableEntry, RuntimeException> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterUpdater.class);
-  private static SqlHandlerConfig sqlConfig;
-  private static final WriterPathUpdater INSTANCE = new WriterPathUpdater();
+  private final SqlHandlerConfig sqlConfig;
 
-  private WriterPathUpdater(){}
+  private WriterPathUpdater(SqlHandlerConfig config){
+    sqlConfig = config;
+  }
 
   public static Prel update(Prel prel, SqlHandlerConfig config) {
-    sqlConfig = config;
-    return prel.accept(INSTANCE, null);
+    return prel.accept(new WriterPathUpdater(config), null);
   }
 
   @Override

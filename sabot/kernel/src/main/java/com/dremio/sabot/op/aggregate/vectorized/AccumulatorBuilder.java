@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -131,6 +132,8 @@ public class AccumulatorBuilder {
    * @param maxValuesPerBatch maximum records that can be stored in a hashtable block/batch
    *
    * @param decimalV2Enabled
+   * @param varLenAccumulatorCapacity
+   * @param tempAccumulatorHolder needed for varlen accumulation vectors
    * @return A Nested accumulator that holds individual sub-accumulators.
    *
    * With partitioning in VectorizedHashAgg operator, accumulators are handled on a
@@ -146,23 +149,39 @@ public class AccumulatorBuilder {
                                               VectorContainer outgoing,
                                               final int maxValuesPerBatch,
                                               final long jointAllocationMin,
-                                              final long jointAllocationLimit, boolean decimalV2Enabled) {
+                                              final long jointAllocationLimit,
+                                              boolean decimalV2Enabled,
+                                              int varLenAccumulatorCapacity,
+                                              BaseVariableWidthVector[] tempAccumulatorHolder) {
     final byte[] accumulatorTypes = materializedAggExpressions.accumulatorTypes;
     final List<FieldVector> inputVectors = materializedAggExpressions.inputVectors;
     final List<Field> outputVectorFields = materializedAggExpressions.outputVectorFields;
 
     final Accumulator[] accums = new Accumulator[accumulatorTypes.length];
 
+    int varLenIdx = 0;
     for (int i = 0; i < accumulatorTypes.length; i++) {
       final FieldVector inputVector = inputVectors.get(i);
       final FieldVector outputVector = TypeHelper.getNewVector(outputVectorFields.get(i), outputVectorAllocator);
       final FieldVector transferVector;
       final byte accumulatorType = accumulatorTypes[i];
+      final boolean minMaxAccum = (accumulatorType == AccumulatorType.MIN.ordinal() ||
+                                   accumulatorType == AccumulatorType.MAX.ordinal());
 
       transferVector = outgoing.addOrGet(outputVector.getField());
+
+      BaseVariableWidthVector tempVector = null;
+      if (minMaxAccum && inputVector != null) { // COUNT1 and some test cases pass inputVector as null
+        final MinorType type = CompleteType.fromField(inputVector.getField()).toMinorType();
+        if (type == MinorType.VARCHAR || type == MinorType.VARBINARY) {
+          tempVector = tempAccumulatorHolder[varLenIdx];
+          ++varLenIdx;
+        }
+      }
+
       accums[i] = getAccumulator(accumulatorType, inputVector, outputVector,
                                  transferVector, maxValuesPerBatch, computationVectorAllocator,
-                                 decimalV2Enabled);
+                                 decimalV2Enabled, varLenAccumulatorCapacity, tempVector);
       if (accums[i] == null) {
         throw new IllegalStateException("ERROR: invalid accumulator state");
       }
@@ -175,7 +194,9 @@ public class AccumulatorBuilder {
                                             FieldVector outputVector, FieldVector transferVector,
                                             final int maxValuesPerBatch,
                                             final BufferAllocator computationVectorAllocator,
-                                            boolean decimalCompleteEnabled) {
+                                            boolean decimalCompleteEnabled,
+                                            int varLenAccumulatorCapacity,
+                                            BaseVariableWidthVector tempAccumulatorHolder) {
     if (accumulatorType == AccumulatorType.COUNT1.ordinal()) {
       return new CountOneAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                      computationVectorAllocator);
@@ -257,6 +278,11 @@ public class AccumulatorBuilder {
             // in the interval. Comparisons are the same as comparisons on the underlying int values
             return new MinAccumulators.IntMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                                          computationVectorAllocator);
+
+          case VARCHAR:
+          case VARBINARY:
+            return new MinAccumulators.VarLenMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, varLenAccumulatorCapacity, tempAccumulatorHolder);
         }
         break;
       }
@@ -309,6 +335,10 @@ public class AccumulatorBuilder {
             // in the interval. Comparisons are the same as comparisons on the underlying int values
             return new MaxAccumulators.IntMaxAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                                          computationVectorAllocator);
+          case VARCHAR:
+          case VARBINARY:
+            return new MaxAccumulators.VarLenMaxAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, varLenAccumulatorCapacity, tempAccumulatorHolder);
         }
         break;
       }

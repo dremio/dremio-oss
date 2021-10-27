@@ -1,0 +1,110 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto2";
+
+option java_package = "com.dremio.service.acceleration";
+option java_outer_classname = "ReflectionDescriptionServiceRPC";
+option optimize_for = SPEED;
+option java_generate_equals_and_hash = true;
+
+import "UserBitShared.proto";
+import "google/protobuf/timestamp.proto";
+
+service ReflectionDescriptionService {
+  rpc ListReflections (ListReflectionsRequest) returns (stream ListReflectionsResponse);
+
+  rpc GetRefreshInfo (GetRefreshInfoRequest) returns (stream GetRefreshInfoResponse);
+
+  rpc ListReflectionDependencies (ListReflectionDependenciesRequest) returns (stream ListReflectionDependenciesResponse);
+
+  rpc ListMaterializations (ListMaterializationsRequest) returns (stream ListMaterializationsResponse);
+}
+
+message ListReflectionsResponse {
+  optional string reflection_id = 1;
+  optional string reflection_name = 2;
+  optional string type = 3;
+  optional string status  = 4;
+  optional string dataset_id = 16;
+  optional string dataset_name = 5;
+  optional string dataset_type = 17;
+  optional string sort_columns = 6;
+  optional string partition_columns = 7;
+  optional string distribution_columns = 8;
+  optional string dimensions = 9;
+  optional string measures = 10 [deprecated = true];
+  optional string display_columns = 11;
+  optional string external_reflection = 12;
+  optional int32 num_failures = 13 [default = 0];
+  repeated exec.shared.MeasureColumn measure_columns = 14;
+  optional bool arrow_cache = 15 [default = false];
+}
+
+message ListReflectionsRequest {
+}
+
+message GetRefreshInfoResponse {
+  optional string id = 1;
+  optional string reflection_id = 2;
+  optional int64 series_id = 3;
+  optional int64 created_at = 4;
+  optional int64 modified_at = 5;
+  optional string path = 6;
+  optional string job_id = 7;
+  optional int64 job_start = 8;
+  optional int64 job_end = 9;
+  optional int64 input_bytes = 10;
+  optional int64 input_records = 11;
+  optional int64 output_bytes = 12;
+  optional int64 output_records = 13;
+  optional int64 footprint = 14 [default = 0];
+  optional double original_cost = 15 [default = 1.0];
+  optional string update_id = 16;
+  optional string partition = 17; // nodes containing materialized data - array of strings
+  optional int32 series_ordinal = 18 [default = 0]; // refresh order in its series, 0 for initial refresh
+}
+
+message GetRefreshInfoRequest {
+}
+
+message ListReflectionDependenciesResponse {
+  optional string reflection_id = 1;
+  optional string dependency_id = 2;
+  optional string dependency_type = 3;
+  optional string dependency_path = 4;
+}
+
+message ListReflectionDependenciesRequest {
+}
+
+message ListMaterializationsResponse {
+  optional string reflection_id = 1;
+  optional string materialization_id = 2;
+  optional google.protobuf.Timestamp created = 3;
+  optional google.protobuf.Timestamp expires = 4;
+  optional int64 size_bytes = 5;
+  optional int64 series_id = 6;
+  optional string init_refresh_job_id = 7;
+  optional int32 series_ordinal = 8;
+  optional string join_analysis = 9;
+  optional string state = 10;
+  optional string failure_msg = 11;
+  optional string data_partitions = 12;
+  optional google.protobuf.Timestamp last_refresh_from_pds = 13;
+}
+
+message ListMaterializationsRequest {
+}

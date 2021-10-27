@@ -15,6 +15,8 @@
  */
 package com.dremio.service.namespace;
 
+import static com.dremio.datastore.indexed.IndexKey.LOWER_CASE_SUFFIX;
+
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.indexed.FilterIndexMapping;
 import com.dremio.datastore.indexed.IndexKey;
@@ -23,8 +25,6 @@ import com.dremio.datastore.indexed.IndexKey;
  * Index keys for dataset.
  */
 public interface DatasetIndexKeys {
-
-  String LOWER_CASE_SUFFIX = "_LC";
 
   IndexKey DATASET_ID = IndexKey.newBuilder("id", "DATASET_ID", String.class)
     .setSortedValueType(SearchFieldSorting.FieldType.STRING)

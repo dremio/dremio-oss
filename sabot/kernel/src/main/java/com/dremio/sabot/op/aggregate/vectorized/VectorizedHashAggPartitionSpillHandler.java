@@ -16,6 +16,7 @@
 
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -542,8 +543,8 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
         this.warnMaxSpillTime);
     }
 
-    /* spill a single batch from victim partition */
     Preconditions.checkState(inProgressSpill.getPartition().getIdentifier().equals(victimPartition.getIdentifier()));
+    /* spill a single batch from victim partition */
     final boolean done = inProgressSpill.writeBatchToStream(partitionSpillFileStream);
 
     if (done) {
@@ -920,8 +921,24 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     if (spilledPartitionIterator != null) {
       closeSpilledPartitionIterator();
     }
-    AutoCloseables.close(activeSpilledPartitions);
-    AutoCloseables.close(spilledPartitions);
+    try {
+      AutoCloseables.close(activeSpilledPartitions);
+    }
+    catch (IOException ignored) {
+      /* Enter this catch block when disk is already full, and therefore cannot flush (write data) to disk
+       * Making sure to catch this exception to allow this close() to complete
+       * This ensures calling AutoCloseables.close(spillManager), hence clearing spill files
+       */
+    }
+    try {
+      AutoCloseables.close(spilledPartitions);
+    }
+    catch (IOException ignored) {
+      /* Enter this catch block when disk is already full, and therefore cannot flush (write data) to disk
+       * Making sure to catch this exception to allow this close() to complete
+       * This ensures calling AutoCloseables.close(spillManager), hence clearing spill files
+       */
+    }
     AutoCloseables.close(spillManager);
   }
 

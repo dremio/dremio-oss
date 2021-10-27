@@ -20,16 +20,17 @@ import timeUtils from 'utils/timeUtils';
 import { getDuration } from 'utils/jobListUtils';
 import { ScansForFilter } from '@app/constants/Constants';
 import jobsUtils from '@app/utils/jobsUtils';
+import FileUtils from '@app/utils/FileUtils';
 import JobDetailsErrorInfo from '../OverView/JobDetailsErrorInfo';
-import { formatInputOutputRecords } from '../../Utils';
 import { getFormatMessageIdForQueryType } from '../../Utils';
 import JobSummary from '../Summary/Summary';
 import TotalExecutionTime from '../TotalExecutionTime/TotalExecutionTime';
 import HelpSection from '../../../JobPage/components/JobDetails/HelpSection';
 import SQL from '../SQL/SQL';
+import ReflectionsCreated from '../Reflections/ReflectionsCreated';
 import QueriedDataset from '../QueriedDataset/QueriedDataset';
 import Scans from '../Scans/Scans';
-import Reflections from '../Reflections/Reflection';
+import Acceleration from '../Reflections/Acceleration';
 import './OverView.less';
 
 const VIEW_ID = 'JOB_DETAILS_VIEW_ID';
@@ -84,19 +85,26 @@ const OverView = (props) => {
     }] : []),
     {
       label: `${durationLabelId}`,
-      content: `${jobsUtils.formatJobDuration(jobDuration)}`
+      content: `${jobsUtils.formatJobDurationWithMS(jobDuration)}`
     },
     { label: 'Job.Summary.WaitOnClient', content: `${jobsUtils.formatJobDuration(jobDetails.get('waitInClient'))}` },
     { label: 'Common.User', content: jobDetails.get('queryUser') },
     { label: 'Common.Queue', content: jobDetails.get('wlmQueue') },
-    { label: 'Job.Summary.Input', content: formatInputOutputRecords(jobDetails.get('input')) },
-    { label: 'Job.Summary.Output', content: formatInputOutputRecords(jobDetails.get('output')) }
+    {
+      label: 'Job.Summary.Input',
+      content: `${FileUtils.getFormattedBytes(jobDetails.get('inputBytes'))} / ${jobsUtils.getFormattedNumber(jobDetails.get('inputRecords'))} Records`
+    },
+    {
+      label: 'Job.Summary.Output',
+      content: `${FileUtils.getFormattedBytes(jobDetails.get('outputBytes'))} / ${jobsUtils.getFormattedNumber(jobDetails.get('outputRecords'))} Records`
+    }
   ];
 
   const durationDetails = jobDetails.get('durationDetails');
   const jobId = jobDetails.get('id');
   const failureInfo = jobDetails.get('failureInfo');
   const cancellationInfo = jobDetails.get('cancellationInfo');
+  const queryType = jobDetails.get('queryType');
   return (
     <div className='overview'>
       <div className='overview__leftSidePanel'>
@@ -132,13 +140,20 @@ const OverView = (props) => {
           sqlString={jobDetails.get('queryText')}
           title={formatMessage({ id: 'SubmittedSQL' })}
           sqlClass='overview__sqlBody' />
-        <QueriedDataset queriedDataSet={jobDetails.get('queriedDatasets')} />
-        <Scans scansForFilter={ScansForFilter} scans={jobDetails.get('scannedDatasets')} />
-        <Reflections
-          reflectionsUsed={jobDetails.get('reflectionsUsed')}
-          reflectionsNotUsed={jobDetails.get('reflectionsMatched')}
-          isAcceleration={jobDetails.get('accelerated')}
-        />
+        {queryType !== 'ACCELERATOR_DROP' &&
+          <>
+            <ReflectionsCreated
+              reflections={jobDetails.get('reflections')}
+            />
+            <QueriedDataset queriedDataSet={jobDetails.get('queriedDatasets')} />
+            <Scans scansForFilter={ScansForFilter} scans={jobDetails.get('scannedDatasets')} />
+            <Acceleration
+              reflectionsUsed={jobDetails.get('reflectionsUsed')}
+              reflectionsNotUsed={jobDetails.get('reflectionsMatched')}
+              isAcceleration={jobDetails.get('accelerated')}
+            />
+          </>
+        }
       </div>
     </div>
   );

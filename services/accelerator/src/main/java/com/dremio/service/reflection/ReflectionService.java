@@ -16,6 +16,7 @@
 package com.dremio.service.reflection;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
@@ -68,7 +69,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
   @VisibleForTesting
   Iterable<DependencyEntry> getDependencies(ReflectionId reflectionId);
 
-  Iterable<AccelerationListManager.DependencyInfo> getReflectionDependencies();
+  Iterator<AccelerationListManager.DependencyInfo> getReflectionDependencies();
 
   Optional<Materialization> getMaterialization(MaterializationId materializationId);
 
@@ -196,7 +197,7 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
     }
 
     @Override
-    public Iterable<AccelerationListManager.DependencyInfo> getReflectionDependencies() {
+    public Iterator<AccelerationListManager.DependencyInfo> getReflectionDependencies() {
       throw new UnsupportedOperationException("getReflectionDependencies");
     }
 

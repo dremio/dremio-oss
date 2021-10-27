@@ -26,7 +26,15 @@ describe('ProvisioningPage', () => {
     minimalProps = {
       provisions: Immutable.List(),
       viewState: Immutable.Map(),
-      loadProvision: sinon.stub().returns(Promise.resolve())
+      loadProvision: sinon.stub().returns(Promise.resolve()),
+      intl: {
+        formatMessage: ({ id }) => id
+      },
+      location: {},
+      router: {
+        goBack: sinon.stub(),
+        push: sinon.stub()
+      }
     };
     commonProps = {
       ...minimalProps,
@@ -69,7 +77,7 @@ describe('ProvisioningPage', () => {
       const wrapper = shallow(<ProvisioningPage {...commonProps}/>);
       const instance = wrapper.instance();
       sinon.spy(instance, 'startPollingProvisionData');
-      instance.componentWillMount();
+      instance.componentDidMount();
       expect(instance.startPollingProvisionData).to.be.calledOnce;
       expect(instance.startPollingProvisionData).to.be.calledWith(true);
       instance.componentWillUnmount();

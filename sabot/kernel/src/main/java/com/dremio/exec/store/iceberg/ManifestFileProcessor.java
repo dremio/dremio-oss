@@ -35,7 +35,6 @@ import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -47,7 +46,8 @@ import com.google.common.annotations.VisibleForTesting;
  * Process ManifestFile. This class iterates over each datafile in manifest file and give to data processor one at a time
  */
 public class ManifestFileProcessor implements AutoCloseable {
-  private final FileSystem fs;
+  private final OpProps opProps;
+  private final SupportsIcebergRootPointer icebergRootPointerPlugin;
   private final List<String> dataset;
   private final OperatorContext context;
   private final String datasourcePluginUID;
@@ -62,9 +62,9 @@ public class ManifestFileProcessor implements AutoCloseable {
   public ManifestFileProcessor(FragmentExecutionContext fec,
                                OperatorContext context, OpProps props,
                                TableFunctionConfig functionConfig) {
-    FileSystemPlugin fileSystemPlugin = getStoragePlugin(fec, functionConfig.getFunctionContext());
-    this.fs = createFs(context, props, fileSystemPlugin);
-    this.conf = getConfiguration(fileSystemPlugin);
+    this.icebergRootPointerPlugin = getStoragePlugin(fec, functionConfig.getFunctionContext());
+    this.opProps = props;
+    this.conf = getConfiguration(icebergRootPointerPlugin);
     this.context = context;
     this.operatorStats = context.getStats();
     this.dataset = getDataset(functionConfig);
@@ -111,7 +111,13 @@ public class ManifestFileProcessor implements AutoCloseable {
 
   @VisibleForTesting
   ManifestReader<DataFile> getManifestReader(ManifestFile manifestFile) {
-    return ManifestFiles.read(manifestFile, new DremioFileIO(fs, context, dataset, datasourcePluginUID, manifestFile.length(), conf));
+    return ManifestFiles.read(manifestFile, getFileIO(manifestFile));
+  }
+
+  private DremioFileIO getFileIO(ManifestFile manifestFile) {
+    return new DremioFileIO(
+      createFs(manifestFile.path(), context, opProps, icebergRootPointerPlugin),
+      context, dataset, datasourcePluginUID, manifestFile.length(), conf);
   }
 
   private void nextDataFile() {
@@ -138,9 +144,9 @@ public class ManifestFileProcessor implements AutoCloseable {
     return functionContext.getPluginId().getName();
   }
 
-  private static FileSystem createFs(OperatorContext context, OpProps props, FileSystemPlugin fileSystemPlugin) {
+  private static FileSystem createFs(String path, OperatorContext context, OpProps props, SupportsIcebergRootPointer icebergRootPointerPlugin) {
     try {
-      return fileSystemPlugin.createFS(props.getUserName(), context);
+      return icebergRootPointerPlugin.createFSWithAsyncOptions(path, props.getUserName(), context);
     } catch (IOException e) {
       throw UserException.ioExceptionError(e).buildSilently();
     }
@@ -152,11 +158,11 @@ public class ManifestFileProcessor implements AutoCloseable {
     return referencedTables != null ? referencedTables.iterator().next() : null;
   }
 
-  private static Configuration getConfiguration(FileSystemPlugin fileSystemPlugin) {
+  private static Configuration getConfiguration(SupportsIcebergRootPointer fileSystemPlugin) {
     return fileSystemPlugin.getFsConfCopy();
   }
 
-  private FileSystemPlugin getStoragePlugin(FragmentExecutionContext fec, TableFunctionContext functionContext) {
+  private SupportsIcebergRootPointer getStoragePlugin(FragmentExecutionContext fec, TableFunctionContext functionContext) {
     StoragePluginId pluginId = getPluginId(functionContext);
     try {
       return fec.getStoragePlugin(pluginId);

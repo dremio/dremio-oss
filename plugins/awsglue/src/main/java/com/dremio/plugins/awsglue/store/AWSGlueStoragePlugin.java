@@ -60,7 +60,6 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
-import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
@@ -205,6 +204,16 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   }
 
   @Override
+  public FileSystem createFSWithAsyncOptions(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createFSWithAsyncOptions(filePath, userName, operatorContext);
+  }
+
+  @Override
+  public FileSystem createFSWithoutHDFSCache(String filePath, String userName, OperatorContext operatorContext) throws IOException {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createFSWithoutHDFSCache(filePath, userName, operatorContext);
+  }
+
+  @Override
   public boolean canGetDatasetMetadataInCoordinator() {
     return ((SupportsInternalIcebergTable) hiveStoragePlugin).canGetDatasetMetadataInCoordinator();
   }
@@ -215,8 +224,8 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   }
 
   @Override
-  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes) {
-    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createSplitCreator(context, extendedBytes);
+  public BlockBasedSplitGenerator.SplitCreator createSplitCreator(OperatorContext context, byte[] extendedBytes, boolean isInternalIcebergTable) {
+    return ((SupportsInternalIcebergTable) hiveStoragePlugin).createSplitCreator(context, extendedBytes, isInternalIcebergTable);
   }
 
   @Override
@@ -372,10 +381,5 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   @Override
   public boolean isAWSGlue() {
     return true;
-  }
-
-  @Override
-  public boolean validatePartitions(PartitionChunkListing chunkListing) {
-    return ((SupportsUnlimitedSplits)hiveStoragePlugin).validatePartitions(chunkListing);
   }
 }

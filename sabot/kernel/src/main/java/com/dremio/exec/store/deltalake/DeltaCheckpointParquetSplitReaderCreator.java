@@ -16,30 +16,27 @@
 package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY_VALUE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES_PARSED;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_VALUE;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.exec.ExecConstants;
@@ -58,6 +55,7 @@ import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
 import com.dremio.exec.store.parquet.ParquetSubScan;
+import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.SingleStreamProvider;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
@@ -85,6 +83,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
     private final InputStreamProviderFactory inputStreamProviderFactory;
     private final FileSystem fs;
     private MutableParquetMetadata lastFooter;
+    private String lastPath;
     private final long maxFooterLen;
 
     public DeltaCheckpointParquetSplitReaderCreator(FileSystem fs, OperatorContext opCtx, EasySubScan easySubScanConfig) {
@@ -104,14 +103,20 @@ public class DeltaCheckpointParquetSplitReaderCreator {
             throw new ExecutionSetupException("Invalid split file type. Expected json | parquet. Path - " + easyXAttr.getPath());
         }
 
-        try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
-            final ParquetSubScan parquetSubScanConfig = toParquetScanConfig(addWithPartitionCols);
-            final ParquetProtobuf.ParquetDatasetSplitScanXAttr parquetXAttr = toParquetXAttr(easyXAttr);
-            final ParquetScanProjectedColumns projectedCols = ParquetScanProjectedColumns.fromSchemaPaths(parquetSubScanConfig.getColumns());
-            final Collection<List<String>> referencedTables = parquetSubScanConfig.getTablePath();
-            final List<String> dataset = referencedTables==null || referencedTables.isEmpty() ? null:referencedTables.iterator().next();
+        // need not read partitions related fields in add field for an unpartitioned table
+        List<SchemaPath> fieldsToRead = addWithPartitionCols ? easyConfig.getColumns() : removePartitionColumns(easyConfig.getColumns());
 
-            final InputStreamProvider inputStreamProvider = inputStreamProviderFactory.create(
+        try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()) {
+            final ParquetProtobuf.ParquetDatasetSplitScanXAttr parquetXAttr = toParquetXAttr(easyXAttr);
+          final ParquetScanProjectedColumns projectedCols = ParquetScanProjectedColumns.fromSchemaPaths(fieldsToRead);
+          final List<List<String>> referencedTables = ImmutableList.of(easyConfig.getTableSchemaPath());
+          final List<String> dataset = referencedTables.isEmpty() ? null : referencedTables.iterator().next();
+
+          if (!parquetXAttr.getPath().equals(lastPath)) {
+            lastFooter = null;
+          }
+
+          final InputStreamProvider inputStreamProvider = inputStreamProviderFactory.create(
                     fs,
                     opCtx,
                     Path.of(parquetXAttr.getPath()),
@@ -124,23 +129,28 @@ public class DeltaCheckpointParquetSplitReaderCreator {
                     false,
                     dataset,
                     parquetXAttr.getLastModificationTime(),
-                    parquetSubScanConfig.isArrowCachingEnabled(),
+                    isArrowCachingEnabled,
                     false);
-            rollbackCloseable.add(inputStreamProvider);
-            lastFooter = inputStreamProvider.getFooter();
+          rollbackCloseable.add(inputStreamProvider);
+          lastFooter = inputStreamProvider.getFooter();
+          lastPath = inputStreamProvider.getStreamPath().toString();
 
-            final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(opCtx.getConfig());
-            final MutableParquetMetadata footer = inputStreamProvider.getFooter();
+          final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(opCtx.getConfig());
+          final MutableParquetMetadata footer = inputStreamProvider.getFooter();
 
-            // Taking default options: Only possible date values are in the stats.
-            final boolean readInt96AsTimeStamp = opCtx.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR);
-            final boolean autoCorrectCorruptDates = opCtx.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
+          // Taking default options: Only possible date values are in the stats.
+          final boolean readInt96AsTimeStamp = opCtx.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR);
+          final boolean autoCorrectCorruptDates = opCtx.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
 
-            final SchemaDerivationHelper.Builder schemaHelperBuilder = SchemaDerivationHelper.builder()
+          final SchemaDerivationHelper.Builder schemaHelperBuilder = SchemaDerivationHelper.builder()
                     .readInt96AsTimeStamp(readInt96AsTimeStamp)
                     .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, projectedCols.getBatchSchemaProjectedColumns(),
                             autoCorrectCorruptDates));
-            schemaHelperBuilder.noSchemaLearning(parquetSubScanConfig.getFullSchema());
+
+          final ParquetSubScan parquetSubScanConfig = toParquetScanConfig(addWithPartitionCols, referencedTables,
+            fieldsToRead, footer, parquetXAttr.getPath(), SchemaDerivationHelper.builder().build());
+
+          schemaHelperBuilder.noSchemaLearning(parquetSubScanConfig.getFullSchema());
             SchemaDerivationHelper schemaHelper = schemaHelperBuilder.build();
 
             final GlobalDictionaries globalDictionaries = GlobalDictionaries.create(opCtx, fs, parquetSubScanConfig.getGlobalDictionaryEncodedColumns());
@@ -185,51 +195,62 @@ public class DeltaCheckpointParquetSplitReaderCreator {
         }
     }
 
-    private ParquetSubScan toParquetScanConfig(boolean addWithPartitionCols) {
+  private List<SchemaPath> removePartitionColumns(List<SchemaPath> columns) {
+    return columns.stream()
+      .filter(s -> !s.equals(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES)) &&
+        !s.equals(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES_PARSED)))
+      .collect(Collectors.toList());
+  }
+
+  private ParquetSubScan toParquetScanConfig(boolean addWithPartitionCols, List<List<String>> referencedTables,
+                                             List<SchemaPath> fieldsToRead, MutableParquetMetadata footer, String checkpointParquetPath, SchemaDerivationHelper schemaDerivationHelper) {
         // Checkpoint parquet should be scanned as a regular PARQUET instead of DELTA type
         final FileConfig formatSettings = ProtostuffUtil.copy(easyConfig.getFileConfig());
         formatSettings.setType(FileType.PARQUET);
-        List<SchemaPath> columns = new ArrayList<>(easyConfig.getColumns());
+
         BatchSchema fullSchema = easyConfig.getFullSchema().clone();
         if (addWithPartitionCols) {
+          // partitionValues field has different structure in json and checkpoint parquet, below we
+          // modify partitionValues field to match type in checkpoint file
             Field addField = fullSchema.findField(DELTA_FIELD_ADD);
             Field addFieldCopy = new Field(addField.getName(), addField.getFieldType(), addField.getChildren());
             List<Field> children = addFieldCopy.getChildren();
             children.removeIf(f -> f.getName().equals(SCHEMA_PARTITION_VALUES)); // struct
 
-            final Field partitionKey = Field.nullablePrimitive(SCHEMA_KEY, new ArrowType.Utf8());
-            final Field partitionVal = Field.nullablePrimitive(SCHEMA_VALUE, new ArrowType.Utf8());
-            final Field partitionEntry = new Field("$data$", FieldType.nullable(new ArrowType.Struct()), ImmutableList.of(partitionKey, partitionVal));
-            final Field partitionKeyVal = new Field(SCHEMA_KEY_VALUE, FieldType.nullable(new ArrowType.List()), ImmutableList.of(partitionEntry));
-            final Field partitionValues = new Field(SCHEMA_PARTITION_VALUES, FieldType.nullable(new ArrowType.Struct()), ImmutableList.of(partitionKeyVal)); // Map type is currently not supported
-            children.add(partitionValues); // map
+            // get add.partitionValues field from parquet schema
+          Type partitionValuesParquetField = footer.getFileMetaData()
+            .getSchema()
+            .getType(DELTA_FIELD_ADD)
+            .asGroupType()
+            .getType(SCHEMA_PARTITION_VALUES);
+          if (partitionValuesParquetField == null) {
+            throw UserException.invalidMetadataError().message("Checkpoint file [%s] does not have partitionValues field", checkpointParquetPath).build(logger);
+          }
+
+          Optional<Field> partitionValuesField = ParquetTypeHelper.toField(partitionValuesParquetField, schemaDerivationHelper);
+          children.add(partitionValuesField.orElseThrow(
+            () -> UserException.invalidMetadataError().message("Error while decoding partitionValues field in checkpoint file [%s]", checkpointParquetPath).build(logger)));
 
             List<Field> newFields = new ArrayList<>(fullSchema.getFields());
             newFields.removeIf(f -> f.getName().equals(DELTA_FIELD_ADD));
             newFields.add(addFieldCopy);
 
             fullSchema = new BatchSchema(newFields);
-
-        } else {
-            // remove partition fields in projected columns
-            columns.removeIf(s -> s.equals(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES)) ||
-                    s.equals(SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES_PARSED)));
         }
 
-        final ParquetSubScan parquetConfig = new ParquetSubScan(
-                easyConfig.getProps(),
-                formatSettings,
-                Collections.emptyList(), // initialise with no splits to avoid redundant footer read.
-                fullSchema,
-                ImmutableList.of(easyConfig.getTableSchemaPath()),
-                Collections.emptyList(),
-                easyConfig.getPluginId(),
-                columns,
-                easyConfig.getPartitionColumns(),
-                Collections.emptyList(),
-                easyConfig.getExtendedProperty(),
-                isArrowCachingEnabled);
-        return parquetConfig;
+    return new ParquetSubScan(
+            easyConfig.getProps(),
+            formatSettings,
+            Collections.emptyList(), // initialise with no splits to avoid redundant footer read.
+            fullSchema,
+            referencedTables,
+            Collections.emptyList(),
+            easyConfig.getPluginId(),
+            fieldsToRead,
+            easyConfig.getPartitionColumns(),
+            Collections.emptyList(),
+            easyConfig.getExtendedProperty(),
+            isArrowCachingEnabled);
     }
 
     private SplitAndPartitionInfo toParquetSplit(final SplitAndPartitionInfo split, ParquetProtobuf.ParquetDatasetSplitScanXAttr parquetXAttr) {

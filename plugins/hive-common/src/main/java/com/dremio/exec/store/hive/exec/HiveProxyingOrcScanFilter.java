@@ -93,4 +93,13 @@ public class HiveProxyingOrcScanFilter implements ScanFilter {
   public RexNode getRexFilter() {
     return getProxiedOrcScanFilter().getRexFilter();
   }
+
+  @Override
+  @JsonIgnore
+  public RexNode getExactRexFilter() {
+    // No Exact definition for OrcScanFilter
+    return getProxiedOrcScanFilter().getRexFilter();
+  }
+
+
 }

@@ -35,6 +35,7 @@ import com.dremio.exec.proto.FlightProtos.JobsFlightTicket;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.service.flight.FlightRpcUtils;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Throwables;
@@ -115,7 +116,7 @@ public final class JobDataClientUtils {
       return new JobDataFragmentImpl(new RecordBatches(JobDataClientUtils.getData(
         flightStream, bufferAllocator, limit)), offset, jobId);
     } catch (FlightRuntimeException fre) {
-      Optional<UserException> ue = JobsRpcUtils.fromFlightRuntimeException(fre);
+      Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
       throw ue.isPresent() ? ue.get() : fre;
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);

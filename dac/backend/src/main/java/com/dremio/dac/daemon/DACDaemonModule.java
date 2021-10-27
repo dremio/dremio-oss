@@ -25,6 +25,7 @@ import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -51,7 +52,6 @@ import com.dremio.dac.server.DremioServer;
 import com.dremio.dac.server.DremioServlet;
 import com.dremio.dac.server.LivenessService;
 import com.dremio.dac.server.RestServerV2;
-import com.dremio.dac.server.ScimServer;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.admin.KVStoreReportService;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
@@ -68,6 +68,10 @@ import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.search.SearchServiceImpl;
 import com.dremio.dac.service.search.SearchServiceInvoker;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.JobsTable;
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.MaterializationsTable;
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.ReflectionDependenciesTable;
+import com.dremio.dac.service.sysflight.SysFlightTablesProvider.ReflectionsTable;
 import com.dremio.dac.service.users.UserServiceHelper;
 import com.dremio.dac.support.BasicQueryLogBundleService;
 import com.dremio.dac.support.BasicSupportService;
@@ -108,6 +112,7 @@ import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SimpleJobRunner;
+import com.dremio.exec.server.SysFlightChannelProvider;
 import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.OptionChangeBroadcaster;
 import com.dremio.exec.server.options.OptionManagerWrapper;
@@ -169,8 +174,10 @@ import com.dremio.sabot.task.TaskPool;
 import com.dremio.security.CredentialsService;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.SingletonRegistry;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc;
+import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceStub;
 import com.dremio.service.accelerator.AccelerationListManagerImpl;
-import com.dremio.service.accelerator.ReflectionTunnelCreator;
+import com.dremio.service.accelerator.AccelerationListServiceImpl;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc;
 import com.dremio.service.catalog.DatasetCatalogServiceGrpc.DatasetCatalogServiceBlockingStub;
 import com.dremio.service.catalog.InformationSchemaServiceGrpc;
@@ -249,7 +256,10 @@ import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.service.statistics.StatisticsListManagerImpl;
 import com.dremio.service.statistics.StatisticsServiceImpl;
+import com.dremio.service.sysflight.SysFlightDataProvider;
 import com.dremio.service.sysflight.SysFlightProducer;
+import com.dremio.service.sysflight.SystemTableManager;
+import com.dremio.service.sysflight.SystemTableManagerImpl;
 import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.tokens.TokenManagerImpl;
 import com.dremio.service.users.SimpleUserService;
@@ -479,10 +489,6 @@ public class DACDaemonModule implements DACModule {
     registry.bindProvider(DatasetCatalogServiceBlockingStub.class,
       () -> DatasetCatalogServiceGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster()));
 
-
-    registry.bindProvider(ChronicleGrpc.ChronicleBlockingStub.class,
-      () -> ChronicleGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster()));
-
     registry.bindProvider(TreeApiGrpc.TreeApiBlockingStub.class,
             () -> TreeApiGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster()));
 
@@ -595,7 +601,10 @@ public class DACDaemonModule implements DACModule {
       registry.provider(DatasetCatalogServiceBlockingStub.class),
       registry.provider(GlobalKeysService.class),
       registry.provider(com.dremio.services.credentials.CredentialsService.class),
-      registry.provider(ConduitInProcessChannelProvider.class));
+      registry.provider(ConduitInProcessChannelProvider.class),
+      registry.provider(SysFlightChannelProvider.class));
+
+    registry.bind(SysFlightChannelProvider.class, SysFlightChannelProvider.NO_OP);
 
     registry.bind(ContextService.class, contextService);
     registry.bindProvider(SabotContext.class, contextService::get);
@@ -1047,18 +1056,24 @@ public class DACDaemonModule implements DACModule {
     }
 
     final Provider<Optional<NodeEndpoint>> serviceLeaderProvider = () -> sabotContextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
+
+    if(isCoordinator){
+      conduitServiceRegistry.registerService(new AccelerationListServiceImpl(registry.provider(ReflectionStatusService.class),
+        registry.provider(ReflectionService.class),
+        registry.provider(LegacyKVStoreProvider.class),
+        bootstrap::getExecutor));
+    }
+
     final AccelerationListManagerImpl accelerationListManager = new AccelerationListManagerImpl(
       registry.provider(LegacyKVStoreProvider.class),
       registry.provider(ReflectionStatusService.class),
       registry.provider(ReflectionService.class),
-      registry.provider(FabricService.class),
-      registry.provider(BufferAllocator.class),
       () -> config,
       isMaster,
       isCoordinator,
-      serviceLeaderProvider);
+      serviceLeaderProvider,
+      registry.provider(ConduitProvider.class));
     registry.bind(AccelerationListManager.class, accelerationListManager);
-    registry.bindProvider(ReflectionTunnelCreator.class, accelerationListManager::getReflectionTunnelCreator);
 
     final StatisticsListManager statisticsListManager = new StatisticsListManagerImpl(
       registry.provider(StatisticsService.class),
@@ -1157,7 +1172,6 @@ public class DACDaemonModule implements DACModule {
 
       registry.bind(RestServerV2.class, new RestServerV2(bootstrap.getClasspathScan()));
       registry.bind(APIServer.class, new APIServer(bootstrap.getClasspathScan()));
-      registry.bind(ScimServer.class, new ScimServer(bootstrap.getClasspathScan()));
 
       registry.bind(DremioServlet.class, new DremioServlet(dacConfig.getConfig(),
         registry.provider(ServerHealthMonitor.class),
@@ -1192,6 +1206,7 @@ public class DACDaemonModule implements DACModule {
       );
 
       registerJobsServices(conduitServiceRegistry, registry, bootstrap);
+
     }
 
     if (isExecutor) {
@@ -1223,6 +1238,13 @@ public class DACDaemonModule implements DACModule {
       registry.bindSelf(nessieService);
     }
 
+    if(isCoordinator) {
+      SystemTableManager systemTableManager = new SystemTableManagerImpl(
+        getSystemTableAllocator(bootstrap),
+        () -> getSysFlightTableProviders(conduitProvider));
+      registry.bind(SystemTableManager.class, systemTableManager);
+    }
+
     registerHeapMonitorManager(registry, isCoordinator);
 
     registerActiveQueryListService(registry, isCoordinator, isDistributedMaster, conduitServiceRegistry);
@@ -1237,7 +1259,6 @@ public class DACDaemonModule implements DACModule {
         registry.provider(RestServerV2.class),
         registry.provider(APIServer.class),
         registry.provider(DremioServer.class),
-        registry.provider(ScimServer.class),
         new DremioBinder(registry),
         "ui",
         isInternalUGS));
@@ -1249,6 +1270,10 @@ public class DACDaemonModule implements DACModule {
         isDistributedMaster,
         config));
     }
+  }
+
+  protected BufferAllocator getSystemTableAllocator(final BootStrapContext bootstrap) {
+    return bootstrap.getAllocator().newChildAllocator("sysflight-producer", 0, Long.MAX_VALUE);
   }
 
   private void registerActiveQueryListService(SingletonRegistry registry, boolean isCoordinator,
@@ -1313,7 +1338,7 @@ public class DACDaemonModule implements DACModule {
     // 3. jobs, sys flight producers registered together as CoordinatorFlightProducer, as individual binding is masking one of them
     final BufferAllocator coordFlightAllocator = bootstrap.getAllocator().newChildAllocator(CoordinatorFlightProducer.class.getName(), 0, Long.MAX_VALUE);
     final JobsFlightProducer jobsFlightProducer = new JobsFlightProducer(registry.provider(LocalJobsService.class), coordFlightAllocator);
-    final SysFlightProducer sysFlightProducer = new SysFlightProducer(coordFlightAllocator, registry.provider(ChronicleGrpc.ChronicleBlockingStub.class));
+    final SysFlightProducer sysFlightProducer = new SysFlightProducer(registry.provider(SystemTableManager.class));
     final CoordinatorFlightProducer coordFlightProducer = new CoordinatorFlightProducer(jobsFlightProducer, sysFlightProducer);
     conduitServiceRegistry.registerService(new FlightCloseableBindableService(coordFlightAllocator, coordFlightProducer, null, null));
 
@@ -1322,8 +1347,10 @@ public class DACDaemonModule implements DACModule {
 
     //5. jobresults
     final BufferAllocator jobResultsAllocator = bootstrap.getAllocator().newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
-    conduitServiceRegistry.registerService(new JobResultsGrpcServerFacade(registry.provider(ExecToCoordResultsHandler.class), jobResultsAllocator));
+    conduitServiceRegistry.registerService(new JobResultsGrpcServerFacade(registry.provider(ExecToCoordResultsHandler.class), jobResultsAllocator, registry.provider(MaestroForwarder.class)));
   }
+
+
 
   protected LegacyIndexedStore<JobId, JobResult> getLegacyIndexedStore(Provider<LegacyKVStoreProvider> kvStoreProviderProvider) {
     return kvStoreProviderProvider.get().getStore(LocalJobsService.JobsStoreCreator.class);
@@ -1384,5 +1411,16 @@ public class DACDaemonModule implements DACModule {
     logger.error("Unknown value '{}' set for {}. Accepted values are ['internal', 'ldap']", authType, WEB_AUTH_TYPE);
     throw new RuntimeException(
         String.format("Unknown auth type '%s' set in config path '%s'", authType, WEB_AUTH_TYPE));
+  }
+
+  protected Map<SystemTableManager.TABLES, SysFlightDataProvider> getSysFlightTableProviders(ConduitProvider conduitProvider) {
+    Map<SystemTableManager.TABLES, SysFlightDataProvider> tablesMap = Maps.newHashMap();
+    ReflectionDescriptionServiceStub reflectionsStub = ReflectionDescriptionServiceGrpc.newStub(conduitProvider.getOrCreateChannelToMaster());
+
+    tablesMap.put(SystemTableManager.TABLES.JOBS, new JobsTable(() -> ChronicleGrpc.newStub(conduitProvider.getOrCreateChannelToMaster())));
+    tablesMap.put(SystemTableManager.TABLES.REFLECTIONS, new ReflectionsTable(() -> reflectionsStub));
+    tablesMap.put(SystemTableManager.TABLES.MATERIALIZATIONS, new MaterializationsTable(() -> reflectionsStub));
+    tablesMap.put(SystemTableManager.TABLES.REFLECTION_DEPENDENCIES, new ReflectionDependenciesTable(() -> reflectionsStub));
+    return tablesMap;
   }
 }

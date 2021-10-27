@@ -1,6 +1,13 @@
 ,name,groupId,artifactId,version,url,license,in distribution,checked,text,notice,comment
 ,@babel/runtime,,,7.13.10,https://github.com/babel/babel,MIT,,,,Copyright (c) 2014-present Sebastian McKenzie and other contributors,
 ,@emotion/hash,,,0.8.0,https://github.com/emotion-js/emotion/tree/master/packages/hash,MIT,,,,,
+,@formatjs/ecma402-abstract,,,1.9.4,https://github.com/formatjs/formatjs,MIT,,,,Copyright (c) 2021 FormatJS,
+,@formatjs/fast-memoize,,,1.1.1,https://github.com/formatjs/formatjs,ISC,,,,Copyright (c) 2021 FormatJS,
+,@formatjs/icu-messageformat-parser,,,2.0.7,,MIT,,,,Copyright (c) 2021 FormatJS,
+,@formatjs/icu-skeleton-parser,,,1.2.8,,MIT,,,,Copyright (c) 2021 FormatJS,
+,@formatjs/intl-displaynames,,,5.1.6,https://github.com/formatjs/formatjs,MIT,,,,Copyright (c) 2021 FormatJS,
+,@formatjs/intl-listformat,,,6.2.6,https://github.com/formatjs/formatjs,MIT,,,,Copyright (c) 2021 FormatJS,
+,@formatjs/intl,,,1.13.2,https://github.com/formatjs/formatjs,MIT,,,,Copyright (c) 2021 FormatJS,
 ,@material-ui/core,,,4.11.0,https://github.com/mui-org/material-ui,MIT,,,,Copyright (c) 2014 Call-Em-All,
 ,@material-ui/core,,,4.11.3,https://github.com/mui-org/material-ui,MIT,,,,Copyright (c) 2014 Call-Em-All,
 ,@material-ui/styles,,,4.11.3,https://github.com/mui-org/material-ui,MIT,,,,Copyright (c) 2014 Call-Em-All,
@@ -19,6 +26,7 @@ All rights reserved.",
 All rights reserved.",
 ,@sentry/utils,,,5.13.2,https://github.com/getsentry/sentry-javascript,BSD-3-Clause,,,,"Copyright (c) 2019, Sentry
 All rights reserved.",
+,@types/hoist-non-react-statics,,,3.3.1,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/lodash,,,4.14.168,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/node,,,10.12.18,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
 ,@types/prop-types,,,15.7.3,https://github.com/DefinitelyTyped/DefinitelyTyped,MIT,,,,,
@@ -140,7 +148,6 @@ All rights reserved.",
 ,graphlib,,,2.1.8,https://github.com/dagrejs/graphlib,MIT,,,,Copyright (c) 2012-2014 Chris Pettitt,
 ,gud,,,1.0.0,https://github.com/jamiebuilds/global-unique-id,MIT,,,,,
 ,has-symbols,,,1.0.0,https://github.com/ljharb/has-symbols,MIT,,,,Copyright (c) 2016 Jordan Harband,
-,has,,,1.0.1,https://github.com/tarruda/has,MIT,,,,Copyright (c) 2013 Thiago de Arruda,
 ,has,,,1.0.3,https://github.com/tarruda/has,MIT,,,,,
 ,history,,,3.3.0,https://github.com/ReactTraining/history,MIT,,,,Copyright (c) 2015-2016 Michael Jackson,
 ,hoconfig-js,,,0.1.12,https://github.com/mingqi/hoconfig-js,MIT,,,,Copyright (c) 2014,
@@ -166,20 +173,13 @@ All rights reserved.",
 ,indefinite-observable,,,2.0.1,https://github.com/material-motion/indefinite-observable-js,Apache-2.0,,,,,
 ,inherits,,,2.0.3,https://github.com/isaacs/inherits,ISC,,,,,
 ,inline-style-prefixer,,,2.0.5,https://github.com/rofrischmann/inline-style-prefixer,MIT,,,,Copyright (c) 2015 Robin Frischmann,
-,intl-format-cache,,,2.0.5,https://github.com/yahoo/intl-format-cache,BSD-3-Clause,,,,"Copyright 2014 Yahoo! Inc.
-All rights reserved.",
 ,intl-format-cache,,,2.2.9,https://github.com/formatjs/formatjs,BSD-3-Clause,,,,"Copyright 2014 Yahoo! Inc.
-All rights reserved.",
-,intl-messageformat-parser,,,1.2.0,https://github.com/yahoo/intl-messageformat-parser,BSD-3-Clause,,,,"Copyright 2014 Yahoo! Inc.
 All rights reserved.",
 ,intl-messageformat-parser,,,1.4.0,https://github.com/yahoo/intl-messageformat-parser,BSD-3-Clause,,,,"Copyright 2014 Yahoo! Inc.
 All rights reserved.",
-,intl-messageformat,,,2.1.0,https://github.com/yahoo/intl-messageformat,BSD-3-Clause,,,,"Copyright 2013 Yahoo! Inc.
-All rights reserved.",
 ,intl-messageformat,,,2.2.0,https://github.com/yahoo/intl-messageformat,BSD-3-Clause,,,,"Copyright 2013 Yahoo! Inc.
 All rights reserved.",
-,intl-relativeformat,,,2.0.0,https://github.com/yahoo/intl-relativeformat,BSD-3-Clause,,,,"Copyright 2014 Yahoo! Inc.
-All rights reserved.",
+,intl-messageformat,,,9.7.1,https://github.com/formatjs/formatjs,BSD-3-Clause,,,,"Copyright (c) 2021, Oath Inc.",
 ,intl-relativeformat,,,2.2.0,https://github.com/yahoo/intl-relativeformat,BSD-3-Clause,,,,"Copyright 2014 Yahoo! Inc.
 All rights reserved.",
 ,invariant,,,2.2.2,https://github.com/zertosh/invariant,BSD-3-Clause,,,,"Copyright (c) 2016, Andres Suarez
@@ -202,7 +202,6 @@ All rights reserved.",
 ,isomorphic-fetch,,,2.2.1,https://github.com/matthew-andrews/isomorphic-fetch,MIT,,,,Copyright (c) 2015 Matt Andrews,
 ,jquery-param,,,0.2.0,https://github.com/knowledgecode/jquery-param,MIT,,,,Copyright (c) 2015 KNOWLEDGECODE,
 ,jquery,,,3.5.1,https://github.com/jquery/jquery,MIT,,,,"Copyright JS Foundation and other contributors, https://js.foundation/",
-,js-tokens,,,3.0.2,https://github.com/lydell/js-tokens,MIT,,,,"Copyright (c) 2014, 2015, 2016, 2017 Simon Lydell",
 ,js-tokens,,,4.0.0,https://github.com/lydell/js-tokens,MIT,,,,"Copyright (c) 2014, 2015, 2016, 2017, 2018 Simon Lydell",
 ,jsplumb,,,2.1.4,https://github.com/sporritt/jsPlumb,MIT,,,,"Copyright (c) 2010 - 2014 jsPlumb, http://jsplumbtoolkit.com/",
 ,jss-plugin-camel-case,,,10.6.0,https://github.com/cssinjs/jss,MIT,,,,"The MIT License (MIT)
@@ -307,9 +306,9 @@ Copyright (c) 2017 Evgeny Poberezkin",
 ,react-flow-renderer,,,7.1.2,https://github.com/wbkd/react-flow,MIT,,,,Copyright 2020 webkid GbmH,
 ,react-gtm-module,,,2.0.11,https://github.com/alinemorelli/react-gtm,MIT,,,,Copyright (c) 2016 HolidayCheck,
 ,react-immutable-proptypes,,,2.1.0,https://github.com/HurricaneJames/react-immutable-proptypes,MIT,,,,Copyright (c) 2015 James Burnett,
-,react-intl,,,2.4.0,https://github.com/yahoo/react-intl,BSD-3-Clause,,,,"Copyright 2014 Yahoo Inc.
-All rights reserved.",
 ,react-intl,,,2.9.0,https://github.com/yahoo/react-intl,BSD-3-Clause,,,,"Copyright 2014 Yahoo Inc.
+All rights reserved.",
+,react-intl,,,5.20.4,https://github.com/formatjs/formatjs,BSD-3-Clause,,,,"Copyright 2019 Oath Inc.
 All rights reserved.",
 ,react-is,,,16.13.1,https://github.com/facebook/react,MIT,,,,,
 ,react-json-tree,,,0.10.3,https://github.com/chibicode/react-json-tree,MIT,,,,Copyright (c) 2015 Shusaku Uesugi,
@@ -390,7 +389,9 @@ furnished to do so, subject to the following conditions:",
 ,ts-toolbelt,,,8.4.0,https://github.com/millsp/ts-toolbelt,Apache-2.0,,,,Copyright 2019 Pierre-Antoine Mills,
 ,tslib,,,1.10.0,https://github.com/Microsoft/tslib,Apache-2.0,,,,,
 ,tslib,,,1.14.1,https://github.com/Microsoft/tslib,0BSD,,,,Copyright (c) Microsoft Corporation.,
+,tslib,,,2.3.0,https://github.com/Microsoft/tslib,0BSD,,,,Copyright (c) Microsoft Corporation.,
 ,typed-styles,,,0.0.7,,MIT,,,,Copyright (c) 2017 Artur Kenzhaev,
+,typescript,,,4.2.4,https://github.com/Microsoft/TypeScript,Apache-2.0,,,,,
 ,typo-js,,,1.0.3,https://github.com/cfinke/Typo.js,BSD-3-Clause,,,,"Copyright (c) 2011, Christopher Finke
 All rights reserved.",
 ,ua-parser-js,,,0.7.14,https://github.com/faisalman/ua-parser-js,MIT,,,,Copyright © 2012-2016 Faisal Salman <<fyzlman@gmail.com>>,

@@ -146,8 +146,9 @@ public final class EnhancedFilterJoinExtractor {
 
     // Construct EnhancedFilterJoinExtraction, make remainingJoinCondition as true because
     // we pulled up inputJoinConditions before.
-    return new EnhancedFilterJoinExtraction(joinCondition, leftPushdownPredicate,
-      rightPushdownPredicate, remainingFilter, rexBuilder.makeLiteral(true), JoinRelType.INNER);
+    return new EnhancedFilterJoinExtraction(inputFilterConditionPruned, inputJoinConditionPruned,
+      joinCondition, leftPushdownPredicate, rightPushdownPredicate, remainingFilter,
+      JoinRelType.INNER);
   }
 
   /**
@@ -173,8 +174,9 @@ public final class EnhancedFilterJoinExtractor {
     RexNode remainingJoinCondition = rightPushdownPredicateExtraction.getValue();
 
     // Make EnhancedFilterJoinExtraction
-    return new EnhancedFilterJoinExtraction(rexBuilder.makeLiteral(true), leftPushdownPredicate,
-      rightPushdownPredicate, remainingFilterCondition, remainingJoinCondition, JoinRelType.LEFT);
+    return new EnhancedFilterJoinExtraction(inputFilterConditionPruned, inputJoinConditionPruned,
+      remainingJoinCondition, leftPushdownPredicate, rightPushdownPredicate,
+      remainingFilterCondition, JoinRelType.LEFT);
   }
 
   /**
@@ -200,8 +202,9 @@ public final class EnhancedFilterJoinExtractor {
     RexNode remainingFilterCondition = rightPushdownPredicateExtraction.getValue();
 
     // Make EnhancedFilterJoinExtraction
-    return new EnhancedFilterJoinExtraction(rexBuilder.makeLiteral(true), leftPushdownPredicate,
-      rightPushdownPredicate, remainingFilterCondition, remainingJoinCondition, JoinRelType.RIGHT);
+    return new EnhancedFilterJoinExtraction(inputFilterConditionPruned, inputJoinConditionPruned,
+      remainingJoinCondition, leftPushdownPredicate, rightPushdownPredicate,
+      remainingFilterCondition, JoinRelType.RIGHT);
   }
 
   /**
@@ -215,8 +218,9 @@ public final class EnhancedFilterJoinExtractor {
    */
   private EnhancedFilterJoinExtraction extractFullOuterJoin() {
     // Make EnhancedFilterJoinExtraction
-    return new EnhancedFilterJoinExtraction(rexBuilder.makeLiteral(true), rexBuilder.makeLiteral(true),
-      rexBuilder.makeLiteral(true), inputFilterConditionPruned, inputJoinConditionPruned, JoinRelType.FULL);
+    return new EnhancedFilterJoinExtraction(inputFilterConditionPruned, inputJoinConditionPruned,
+      inputJoinConditionPruned, rexBuilder.makeLiteral(true), rexBuilder.makeLiteral(true),
+      inputFilterConditionPruned, JoinRelType.FULL);
   }
 
   /**
@@ -229,7 +233,7 @@ public final class EnhancedFilterJoinExtractor {
     return extract(inputFilter, true, joinType, true,
       (leafFilter) -> {
         RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(leafFilter);
-        ImmutableBitSet filterBitSet = inputFinder.inputBitSet.build();
+        ImmutableBitSet filterBitSet = inputFinder.build();
         return !leftBitSet.contains(filterBitSet) && !rightBitSet.contains(filterBitSet);
       });
   }
@@ -247,7 +251,7 @@ public final class EnhancedFilterJoinExtractor {
     return extract(inputFilter, true, joinType, false,
       (leafFilter) -> {
         RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(leafFilter);
-        ImmutableBitSet filterBitSet = inputFinder.inputBitSet.build();
+        ImmutableBitSet filterBitSet = inputFinder.build();
         return targetBitSet.contains(filterBitSet);
       });
   }
@@ -266,7 +270,7 @@ public final class EnhancedFilterJoinExtractor {
     boolean pushToJoin, Predicate<RexNode> leafValidator) {
     SqlKind sqlKind = filter.getKind();
 
-    switch (filter.getKind()) {
+    switch (sqlKind) {
       case AND:
       case OR: {
         List<RexNode> childNodes = MoreRelOptUtil.conDisjunctions(filter);

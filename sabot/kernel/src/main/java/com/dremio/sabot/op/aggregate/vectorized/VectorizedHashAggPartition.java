@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import java.util.HashMap;
+
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -42,6 +44,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
   private VectorizedHashAggDiskPartition spillInfo;
   private String identifier;
   private boolean decimalV2Enabled;
+  HashMap<Integer, Integer> batchSpaceUsage = new HashMap<>();
 
   /**
    * Create a partition. Used by {@link VectorizedHashAggOperator} at setup
@@ -68,7 +71,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
     this.identifier = identifier;
     this.buffer = buffer;
     this.decimalV2Enabled = decimalV2Enabled;
-    buffer.retain(1);
+    buffer.getReferenceManager().retain(1);
   }
 
   /**
@@ -77,6 +80,11 @@ public class VectorizedHashAggPartition implements AutoCloseable {
    */
   public String getIdentifier() {
     return identifier;
+  }
+
+  @VisibleForTesting
+  public ArrowBuf getBuffer() {
+    return this.buffer;
   }
 
   @Override
@@ -90,7 +98,9 @@ public class VectorizedHashAggPartition implements AutoCloseable {
    * @return true if partition has been spilled, false if partition
    *         has never been spilled.
    */
-  public boolean isSpilled() { return spilled; }
+  public boolean isSpilled() {
+    return spilled;
+  }
 
   /**
    * Get the spill info for the partition.
@@ -169,8 +179,10 @@ public class VectorizedHashAggPartition implements AutoCloseable {
    *  -- this will also be done at the end of consume cycle when we accumulate for each partition
    *     in accumulateForAllPartitions()
    */
-  void resetRecords() {
+  public void resetRecords() {
     records = 0;
+    /* Reset the batchSpaceUsage as well */
+    resetBatchUsedSpace();
   }
 
   /**
@@ -186,7 +198,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
     recordsSpilled += records;
   }
 
-  void resetSpilledRecords() {
+  public void resetSpilledRecords() {
     recordsSpilled = 0;
   }
 
@@ -226,7 +238,6 @@ public class VectorizedHashAggPartition implements AutoCloseable {
       final Accumulator partitionAccumulator = partitionAccumulators[i];
       final FieldVector deserializedAccumulator = accumulatorVectors[i];
       final byte accumulatorType = accumulatorTypes[i];
-      final int maxValuesPerBatch = hashTable.getActualValuesPerBatch();
       if (accumulatorType == AccumulatorBuilder.AccumulatorType.COUNT1.ordinal()) {
         /* handle COUNT(1) */
         partitionAccumulators[i] =
@@ -249,8 +260,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
         /* handle $SUM0 */
         updateSumZeroAccumulator(deserializedAccumulator, partitionAccumulators,
                                  i, computationVectorAllocator);
-      }
-      else {
+      } else {
         /* handle MIN, MAX */
         Preconditions.checkArgument(
           accumulatorType == AccumulatorBuilder.AccumulatorType.MAX.ordinal() ||
@@ -260,6 +270,11 @@ public class VectorizedHashAggPartition implements AutoCloseable {
                                 i, computationVectorAllocator);
       }
     }
+    /*
+     * accumulators in accmulator.children might have updated. Recalculate the actual
+     * fixedLen and varLen accumulators list.
+     */
+    accumulator.updateVarlenAndFixedAccumusLst();
   }
 
   private void updateMinMaxAccumulator(final FieldVector deserializedAccumulator,
@@ -299,7 +314,6 @@ public class VectorizedHashAggPartition implements AutoCloseable {
       /* fall through in all other cases */
     }
     partitionAccumulator.setInput(deserializedAccumulator);
-
   }
 
   private void updateSumAccumulator(final FieldVector deserializedAccumulator,
@@ -508,5 +522,17 @@ public class VectorizedHashAggPartition implements AutoCloseable {
   @VisibleForTesting
   public AccumulatorSet getAccumulator() {
     return accumulator;
+  }
+
+  public int getBatchUsedSpace(int batchIndex) {
+    return batchSpaceUsage.getOrDefault(batchIndex, 0);
+  }
+
+  public void addBatchUsedSpace(int batchIndex, int space) {
+    batchSpaceUsage.put(batchIndex, space + getBatchUsedSpace(batchIndex));
+  }
+
+  private void resetBatchUsedSpace() {
+    batchSpaceUsage.clear();
   }
 }

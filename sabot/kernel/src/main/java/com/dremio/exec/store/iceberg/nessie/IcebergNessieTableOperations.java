@@ -17,6 +17,7 @@ package com.dremio.exec.store.iceberg.nessie;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.iceberg.BaseMetastoreTableOperations;
 import org.apache.iceberg.TableMetadata;
@@ -25,6 +26,8 @@ import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.io.FileIO;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.writer.WriterCommitterOperator;
 import com.dremio.service.nessie.NessieConfig;
 import com.dremio.service.nessieapi.CommitMultipleOperationsRequest;
 import com.dremio.service.nessieapi.Contents;
@@ -34,6 +37,7 @@ import com.dremio.service.nessieapi.GetReferenceByNameRequest;
 import com.dremio.service.nessieapi.Operation;
 import com.dremio.service.nessieapi.Reference;
 import com.dremio.service.nessieapi.SetContentsRequest;
+import com.google.common.base.Stopwatch;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -47,11 +51,13 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
     private final NessieGrpcClient client;
     private final IcebergNessieTableIdentifier nessieTableIdentifier;
     private Reference reference;
-    public IcebergNessieTableOperations(NessieGrpcClient client, FileIO fileIO, IcebergNessieTableIdentifier nessieTableIdentifier) {
+    private final OperatorStats operatorStats;
+    public IcebergNessieTableOperations(OperatorStats operatorStats, NessieGrpcClient client, FileIO fileIO, IcebergNessieTableIdentifier nessieTableIdentifier) {
         this.fileIO = fileIO;
         this.client = client;
         this.nessieTableIdentifier = nessieTableIdentifier;
         this.reference = null;
+        this.operatorStats = operatorStats;
     }
 
     @Override
@@ -101,10 +107,15 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
 
     @Override
     protected void doCommit(TableMetadata base, TableMetadata metadata) {
+        Stopwatch stopwatchWriteNewMetadata = Stopwatch.createStarted();
         String newMetadataLocation = writeNewMetadata(metadata, currentVersion() + 1);
-
+        long totalMetadataWriteTime = stopwatchWriteNewMetadata.elapsed(TimeUnit.MILLISECONDS);
+        if(operatorStats !=null) {
+          operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_METADATA_WRITE_TIME, totalMetadataWriteTime);
+        }
         boolean threw = true;
         try {
+          Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
             client.getContentsApi().setContents(
                 SetContentsRequest
                     .newBuilder()
@@ -120,6 +131,10 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
                     .build()
             );
             threw = false;
+          long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
+          if(operatorStats != null) {
+            operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_CATALOG_UPDATE_TIME, totalCatalogUpdateTime);
+          }
         } catch (StatusRuntimeException sre) {
             if (sre.getStatus().getCode() == Status.Code.ABORTED) {
                 logger.debug(String.format("Commit failed: Reference hash is out of date. " +

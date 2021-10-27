@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.type.RelDataType;
@@ -185,6 +187,16 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   @Override
+  public CalciteSchema getRootSchema() {
+    return new DremioSchema(catalog, new NamespaceKey(ImmutableList.of()));
+  }
+
+  @Override
+  public CalciteConnectionConfig getConfig() {
+    throw new UnsupportedOperationException("Calcite Catalog DX15967");
+  }
+
+  @Override
   public SqlNameMatcher nameMatcher() {
     return SqlNameMatchers.withCaseSensitive(false);
   }
@@ -242,7 +254,11 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
 
   @Override
-  public void lookupOperatorOverloads(final SqlIdentifier paramSqlIdentifier, SqlFunctionCategory paramSqlFunctionCategory, SqlSyntax paramSqlSyntax, List<SqlOperator> paramList) {
+  public void lookupOperatorOverloads(final SqlIdentifier paramSqlIdentifier,
+                                      SqlFunctionCategory paramSqlFunctionCategory,
+                                      SqlSyntax paramSqlSyntax,
+                                      List<SqlOperator> paramList,
+                                      SqlNameMatcher nameMatcher) {
     if(paramSqlFunctionCategory != SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION) {
       return;
     }

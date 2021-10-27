@@ -24,12 +24,16 @@ import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
+import com.dremio.options.OptionResolver;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Doubles;
@@ -46,10 +50,68 @@ public abstract class JoinPruleBase extends Prule {
   protected boolean checkPreconditions(JoinRel join, RelNode left, RelNode right,
       PlannerSettings settings) {
     JoinCategory category = join.getJoinCategory();
-    if (category == JoinCategory.CARTESIAN || category == JoinCategory.INEQUALITY) {
+    if (category == JoinCategory.CARTESIAN) {
       return false;
     }
+    if (category == JoinCategory.INEQUALITY) {
+      return isInequalityHashJoinSupported(join, settings.getOptions());
+    }
     return true;
+  }
+
+  public static boolean isInequalityHashJoinSupported(JoinRelBase join, OptionResolver options) {
+    if (!options.getOption(PlannerSettings.EXTRA_CONDITIONS_HASHJOIN)) {
+      return false;
+    }
+
+    if (!options.getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN)) {
+      // Inequality hashjoin with non-equi condition is only supported for vectorized hash joins
+      return false;
+    }
+
+    final boolean hasInequalityExpression = join.getJoinCategory() == JoinCategory.INEQUALITY; // Must have an inequality expression
+    final boolean hasEqualityExpression = join.getLeftKeys().size() != 0 && join.getRightKeys().size() != 0; // Must have an equality expression
+    final boolean hasOuterJoin = join.getJoinType() != JoinRelType.INNER; // Must be an outer join
+
+    if (!hasInequalityExpression || !hasEqualityExpression || !hasOuterJoin) {
+      return false;
+    }
+
+    if (join.getRemaining().isAlwaysTrue()) {
+      return false;
+    }
+
+    // We can only support inequality hash join for vectorized hash joins
+    // and we can only vectorize if the join keys are of a safe type
+    return keysAreJoinable(join.getLeft(), join.getLeftKeys()) && keysAreJoinable(join.getRight(), join.getRightKeys());
+  }
+
+  private static boolean keysAreJoinable(RelNode relNode, List<Integer> keys) {
+    for (int key : keys) {
+      RelDataTypeField field = relNode.getRowType().getFieldList().get(key);
+      if (isNotJoinableType(field.getType().getSqlTypeName())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isNotJoinableType(SqlTypeName sqlTypeName) {
+    switch (sqlTypeName) {
+      case BIGINT:
+      case DATE:
+      case FLOAT:
+      case INTEGER:
+      case TIME:
+      case TIMESTAMP:
+      case VARBINARY:
+      case VARCHAR:
+      case DECIMAL:
+        // These types are joinable
+        return false;
+      default:
+        return true;
+    }
   }
 
   protected ImmutableList<DistributionField> getDistributionField(List<Integer> keys) {

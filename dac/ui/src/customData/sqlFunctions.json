@@ -209,7 +209,7 @@
       "name": "TIMESTAMPDIFF",
       "args": "({<time unit>}, [timetype] {giventime1}, [timetype] {giventime2})",
       "returnType": "number",
-      "description": "{{<time unit>}} has possible values YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND, MICROSECOND. Returns the {{count}} units of time between {{giventime1}} and {{giventime2}}, by subtracting {{giventime1}} from {{giventime2}} (rounded down)."
+      "description": "{{<time unit>}} has possible values YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND. Returns the {{count}} units of time between {{giventime1}} and {{giventime2}}, by subtracting {{giventime1}} from {{giventime2}} (rounded down)."
     },
     {
       "name": "TO_NUMBER",

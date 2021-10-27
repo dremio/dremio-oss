@@ -40,7 +40,7 @@ const TotalExecutionTime = (
           {intl.formatMessage({ id: 'TotalExecutionTime' })}
         </div>
         <div className='totalExecutionTime__content'>
-          {total < 1000 ? '<1s' : jobsUtils.formatJobDuration(total)} (100%)
+          {jobsUtils.formatJobDurationWithMS(total)} (100%)
         </div>
       </div>
       <DurationBreakdown

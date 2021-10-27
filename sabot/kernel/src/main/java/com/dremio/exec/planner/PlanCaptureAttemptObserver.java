@@ -323,7 +323,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
       RelNode toSerialize = converted.accept(new RelShuttleImpl() {
         @Override
         public RelNode visit(TableScan scan) {
-          return LogicalTableScan.create(scan.getCluster(), scan.getTable());
+          return LogicalTableScan.create(scan.getCluster(), scan.getTable(), ImmutableList.of());
         }
       });
 

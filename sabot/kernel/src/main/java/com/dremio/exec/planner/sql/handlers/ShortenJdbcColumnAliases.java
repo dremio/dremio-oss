@@ -25,6 +25,7 @@ import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.common.JdbcRelImpl;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 /**
@@ -59,7 +60,7 @@ public class ShortenJdbcColumnAliases extends StatelessRelShuttleImpl {
         return updatedJdbcRoot;
       }
 
-      final LogicalProject logicalProject = LogicalProject.create(updatedJdbcRoot,
+      final LogicalProject logicalProject = LogicalProject.create(updatedJdbcRoot, ImmutableList.of(),
         updatedJdbcRoot.getCluster().getRexBuilder().identityProjects(updatedJdbcRoot.getRowType()), other.getRowType());
 
       return logicalProject;

@@ -565,7 +565,7 @@ public class TestSourceMetadataManager {
       .setSchemaConfig(SchemaConfig.newBuilder("dremio").build())
       .setCheckValidity(false)
       .build();
-    assertTrue(manager.isStillValid(metadataRequestOptions, datasetConfig));
+    assertTrue(manager.isStillValid(metadataRequestOptions, datasetConfig, null, ns));
 
   }
 

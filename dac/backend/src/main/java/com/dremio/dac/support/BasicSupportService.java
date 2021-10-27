@@ -16,6 +16,7 @@
 package com.dremio.dac.support;
 
 import static com.dremio.common.util.DremioVersionInfo.VERSION;
+import static com.dremio.dac.obfuscate.ObfuscationUtils.obfuscate;
 import static com.dremio.dac.util.ClusterVersionUtils.toClusterVersion;
 
 import java.io.BufferedOutputStream;
@@ -550,7 +551,7 @@ public class BasicSupportService implements SupportService {
       zip.putNextEntry(new ZipEntry("header.json"));
       recordHeader(zip, request, config, submissionId);
 
-      final JobSummary jobSummary = getJobSummary(request, config);
+      final JobSummary jobSummary = obfuscate(getJobSummary(request, config));
 
       for(int attemptIndex = 0; attemptIndex < jobSummary.getNumAttempts() ; attemptIndex++) {
         zip.putNextEntry(new ZipEntry(String.format("profile_attempt_%d.json", attemptIndex)));
@@ -598,7 +599,7 @@ public class BasicSupportService implements SupportService {
 
     header.setClusterInfo(getClusterInfo());
 
-    header.setJob(JobsProtoUtil.getLastAttempt(getJobDetails(supportRequest, user)));
+    header.setJob(obfuscate(JobsProtoUtil.getLastAttempt(getJobDetails(supportRequest, user))));
 
     Submission submission = new Submission()
         .setSubmissionId(submissionId)
@@ -626,7 +627,7 @@ public class BasicSupportService implements SupportService {
   }
 
   private QueryProfile recordProfile(OutputStream out, SupportRequest supportRequest, int attempt) throws IOException, JobNotFoundException {
-    QueryProfile profile = getProfile(supportRequest, attempt);
+    QueryProfile profile = obfuscate(getProfile(supportRequest, attempt));
     ProtobufUtils.writeAsJSONTo(out, profile);
     return profile;
   }
@@ -637,7 +638,7 @@ public class BasicSupportService implements SupportService {
       .setUserName(supportRequest.getUserId())
       .setAttempt(attempt)
       .build();
-    QueryProfile profile = jobsService.get().getProfile(request);
+    QueryProfile profile = obfuscate(jobsService.get().getProfile(request));
     ProtobufUtils.writeAsJSONTo(out, profile);
     return profile;
   }

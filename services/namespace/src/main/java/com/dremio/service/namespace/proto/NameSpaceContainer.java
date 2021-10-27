@@ -187,6 +187,14 @@ public class NameSpaceContainer {
     return this;
   }
 
+  public int getVersion() {
+    return delegate.getVersion();
+  }
+
+  public void setVersion(int version) {
+    delegate.setVersion(version);
+  }
+
   @Override
   public boolean equals(Object obj) {
     if (this == obj) {

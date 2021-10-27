@@ -16,6 +16,7 @@
 package com.dremio.service.grpc;
 
 import java.util.Map;
+import java.util.Set;
 
 import javax.inject.Provider;
 
@@ -36,7 +37,7 @@ public class SingleTenantGrpcChannelBuilderFactory extends BaseGrpcChannelBuilde
 
   public SingleTenantGrpcChannelBuilderFactory(Tracer tracer,
                                                Provider<Map<String, Object>> defaultServiceConfigProvider,
-                                               ClientInterceptor interceptor) {
-    super(tracer, Sets.newHashSet(interceptor), defaultServiceConfigProvider);
+                                               Set<ClientInterceptor> interceptors) {
+    super(tracer, interceptors, defaultServiceConfigProvider);
   }
 }

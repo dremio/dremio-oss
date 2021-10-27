@@ -223,6 +223,12 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
               .baselineValues(6L)
               .go();
 
+      testBuilder()
+              .ordered()
+              .sqlQuery("select count(col1) as cnt from dfs.tmp.metadatarefresh.\"path.with\".special_chars.\"and space\"")
+              .baselineColumns("cnt")
+              .baselineValues(6L)
+              .go();
     }
   }
 

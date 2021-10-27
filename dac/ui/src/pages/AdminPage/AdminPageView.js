@@ -20,8 +20,8 @@ import Radium from 'radium';
 import withFilteredSections from '@inject/pages/AdminPage/withFilteredSections';
 
 import SettingPage from '@app/containers/SettingPage';
-import UserNavigation from '@app/components/UserNavigation';
-import MainHeader from 'components/MainHeader';
+import UserNavigation from 'components/UserNavigation';
+import SideNav from '@app/components/SideNav/SideNav';
 import { navigationSection, getTitle } from '@inject/pages/AdminPage/navSections';
 
 import './AdminPage.less'; // TODO to Vasyl, need to use Radium for each child component
@@ -31,10 +31,10 @@ class AdminPageView extends PureComponent {
   static propTypes = {
     sections: PropTypes.arrayOf(PropTypes.object),
     children: PropTypes.node,
-    routeParams: PropTypes.object,
     location: PropTypes.object.isRequired,
     style: PropTypes.object
   };
+
 
   constructor(props) {
     super(props);
@@ -44,8 +44,8 @@ class AdminPageView extends PureComponent {
     const { location, style, children, sections } = this.props;
     return (
       <SettingPage id='admin-page' style={style}>
-        <MainHeader />
         <div className='page-content'>
+          <SideNav/>
           <UserNavigation
             title={getTitle()}
             sections={sections}

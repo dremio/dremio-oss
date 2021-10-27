@@ -135,8 +135,14 @@ public class JobResultsStore implements Service {
       if(attempts.size() > 0) {
         final JobAttempt mostRecentJob = attempts.get(job.getAttemptsList().size() - 1);
         if (mostRecentJob.getState() == JobState.CANCELED) {
+          String cancelledMessage = "";
+          if (mostRecentJob.getInfo() != null) {
+            if (mostRecentJob.getInfo().getCancellationInfo() != null) {
+              cancelledMessage = mostRecentJob.getInfo().getCancellationInfo().getMessage();
+            }
+          }
           throw UserException.dataReadError()
-            .message("Could not load results as the query was canceled")
+            .message(String.format("Could not load results as the query was canceled . %s", cancelledMessage))
             .build(logger);
         } else if (mostRecentJob.getState() == JobState.FAILED) {
           String failureMessage = mostRecentJob.getInfo().getDetailedFailureInfo().getErrorsList().get(0).getMessage();

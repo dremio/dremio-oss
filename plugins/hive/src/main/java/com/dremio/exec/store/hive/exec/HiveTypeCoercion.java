@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import com.dremio.exec.record.BatchSchema;
 import java.util.Collections;
 import java.util.Map;
 
@@ -27,8 +26,10 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.common.types.TypeProtos;
+import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.MajorTypeHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TypeCoercion;
 
 /**
@@ -51,10 +52,10 @@ public class HiveTypeCoercion implements TypeCoercion {
   }
 
   @Override
-  public TypeProtos.MajorType getType(Field field) {
-    TypeProtos.MajorType majorType = MajorTypeHelper.getMajorTypeForField(field);
-    if (majorType.getMinorType().equals(TypeProtos.MinorType.VARCHAR) ||
-      majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY)) {
+  public MajorType getType(Field field) {
+    MajorType majorType = MajorTypeHelper.getMajorTypeForField(field);
+    if (majorType.getMinorType().equals(MinorType.VARCHAR) ||
+      majorType.getMinorType().equals(MinorType.VARBINARY)) {
       int width = varcharWidthMap.getOrDefault(field.getName(), CompleteType.DEFAULT_VARCHAR_PRECISION);
       majorType = majorType.toBuilder().setWidth(width).build();
     }
@@ -74,5 +75,13 @@ public class HiveTypeCoercion implements TypeCoercion {
       childrenTypeInfoMap.put(childSchema.getFields().get(0).getName(), ((ListTypeInfo) typeInfo).getListElementTypeInfo());
     }
     return new HiveTypeCoercion(childrenTypeInfoMap, varcharTruncationEnabled);
+  }
+
+  @Override
+  public boolean isVarcharTruncationRequired(Field field) {
+    MajorType majorType = getType(field);
+    MinorType minorType = majorType.getMinorType();
+    return (minorType.equals(MinorType.VARCHAR) || minorType.equals(MinorType.VARBINARY)) &&
+      majorType.getWidth() < CompleteType.DEFAULT_VARCHAR_PRECISION;
   }
 }

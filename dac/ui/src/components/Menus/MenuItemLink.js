@@ -20,7 +20,7 @@ import PropTypes from 'prop-types';
 import invariant from 'invariant';
 
 import MenuItem from './MenuItem';
-
+import './MenuItemLink.less';
 @Radium
 export default class MenuItemLink extends Component {
   static propTypes = {
@@ -29,7 +29,9 @@ export default class MenuItemLink extends Component {
     closeMenu: PropTypes.func,
     disabled: PropTypes.bool,
     external: PropTypes.bool,
-    newWindow: PropTypes.bool
+    newWindow: PropTypes.bool,
+    rightIcon: PropTypes.object,
+    leftIcon: PropTypes.object
   };
 
   constructor(props) {
@@ -46,30 +48,22 @@ export default class MenuItemLink extends Component {
   }
 
   render() {
-    const { href, text, disabled, external, newWindow } = this.props;
+    const { href, text, disabled, external, newWindow, leftIcon, rightIcon } = this.props;
 
     invariant(!newWindow || external && newWindow, 'newWindow cannot be enabled without external also being enabled');
 
     const target = newWindow ? '_blank' : null;
 
-    const link = external
-      ? <a href={href} target={target} style={styles.linkStyle} onClick={this.onClick}>{text}</a>
-      : <Link style={styles.linkStyle} to={href || ''} onClick={this.onClick}>{text}</Link>;
-    return (
-      <MenuItem disabled={disabled}>
-        {link}
+    const menuItem = (
+      <MenuItem disabled={disabled} leftIcon={leftIcon} rightIcon={rightIcon}>
+        <div className='menuItemLink__item'>{text}</div>
       </MenuItem>
     );
+
+    const link = external
+      ? <a href={href} target={target} className='menuItemLink__link' onClick={this.onClick}>{menuItem}</a>
+      : <Link className='menuItemLink__link' to={href || ''} onClick={this.onClick}>{menuItem}</Link>;
+
+    return link;
   }
 }
-
-const styles = {
-  linkStyle: {
-    textDecoration: 'none',
-    color: '#333',
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-    height: 25
-  }
-};

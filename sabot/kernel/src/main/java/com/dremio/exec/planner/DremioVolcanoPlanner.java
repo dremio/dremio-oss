@@ -107,6 +107,8 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
       } else {
         throw ex;
       }
+    } finally {
+      cancelFlag.stop();
     }
   }
 

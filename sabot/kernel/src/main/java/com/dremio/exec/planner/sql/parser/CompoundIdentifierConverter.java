@@ -26,8 +26,10 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOrderBy;
+import org.apache.calcite.sql.SqlPivot;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlSetOption;
+import org.apache.calcite.sql.SqlUnpivot;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql.util.SqlVisitor;
@@ -67,6 +69,14 @@ public class CompoundIdentifierConverter extends SqlShuttle {
 
   @Override
   public SqlNode visit(final SqlCall call) {
+    if(call instanceof SqlPivot || call instanceof SqlUnpivot) {
+      // This method incorrectly rewrites SqlPivot to a SqlBasicCall meaning
+      // we end up calling into SqlBasicCall.unparse instead of SqlPivot.unparse.
+      // This leads into an exception down the line.
+      // Overall if B derives from A and we are visiting B, then we shouldn't return A
+      return call;
+    }
+
     // Handler creates a new copy of 'call' only if one or more operands
     // change.
     ArgHandler<SqlNode> argHandler = new ComplexExpressionAware(call);
@@ -212,7 +222,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlAlterTableSetOption.class, R(D, D, D, D));
     rules.put(SqlAlterClearPlanCache.class, R());
     rules.put(SqlAnalyzeTableStatistics.class, R(D, D, D));
-    rules.put(SqlAlterDatasetReflectionRouting.class, R(D, D, D));
+    rules.put(SqlAlterDatasetReflectionRouting.class, R(D, D, D, D));
 
     REWRITE_RULES = ImmutableMap.copyOf(rules);
   }

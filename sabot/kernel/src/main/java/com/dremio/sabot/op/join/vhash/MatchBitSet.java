@@ -28,16 +28,15 @@ import io.netty.util.internal.PlatformDependent;
 public class MatchBitSet implements AutoCloseable {
 
   private final static int LONG_TO_BITS_SHIFT = 6;
-  private final static int BIT_OFFSET_MUSK = (1 << LONG_TO_BITS_SHIFT) - 1;
+  private final static int LONG_TO_BYTE_SHIFT = 3;
+  private final static int BIT_OFFSET_MASK = (1 << LONG_TO_BITS_SHIFT) - 1;
+  private final static int WORD_MASK = (Integer.MAX_VALUE >>> LONG_TO_BITS_SHIFT) << LONG_TO_BITS_SHIFT;
   private final static int BYTES_PER_WORD = 8;
 
-  private final BufferAllocator allocator;
   // A buffer allocated by allocator to store the bits
   private final ArrowBuf buffer;
   // The memory address of buffer
   private final long bufferAddr;
-  // The number of bits
-  private final int numBits;
   // The number of words, whose length is 8 bytes.
   private final int numWords;
 
@@ -49,12 +48,11 @@ public class MatchBitSet implements AutoCloseable {
   public MatchBitSet(final int numBits, final BufferAllocator allocator) {
     Preconditions.checkArgument(numBits >= 0, "bits count in constructor of BitSet is invalid");
 
-    this.allocator = allocator;
-    this.numBits = numBits;
-    numWords = bitsToWords(this.numBits);
-    buffer = allocator.buffer(numWords * BYTES_PER_WORD);
+    // The number of bits
+    numWords = bitsToWords(numBits);
+    buffer = allocator.buffer((long) numWords * BYTES_PER_WORD);
     bufferAddr = buffer.memoryAddress();
-    long maxBufferAddr = bufferAddr + numWords * BYTES_PER_WORD;
+    long maxBufferAddr = bufferAddr + (long) numWords * BYTES_PER_WORD;
     for (long wordAddr = bufferAddr; wordAddr < maxBufferAddr; wordAddr += BYTES_PER_WORD) {
       PlatformDependent.putLong(wordAddr, 0);
     }
@@ -67,7 +65,7 @@ public class MatchBitSet implements AutoCloseable {
    */
   private static int bitsToWords(final int numBits) {
     int numLong = numBits >>> LONG_TO_BITS_SHIFT;
-    if ((numBits & BIT_OFFSET_MUSK) != 0)
+    if ((numBits & BIT_OFFSET_MASK) != 0)
     {
       numLong++;
     }
@@ -79,11 +77,10 @@ public class MatchBitSet implements AutoCloseable {
    * @param index   the index of the bit
    */
   public void set(final int index) {
-    final int wordNum = index >>> LONG_TO_BITS_SHIFT;
-    final int bit = index & BIT_OFFSET_MUSK;
-    final long bitMask = 1L << bit;
+    final int wordOffset = (index & WORD_MASK) >>> LONG_TO_BYTE_SHIFT;
+    final long bitMask = 1L << (index & BIT_OFFSET_MASK);
 
-    final long wordAddr = bufferAddr + wordNum * BYTES_PER_WORD;
+    final long wordAddr = bufferAddr + (long) wordOffset;
     PlatformDependent.putLong(wordAddr, PlatformDependent.getLong(wordAddr) | bitMask);
   }
 
@@ -94,10 +91,9 @@ public class MatchBitSet implements AutoCloseable {
    *                false if the bit is not set
    */
   public boolean get(final int index) {
-    final int wordNum = index >>> LONG_TO_BITS_SHIFT;
-    final int bit = index & BIT_OFFSET_MUSK;
-    final long bitmask = 1L << bit;
-    return (PlatformDependent.getLong(bufferAddr + wordNum * BYTES_PER_WORD) & bitmask) != 0;
+    final int wordOffset = (index & WORD_MASK) >>> LONG_TO_BYTE_SHIFT;
+    final long bitMask = 1L << (index & BIT_OFFSET_MASK);
+    return (PlatformDependent.getLong(bufferAddr + wordOffset) & bitMask) != 0;
   }
 
   /**
@@ -108,17 +104,17 @@ public class MatchBitSet implements AutoCloseable {
    *                  >= numBits if all left bits are set
    */
   public int nextUnSetBit(final int index) {
-    final int wordNum = index >>> LONG_TO_BITS_SHIFT;
-    final int bit = index & BIT_OFFSET_MUSK;
+    final int wordOffset = (index & WORD_MASK) >>> LONG_TO_BYTE_SHIFT;
+    final int bit = index & BIT_OFFSET_MASK;
 
-    long wordAddr = bufferAddr + wordNum * BYTES_PER_WORD;
+    long wordAddr = bufferAddr + (long) wordOffset;
     long word = ~PlatformDependent.getLong(wordAddr) >> bit;
     if (word != 0)
     {
       return index + Long.numberOfTrailingZeros(word);
     }
 
-    final long maxAddr = bufferAddr + numWords * BYTES_PER_WORD;
+    final long maxAddr = bufferAddr + (long) numWords * BYTES_PER_WORD;
     for (wordAddr += BYTES_PER_WORD; wordAddr < maxAddr; wordAddr += BYTES_PER_WORD) {
       word = ~PlatformDependent.getLong(wordAddr);
       if (word != 0)
@@ -136,7 +132,7 @@ public class MatchBitSet implements AutoCloseable {
    */
   public int cardinality() {
     int sum = 0;
-    final long maxBufferAddr = bufferAddr + numWords * BYTES_PER_WORD;
+    final long maxBufferAddr = bufferAddr + (long) numWords * BYTES_PER_WORD;
     for (long wordAddr = bufferAddr; wordAddr < maxBufferAddr; wordAddr += BYTES_PER_WORD) {
       sum += Long.bitCount(PlatformDependent.getLong(wordAddr));
     }

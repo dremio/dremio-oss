@@ -33,6 +33,7 @@ import { runDatasetSql, previewDatasetSql } from 'actions/explore/dataset/run';
 import { navigateToExploreDefaultIfNecessary } from 'utils/pathUtils';
 import { getExploreViewState } from '@app/selectors/resources';
 import Reflections from '@app/pages/ExplorePage/subpages/reflections/Reflections';
+import { HomePageTop } from '@inject/pages/HomePage/HomePageTop';
 
 import ExploreTableController from './../components/ExploreTable/ExploreTableController';
 import JoinTables from './../components/ExploreTable/JoinTables';
@@ -240,6 +241,7 @@ class ExplorePageContentWrapper extends PureComponent {
 
     return (
       <div className={classNames('table-parent', base)} style={tableViewerStyle}>
+        <HomePageTop />
         {this.getUpperContent()}
         <div className='table-control-wrap' style={styles.tableControlWrap}>
           {this.getControlsBlock()}

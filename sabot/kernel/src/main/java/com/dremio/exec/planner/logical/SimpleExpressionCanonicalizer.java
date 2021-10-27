@@ -112,8 +112,8 @@ public final class SimpleExpressionCanonicalizer {
         case NOT_EQUALS: {
           RexNode leftOp = call.getOperands().get(0);
           RexNode rightOp = call.getOperands().get(1);
-          ImmutableBitSet leftBitSet = RelOptUtil.InputFinder.analyze(leftOp).inputBitSet.build();
-          ImmutableBitSet rightBitSet = RelOptUtil.InputFinder.analyze(rightOp).inputBitSet.build();
+          ImmutableBitSet leftBitSet = RelOptUtil.InputFinder.analyze(leftOp).build();
+          ImmutableBitSet rightBitSet = RelOptUtil.InputFinder.analyze(rightOp).build();
 
           // Make input refs left and literals right
           if (leftBitSet.isEmpty() && !rightBitSet.isEmpty()) {

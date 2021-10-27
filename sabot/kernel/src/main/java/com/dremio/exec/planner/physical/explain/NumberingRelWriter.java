@@ -30,6 +30,7 @@ import org.apache.calcite.runtime.FlatLists;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.util.Pair;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
@@ -171,8 +172,7 @@ class NumberingRelWriter implements RelWriter {
       assert values.get(i).right == input;
       ++i;
     }
-    for (RexNode expr : node.getChildExps()) {
-      assert values.get(i).right == expr;
+    for (RexNode expr : MoreRelOptUtil.getChildExps(node)) {
       ++i;
     }
     final List<Pair<String, Object>> valuesCopy =

@@ -31,11 +31,9 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
 
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.google.common.collect.Lists;
 
 /**
  * Rule that pushes predicates from a Filter and a Join into the Join below, and pushes the join
@@ -80,13 +78,14 @@ public abstract class EnhancedFilterJoinRule extends RelOptRule {
 
   protected RelNode doMatch(Filter filterRel, Join joinRel, RelBuilder relBuilder) {
     // Extract the join condition and pushdown predicates, also simplify the remaining filter
-    EnhancedFilterJoinExtraction extraction = new EnhancedFilterJoinExtractor(filterRel,
-      joinRel, FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM).extract();
-    RexNode joinConditionFromFilter = extraction.getJoinConditionFromFilter();
+    EnhancedFilterJoinExtraction extraction = new EnhancedFilterJoinExtractor(filterRel, joinRel,
+      FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM).extract();
+    RexNode inputFilterConditionPruned = extraction.getInputFilterConditionPruned();
+    RexNode inputJoinConditionPruned = extraction.getInputJoinConditionPruned();
+    RexNode newJoinCondition = extraction.getJoinCondition();
     RexNode leftPushdownPredicate = extraction.getLeftPushdownPredicate();
     RexNode rightPushdownPredicate = extraction.getRightPushdownPredicate();
     RexNode remainingFilterCondition = extraction.getRemainingFilterCondition();
-    RexNode remainingJoinCondition = extraction.getRemainingJoinCondition();
     JoinRelType simplifiedJoinType = extraction.getSimplifiedJoinType();
 
     // Shift filters
@@ -113,38 +112,29 @@ public abstract class EnhancedFilterJoinRule extends RelOptRule {
       rightFields,
       rightPushdownPredicate);
 
-    // Prune predicates that have already been pushed down
+    // Prune left and right predicates that have already been pushed down
     RelMetadataQuery mq = joinRel.getCluster().getMetadataQuery();
-    RexNode joinConditionFromFilterPruned = EnhancedFilterJoinPruner.prunePushdown(
-      joinConditionFromFilter, mq, joinRel, rexBuilder);
     RexNode leftPushdownPredicatePruned = EnhancedFilterJoinPruner.prunePushdown(
       leftPushdownPredicateShifted, mq, joinRel.getLeft(), rexBuilder);
     RexNode rightPushdownPredicatePruned = EnhancedFilterJoinPruner.prunePushdown(
       rightPushdownPredicateShifted, mq, joinRel.getRight(), rexBuilder);
 
-    // Check if no pushdown happens
-    if (joinConditionFromFilterPruned.isAlwaysTrue()
-      && leftPushdownPredicatePruned.isAlwaysTrue()
-      && rightPushdownPredicatePruned.isAlwaysTrue()) {
+    // If nothing is changed, then no pushdown happens
+    if (leftPushdownPredicatePruned.isAlwaysTrue()
+      && rightPushdownPredicatePruned.isAlwaysTrue()
+      && (newJoinCondition.isAlwaysTrue() ||
+        (newJoinCondition.equals(inputJoinConditionPruned)
+        && remainingFilterCondition.equals(inputFilterConditionPruned)))) {
       return null;
     }
-
-    // In INNER join, we pulled input join condition up to filter before and made
-    // remainingJoinCondition true, so here we need to apply non-pruned join condition
-    RexNode joinConditionFromFilterFinal = (joinRel.getJoinType() == JoinRelType.INNER) ?
-      joinConditionFromFilter : joinConditionFromFilterPruned;
-    RexNode joinCondition = RexUtil.composeConjunction(rexBuilder, Lists.newArrayList(
-      joinConditionFromFilterFinal, remainingJoinCondition), false);
-    RexNode joinConditionSupersetPruned = EnhancedFilterJoinPruner.pruneSuperset(
-      joinCondition, false, rexBuilder);
 
     // Construct the rewritten result
     return relBuilder
       .push(joinRel.getLeft())
-      .filter(leftPushdownPredicateShifted)   // left child of join
+      .filter(leftPushdownPredicatePruned)   // left child of join
       .push(joinRel.getRight())
-      .filter(rightPushdownPredicateShifted)    // right child of join
-      .join(simplifiedJoinType, joinConditionSupersetPruned)    // join
+      .filter(rightPushdownPredicatePruned)    // right child of join
+      .join(simplifiedJoinType, newJoinCondition)    // join
       .convert(joinRel.getRowType(), false)   // project if needed
       .filter(remainingFilterCondition)   // remaining filter
       .build();

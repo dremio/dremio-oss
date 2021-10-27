@@ -16,8 +16,8 @@
 package com.dremio.exec.store.hive;
 
 import static com.dremio.BaseTestQuery.getTempDir;
-import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
 import static com.dremio.exec.hive.HiveTestUtilities.DriverState;
+import static com.dremio.exec.hive.HiveTestUtilities.executeQuery;
 import static com.dremio.exec.hive.HiveTestUtilities.logVersion;
 import static com.dremio.exec.hive.HiveTestUtilities.pingHive;
 

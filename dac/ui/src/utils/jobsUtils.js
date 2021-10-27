@@ -203,6 +203,11 @@ export class JobsUtils {
     array[toIndex] = element;
     return array;
   }
+
+  formatJobDurationWithMS(duration, isNumberFormat) {
+    return timeUtils.durationWithMS(moment.duration(duration, 'ms'), isNumberFormat);
+  }
+
 }
 
 export default new JobsUtils();

@@ -44,6 +44,7 @@ import io.netty.util.internal.PlatformDependent;
  * accumulation vectors associated with the current aggregation.
  */
 abstract class BaseSingleAccumulator implements Accumulator {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseSingleAccumulator.class);
 
   private static final long OFF = 0;
   private static final long ON = 0xFFFFFFFFFFFFFFFFl;
@@ -137,7 +138,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
     // add validity child
     serializedFieldBuilder.addChild(field.getChild(0).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(validityBufferSize));
     // add data child
-    serializedFieldBuilder.addChild(field.getChild(1).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(totalBufferSize - validityBufferSize));
+    serializedFieldBuilder.addChild(field.getChild(1).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(dataBufferSize));
     // this serialized field will be used for adding all batches (new accumulator vectors) and loading them
     this.serializedField = serializedFieldBuilder.build();
   }
@@ -394,7 +395,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
       return;
     }
 
-    Preconditions.checkArgument(batchIdx < accumulators.length, "Error: incorrect batch index to release");
+    Preconditions.checkArgument(batchIdx < batches, "Error: incorrect batch index to release");
 
     final FieldVector vector = accumulators[batchIdx];
     vector.close();
@@ -429,8 +430,10 @@ abstract class BaseSingleAccumulator implements Accumulator {
    * @param batchIndex batch to output
    */
   @Override
-  public void output(final int batchIndex) {
+  public void output(final int batchIndex, int numRecords) {
     final FieldVector accumulationVector = accumulators[batchIndex];
+    /* We cannot actually verify how many actual returns that are being transferred */
+    // Preconditions.checkArgument(accumulationVector.getValueCount() == numRecords);
     final TransferPair transferPair = accumulationVector.makeTransferPair(transferVector);
     transferPair.transfer();
     if (batchIndex == 0) {
@@ -564,6 +567,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
    *
    * @return target vector
    */
+  @Override
   public FieldVector getOutput() {
     return output;
   }

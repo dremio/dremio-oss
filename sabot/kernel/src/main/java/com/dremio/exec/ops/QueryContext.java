@@ -81,8 +81,8 @@ import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
+import com.dremio.resource.common.ReflectionRoutingManager;
 import com.dremio.resource.common.ResourceSchedulingContext;
-import com.dremio.resource.common.RoutingQueueManager;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -258,8 +258,8 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return sabotContext.getAccelerationManager();
   }
 
-  public RoutingQueueManager getRoutingQueueManager() {
-    return sabotContext.getRoutingQueueManager();
+  public ReflectionRoutingManager getReflectionRoutingManager() {
+    return sabotContext.getReflectionRoutingManager();
   }
 
   public RelMetadataQuerySupplier getRelMetadataQuerySupplier() {
@@ -444,6 +444,11 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   public FunctionErrorContext getFunctionErrorContext() {
     // Dummy context. TODO (DX-9622): remove this method once we handle the function interpretation in the planning phase
     return FunctionErrorContextBuilder.builder().build();
+  }
+
+  @Override
+  public int getFunctionErrorContextSize() {
+    return errorContexts.size();
   }
 
   public MaterializationDescriptorProvider getMaterializationProvider() {

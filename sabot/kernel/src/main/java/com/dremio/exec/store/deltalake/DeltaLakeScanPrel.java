@@ -84,7 +84,6 @@ import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
-import com.dremio.sabot.op.join.JoinUtils;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -344,7 +343,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
       rexBuilder.makeInputRef(joinType, addPathScan.getRowType().getFieldCount() + removePathField.left /* Add the offset */));
 
     HashJoinPrel hashJoinPrel = HashJoinPrel.create(addPathScan.getCluster(), addPathScan.getTraitSet(), addPathScan, removePathScan,
-      joinCondition, joinRelType, JoinUtils.projectAll(addPathScan.getRowType().getFieldCount() + removePathScan.getRowType().getFieldCount()));
+      joinCondition, null, joinRelType);
 
     removePathField = findFieldWithIndex(hashJoinPrel, SCHEMA_REMOVE_PATH);
 
@@ -514,7 +513,6 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
         getCluster(),
         hashToRandomExchangePrel.getTraitSet(),
         hashToRandomExchangePrel,
-        false,
         groupSet,
         ImmutableList.of(groupSet),
         ImmutableList.of(aggByMaxVersion),

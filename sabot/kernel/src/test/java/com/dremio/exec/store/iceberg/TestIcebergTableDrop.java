@@ -129,7 +129,8 @@ public class TestIcebergTableDrop extends BaseTestQuery {
           .run();
 
       errorMsgTestHelper(
-          "select count(*) c from " + tableName, "Table '" + tableName + "' not found");
+          "select count(*) c from " + tableName,
+          "Object 'nation' not found within 'dfs_test_hadoop.dfs_test_hadoop.iceberg'");
     }
   }
 }

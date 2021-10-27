@@ -208,13 +208,13 @@ const DatasetGraph = ({
                 data.reflectionType === 'RAW' ?
                   <Art
                     src={data.isUsed ? 'Reflection.svg' : 'ReflectionsNotUsedRaw.svg'}
-                    alt='icon' title='icon'
+                    alt='Reflection' title='Reflection'
                     className={data.isUsed ? 'reflectionData__reflectionIcon' : 'reflectionData__reflectionAgg'}
                   />
                   :
                   <Art
                     src={data.isUsed ? 'ReflectionsUsedAgg.svg' : 'ReflectionsNotUsedAgg.svg'}
-                    alt='icon' title='icon'
+                    alt='Reflection' title='Reflection'
                     className={data.isUsed ? 'reflectionData__reflectionIcon' : 'reflectionData__reflectionAgg'}
                   />
               }
@@ -271,8 +271,8 @@ const DatasetGraph = ({
             <span>{formatMessage({ id: 'DatsetGraph.NoData' })}</span>
             <Art
               src='Gnarly.svg'
-              alt='icon'
-              title='icon'
+              alt='Gnarly Logo'
+              title='Gnarly Logo'
               className='datasetGraph__gnarlyIcon'
             />
           </div>

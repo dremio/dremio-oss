@@ -10,7 +10,9 @@
     "paths": {
       "@app/*": ["./*"],
       "dyn-load/*": ["./*"],
+      "@dcs/*": ["./*"],
       "@inject/*": [
+        "{@dcs}/*",
         "{dyn-load}/*",
         "./*",
         // fallback to empty module

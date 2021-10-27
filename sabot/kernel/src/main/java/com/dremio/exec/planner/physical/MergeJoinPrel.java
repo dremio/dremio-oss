@@ -28,7 +28,6 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -41,9 +40,7 @@ import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
-import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
-import com.google.common.collect.Lists;
 
 @Options
 public class MergeJoinPrel  extends JoinPrel {
@@ -54,13 +51,7 @@ public class MergeJoinPrel  extends JoinPrel {
   /** Creates a MergeJoinPrel. */
   private MergeJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
       JoinRelType joinType) {
-    super(cluster, traits, left, right, condition, joinType, JoinUtils.projectAll(left.getRowType().getFieldCount()+right.getRowType().getFieldCount()));
-  }
-
-  /** Creates a MergeJoinPrel. */
-  private MergeJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                        JoinRelType joinType, ImmutableBitSet projectedFields) {
-    super(cluster, traits, left, right, condition, joinType, projectedFields);
+    super(cluster, traits, left, right, condition, joinType);
   }
 
   public static MergeJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
@@ -69,26 +60,15 @@ public class MergeJoinPrel  extends JoinPrel {
     return new MergeJoinPrel(cluster, adjustedTraits, left, right, condition, joinType);
   }
 
-  public static MergeJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                                     JoinRelType joinType, ImmutableBitSet projectedFields) {
-    final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new MergeJoinPrel(cluster, adjustedTraits, left, right, condition, joinType, projectedFields);
-  }
-
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, getProjectedFields());
-  }
-
-  @Override
-  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields) {
-    return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, projectedFields);
+    return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType);
   }
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     if (joinCategory == JoinCategory.CARTESIAN || joinCategory == JoinCategory.INEQUALITY) {
       return ((Factory)planner.getCostFactory()).makeInfiniteCost();
@@ -104,7 +84,7 @@ public class MergeJoinPrel  extends JoinPrel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    final List<String> fields = getInputRowType().getFieldNames();
+    final List<String> fields = getRowType().getFieldNames();
     assert isUnique(fields);
 
     final int leftCount = left.getRowType().getFieldCount();
@@ -116,9 +96,7 @@ public class MergeJoinPrel  extends JoinPrel {
 
     JoinRelType jtype = this.getJoinType();
 
-    List<JoinCondition> conditions = Lists.newArrayList();
-
-    buildJoinConditions(conditions, leftFields, rightFields, leftKeys, rightKeys);
+    final List<JoinCondition> conditions = buildJoinConditions(leftFields, rightFields, leftKeys, rightKeys);
 
     SchemaBuilder b = BatchSchema.newBuilder();
     for (Field f : rightPop.getProps().getSchema()) {
@@ -150,5 +128,8 @@ public class MergeJoinPrel  extends JoinPrel {
     return SelectionVectorMode.NONE;
   }
 
-
+  @Override
+  public RexNode getExtraCondition() {
+    return null;
+  }
 }

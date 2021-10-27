@@ -15,7 +15,6 @@
  */
 import { PureComponent } from 'react';
 import { connect } from 'react-redux';
-import { Link } from 'react-router';
 import { withRouter } from 'react-router';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
@@ -25,8 +24,6 @@ import { getTableColumns } from '@app/selectors/explore';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { getColumnFilter } from 'selectors/explore';
 import { updateColumnFilter } from 'actions/explore/view';
-import { PageTypes } from 'pages/ExplorePage/pageTypes';
-import { changePageTypeInUrl } from 'pages/ExplorePage/pageTypeUtils';
 
 import { columnFilterWrapper, searchField, columnStats } from './ExploreTableColumnFilter.less';
 
@@ -47,8 +44,7 @@ export class ExploreTableColumnFilter extends PureComponent {
   };
 
   render() {
-    const { columnFilter, columnCount, filteredColumnCount, location } = this.props;
-    const wikiPath = changePageTypeInUrl(location.pathname, PageTypes.wiki) + location.search;
+    const { columnFilter, columnCount, filteredColumnCount } = this.props;
 
     return (
       <div className={columnFilterWrapper} data-qa='columnFilter'>
@@ -64,7 +60,7 @@ export class ExploreTableColumnFilter extends PureComponent {
           className={columnStats}
           data-qa='columnFilterStats'>
           {columnFilter && <span data-qa='columnFilterCount'>{filteredColumnCount} of </span>}
-          <Link to={wikiPath}>{columnCount}</Link> {la('fields')}
+          {columnCount} {la('fields')}
         </div>
       </div>
     );

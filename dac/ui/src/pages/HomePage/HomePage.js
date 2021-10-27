@@ -26,17 +26,13 @@ import {loadSourceListData} from '@app/actions/resources/sources';
 import {getViewState} from '@app/selectors/resources';
 import {page} from '@app/uiTheme/radium/general';
 
+import SideNav from '@app/components/SideNav/SideNav';
+import {HomePageTop, showHomePageTop} from '@inject/pages/HomePage/HomePageTop';
 import QlikStateModal from '../ExplorePage/components/modals/QlikStateModal';
-import MainHeader from './../../components/MainHeader';
 import LeftTree from './components/LeftTree';
 import './HomePage.less';
 
 class HomePage extends Component {
-
-  static contextTypes = {
-    location: PropTypes.object.isRequired,
-    routeParams: PropTypes.object.isRequired
-  };
 
   static propTypes = {
     userInfo: PropTypes.object,
@@ -82,19 +78,27 @@ class HomePage extends Component {
     return userInfo && userInfo.size > 0 ? `@${userInfo.get('homeConfig').get('owner')}` : '';
   }
 
+
   // Note were are getting the "ref" to the SearchBar React object.
   render() {
+    const homePageSearchClass = showHomePageTop() ? ' --withSearch' : ' --withoutSearch';
+
     return (
       <div id='home-page' style={page}>
-        <MainHeader />
         <div className='page-content'>
-          <LeftTree
-            sourcesViewState={this.props.sourcesViewState}
-            sources={this.props.sources}
-            sourceTypesIncludeS3={sourceTypesIncludeS3(this.state.sourceTypes)}
-            routeParams={this.props.routeParams}
-            className='col-lg-2 col-md-3'/>
-          {this.props.children}
+          <SideNav/>
+          <div className={'homePageBody'}>
+            <HomePageTop />
+            <div className={'homePageLeftTreeDiv' + homePageSearchClass}>
+              <LeftTree
+                sourcesViewState={this.props.sourcesViewState}
+                sources={this.props.sources}
+                sourceTypesIncludeS3={sourceTypesIncludeS3(this.state.sourceTypes)}
+                routeParams={this.props.routeParams}
+                className='col-lg-2 col-md-3'/>
+              {this.props.children}
+            </div>
+          </div>
         </div>
         <QlikStateModal />
       </div>

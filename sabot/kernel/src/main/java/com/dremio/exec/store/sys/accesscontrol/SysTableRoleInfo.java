@@ -17,8 +17,6 @@ package com.dremio.exec.store.sys.accesscontrol;
 
 import java.util.Objects;
 
-import com.dremio.exec.proto.AccessControlRPC;
-
 /**
  * Schema for an entry in system table sys.roles.
  */
@@ -26,6 +24,8 @@ public class SysTableRoleInfo {
   public final String role_name;
   public final String source;
   public final String role_type;
+  public final String owner_name;
+  public final String owner_type;
 
   /**
    * enum for sources of a role
@@ -34,10 +34,12 @@ public class SysTableRoleInfo {
     LOCAL, EXTERNAL
   }
 
-  public SysTableRoleInfo(String role_name, String source, String role_type) {
+  public SysTableRoleInfo(String role_name, String source, String role_type, String owner_name, String owner_type) {
     this.role_name = role_name;
     this.source = source;
     this.role_type = role_type;
+    this.owner_name = owner_name;
+    this.owner_type = owner_type;
   }
 
   public String getRole_name() {
@@ -52,6 +54,14 @@ public class SysTableRoleInfo {
     return role_type;
   }
 
+  public String getOwner_name() {
+    return owner_name;
+  }
+
+  public String getOwner_type() {
+    return owner_type;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -63,7 +73,9 @@ public class SysTableRoleInfo {
     SysTableRoleInfo that = (SysTableRoleInfo) o;
     return Objects.equals(role_name, that.role_name) &&
       Objects.equals(source, that.source) &&
-      Objects.equals(role_type, that.role_type);
+      Objects.equals(role_type, that.role_type) &&
+      Objects.equals(owner_name, that.owner_name) &&
+      Objects.equals(owner_type, that.owner_type);
   }
 
   @Override
@@ -77,32 +89,8 @@ public class SysTableRoleInfo {
       "role_name='" + role_name + '\'' +
       ", source='" + source + '\'' +
       ", role_type='" + role_type + '\'' +
+      ", owner_name='" + owner_name + '\'' +
+      ", owner_type='" + owner_type + '\'' +
       '}';
-  }
-
-  public static SysTableRoleInfo toRoleInfo(AccessControlRPC.RoleInfo roleInfo) {
-    return new SysTableRoleInfo(
-      roleInfo.getRoleName(),
-      roleInfo.getSource(),
-      roleInfo.getRoleType());
-  }
-
-  public AccessControlRPC.RoleInfo toProto() {
-    AccessControlRPC.RoleInfo.Builder roleInfoProto =
-      AccessControlRPC.RoleInfo.newBuilder();
-
-    if (role_name != null) {
-      roleInfoProto.setRoleName(role_name);
-    }
-
-    if (source != null) {
-      roleInfoProto.setSource(source);
-    }
-
-    if (role_type != null) {
-      roleInfoProto.setRoleType(role_type);
-    }
-
-    return roleInfoProto.build();
   }
 }

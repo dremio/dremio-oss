@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +64,7 @@ public class DeltaMetadataFetchJobManager {
   public final SabotContext context;
   public final FileSelection fileSelection;
   public long version;
+  public long subparts;
   public final boolean readLatest;
 
   private final ThreadPoolExecutor threadPool = DeltaMetadataFetchPool.getPool();
@@ -72,11 +74,12 @@ public class DeltaMetadataFetchJobManager {
 
   private BatchReader batchReader;
 
-  public DeltaMetadataFetchJobManager(SabotContext context, FileSystem fs, FileSelection fileSelection, long version) {
+  public DeltaMetadataFetchJobManager(SabotContext context, FileSystem fs, FileSelection fileSelection, long version, long subparts) {
     this.fs = fs;
     this.context = context;
     this.fileSelection = fileSelection;
     this.version = version;
+    this.subparts = subparts;
     this.readLatest = false;
     initBatchReader();
   }
@@ -93,9 +96,11 @@ public class DeltaMetadataFetchJobManager {
     Path selectionRoot = Path.of(fileSelection.getSelectionRoot());
     metaDir = selectionRoot.resolve(DeltaConstants.DELTA_LOG_DIR);
     if (readLatest) {
-      version = getStartVersion(metaDir).orElse(0L);
+      Pair<Optional<Long>, Optional<Long>> startVersionAndSubparts = getStartVersion(metaDir);
+      version = startVersionAndSubparts.getKey().orElse(0L);
+      subparts = startVersionAndSubparts.getValue().orElse(1L);
     }
-    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(context, fs, metaDir, version, readLatest);
+    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(context, fs, metaDir, version, subparts, readLatest);
     batchReader = new BatchReader(threadPool, producer);
   }
 
@@ -125,18 +130,18 @@ public class DeltaMetadataFetchJobManager {
     return batchReader.getBatchesRead();
   }
 
-  private Optional<Long> getStartVersion(Path metaDir) {
+  private Pair<Optional<Long>, Optional<Long>> getStartVersion(Path metaDir) {
     Path lastCheckpoint = metaDir.resolve(Path.of(DeltaConstants.DELTA_LAST_CHECKPOINT));
-    Optional<Long> version;
+    Pair<Optional<Long>, Optional<Long>> lastCheckpointVersionSubpartsPair;
     try {
-       version = DeltaLastCheckPointReader.getLastCheckPoint(fs, lastCheckpoint);
+      lastCheckpointVersionSubpartsPair = DeltaLastCheckPointReader.getLastCheckPoint(fs, lastCheckpoint);
     }
     catch (IOException e) {
       throw UserException.dataReadError()
         .message("Failed to read _last_checkpoint file for delta dataset {}. Error {}", fileSelection.getSelectionRoot(), e.getMessage())
         .build(logger);
     }
-    return version;
+    return lastCheckpointVersionSubpartsPair;
   }
 
   @Override

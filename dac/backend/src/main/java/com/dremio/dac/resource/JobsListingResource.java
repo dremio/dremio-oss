@@ -36,6 +36,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobInfoDetailsUI;
 import com.dremio.dac.model.job.JobsListingUI;
 import com.dremio.dac.model.job.ResultOrder;
+import com.dremio.dac.obfuscate.ObfuscationUtils;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
@@ -43,7 +44,6 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
-import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.proto.JobProtobuf;
@@ -113,7 +113,8 @@ public class JobsListingResource {
       requestBuilder.setSortOrder(order.toSortOrder());
     }
 
-    final List<JobSummary> jobs = ImmutableList.copyOf(jobsService.get().searchJobs(requestBuilder.build()));
+    List<JobSummary> jobs = ImmutableList.copyOf(jobsService.get().searchJobs(requestBuilder.build()));
+    jobs = ObfuscationUtils.obfuscate(jobs, ObfuscationUtils::obfuscate);
     return new JobsListingUI(
       jobs,
       jobService,
@@ -126,10 +127,9 @@ public class JobsListingResource {
   @Path("{jobId}/jobDetails")
   @Produces(APPLICATION_JSON)
   public JobInfoDetailsUI getJobDetails(@PathParam("jobId") String jobId, @QueryParam("detailLevel") @DefaultValue("0") int detailLevel, @QueryParam("attempt") @DefaultValue("1") int attempt) throws JobResourceNotFoundException, NamespaceException {
-    final JobDetails jobDetails;
+    JobDetails jobDetails;
     UserBitShared.QueryProfile profile = null;
     final JobInfoDetailsUI jobInfoDetailsUI;
-    JobSummary summary = null;
     // AttemptIndex will be required to get Index of LastAttempt of a Job which has most suitable information of JobDetails and Profile information
     int attemptIndex = attempt - 1;
     try {
@@ -144,7 +144,7 @@ public class JobsListingResource {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
 
-    try{
+    try {
       final String username = securityContext.getUserPrincipal().getName();
       QueryProfileRequest request = QueryProfileRequest.newBuilder()
         .setJobId(JobProtobuf.JobId.newBuilder()
@@ -158,17 +158,10 @@ public class JobsListingResource {
       e.printStackTrace();
     }
 
-    try {
-      JobSummaryRequest jobSummaryRequest = JobSummaryRequest.newBuilder()
-        .setJobId(JobProtobuf.JobId.newBuilder().setId(jobId).build())
-        .setUserName(securityContext.getUserPrincipal().getName())
-        .build();
-      summary = jobService.getJobSummary(jobSummaryRequest);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
+    jobDetails = ObfuscationUtils.obfuscate(jobDetails);
+    profile = ObfuscationUtils.obfuscate(profile);
 
-    return jobInfoDetailsUI.of(jobDetails, profile, summary, catalogServiceHelper, reflectionServiceHelper, namespaceService, detailLevel, attemptIndex);
+    return jobInfoDetailsUI.of(jobDetails, profile, catalogServiceHelper, reflectionServiceHelper, namespaceService, detailLevel, attemptIndex);
   }
 
   private String getNext(

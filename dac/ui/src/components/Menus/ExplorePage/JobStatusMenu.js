@@ -38,7 +38,14 @@ export class JobStatusMenu extends PureComponent {
     return (
       <Menu>
         <MenuItem key='job-details'>
-          <Link to={{pathname: '/jobs', hash: `#${jobId}`}}>
+          <Link to={{
+            pathname: '/jobs',
+            hash: `#${jobId}`,
+            state: {
+              selectedJobId: jobId,
+              isFromJobListing: false
+            }
+          }}>
             {la('View Details')}
           </Link>
         </MenuItem>

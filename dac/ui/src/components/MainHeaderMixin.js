@@ -19,10 +19,10 @@ import HeaderLink from '@app/components/HeaderItemsTypes/HeaderLink';
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     renderAdmin() {
-      let adminActiveStyle = 'adminSettingsIcon dremioIcon-HeaderSettings';
+      let adminActiveStyle = 'adminSettingsIcon dremioIconOld-HeaderSettings';
       const {router} = this.context;
       if (router.isActive('/admin')) {
-        adminActiveStyle = 'adminSettingsIcon dremioIcon-HeaderSettings active';
+        adminActiveStyle = 'adminSettingsIcon dremioIconOld-HeaderSettings active';
       }
 
       return (

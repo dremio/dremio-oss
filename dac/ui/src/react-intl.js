@@ -17,12 +17,12 @@
 // This file is a mutating wrapper to work around https://github.com/yahoo/react-intl/issues/196
 
 import hoistNonReactStatic from 'hoist-non-react-statics';
-import { addLocaleData, intlShape, injectIntl as originalInjectIntl, defineMessages, IntlProvider, FormattedDate, FormattedTime, FormattedRelative, FormattedNumber, FormattedPlural, FormattedMessage, FormattedHTMLMessage } from '../node_modules/react-intl';
+import { useIntl, intlShape, injectIntl as originalInjectIntl, defineMessages, IntlProvider, FormattedDate, FormattedTime, FormattedRelative, FormattedNumber, FormattedPlural, FormattedMessage, FormattedHTMLMessage } from '../node_modules/react-intl';
 
 const injectIntl = (component) => {
   return hoistNonReactStatic(originalInjectIntl(component), component);
 };
 
 export {
-  addLocaleData, intlShape, injectIntl, defineMessages, IntlProvider, FormattedDate, FormattedTime, FormattedRelative, FormattedNumber, FormattedPlural, FormattedMessage, FormattedHTMLMessage
+  useIntl, intlShape, injectIntl, defineMessages, IntlProvider, FormattedDate, FormattedTime, FormattedRelative, FormattedNumber, FormattedPlural, FormattedMessage, FormattedHTMLMessage
 };

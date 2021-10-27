@@ -30,18 +30,23 @@ import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.ParallelizationInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 
 public class UnionExchange extends AbstractExchange{
+
+  private final OptionManager optionManager;
 
   public UnionExchange(
       OpProps props,
       OpProps senderProps,
       OpProps receiverProps,
       BatchSchema schema,
-      PhysicalOperator child) {
-    super(props, senderProps, receiverProps, schema, child);
+      PhysicalOperator child,
+      OptionManager optionManager) {
+    super(props, senderProps, receiverProps, schema, child, optionManager);
+    this.optionManager = optionManager;
   }
 
   @Override
@@ -86,7 +91,7 @@ public class UnionExchange extends AbstractExchange{
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new UnionExchange(props, senderProps, receiverProps, schema, child);
+    return new UnionExchange(props, senderProps, receiverProps, schema, child, optionManager);
   }
 
 }

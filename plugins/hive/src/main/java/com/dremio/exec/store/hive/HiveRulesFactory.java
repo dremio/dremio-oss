@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive;
 
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFilesystemScanPrule.getInternalIcebergTableMetadata;
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.IcebergMetadataFilesystemScanPrule.supportsConvertedIcebergDataset;
+import static com.dremio.exec.store.dfs.FileSystemRulesFactory.getPartitionStatsFile;
 import static com.dremio.exec.store.dfs.FileSystemRulesFactory.isIcebergMetadata;
 import static com.dremio.service.namespace.DatasetHelper.supportsPruneFilter;
 
@@ -72,13 +73,14 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.dfs.PruneableScan;
 import com.dremio.exec.store.hive.orc.ORCFilterPushDownRule;
+import com.dremio.exec.store.iceberg.HiveIcebergScanTableMetadata;
 import com.dremio.exec.store.iceberg.IcebergScanPrel;
 import com.dremio.exec.store.iceberg.InternalIcebergScanTableMetadata;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.options.TypeValidators;
+import com.dremio.service.namespace.file.proto.FileType;
 import com.github.slugify.Slugify;
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -259,20 +261,6 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       }
       return pw.itemIf("filters",  filter, filter != null);
     }
-
-    @Override
-    public boolean equals(final Object other) {
-      if (!(other instanceof HiveScanDrel)) {
-        return false;
-      }
-      HiveScanDrel castOther = (HiveScanDrel) other;
-      return Objects.equal(filter, castOther.filter) && super.equals(other);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(super.hashCode(), filter);
-    }
   }
 
   private static class EliminateEmptyScans extends RelOptRule {
@@ -359,20 +347,6 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     }
 
     @Override
-    public boolean equals(final Object other) {
-      if (!(other instanceof HiveScanPrel)) {
-        return false;
-      }
-      HiveScanPrel castOther = (HiveScanPrel) other;
-      return Objects.equal(filter, castOther.filter) && super.equals(other);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(super.hashCode(), filter);
-    }
-
-    @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
       return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
         observedRowcountAdjustment, filter, readerType);
@@ -402,14 +376,14 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public boolean matches(RelOptRuleCall call) {
       HiveScanDrel drel = call.rel(0);
-      return !isIcebergMetadata(drel.getTableMetadata());
+      return !isIcebergMetadata(drel.getTableMetadata()) && !isHiveIcebergDataset(drel);
     }
   }
 
-  private static class IcebergScanPrule extends ConverterRule {
+  private static class InternalIcebergScanPrule extends ConverterRule {
     private final OptimizerRulesContext context;
 
-    public IcebergScanPrule(StoragePluginId pluginId, OptimizerRulesContext context) {
+    public InternalIcebergScanPrule(StoragePluginId pluginId, OptimizerRulesContext context) {
       super(HiveScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginId.getType().value() + "IcebergScanPrule."
         + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString());
       this.context = context;
@@ -429,7 +403,38 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public boolean matches(RelOptRuleCall call) {
       HiveScanDrel drel = call.rel(0);
-      return supportsConvertedIcebergDataset(context, drel.getTableMetadata());
+      return supportsConvertedIcebergDataset(context, drel.getTableMetadata()) && !isHiveIcebergDataset(drel);
+    }
+  }
+
+  private static class HiveIcebergScanPrule extends ConverterRule {
+    private final OptimizerRulesContext context;
+    private final String storagePluginName;
+
+    public HiveIcebergScanPrule(StoragePluginId pluginId, OptimizerRulesContext context) {
+      super(HiveScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginId.getType().value() + "HiveIcebergScanPrule."
+        + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString());
+      this.context = context;
+      this.storagePluginName = pluginId.getName();
+    }
+
+    @Override
+    public RelNode convert(RelNode relNode) {
+      HiveScanDrel drel = (HiveScanDrel) relNode;
+      String partitionStatsFile = getPartitionStatsFile(drel);
+      HiveIcebergScanTableMetadata icebergScanTableMetadata = new HiveIcebergScanTableMetadata(drel.getTableMetadata(),
+        context.getCatalogService().getSource(storagePluginName));
+
+      return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
+        drel.getTable(), drel.getPluginId(), icebergScanTableMetadata, drel.getProjectedColumns(),
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), false,
+        drel.getPartitionFilter(), context, partitionStatsFile, false);
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+      HiveScanDrel drel = call.rel(0);
+      return isHiveIcebergDataset(drel);
     }
   }
 
@@ -465,12 +470,26 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       case PHYSICAL:
         return ImmutableSet.of(
           new HiveScanPrule(pluginId, optimizerContext),
-          new IcebergScanPrule(pluginId, optimizerContext)
+          new InternalIcebergScanPrule(pluginId, optimizerContext),
+          new HiveIcebergScanPrule(pluginId, optimizerContext)
         );
 
       default:
         return ImmutableSet.of();
 
     }
+  }
+
+  private static boolean isHiveIcebergDataset(HiveScanDrel drel) {
+    if (drel == null ||
+          drel.getTableMetadata() == null ||
+          drel.getTableMetadata().getDatasetConfig() == null ||
+          drel.getTableMetadata().getDatasetConfig().getPhysicalDataset() == null ||
+          drel.getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata() == null ||
+          drel.getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getFileType() == null) {
+      return false;
+    }
+
+    return drel.getTableMetadata().getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getFileType() == FileType.ICEBERG;
   }
 }

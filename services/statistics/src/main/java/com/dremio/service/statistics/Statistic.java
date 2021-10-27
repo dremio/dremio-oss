@@ -15,6 +15,11 @@
  */
 package com.dremio.service.statistics;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+import org.apache.calcite.sql.type.SqlTypeName;
+
 import com.dremio.service.statistics.proto.StatisticMessage;
 
 import io.protostuff.ByteString;
@@ -33,7 +38,7 @@ public class Statistic {
     COLRCOUNT,
     NDV,
     TDIGEST,
-    CMS;
+    ITEMSSKETCH;
   }
 
   private final StatisticMessage statisticMessage;
@@ -74,11 +79,16 @@ public class Statistic {
     statisticMessage.setCreatedAt(currentTimeMillis);
   }
 
-  public HistogramImpl getHistogram() {
-    if (statisticMessage.getSerializedTdigest() == null) {
-      return null;
+  public HistogramImpl getHistogram(SqlTypeName sqlTypeName) {
+    ByteBuffer serializedTDigest = null;
+    ByteBuffer serializedItemsSketch = null;
+    if(statisticMessage.getSerializedTdigest()!=null){
+      serializedTDigest = statisticMessage.getSerializedTdigest().asReadOnlyByteBuffer();
     }
-    return new HistogramImpl(statisticMessage.getSerializedTdigest().asReadOnlyByteBuffer());
+    if(statisticMessage.getSerializedItemsSketch()!=null){
+      serializedItemsSketch = statisticMessage.getSerializedItemsSketch().asReadOnlyByteBuffer().order(ByteOrder.nativeOrder());
+    }
+    return new HistogramImpl(serializedTDigest, serializedItemsSketch, sqlTypeName);
   }
 
   /**
@@ -121,7 +131,11 @@ public class Statistic {
           statistic.statisticMessage.setSerializedTdigest(ByteString.copyFrom(byteArray));
         }
         break;
-        case CMS:
+      case ITEMSSKETCH: {
+        byte[] byteArray = (byte[]) value;
+        statistic.statisticMessage.setSerializedItemsSketch(ByteString.copyFrom(byteArray));
+        }
+        break;
         default:
           throw new UnsupportedOperationException("Statistics type, " + type.toString() + ", is not supported");
       }
@@ -133,7 +147,3 @@ public class Statistic {
   }
 
 }
-
-
-
-

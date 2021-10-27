@@ -30,6 +30,7 @@ const DropdownMenu = (props) => {
     dataQa,
     className,
     text,
+    textTooltip,
     iconType,
     menu,
     style,
@@ -38,17 +39,22 @@ const DropdownMenu = (props) => {
     fontIcon,
     hideArrow,
     hideDivider,
+    hideTopArrow,
     disabled,
     isButton,
     iconTooltip,
     arrowStyle,
-    customItemRenderer
+    customItemRenderer,
+    listStyle,
+    customImage
   } = props;
 
   const togglerStyle = isButton ? 'dropdownMenu__togglerButton' : 'dropdownMenu__toggler';
   const cursorStyle = disabled ? { cursor: 'default' } : { cursor: 'pointer'};
 
   const stdArrowStyle = isButton ? styles.downButtonArrow : styles.downArrow;
+  const lstStyle = listStyle ? listStyle : styles.popover;
+
 
   const selectedItemRenderer = () => (
     <>
@@ -67,8 +73,13 @@ const DropdownMenu = (props) => {
         <div>
           <div
             className={fontIcon}
-            tooltip={iconTooltip}
+            title={iconTooltip}
           />
+        </div>
+      }
+      {customImage &&
+        <div>
+          {customImage}
         </div>
       }
     </>
@@ -79,7 +90,7 @@ const DropdownMenu = (props) => {
 
       <SelectView
         content={
-          <div className={classNames('dropdownMenu__content', className, togglerStyle)} key='toggler' style={{...cursorStyle}}>
+          <div className={classNames('dropdownMenu__content', className, togglerStyle)} key='toggler' style={{...cursorStyle}}  title={textTooltip}>
 
             {/* Use a custom look and feel if needed */}
             {customItemRenderer || selectedItemRenderer() }
@@ -89,17 +100,21 @@ const DropdownMenu = (props) => {
           </div>
         }
         hideExpandIcon
-        listStyle={styles.popover}
+        listStyle={lstStyle}
         listRightAligned
         dataQa={dataQa}
       >
         {
-          ({ closeDD }) => (
-            <Fragment>
-              <div style={styles.triangle}/>
-              {React.cloneElement(menu, { closeMenu: closeDD })}
-            </Fragment>
-          )
+          ({ closeDD }) => {
+            return (
+              <Fragment>
+                {!hideTopArrow &&
+                  <div style={styles.triangle}/>
+                }
+                {React.cloneElement(menu, { closeMenu: closeDD })}
+              </Fragment>
+            );
+          }
         }
       </SelectView>
     </div>
@@ -153,14 +168,18 @@ DropdownMenu.propTypes = {
   style: PropTypes.object,
   iconStyle: PropTypes.object,
   textStyle: PropTypes.object,
+  textTooltip: PropTypes.string,
   hideArrow: PropTypes.bool,
+  hideTopArrow: PropTypes.bool,
   arrowStyle: PropTypes.object,
   hideDivider: PropTypes.bool,
   disabled: PropTypes.bool,
   isButton: PropTypes.bool,
   iconTooltip: PropTypes.string,
   fontIcon: PropTypes.string,
-  customItemRenderer: PropTypes.element
+  customItemRenderer: PropTypes.element,
+  customImage: PropTypes.object,
+  listStyle: PropTypes.object
 };
 
 export default DropdownMenu;

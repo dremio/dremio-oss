@@ -34,7 +34,6 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker.Consistency;
-import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
@@ -139,7 +138,7 @@ public class JoinFilterCanonicalizationRule extends RelOptRule {
       if (ConsistentTypeUtil.allExactNumeric(types) && ConsistentTypeUtil.anyDecimal(types)) {
         consistentType = ConsistentTypeUtil.consistentDecimalType(builder.getTypeFactory(), types);
       } else {
-        consistentType = SqlTypeUtil.consistentType(builder.getTypeFactory(), Consistency.LEAST_RESTRICTIVE, types);
+        consistentType = ConsistentTypeUtil.consistentType(builder.getTypeFactory(), Consistency.LEAST_RESTRICTIVE, types);
       }
       if (consistentType != null) {
         equijoinList.add(builder.makeCall(operator, builder.ensureType(consistentType, leftInput, true),

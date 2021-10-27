@@ -70,7 +70,7 @@ public class SingleMergeExchangePrel extends ExchangePrel {
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, mq).multiplyBy(.1);
     }
     RelNode child = this.getInput();
     double inputRows = mq.getRowCount(child);
@@ -104,8 +104,8 @@ public class SingleMergeExchangePrel extends ExchangePrel {
         receiverProps,
         props.getSchema(),
         childPOP,
-        PrelUtil.getOrdering(this.collation, getInput().getRowType())
-        );
+        PrelUtil.getOrdering(this.collation, getInput().getRowType()),
+        creator.getOptionManager());
   }
 
   @Override

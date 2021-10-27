@@ -17,6 +17,8 @@ package com.dremio.service.jobs;
 
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.Service;
+import com.dremio.service.job.ActiveJobSummary;
+import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.JobCounts;
@@ -91,6 +93,13 @@ public interface JobsService extends Service {
    * @return jobs that match
    */
   Iterable<JobSummary> searchJobs(SearchJobsRequest request);
+
+  /**
+   * Get Active Jobs
+   * @param request request
+   * @return jobs that match
+   */
+  Iterable<ActiveJobSummary> getActiveJobs(ActiveJobsRequest request);
 
   /**
    * Get list of jobs that have the provided parent

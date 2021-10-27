@@ -54,7 +54,7 @@ const QueriedDataset = ({ queriedDataSet, intl }) => {
             <DatasetItemLabel
               name=' '
               typeIcon={getIconByEntityType(dataset.get('datasetType'))}
-              style={{ width: '4%' }}
+              className='queriedDataset-dataWrapper__label'
               fullPath={dataset.get('datasetPathsList')}
               shouldShowOverlay={ShowOverlay(dataset.get('datasetType'))}
             />

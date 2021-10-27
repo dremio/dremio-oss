@@ -61,10 +61,6 @@ public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDat
 
   @Override
   protected DatasetConfig setupDatasetConfig() {
-    //TODO: currently in the final table we write iceberg as the format of the dataset but we expect
-    // all operators to have a right file type. So forcefully setting file type as parquet/orc/avro
-    // depends on input format stored in metastore.
-    // Right File type will be setup in HiveFullRefreshDatasetPlanBuilder::setupMetadataForPlanning
     DatasetConfig datasetConfig =  metadataProvider.getDatasetConfig();
     return datasetConfig;
   }
@@ -145,10 +141,6 @@ public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDat
       }
     }
     return partitionPaths;
-  }
-
-  protected int getPartitionCount() {
-    return isPartialRefresh ? 1 : refreshExecTableMetadata.getSplitCount();
   }
 
   @Override

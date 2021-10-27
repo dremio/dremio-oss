@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 
 import redis.embedded.RedisServer;
+import redis.embedded.exceptions.EmbeddedRedisException;
 
 /**
  * A single redis server resource
@@ -26,6 +27,8 @@ import redis.embedded.RedisServer;
 class SingleRedisResource extends AbstractRedisResource {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingleRedisResource.class);
   private RedisServer redisServer = null;
+  private static int RETRY_WAIT_MS = 1000;
+  private static int MAX_RETRY = 3;
 
   public SingleRedisResource() {
     setPort(getRandomPort());
@@ -49,6 +52,23 @@ class SingleRedisResource extends AbstractRedisResource {
 
   @Override
   protected void before() throws Throwable {
+    int retries = 0;
+    do {
+      try {
+        startRedisServer();
+        return;
+      } catch (EmbeddedRedisException e) {
+        retries++;
+        if (retries == MAX_RETRY) {
+          logger.error("Failed to start embedded redis server", e);
+          throw e;
+        }
+        Thread.sleep(RETRY_WAIT_MS);
+      }
+    } while (retries < MAX_RETRY);
+  }
+
+  private void startRedisServer() throws Throwable {
     redisServer = new RedisServer(getPort());
     redisServer.start();
     super.before();

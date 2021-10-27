@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -46,6 +47,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.proto.ExecProtos;
@@ -84,6 +86,7 @@ import io.netty.util.internal.PlatformDependent;
  */
 public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
   private final List<Field> postSpillAccumulatorVectorFields = Lists.newArrayList();
+  private final List<FieldVector> varlenAccumVectorFields = Lists.newArrayList();
   private int MAX_VALUES_PER_BATCH = 0;
 
   @Rule
@@ -168,6 +171,14 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     /* Expected ordinals after insertion into hash table */
     final int[] expectedOrdinals = {0, 1, 0, 2, 3, 3, 4, 5, 2, 1, 6, 0};
 
+    final String[] aggVarLenMin1 = {"zymotechnical" /*0*/, "zymophosphate" /*1*/, "zygozoospore" /*0*/, "zygosporangium" /*2*/,
+      "zygosporange" /*3*/, "zygopleural" /*3*/, "abarticulation" /*4*/, "abbotnullius" /*5*/, "abarticulation" /*2*/,
+      "abandonment" /*1*/, "A" /*6*/, "abarticulation" /*0*/};
+
+    final String[] aggVarLenMax1 = {"aymotechnical" /*0*/, "aymophosphate" /*1*/, "bygozoospore" /*0*/, "aygosporangium" /*2*/,
+      "aygosporange" /*3*/, "zygopleural" /*3*/, "abarticulation" /*4*/, "abbotnullius" /*5*/, "zbarticulation" /*2*/,
+      "zbandonment" /*1*/, "A" /*6*/, "zbarticulation" /*0*/};
+
     /* Measure columns -- compute SUM, MIN, MAX, COUNT on each column, COUNT(1) on first column */
     Integer[] aggcol1 = {100000, 160000, 200000, 300000, 120000, 50000, 80000, 140000, 90000, 100000, 110000, null};
     final Long[] expectedSum1 = {300000L, 260000L, 390000L, 170000L, 80000L, 140000L, 110000L};
@@ -189,9 +200,15 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     final Double[] expectedMax4 = {250.6232, 160.1245, 90.2345, 120.12345, 80.1254, 140.2567, 110.7523};
     final Double[] expectedMin4 = {100.375, 100.2345, 23.4265, 50.3452, 80.1254, 140.2567, 110.7523};
 
+    final String[] expectedMin5 = {"abarticulation" /*0*/, "abandonment" /*1*/, "abarticulation" /*2*/ , "zygopleural" /*3*/,
+    "abarticulation" /*4*/, "abbotnullius" /*5*/, "A" /*6*/};
+
+    final String[] expectedMax5 = {"zbarticulation" /*0*/, "zbandonment" /*1*/, "zbarticulation" /*2*/, "zygopleural" /*3*/,
+      "abarticulation" /*4*/, "abbotnullius" /*5*/, "A" /*6*/};
+
     final SumOutputHolder expectedSumOutput = new SumOutputHolder(expectedSum1, expectedSum2, expectedSum3, expectedSum4);
-    final MaxOutputHolder expectedMaxOutput = new MaxOutputHolder(expectedMax1, expectedMax2, expectedMax3, expectedMax4);
-    final MinOutputHolder expectedMinOutput = new MinOutputHolder(expectedMin1, expectedMin2, expectedMin3, expectedMin4);
+    final MaxOutputHolder expectedMaxOutput = new MaxOutputHolder(expectedMax1, expectedMax2, expectedMax3, expectedMax4, expectedMax5);
+    final MinOutputHolder expectedMinOutput = new MinOutputHolder(expectedMin1, expectedMin2, expectedMin3, expectedMin4, expectedMin5);
 
     /*
      * key [hello, every, 1] is occurring 3 times but the last occurrence
@@ -201,6 +218,8 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     final long[] expectedCount = {2, 2, 2, 2, 1, 1, 1};
     final long[] expectedCount1 = {3, 2, 2, 2, 1, 1, 1};
 
+    //for holding spill buffers
+    VarCharVector[] tempVectors = new VarCharVector[2];
     try (final BufferAllocator allocator = allocatorRule.newAllocator("test-vectorized-hashagg-partition-serializable", 0, Long.MAX_VALUE);
          final VectorContainer c = new VectorContainer();) {
 
@@ -237,6 +256,16 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
       populateDouble(m4, aggcol4);
       c.add(m4);
 
+      /* Measure column 5  - min on varlength column */
+      VarCharVector m5 = new VarCharVector("m5", allocator);
+      populateStrings(m5, aggVarLenMin1);
+      c.add(m5);
+
+      /* Measure column 6 - max on varlength column */
+      VarCharVector m6 = new VarCharVector("m6", allocator);
+      populateStrings(m6, aggVarLenMax1);
+      c.add(m6);
+
       final int records = c.setAllCount(col1arr.length);
 
       /* create pivot definition */
@@ -246,11 +275,18 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
         new FieldVectorPair(col3, col3)
       );
 
-      final AccumulatorSet accumulator = createAccumulator(m1, m2, m3, m4, allocator);
+      tempVectors[0] = new VarCharVector("varchar-min", allocator);
+      tempVectors[0].allocateNew(1024 * 1024, records);
+      tempVectors[1] = new VarCharVector("varchar-max", allocator);
+      tempVectors[1].allocateNew(1024 * 1024, records);
+
+      final AccumulatorSet accumulator = createAccumulator(m1, m2, m3, m4, m5, m6, tempVectors,allocator);
       testReadWriteHelper(pivot, allocator, records,
         expectedOrdinals, accumulator, expectedSumOutput,
         expectedMaxOutput, expectedMinOutput, expectedCount,
         expectedCount1, false, expectedCount.length);
+
+      AutoCloseables.close(Arrays.asList(tempVectors), this.varlenAccumVectorFields);
     }
   }
 
@@ -323,6 +359,13 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     /* expected ordinals after insertion into hash table */
     final int expectedOrdinals[] = {0, 1, 0, 1, 2, 3, 4, 5, 6, 5, 7, 2};
 
+    final String[] aggVarLenMin1 = {"zzzzzzzzzz" /*0*/, "yyyyyyyyyyyyyyy" /*1*/, null /*0*/, "aaaaa" /*1*/, "twozzzzzzzzz" /*2*/,
+      "threezzzzzzzzzz" /*3*/, "fourzzzzzzzzzz" /*4*/, null /*5*/, "sixzzzzzzzzzz" /*6*/, "five" /*5*/, "sevenzzzzzzzzz" /*7*/, "twoaaaaa" /*2*/};
+
+    final String[] aggVarLenMax1 = {null /*0*/, "aaaaa" /*1*/, "zzzzzzzzzz" /*0*/, "yyyyyyyyyyyyyyy" /*1*/, "twoaaaaaaaaaa" /*2*/,
+      "threezzzzzzzzzz" /*3*/, "fourzzzzzzzzzz" /*4*/, "five" /*5*/, "sixzzzzzzzzzz" /*6*/, null /*5*/, "sevenzzzzzzzzz" /*7*/, "twoz" /*2*/};
+
+
     /* Measure columns -- compute SUM, MIN, MAX, COUNT on each column, COUNT(1) on first column */
     Integer[] aggcol1 = {10, 16, null, null, 12, null, 80, null, 14, 90, 10, null};
     final Long[] expectedSum1 = {10L, 16L, 12L, null, 80L, 90L, 14L, 10L};
@@ -344,13 +387,21 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     final Double[] expectedMax4 = {23.4265, 100.2375, 120.12345, null, 80.1254, 100.2345, 90.2345, 110.7523};
     final Double[] expectedMin4 = {23.4265, 100.2375, 120.12345, null, 80.1254, 100.2345, 90.2345, 110.7523};
 
+    final String[] expectedMin5 = { "zzzzzzzzzz" /*0*/, "aaaaa" /*1*/, "twoaaaaa" /*2*/, "threezzzzzzzzzz" /*3*/, "fourzzzzzzzzzz" /*4*/,
+      "five" /*5*/, "sixzzzzzzzzzz" /*6*/, "sevenzzzzzzzzz" /*7*/ };
+    final String[] expectedMax5 = { "zzzzzzzzzz" /*0*/, "yyyyyyyyyyyyyyy" /*1*/, "twoz" /*2*/, "threezzzzzzzzzz" /*3*/, "fourzzzzzzzzzz" /*4*/,
+      "five" /*5*/, "sixzzzzzzzzzz" /*6*/, "sevenzzzzzzzzz" /*7*/ };
+
+
     final SumOutputHolder expectedSumOutput = new SumOutputHolder(expectedSum1, expectedSum2, expectedSum3, expectedSum4);
-    final MaxOutputHolder expectedMaxOutput = new MaxOutputHolder(expectedMax1, expectedMax2, expectedMax3, expectedMax4);
-    final MinOutputHolder expectedMinOutput = new MinOutputHolder(expectedMin1, expectedMin2, expectedMin3, expectedMin4);
+    final MaxOutputHolder expectedMaxOutput = new MaxOutputHolder(expectedMax1, expectedMax2, expectedMax3, expectedMax4, expectedMax5);
+    final MinOutputHolder expectedMinOutput = new MinOutputHolder(expectedMin1, expectedMin2, expectedMin3, expectedMin4, expectedMin5);
 
     final long[] expectedCount = {1, 1, 1, 0, 1, 1, 1, 1};
     final long[] expectedCount1 = {2, 2, 2, 1, 1, 2, 1, 1};
 
+    //for holding spill buffers
+    VarCharVector[] tempVectors = new VarCharVector[2];
     try (final BufferAllocator allocator = allocatorRule.newAllocator("test-vectorized-hashagg-partition-serializable", 0, Long.MAX_VALUE);
          final VectorContainer c = new VectorContainer();) {
 
@@ -387,6 +438,16 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
       populateDouble(m4, aggcol4);
       c.add(m4);
 
+      /* Measure column 5  - min on varlength column */
+      VarCharVector m5 = new VarCharVector("m5", allocator);
+      populateStrings(m5, aggVarLenMin1);
+      c.add(m5);
+
+      /* Measure column 6 - max on varlength column */
+      VarCharVector m6 = new VarCharVector("m6", allocator);
+      populateStrings(m6, aggVarLenMax1);
+      c.add(m6);
+
       final int records = c.setAllCount(col1arr.length);
 
       /* create pivot definition */
@@ -396,12 +457,19 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
         new FieldVectorPair(col3, col3)
       );
 
+      tempVectors[0] = new VarCharVector("varchar-min", allocator);
+      tempVectors[0].allocateNew(1024 * 1024, records);
+      tempVectors[1] = new VarCharVector("varchar-max", allocator);
+      tempVectors[1].allocateNew(1024 * 1024, records);
+
       /* test */
-      final AccumulatorSet accumulator = createAccumulator(m1, m2, m3, m4, allocator);
+      final AccumulatorSet accumulator = createAccumulator(m1, m2, m3, m4, m5, m6, tempVectors, allocator);
       testReadWriteHelper(pivot, allocator, records,
         expectedOrdinals, accumulator, expectedSumOutput,
         expectedMaxOutput, expectedMinOutput, expectedCount,
         expectedCount1, true, expectedCount.length);
+
+      AutoCloseables.close(Arrays.asList(tempVectors), this.varlenAccumVectorFields);
     }
   }
 
@@ -430,7 +498,7 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     try (
       final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
       final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());
-      final PartitionToLoadSpilledData partitionToLoadSpilledData = new PartitionToLoadSpilledData(allocator, fixedBufferSize, variableBlockSize, postSpillAccumulatorVectorFields, MAX_VALUES_PER_BATCH)) {
+      final PartitionToLoadSpilledData partitionToLoadSpilledData = new PartitionToLoadSpilledData(allocator, fixedBufferSize, variableBlockSize, postSpillAccumulatorVectorFields, MAX_VALUES_PER_BATCH, estimatedVariableWidthKeySize * MAX_VALUES_PER_BATCH)) {
 
       /* pivot the data into temporary space */
       Pivots.pivot(pivot, records, fbv, var);
@@ -588,7 +656,7 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
      * 4 measure columns and we compute SUM, MIN, MAX, COUNT for each
      * along with COUNT1 just for 1st column
      */
-    assertEquals(17, deserializedAccumulatorVectors.length);
+    assertEquals(19, deserializedAccumulatorVectors.length);
 
     /* measure column 1 - SUM, MIN, MAX, COUNT, COUNT1 */
     BigIntVector ac1New = (BigIntVector)deserializedAccumulatorVectors[0];
@@ -615,6 +683,9 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     Float8Vector ac16New = (Float8Vector)deserializedAccumulatorVectors[15];
     BigIntVector ac17New = (BigIntVector)deserializedAccumulatorVectors[16];
 
+    VarCharVector ac18New = (VarCharVector)deserializedAccumulatorVectors[17];
+    VarCharVector ac19New = (VarCharVector)deserializedAccumulatorVectors[18];
+
     assertEquals(valueCount, ac1New.getValueCount());
     assertEquals(valueCount, ac2New.getValueCount());
     assertEquals(valueCount, ac3New.getValueCount());
@@ -635,6 +706,9 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     assertEquals(valueCount, ac15New.getValueCount());
     assertEquals(valueCount, ac16New.getValueCount());
     assertEquals(valueCount, ac17New.getValueCount());
+
+    assertEquals(valueCount, ac18New.getValueCount());
+    assertEquals(valueCount, ac19New.getValueCount());
 
     for (int i = 0; i < sum.intOut.length; i++) {
       /* VERIFY ACCUMULATORS REBUILT OFF DISK */
@@ -664,6 +738,9 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
       assertEquals(max.doubleOut[i], ac15New.getObject(i));
       assertEquals(min.doubleOut[i], ac16New.getObject(i));
       assertEquals(counts[i], ac17New.get(i));
+
+      assertEquals(min.stringOut[i], ac18New.getObject(i).toString());
+      assertEquals(max.stringOut[i], ac19New.getObject(i).toString());
     }
   }
 
@@ -752,6 +829,19 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     vector.setValueCount(data.length);
   }
 
+  private void populateStrings(VarCharVector vector, String[] data) {
+    vector.allocateNew(1024 * 1024, data.length);
+    vector.zeroVector();
+    for(int i =0; i < data.length; i++){
+      final String val = data[i];
+      if(val != null){
+        vector.setSafe(i, val.getBytes());
+      }
+    } //for
+
+    vector.setValueCount(data.length);
+  }
+
   /**
    * we have 4 measure columns and want to compute SUM, MIN, MAX, COUNT for
    * each column and COUNT1 just for first column. Accordingly create the
@@ -767,6 +857,8 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
    */
   private AccumulatorSet createAccumulator(IntVector in1, BigIntVector in2,
                                               Float4Vector in3, Float8Vector in4,
+                                              VarCharVector in5, VarCharVector in6,
+                                              VarCharVector[] tempVectors,
                                               final BufferAllocator allocator) {
     /* INT */
     BigIntVector in1SumOutputVector = new BigIntVector("int-sum", allocator);
@@ -874,11 +966,25 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
                                  MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in4Count.getField());
 
+    VarCharVector v1 = new VarCharVector("varchar-min", allocator);
+    final MinAccumulators.VarLenMinAccumulator in5MinAccum =
+      new MinAccumulators.VarLenMinAccumulator(in5, v1, v1, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, tempVectors[0]);
+    postSpillAccumulatorVectorFields.add(in5.getField());
+
+    VarCharVector v2 = new VarCharVector("varchar-max", allocator);
+    final MaxAccumulators.VarLenMaxAccumulator in6MaxAccum =
+      new MaxAccumulators.VarLenMaxAccumulator(in6, v2, v2, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, tempVectors[1]);
+    postSpillAccumulatorVectorFields.add(in6.getField());
+
+    varlenAccumVectorFields.add(v1);
+    varlenAccumVectorFields.add(v2);
+
     return new AccumulatorSet(4*1024, 128*1024, allocator,
       in1SumAccum, in1MaxAccum, in1MinAccum, in1countAccum, in1count1Accum,
       in2SumAccum, in2MaxAccum, in2MinAccum, in2countAccum,
       in3SumAccum, in3MaxAccum, in3MinAccum, in3countAccum,
-      in4SumAccum, in4MaxAccum, in4MinAccum, in4countAccum);
+      in4SumAccum, in4MaxAccum, in4MinAccum, in4countAccum,
+      in5MinAccum, in6MaxAccum);
   }
 
   private static class OutputHolder {
@@ -906,22 +1012,26 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
   private static class MaxOutputHolder extends OutputHolder {
     final Integer[] intOut;
     final Float[] floatOut;
+    final String[] stringOut;
     MaxOutputHolder(final Integer[] intOut, final Long[] bigintOut,
-                    final Float[] floatOut, final Double[] doubleOut) {
+                    final Float[] floatOut, final Double[] doubleOut, final String[] stringOut) {
       super(bigintOut, doubleOut);
       this.intOut = intOut;
       this.floatOut = floatOut;
+      this.stringOut = stringOut;
     }
   }
 
   private static class MinOutputHolder extends OutputHolder {
     final Integer[] intOut;
     final Float[] floatOut;
+    final String[] stringOut;
     MinOutputHolder(final Integer[] intOut, final Long[] bigintOut,
-                    final Float[] floatOut, final Double[] doubleOut) {
+                    final Float[] floatOut, final Double[] doubleOut, final String[] stringOut) {
       super(bigintOut, doubleOut);
       this.intOut = intOut;
       this.floatOut = floatOut;
+      this.stringOut = stringOut;
     }
   }
 }

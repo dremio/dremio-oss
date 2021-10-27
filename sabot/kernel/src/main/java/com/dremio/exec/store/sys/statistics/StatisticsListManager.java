@@ -35,8 +35,9 @@ public interface StatisticsListManager extends Service {
     public final Long row_count;
     public final Long null_count;
     public final String quantiles;
+    public final String heavy_hitters;
 
-    public StatisticsInfo(String table, String column, Timestamp createdAt, Long ndv, Long rowCount, Long nullCount, String quantiles) {
+    public StatisticsInfo(String table, String column, Timestamp createdAt, Long ndv, Long rowCount, Long nullCount, String quantiles, String heavyHitters) {
       this.table = table;
       this.column = column;
       this.created_at = createdAt;
@@ -44,6 +45,7 @@ public interface StatisticsListManager extends Service {
       this.row_count = rowCount;
       this.null_count = nullCount;
       this.quantiles = quantiles;
+      this.heavy_hitters = heavyHitters;
     }
 
     public boolean isValid() {
@@ -58,8 +60,8 @@ public interface StatisticsListManager extends Service {
         statisticsInfo.getNumberOfDistinctValues() == -1 ? null : statisticsInfo.getNumberOfDistinctValues(),
         statisticsInfo.getRowCount() == -1 ? null : statisticsInfo.getRowCount(),
         statisticsInfo.getNullCount() == -1 ? null : statisticsInfo.getNullCount(),
-        statisticsInfo.getQuantiles().equals("null") ? null : statisticsInfo.getQuantiles()
-      );
+        statisticsInfo.getQuantiles().equals("null") ? null : statisticsInfo.getQuantiles(),
+        statisticsInfo.getHeavyHitters().equals("null") ? null :statisticsInfo.getHeavyHitters());
     }
 
     public StatisticsRPC.StatisticsInfo toProto() {
@@ -71,6 +73,7 @@ public interface StatisticsListManager extends Service {
       protoStatisticsInfo.setRowCount(row_count == null ? -1 : row_count);
       protoStatisticsInfo.setNullCount(null_count == null ? -1 : null_count);
       protoStatisticsInfo.setQuantiles(quantiles == null ? "null" : quantiles);
+      protoStatisticsInfo.setHeavyHitters(heavy_hitters == null ? "null" : heavy_hitters);
       return protoStatisticsInfo.build();
     }
   }

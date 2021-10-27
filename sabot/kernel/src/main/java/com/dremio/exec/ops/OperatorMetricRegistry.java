@@ -84,6 +84,7 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.DIR_LISTING_SUB_SCAN_VALUE,  ScanOperator.Metric.class);
     register(builder, CoreOperatorType.MANIFEST_WRITER_VALUE, ParquetRecordWriter.Metric.class);
     register(builder, CoreOperatorType.WRITER_COMMITTER_VALUE, WriterCommitterOperator.Metric.class);
+    register(builder, CoreOperatorType.JSON_SUB_SCAN_VALUE, ScanOperator.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

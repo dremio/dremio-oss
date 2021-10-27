@@ -28,6 +28,8 @@ import java.util.function.LongSupplier;
 
 import javax.inject.Provider;
 
+import org.apache.hadoop.conf.Configuration;
+
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
@@ -47,10 +49,13 @@ import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.metadatarefresh.SupportsUnlimitedSplits;
 import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -100,6 +105,13 @@ class SourceMetadataManager implements AutoCloseable {
     CacheBuilder.newBuilder()
     .maximumSize(MAXIMUM_CACHE_SIZE)
     .build();
+
+  // Stores the time (in milliseconds, obtained from System.currentTimeMillis()) at which a dataset metadata validity check was done
+  private final Cache<NamespaceKey, Long> metadataValidityCheckTime =
+    CacheBuilder.newBuilder()
+      .maximumSize(MAXIMUM_CACHE_SIZE)
+      .expireAfterWrite(PlannerSettings.MAX_METADATA_VALIDITY_CHECK_INTERVAL, TimeUnit.SECONDS)
+      .build();
 
   private final NamespaceKey sourceKey;
   private final LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore;
@@ -299,7 +311,7 @@ class SourceMetadataManager implements AutoCloseable {
    * @param config dataset config
    * @return true iff entry is valid
    */
-  boolean isStillValid(MetadataRequestOptions options, DatasetConfig config) {
+  boolean isStillValid(MetadataRequestOptions options, DatasetConfig config, SourceMetadata plugin, NamespaceService userNamespaceService) {
     final NamespaceKey key = new NamespaceKey(config.getFullPathList());
     final Long updateTime = localUpdateTime.getIfPresent(key);
     final long currentTime = System.currentTimeMillis();
@@ -327,6 +339,23 @@ class SourceMetadataManager implements AutoCloseable {
           updateTime != null ? new Timestamp(updateTime) : null, new Timestamp(fullRefresh.getLastStart()), expiryTime / 60000);
       }
       return false;
+    }
+
+    if (plugin instanceof SupportsIcebergRootPointer && DatasetHelper.isIcebergDataset(config)) {
+      final Long lastMetadataValidityCheckTime = metadataValidityCheckTime.getIfPresent(key);
+      SupportsIcebergRootPointer pluginForIceberg = (SupportsIcebergRootPointer) plugin;
+      Configuration conf = pluginForIceberg.getFsConfCopy();
+      final long metadataAggressiveExpiryTime = Long.parseLong(conf.get(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS.getOptionName(),
+        String.valueOf(optionManager.getOption(PlannerSettings.METADATA_EXPIRY_CHECK_INTERVAL_SECS)))) * 1000;
+      final boolean metadataValidityCheckRequired = (lastMetadataValidityCheckTime == null ||
+        (lastMetadataValidityCheckTime + metadataAggressiveExpiryTime < currentTime)); // dataset metadata validity was checked too long ago (or never)
+
+      if (metadataValidityCheckRequired) {
+        metadataValidityCheckTime.put(key, currentTime);
+        if (!pluginForIceberg.isIcebergMetadataValid(config, key, userNamespaceService)) {
+          return false;
+        }
+      }
     }
 
     return true;
@@ -680,7 +709,9 @@ class SourceMetadataManager implements AutoCloseable {
     saver.save(datasetConfig, datasetHandle, sourceMetadata, false, options);
 
     if (datasetConfig.getPhysicalDataset() != null) {
-      if (datasetConfig.getPhysicalDataset().getIcebergMetadata() != null) {
+      if (datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled() != null &&
+          datasetConfig.getPhysicalDataset().getIcebergMetadataEnabled() &&
+          datasetConfig.getPhysicalDataset().getIcebergMetadata() != null) {
         String currMetadataRootPointer = datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation();
         if (currMetadataRootPointer == prevMetadataRootPointer && !"".equals(currMetadataRootPointer)) {
           return UpdateStatus.UNCHANGED;

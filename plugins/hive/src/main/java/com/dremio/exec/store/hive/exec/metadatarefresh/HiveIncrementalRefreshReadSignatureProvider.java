@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive.exec.metadatarefresh;
 
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
@@ -34,8 +35,9 @@ public class HiveIncrementalRefreshReadSignatureProvider extends HiveFullRefresh
   public HiveIncrementalRefreshReadSignatureProvider(ByteString existingReadSignature,
                                                      final String dataTableRoot,
                                                      final long queryStartTime,
-                                                     List<String> partitionPaths) {
-    super(dataTableRoot, queryStartTime, partitionPaths);
+                                                     List<String> partitionPaths,
+                                                     Predicate<String> partitionExists) {
+    super(dataTableRoot, queryStartTime, partitionPaths, partitionExists);
     this.existingReadSignature = decodeHiveReadSignatureByteString(existingReadSignature);
   }
 

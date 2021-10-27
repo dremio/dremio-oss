@@ -33,16 +33,18 @@ public class DeltaMetadataFetchJobProducer {
   public SabotContext context;
   public Path metaDir;
   public Long version;
+  public Long subparts;
   public boolean readLatest;
 
   private long startTimeStamp;
   private long startVersion;
 
-  DeltaMetadataFetchJobProducer(SabotContext context, FileSystem fs, Path metaDir, Long version, boolean readLatest) {
+  DeltaMetadataFetchJobProducer(SabotContext context, FileSystem fs, Path metaDir, Long version, long subparts, boolean readLatest) {
     this.fs = fs;
     this.context = context;
     this.metaDir = metaDir;
     this.version = version;
+    this.subparts = subparts;
     this.readLatest = readLatest;
     startTimeStamp = System.currentTimeMillis();
     this.startVersion = version;
@@ -76,8 +78,9 @@ public class DeltaMetadataFetchJobProducer {
     }
     boolean readCheckpoint = getTryCheckpointReadFlag();
     Long currentVersion = version;
+    Long currentSubparts = subparts;
     moveToNextVersion();
-    return new DeltaMetadataFetchJob(context, metaDir, fs, startTimeStamp, readCheckpoint, currentVersion);
+    return new DeltaMetadataFetchJob(context, metaDir, fs, startTimeStamp, readCheckpoint, currentVersion, currentSubparts);
   }
 
 
@@ -91,6 +94,7 @@ public class DeltaMetadataFetchJobProducer {
     } else {
       --version;
     }
+    subparts = 1L;
   }
 
   private boolean getTryCheckpointReadFlag() {

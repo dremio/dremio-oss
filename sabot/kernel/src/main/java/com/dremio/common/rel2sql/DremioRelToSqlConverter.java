@@ -290,14 +290,14 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
     if (plannerSettings != null &&
       !plannerSettings.getOptions().getOption(PlannerSettings.JDBC_PUSH_DOWN_PLUS) &&
       !isPartial.value &&
-      isStar(project.getChildExps(), project.getInput().getRowType(), project.getRowType())) {
+      isStar(project.getProjects(), project.getInput().getRowType(), project.getRowType())) {
       return childResult;
     }
 
     final DremioRelToSqlConverter.Builder builder =
       childResult.builder(project, SqlImplementor.Clause.SELECT);
     final List<SqlNode> selectList = new ArrayList<>();
-    for (RexNode ref : project.getChildExps()) {
+    for (RexNode ref : project.getProjects()) {
       SqlNode sqlExpr = builder.context.toSql(null, simplifyDatetimePlus(ref, project.getCluster().getRexBuilder()));
       if (1 == projectLevel) {
         if ((getDialect().shouldInjectNumericCastToProject() && isDecimal(ref.getType())) ||
@@ -546,7 +546,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
       selects.add(
         new SqlSelect(POS, SqlNodeList.EMPTY,
           new SqlNodeList(selectList, POS), fromNode, null, null,
-          null, null, null, null, null));
+          null, null, null, null, null, null));
     }
     SqlNode query = null;
     for (SqlSelect select : selects) {
@@ -1316,7 +1316,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
       SqlNodeList selectList = getSelectList(node);
 
       return new SqlSelect(POS, SqlNodeList.EMPTY, selectList, node, null, null, null,
-        SqlNodeList.EMPTY, pushUpOrderList, null, null);
+        SqlNodeList.EMPTY, pushUpOrderList, null, null, null);
     }
 
     protected SqlNodeList getSelectList(SqlNode node) {

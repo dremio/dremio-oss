@@ -310,7 +310,6 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
     return new PrelWithDictionaryInfo(
       (Prel)aggPrel.copy(aggPrel.getTraitSet(),
         newInput.getPrel(),
-        aggPrel.indicator,
         aggPrel.getGroupSet(),
         aggPrel.getGroupSets(),
         aggPrel.getAggCallList()),

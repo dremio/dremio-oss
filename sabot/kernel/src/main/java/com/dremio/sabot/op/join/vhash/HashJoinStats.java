@@ -54,8 +54,11 @@ public class HashJoinStats {
     HASHCOMPUTATION_TIME_NANOS,  /* used by hash agg and build side of hash join */
     PROBE_HASHCOMPUTATION_TIME_NANOS, /* used by probe side of hash join */
     RUNTIME_FILTER_DROP_COUNT,
-    RUNTIME_COL_FILTER_DROP_COUNT;
-
+    RUNTIME_COL_FILTER_DROP_COUNT,
+    DUPLICATE_BUILD_RECORD_COUNT,
+    EXTRA_CONDITION_EVALUATION_COUNT,
+    EXTRA_CONDITION_EVALUATION_MATCHED,
+    EXTRA_CONDITION_SETUP_NANOS;
 
     @Override
     public int metricId() {

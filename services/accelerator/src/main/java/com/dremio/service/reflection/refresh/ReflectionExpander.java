@@ -39,7 +39,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
 
-import com.dremio.exec.expr.fn.hll.HyperLogLog;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.accelerator.AccelerationUtils;
@@ -127,7 +127,7 @@ public class ReflectionExpander {
           })
         .collect(Collectors.toList());
 
-    return LogicalProject.create(view, projections, names);
+    return LogicalProject.create(view, ImmutableList.of(), projections, names);
   }
 
   private RelNode expandAggregation(final ReflectionGoal goal) {
@@ -204,7 +204,7 @@ public class ReflectionExpander {
         .append("one_for_agg_0")
         .toList();
 
-    final RelNode child = LogicalProject.create(view, projects, fieldNames);
+    final RelNode child = LogicalProject.create(view, ImmutableList.of(), projects, fieldNames);
     // create measures
     final List<ReflectionMeasureField> measures = goal.getDetails().getMeasureFieldList();
     final List<AggregateCall> calls =  Stream.concat(
@@ -272,7 +272,7 @@ public class ReflectionExpander {
 
     switch(type) {
     case APPROX_COUNT_DISTINCT:
-      return AggregateCall.create(HyperLogLog.HLL, false, ImmutableList.of(field.getIndex()), -1, 1, view, null, String.format("hll-%s", hyphenLower(field.getName())));
+      return AggregateCall.create(DremioSqlOperatorTable.HLL, false, ImmutableList.of(field.getIndex()), -1, 1, view, null, String.format("hll-%s", hyphenLower(field.getName())));
     case COUNT:
       return AggregateCall.create(SqlStdOperatorTable.COUNT, false, ImmutableList.of(field.getIndex()), -1, 1, view, null, String.format("count-%s", hyphenLower(field.getName())));
     case MAX:

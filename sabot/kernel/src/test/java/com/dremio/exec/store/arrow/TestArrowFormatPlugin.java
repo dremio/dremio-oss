@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.PlanTestBase;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 
 /**
@@ -112,21 +113,23 @@ public class TestArrowFormatPlugin extends PlanTestBase {
 
   @Test
   public void arrowReaderTest() throws Exception {
-    // the arrow files used below are as generated in this::generateTestData()
-    // before arrow format change. see DX-18576
-    String query = "SELECT * FROM cp.\"/store/arrow/region/0_0_0.dremarrow1\"";
-    testBuilder()
-      .unOrdered()
-      .sqlQuery(query)
-      .sqlBaselineQuery("SELECT * FROM cp.\"region.json\"")
-      .go();
+    try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
+      // the arrow files used below are as generated in this::generateTestData()
+      // before arrow format change. see DX-18576
+      String query = "SELECT * FROM cp.\"/store/arrow/region/0_0_0.dremarrow1\"";
+      testBuilder()
+        .unOrdered()
+        .sqlQuery(query)
+        .sqlBaselineQuery("SELECT * FROM cp.\"region.json\"")
+        .go();
 
-    query = "SELECT * FROM cp.\"/store/arrow/orders/0_0_0.dremarrow1\"";
-    testBuilder()
-      .unOrdered()
-      .sqlQuery(query)
-      .sqlBaselineQuery("SELECT * FROM cp.\"tpch/orders.parquet\"")
-      .go();
+      query = "SELECT * FROM cp.\"/store/arrow/orders/0_0_0.dremarrow1\"";
+      testBuilder()
+        .unOrdered()
+        .sqlQuery(query)
+        .sqlBaselineQuery("SELECT * FROM cp.\"tpch/orders.parquet\"")
+        .go();
+    }
   }
 
   @Test

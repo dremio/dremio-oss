@@ -61,7 +61,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   private final IcebergFormatMatcher formatMatcher;
   private final IcebergFormatConfig config;
   private final String name;
-  private final FileSystemPlugin<?> fsPlugin;
+  private SupportsIcebergRootPointer fsPlugin;
   private FormatPlugin dataFormatPlugin;
   private final boolean isLayered;
 
@@ -70,15 +70,19 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
     this.context = context;
     this.config = formatConfig;
     this.name = name == null ? DEFAULT_NAME : name;
-    this.fsPlugin = fsPlugin;
     this.formatMatcher = new IcebergFormatMatcher(this);
-    if (formatConfig.getDataFormatType() == FileType.PARQUET) {
-      dataFormatPlugin = new ParquetFormatPlugin(name, context,
-        (ParquetFormatConfig) formatConfig.getDataFormatConfig(), fsPlugin);
-    } else {
-      throw new UnsupportedOperationException("iceberg does not support data format type " + formatConfig.getDataFormatType());
-    }
     this.isLayered = true;
+    if (fsPlugin != null) {
+      initialize(formatConfig, fsPlugin);
+    }
+  }
+
+  public void initialize(IcebergFormatConfig formatConfig, SupportsIcebergRootPointer fsPlugin) {
+    this.fsPlugin = fsPlugin;
+    if (formatConfig.getDataFormatType() == FileType.PARQUET && fsPlugin instanceof FileSystemPlugin) {
+      dataFormatPlugin = new ParquetFormatPlugin(name, context,
+              (ParquetFormatConfig) formatConfig.getDataFormatConfig(), (FileSystemPlugin<?>) fsPlugin);
+    }
   }
 
   @Override
@@ -99,7 +103,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   public RecordReader getRecordReader(
       OperatorContext context, FileSystem fs, FileAttributes attributes)
       throws ExecutionSetupException {
-    if (attributes.getPath().getName().endsWith("parquet")) {
+    if (attributes.getPath().getName().endsWith("parquet") && dataFormatPlugin != null) {
       return dataFormatPlugin.getRecordReader(context, fs, attributes);
     } else {
       return new EmptyRecordReader();

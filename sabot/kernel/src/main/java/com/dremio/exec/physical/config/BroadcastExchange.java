@@ -24,21 +24,26 @@ import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.physical.base.Sender;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 
 public class BroadcastExchange extends AbstractExchange {
 
+  private final OptionManager optionManager;
+
   public BroadcastExchange(
-      OpProps props,
-      OpProps senderProps,
-      OpProps receiverProps,
-      BatchSchema schema,
-      PhysicalOperator child) {
-    super(props, senderProps, receiverProps, schema, child);
+    OpProps props,
+    OpProps senderProps,
+    OpProps receiverProps,
+    BatchSchema schema,
+    PhysicalOperator child,
+    OptionManager optionManager) {
+    super(props, senderProps, receiverProps, schema, child, optionManager);
+    this.optionManager = optionManager;
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new BroadcastExchange(props, senderProps, receiverProps, schema, child);
+    return new BroadcastExchange(props, senderProps, receiverProps, schema, child, optionManager);
   }
 
   @Override

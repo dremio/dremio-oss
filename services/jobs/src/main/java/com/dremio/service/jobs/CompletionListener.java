@@ -28,6 +28,7 @@ public class CompletionListener implements JobStatusListener {
   private final CountDownLatch latch = new CountDownLatch(1);
 
   private volatile Exception ex;
+  private volatile String cancelledReason;
   private volatile boolean success = false;
   private final boolean throwEx;
 
@@ -104,10 +105,16 @@ public class CompletionListener implements JobStatusListener {
 
   @Override
   public void jobCancelled(String reason) {
+    cancelledReason = reason;
     latch.countDown();
   }
 
   public Exception getException() {
     return ex;
   }
+
+  public String getCancelledReason() {
+    return cancelledReason;
+  }
+
 }

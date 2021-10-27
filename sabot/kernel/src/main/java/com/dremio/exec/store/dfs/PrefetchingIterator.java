@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
@@ -78,6 +79,12 @@ public class PrefetchingIterator implements RecordReaderIterator {
   @Override
   public ParquetProtobuf.ParquetDatasetSplitScanXAttr getCurrentSplitXAttr() {
     return current.getSplitXAttr();
+  }
+
+
+  @Override
+  public SplitAndPartitionInfo getCurrentSplitAndPartitionInfo() {
+    return current.getSplit();
   }
 
   @Override

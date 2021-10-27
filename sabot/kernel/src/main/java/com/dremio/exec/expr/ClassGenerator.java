@@ -18,6 +18,8 @@ package com.dremio.exec.expr;
 import static com.dremio.exec.compile.sig.GeneratorMapping.GM;
 
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ import java.util.Map;
 import com.dremio.common.expression.CodeModelArrowHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.sig.CodeGeneratorArgument;
 import com.dremio.exec.compile.sig.CodeGeneratorMethod;
 import com.dremio.exec.compile.sig.ConstantExtractor;
@@ -33,6 +36,8 @@ import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.compile.sig.SignatureHolder;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.fn.BaseFunctionHolder.WorkspaceReference;
+import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.record.TypedFieldId;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -75,6 +80,9 @@ public class ClassGenerator<T> {
   private final LinkedList<SizedJBlock>[] blocks;
   private final JCodeModel model;
   private final ConstantGenerator cgen;
+
+  private List<ExpressionEvalInfo> expressionEvalInfos = new ArrayList<>();
+  private boolean isLazyExpressionsAddOn = false;
 
   private int index = 0;
   private int labelIndex = 0;
@@ -172,6 +180,18 @@ public class ClassGenerator<T> {
   }
   public JBlock getCleanupBlock() {
     return getBlock(getCurrentMapping().getMethodName(BlockType.CLEANUP));
+  }
+  public List<ExpressionEvalInfo> getExpressionEvalInfos() { return expressionEvalInfos; }
+  public boolean doesLazyExpsContainComplexWriterFunctionHolder() {
+    for(int i=0 ;i<expressionEvalInfos.size();i++) {
+      if(expressionEvalInfos.get(i).getExp() instanceof FunctionHolderExpr) {
+        FunctionHolderExpr holderExpr = (FunctionHolderExpr) expressionEvalInfos.get(i).getExp();
+        if(holderExpr.isComplexWriterFuncHolder()) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private int innerMethodCount = 0;
@@ -305,6 +325,7 @@ public class ClassGenerator<T> {
   }
 
   public HoldingContainer addExpr(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
+    Preconditions.checkState(isLazyExpressionsAddOn == false, "Lazy Expression evaluation is on, must not be adding exps directly");
     if (mode == BlockCreateMode.NEW_BLOCK || mode == BlockCreateMode.NEW_IF_TOO_LARGE) {
       rotateBlock(mode);
     }
@@ -315,6 +336,46 @@ public class ClassGenerator<T> {
 
     return evaluationVisitor.addExpr(ex, this, allowInnerMethods);
   }
+
+  public int getFunctionErrorContextsCount() {
+    return evaluationVisitor.getFunctionErrorContextsCount();
+  }
+
+  public void registerFunctionErrorContext(int count) {
+    // if expressionEvalInfos is not empty, then they are not added to evaluationvisitor,
+    // hence we need to register function error context.
+    if (expressionEvalInfos.isEmpty()) {
+      return;
+    }
+    while (count > 0) {
+      FunctionErrorContext errorContext = null;
+      errorContext = FunctionErrorContextBuilder.builder()
+        .build();
+      codeGenerator.getFunctionContext().registerFunctionErrorContext(errorContext);
+      count--;
+    }
+    expressionEvalInfos.clear();
+  }
+
+  public void lazyAddExp(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
+    Preconditions.checkState(codeGenerator.getFunctionContext().getOptions().getOption(ExecConstants.LAZYEXPEVAL_ENABLED) == true,
+      "Lazy Expression evaluation is set to false");
+    isLazyExpressionsAddOn = true;
+    ExpressionEvalInfo expressionEvalInfo = new ExpressionEvalInfo(ex, mode, allowInnerMethods);
+    expressionEvalInfos.add(expressionEvalInfo);
+  }
+
+  public void evaluateAllLazyExps() {
+    isLazyExpressionsAddOn = false;
+    Iterator<ExpressionEvalInfo> iterator = expressionEvalInfos.iterator();
+    while (iterator.hasNext()) {
+      ExpressionEvalInfo expressionEvalInfo = iterator.next();
+      addExpr(expressionEvalInfo.getExp(), expressionEvalInfo.getMode(),
+        expressionEvalInfo.isAllowInnerMethods());
+      iterator.remove();
+    }
+  }
+
 
   public void rotateBlock() {
     // default behavior is always to create new block.
@@ -335,6 +396,7 @@ public class ClassGenerator<T> {
       evaluationVisitor.clearPreviousExpressions();
     }
   }
+
 
   void flushCode() {
     int i = 0;
@@ -573,5 +635,4 @@ public class ClassGenerator<T> {
     }
 
   }
-
 }

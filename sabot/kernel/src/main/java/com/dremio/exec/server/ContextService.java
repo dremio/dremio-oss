@@ -121,6 +121,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<GlobalKeysService> globalCredentailsServiceProvider;
   private final Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider;
   private final Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider;
+  private final Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider;
 
   private SabotContext context;
 
@@ -165,7 +166,8 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
     Provider<GlobalKeysService> globalCredentailsServiceProvider,
     Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
-    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
+    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
+    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
     ) {
     this(bootstrapContext, coord, resourceInformationProvider, workStats,
       kvStoreProvider, fabric, conduitServer, userServer,
@@ -177,7 +179,7 @@ public class ContextService implements Service, Provider<SabotContext> {
       nessieTreeApiBlockingStubProvider, nessieContentsApiBlockingStuProvider, statisticsService,
       statisticsAdministrationServiceFactory, statisticsListManagerProvider,
       relMetadataQuerySupplier, jobsRunnerProvider, datasetCatalogStub,
-      globalCredentailsServiceProvider, credentialsServiceProvider, conduitInProcessChannelProviderProvider);
+      globalCredentailsServiceProvider, credentialsServiceProvider, conduitInProcessChannelProviderProvider, sysFlightChannelProviderProvider);
   }
 
   public ContextService(
@@ -221,7 +223,8 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<DatasetCatalogServiceBlockingStub> datasetCatalogStub,
     Provider<GlobalKeysService> globalCredentailsServiceProvider,
     Provider<com.dremio.services.credentials.CredentialsService> credentialsServiceProvider,
-    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider
+    Provider<ConduitInProcessChannelProvider> conduitInProcessChannelProviderProvider,
+    Provider<SysFlightChannelProvider> sysFlightChannelProviderProvider
   ) {
     this.bootstrapContext = bootstrapContext;
     this.workStats = workStats;
@@ -264,6 +267,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.globalCredentailsServiceProvider = globalCredentailsServiceProvider;
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
+    this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
   }
 
   @Override
@@ -364,7 +368,8 @@ public class ContextService implements Service, Provider<SabotContext> {
       datasetCatalogStub,
       globalCredentailsServiceProvider,
       credentialsServiceProvider,
-      conduitInProcessChannelProviderProvider
+      conduitInProcessChannelProviderProvider,
+      sysFlightChannelProviderProvider
     );
   }
 

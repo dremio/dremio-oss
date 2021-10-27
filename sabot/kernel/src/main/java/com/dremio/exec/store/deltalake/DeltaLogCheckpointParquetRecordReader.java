@@ -17,16 +17,15 @@ package com.dremio.exec.store.deltalake;
 
 import static com.dremio.exec.store.deltalake.DeltaConstants.DELTA_FIELD_ADD;
 import static com.dremio.exec.store.deltalake.DeltaConstants.PARTITION_NAME_SUFFIX;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_KEY_VALUE;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES;
 import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_PARTITION_VALUES_PARSED;
-import static com.dremio.exec.store.deltalake.DeltaConstants.SCHEMA_VALUE;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -78,6 +77,9 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
   private ScanOperator.ScanMutator outputMutator;
   private final Map<String, Integer> partitionColumnIndexMap = new HashMap<>();
   private final Set<String> partitionColNames;
+  private String mapNameInPartitionValues;
+  private String keyNameInPartitionValues;
+  private String valueNameInPartitionValues;
 
   public DeltaLogCheckpointParquetRecordReader(OperatorContext context, RecordReader parquetReader,
                                                List<Field> partitionCols, ParquetSubScan parquetSubScan) {
@@ -110,6 +112,17 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
         !src.getName().equals(SCHEMA_PARTITION_VALUES))
       .forEach(src -> transferPairs.add(src.makeTransferPair(targetAddVector.getChild(src.getName()))));
 
+    List<Field> addFieldChildren = scanConfig.getFullSchema().findField(DELTA_FIELD_ADD).getChildren();
+    Optional<Field> partitionValuesField = addFieldChildren.stream().filter(f -> f.getName().equals(SCHEMA_PARTITION_VALUES)).findFirst();
+    Field topChildInPartitionValuesField = partitionValuesField.orElseThrow(() -> new IllegalStateException("partitionValues field missing"))
+      .getChildren().get(0);
+
+    mapNameInPartitionValues = topChildInPartitionValuesField.getName();
+    List<Field> keyValueStructFields = topChildInPartitionValuesField.getChildren()
+      .get(0)
+      .getChildren();
+    keyNameInPartitionValues = keyValueStructFields.get(0).getName(); // key
+    valueNameInPartitionValues = keyValueStructFields.get(1).getName(); // value
   }
 
   private void createAndSetupProjector() {
@@ -126,9 +139,9 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
 
     for (Field field : partitionCols) {
       final SchemaPath partitionValue = // add.partitionValues.key_value[i]['value']
-        SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES, SCHEMA_KEY_VALUE)
+        SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES, mapNameInPartitionValues) // mapNameInPartitionValues gives the top level field name in the map, it is usually "key_value"
           .getChild(partitionColumnIndexMap.get(field.getName()))
-          .getChild(SCHEMA_VALUE);
+          .getChild(valueNameInPartitionValues); // valueNameInPartitionValues gives the field name for value in the map, it is usually "value"
 
       final SchemaPath parsedPartitionValue = // add.partitionValues_parsed.[columnName]
         SchemaPath.getCompoundPath(DELTA_FIELD_ADD, SCHEMA_PARTITION_VALUES_PARSED, field.getName());
@@ -182,10 +195,10 @@ public class DeltaLogCheckpointParquetRecordReader implements RecordReader {
     for (int i = 0; i < count; i++) {
       if (!partitionValuesStruct.isNull(i)) {
         final JsonStringHashMap partitionValues = (JsonStringHashMap) partitionValuesStruct.getObject(i);
-        final JsonStringArrayList keyValuePairs = (JsonStringArrayList) partitionValues.get("key_value");
+        final JsonStringArrayList keyValuePairs = (JsonStringArrayList) partitionValues.get(mapNameInPartitionValues);
         for (int k = 0; k < keyValuePairs.size(); k++) {
           final JsonStringHashMap keyValuePair = (JsonStringHashMap) keyValuePairs.get(k);
-          final String partColName = keyValuePair.get("key").toString();
+          final String partColName = keyValuePair.get(keyNameInPartitionValues).toString(); // keyNameInPartitionValues gives the field name for key in the map, it is usually "value"
           partitionColumnIndexMap.put(partColName, k);
         }
         if (partitionColumnIndexMap.keySet().equals(this.partitionColNames)) {

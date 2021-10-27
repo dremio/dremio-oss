@@ -207,7 +207,7 @@ public class UnsupportedOperatorsVisitor extends SqlShuttle {
 
     // DRILL-211: Disable Function
     for(String strOperator : disabledOperators) {
-      if(sqlCall.getOperator().isName(strOperator)) {
+      if(sqlCall.getOperator().isName(strOperator, true)) {
         unsupportedOperatorCollector.setException(SqlUnsupportedException.ExceptionType.FUNCTION,
             "Dremio doesn't currently support " + sqlCall.getOperator().getName() + ".");
         throw new UnsupportedOperationException();

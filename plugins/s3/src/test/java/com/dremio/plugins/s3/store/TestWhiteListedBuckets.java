@@ -25,8 +25,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -50,12 +50,12 @@ import software.amazon.awssdk.regions.Region;
  */
 public class TestWhiteListedBuckets extends BaseTestQuery {
 
-  private S3Mock s3Mock;
-  private int port;
+  private static S3Mock s3Mock;
+  private static int port;
 
-  @Before
-  public void setup() {
-    this.s3Mock = new S3Mock.Builder().withPort(0).withInMemoryBackend().build();
+  @BeforeClass
+  public static void setup() {
+    s3Mock = new S3Mock.Builder().withPort(0).withInMemoryBackend().build();
     Http.ServerBinding binding = s3Mock.start();
     port = binding.localAddress().getPort();
 
@@ -72,8 +72,8 @@ public class TestWhiteListedBuckets extends BaseTestQuery {
     client.createBucket("bucket-c");
   }
 
-  @After
-  public void teardown() {
+  @AfterClass
+  public static void teardown() {
     if (s3Mock != null) {
       s3Mock.stop();
     }

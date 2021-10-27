@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.exec.ExecConstants.S3_NATIVE_ASYNC_CLIENT;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_PROFILE_PROVIDER;
@@ -32,9 +33,12 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -61,6 +65,7 @@ import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.Region;
 import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
 import com.dremio.exec.hadoop.DremioHadoopUtils;
@@ -89,6 +94,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.core.client.builder.SdkSyncClientBuilder;
+import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -107,6 +114,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   private static final URI S3_URI = URI.create("s3a://aws"); // authority doesn't matter here, it is just to avoid exceptions
   private static final String S3_ENDPOINT_END = ".amazonaws.com";
   private static final String S3_CN_ENDPOINT_END = S3_ENDPOINT_END + ".cn";
+  private static final ExecutorService threadPool = Executors.newCachedThreadPool(new NamedThreadFactory("s3-async-read-"));
 
   private final Retryer retryer = new Retryer.Builder()
     .retryIfExceptionOfType(SdkClientException.class)
@@ -126,6 +134,45 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
               return new CloseableRef<>(syncClient);
             }
           });
+
+  private final LoadingCache<String, CloseableRef<S3AsyncClient>> asyncClientCache = CacheBuilder
+          .newBuilder()
+          .expireAfterAccess(1, TimeUnit.HOURS)
+          .removalListener(notification ->
+                  AutoCloseables.close(RuntimeException.class, (AutoCloseable) notification.getValue()))
+          .build(new CacheLoader<String, CloseableRef<S3AsyncClient>>() {
+            @Override
+            public CloseableRef<S3AsyncClient> load(String bucket) {
+              software.amazon.awssdk.regions.Region region;
+              if (!isCompatMode()) {
+                // normal s3/govcloud mode.
+                region = getAWSBucketRegion(bucket);
+              } else {
+                region = getAWSRegionFromConfigurationOrDefault(getConf());
+              }
+              S3AsyncClient asyncClient = S3AsyncClient
+                      .builder()
+                      .asyncConfiguration(b -> b.advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, threadPool))
+                      .credentialsProvider(getAsync2Provider(getConf()))
+                      .region(region)
+                      .build();
+              return new CloseableRef<>(asyncClient);
+            }
+          });
+
+  /**
+   * Get (or create if one doesn't already exist) an async client for accessing a given bucket
+   */
+  private S3AsyncClient getAsyncClient(String bucket) throws IOException {
+    try {
+      return asyncClientCache.get(bucket).acquireRef();
+    } catch (ExecutionException | SdkClientException e ) {
+      if (e.getCause() != null && e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      }
+      throw new IOException(String.format("Unable to create an async S3 client for bucket %s", bucket), e);
+    }
+  }
 
   private final LoadingCache<S3ClientKey, CloseableResource<AmazonS3>> clientCache = CacheBuilder
           .newBuilder()
@@ -294,13 +341,19 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(Path path, String version) throws IOException {
+  public AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options) throws IOException {
     final String bucket = DremioHadoopUtils.getContainerName(path);
     String pathStr = DremioHadoopUtils.pathWithoutContainer(path).toString();
     // The AWS HTTP client re-encodes a leading slash resulting in invalid keys, so strip them.
     pathStr = (pathStr.startsWith("/")) ? pathStr.substring(1) : pathStr;
-    //return new S3AsyncByteReader(getAsyncClient(bucket), bucket, pathStr);
-    return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket, pathStr, version, isRequesterPays());
+    boolean ssecUsed = isSsecUsed();
+    String sseCustomerKey = getCustomerSSEKey(ssecUsed);
+    if ("false".equals(options.get(S3_NATIVE_ASYNC_CLIENT.getOptionName()))) {
+      return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket, pathStr,
+              version, isRequesterPays(), ssecUsed, sseCustomerKey);
+    }
+    return new S3AsyncByteReader(getAsyncClient(bucket), bucket, pathStr,
+            version, isRequesterPays(), ssecUsed, sseCustomerKey);
   }
 
   private CloseableRef<S3Client> getSyncClient(String bucket) throws IOException {
@@ -330,10 +383,11 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
             () -> super.close(),
             () -> fsCache.closeAll(true),
             () -> invalidateCache(syncClientCache),
+            () -> invalidateCache(asyncClientCache),
             () -> invalidateCache(clientCache));
   }
 
-  private static final void invalidateCache(Cache<?, ?> cache) {
+  private static void invalidateCache(Cache<?, ?> cache) {
     cache.invalidateAll();
     cache.cleanUp();
   }
@@ -587,6 +641,18 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   private boolean isCompatMode() {
     return getConf().getBoolean(COMPATIBILITY_MODE, false);
+  }
+
+  private boolean isSsecUsed() {
+    String ssecAlgorithm = getConf().get("fs.s3a.server-side-encryption-algorithm", "");
+    return ssecAlgorithm.equalsIgnoreCase("sse-c");
+  }
+
+  private String getCustomerSSEKey(boolean ssecUsed) {
+    if (!ssecUsed) {
+      return "";
+    }
+    return getConf().get("fs.s3a.server-side-encryption.key", "");
   }
 
   @VisibleForTesting

@@ -274,13 +274,13 @@ public class TestZKClusterClient extends DremioTest {
         }
       });
 
-      assertTrue("No election happened", elected.await(5, TimeUnit.SECONDS));
+      assertTrue("No election happened", elected.await(20, TimeUnit.SECONDS));
 
       // Restart the server
       zooKeeperServer.restartServer();
 
-      assertTrue("Node was not disconnected", loss.await(5, TimeUnit.SECONDS));
-      assertTrue("Node was not reconnected", reconnected.await(5, TimeUnit.SECONDS));
+      assertTrue("Node was not disconnected", loss.await(10, TimeUnit.SECONDS));
+      assertTrue("Node was not reconnected", reconnected.await(10, TimeUnit.SECONDS));
       assertEquals("Node was cancelled", 1L, cancelled.getCount());
     }
   }

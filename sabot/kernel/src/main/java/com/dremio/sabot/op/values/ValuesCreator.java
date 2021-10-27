@@ -37,7 +37,7 @@ public class ValuesCreator implements ProducerOperator.Creator<Values> {
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, Values config) throws ExecutionSetupException {
     RecordReader reader = new JSONRecordReader(context, config.getContent().asNode(), null, null, Collections.singletonList(SchemaPath.getSimplePath("*")));
     if (context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED)) {
-      reader = new EasyCoercionReader(context, config.getColumns(), reader, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null), Collections.emptyList());
+      reader = new EasyCoercionReader(context, config.getColumns(), reader, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null));
     }
     return new ScanOperator(config, context, RecordReaderIterator.from(reader));
   }

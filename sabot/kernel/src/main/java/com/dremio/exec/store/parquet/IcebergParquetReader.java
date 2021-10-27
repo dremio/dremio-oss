@@ -45,9 +45,9 @@ public class IcebergParquetReader extends TransactionalTableParquetReader {
     boolean vectorize,
     boolean enableDetailedTracing,
     boolean supportsColocatedReads,
-    InputStreamProvider inputStreamProvider) {
+    InputStreamProvider inputStreamProvider, boolean isConvertedIcebergDataset) {
     super(context, readerFactory, tableSchema, projectedColumns, globalDictionaryFieldInfoMap, filterConditions,
             readEntry, fs, footer, dictionaries, schemaHelper, vectorize, enableDetailedTracing, supportsColocatedReads,
-            inputStreamProvider);
+            inputStreamProvider, isConvertedIcebergDataset);
   }
 }

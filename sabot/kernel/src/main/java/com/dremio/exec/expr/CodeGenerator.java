@@ -58,6 +58,7 @@ public class CodeGenerator<T> {
   private final String className;
   private final String fqcn;
 
+  private final FunctionContext functionContext;
   private JCodeModel model;
   private ClassGenerator<T> rootGenerator;
   private String generifiedCode;
@@ -79,6 +80,7 @@ public class CodeGenerator<T> {
       clazz = clazz._extends(model.directClass(definition.getTemplateClassName()));
       clazz.constructor(JMod.PUBLIC).body().invoke(SignatureHolder.INIT_METHOD);
       rootGenerator = new ClassGenerator<>(this, mappingSet, definition.getSignature(), new EvaluationVisitor(functionContext), clazz, model);
+      this.functionContext = functionContext;
     } catch (JClassAlreadyExistsException e) {
       throw new IllegalStateException(e);
     }
@@ -161,6 +163,10 @@ public class CodeGenerator<T> {
 
   public List<T> getImplementationClass(final int instanceCount){
     return compiler.getImplementationClass(this, instanceCount);
+  }
+
+  public FunctionContext getFunctionContext() {
+    return functionContext;
   }
 
 }

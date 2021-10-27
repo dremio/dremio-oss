@@ -20,8 +20,6 @@ import static org.junit.Assume.assumeFalse;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dremio.dac.daemon.DACDaemonModule;
-
 /**
  * Tests LivenessService.
  */
@@ -30,7 +28,7 @@ public class LivenessServiceTest extends BaseTestServer {
   @BeforeClass
   public static void init() throws Exception {
     assumeFalse(isMultinode());
-    initializeCluster(false, new DACDaemonModule());
+    BaseTestServer.init();
   }
 
   @Test

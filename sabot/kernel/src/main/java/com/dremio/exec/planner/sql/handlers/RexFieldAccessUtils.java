@@ -84,18 +84,18 @@ public final class RexFieldAccessUtils {
 
   public static Project wrapProject(Project project, RelNode input, boolean crel) {
     final StructuredReferenceWrapper wrapper = new StructuredReferenceWrapper(project.getCluster().getRexBuilder(), true);
-    List<RexNode> wrappedExpr = project.getChildExps().stream().map(expr -> expr.accept(wrapper)).collect(Collectors.toList());
+    List<RexNode> wrappedExpr = project.getProjects().stream().map(expr -> expr.accept(wrapper)).collect(Collectors.toList());
     if (crel) {
-      return LogicalProject.create(input, wrappedExpr, project.getRowType());
+      return LogicalProject.create(input, ImmutableList.of(), wrappedExpr, project.getRowType());
     }
     return ProjectRel.create(project.getCluster(), project.getTraitSet(), input, wrappedExpr, project.getRowType());
   }
 
   private static RelNode unwrapProject(Project project, RelNode input, boolean crel) {
     final StructuredReferenceWrapper unwrapper = new StructuredReferenceWrapper(project.getCluster().getRexBuilder(), false);
-    List<RexNode> unwrappedExpr = project.getChildExps().stream().map(expr -> expr.accept(unwrapper)).collect(Collectors.toList());
+    List<RexNode> unwrappedExpr = project.getProjects().stream().map(expr -> expr.accept(unwrapper)).collect(Collectors.toList());
     if (crel) {
-      return LogicalProject.create(input, unwrappedExpr, project.getRowType());
+      return LogicalProject.create(input, ImmutableList.of(), unwrappedExpr, project.getRowType());
     }
     return ProjectRel.create(project.getCluster(), project.getTraitSet(), input, unwrappedExpr, project.getRowType());
   }

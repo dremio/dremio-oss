@@ -50,8 +50,8 @@ public class PlanCache {
     }
   }
 
-  public static long generateCacheKey(String sql, String workLoadType) {
-    return sql.concat(workLoadType).hashCode();
+  public static long generateCacheKey(String sql, String workLoadType, String defaultSchema) {
+    return sql.concat(workLoadType).concat(defaultSchema).hashCode();
   }
 
   public CachedPlan getIfPresentAndValid(Catalog catalog, long cacheId) {

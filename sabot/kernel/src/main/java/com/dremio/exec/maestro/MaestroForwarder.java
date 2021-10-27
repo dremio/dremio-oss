@@ -33,4 +33,8 @@ public interface MaestroForwarder {
   void nodeQueryMarkFirstError(NodeQueryFirstError completion);
 
   void dataArrived(JobResultsRequest jobResultsRequest, ResponseSender sender);
+
+  void resultsCompleted(String queryId);
+
+  void resultsError(String queryId, Throwable exception);
 }

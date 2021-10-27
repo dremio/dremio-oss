@@ -36,7 +36,8 @@ public class ReflectionAllowedMonitoringConvertletTable implements SqlRexConvert
       SqlStdOperatorTable.CURRENT_TIMESTAMP,
       SqlStdOperatorTable.LOCALTIME,
       SqlStdOperatorTable.LOCALTIMESTAMP,
-      SqlStdOperatorTable.PI // here until CALCITE-2750 is fixed and Dremio has it.
+      SqlStdOperatorTable.PI, // here until CALCITE-2750 is fixed and Dremio has it.
+      DremioSqlOperatorTable.NOW
       );
 
   private final SqlRexConvertletTable delegate;
@@ -54,7 +55,7 @@ public class ReflectionAllowedMonitoringConvertletTable implements SqlRexConvert
     if(operator.isDynamicFunction() || !operator.isDeterministic()) {
       planCacheable = false;
     }
-    if (operator.isDynamicFunction() && (!WHITELIST.contains(operator) && !operator.getName().equals("NOW"))) {
+    if (operator.isDynamicFunction() && !WHITELIST.contains(operator)) {
         contextSensitive = true;
     }
     return delegate.get(call);

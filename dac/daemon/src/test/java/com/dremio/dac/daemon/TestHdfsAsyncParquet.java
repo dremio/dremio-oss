@@ -20,6 +20,8 @@ import static com.dremio.common.TestProfileHelper.isMaprProfile;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static org.junit.Assert.assertEquals;
 
+import java.util.concurrent.TimeUnit;
+
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 
@@ -33,11 +35,14 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
 
 import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
+import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.model.folder.SourceFolderPath;
@@ -71,6 +76,8 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
  * HDFS tests.
  */
 public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS);
 
   private static DACDaemon dremioDaemon;
   private static Binder dremioBinder;

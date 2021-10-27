@@ -16,21 +16,23 @@
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.util.MemoryUtil;
 import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.datasketches.hll.HllSketch;
+import org.apache.datasketches.hll.TgtHllType;
+import org.apache.datasketches.hll.Union;
+import org.apache.datasketches.memory.WritableMemory;
 
 import com.dremio.exec.expr.fn.hll.StatisticsAggrFunctions;
 import com.dremio.sabot.exec.context.SlicedBufferManager;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-import com.yahoo.memory.WritableMemory;
-import com.yahoo.sketches.hll.HllSketch;
-import com.yahoo.sketches.hll.TgtHllType;
-import com.yahoo.sketches.hll.Union;
-
 
 /**
  * A base accumulator for Union of HLL/NDV operator
@@ -41,40 +43,70 @@ abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
    * holds an array of memory addresses, each is backing memory for a single Union sketch or actual HllSketch objects. AccumHolder is created for each chunk
    */
   public static class HllUnionAccumHolder {
+    /*
+     * ArrowBuf size must be power of 2. 2M is ideal size due to the odd size of sketchSize (4136).
+     * (There is only total of 200 bytes of direct memory will be wasted for each 2M size. If default
+     * Sliced buffer size (64K) is used, there will be 3496 bytes (6%) wastage for each ArrowBuf).
+     * Also large ArrowBuf means, less number of ByteBuffers to be maintained.
+     */
+    static private final int SKETCH_BUF_SIZE = 2 * 1024 * 1024;
+    static private final int sketchSize = HllSketch.getMaxUpdatableSerializationBytes(StatisticsAggrFunctions.HLL_ACCURACY, TgtHllType.HLL_8);
+    static private final int SKETCHES_PER_BUF = SKETCH_BUF_SIZE / sketchSize;
     private final boolean reduceNdvHeap;
-    private long[] accumAddresses;
+    private final int count;
+    private ByteBuffer[] accumAddresses;
     private Union[] accumObjs;
 
-    static private final int sketchSize = HllSketch.getMaxUpdatableSerializationBytes(StatisticsAggrFunctions.HLL_ACCURACY, TgtHllType.HLL_8);
-
     public HllUnionAccumHolder(int count /* number of sketch objects in this holder */, final SlicedBufferManager bufManager, boolean reduceNdvHeap) {
+      this.count = count;
+      int numArrowBufs = (count + SKETCHES_PER_BUF - 1) / SKETCHES_PER_BUF;
+      accumAddresses = new ByteBuffer[numArrowBufs];
+      for (int i = 0; i < numArrowBufs; ++i) {
+        int bufSize = SKETCH_BUF_SIZE;
+        if (i == numArrowBufs - 1) {
+          /* Adjust the buffer size for the last arrow buf */
+          bufSize = (count - i * SKETCHES_PER_BUF) * sketchSize;
+        }
+        accumAddresses[i] = MemoryUtil.directBuffer(bufManager.getManagedBufferSliced(bufSize).memoryAddress(), bufSize);
+      }
+
       this.reduceNdvHeap = reduceNdvHeap;
-      if (reduceNdvHeap) {
-        accumAddresses = new long[count];
-      } else {
+      if (!reduceNdvHeap) {
         accumObjs = new Union[count];
       }
 
       for (int i = 0; i < count; ++i) {
-        long accumAddr = bufManager.getManagedBufferSliced(sketchSize).memoryAddress();
+        int arrowBufIndex = i / SKETCHES_PER_BUF;
+        int arrowBufOffset = (i % SKETCHES_PER_BUF) * sketchSize;
+        accumAddresses[arrowBufIndex].limit(arrowBufOffset + sketchSize);
+        accumAddresses[arrowBufIndex].position(arrowBufOffset);
+        ByteBuffer bb = accumAddresses[arrowBufIndex].slice();
+        bb.order(ByteOrder.nativeOrder());
         /* Initialize backing memory for the sketch. HllSketch memset first getMaxUpdatableSerializationBytes() bytes. */
-        Union sketch = new Union(StatisticsAggrFunctions.HLL_ACCURACY,
-                                 WritableMemory.wrap(MemoryUtil.directBuffer(accumAddr, sketchSize)));
-        if (reduceNdvHeap) {
-          accumAddresses[i] = accumAddr;
-        } else {
+        Union sketch = new Union(StatisticsAggrFunctions.HLL_ACCURACY, WritableMemory.wrap(bb));
+        if (!reduceNdvHeap) {
           accumObjs[i] = sketch;
         }
       }
     }
 
     public int getAccumsSize() {
-      return reduceNdvHeap ? accumAddresses.length : accumObjs.length;
+      return count;
     }
 
     public Union getAccumSketch(int accumIndex) {
       Preconditions.checkArgument(accumIndex < getAccumsSize());
-      return reduceNdvHeap ? Union.writableWrap(WritableMemory.wrap(MemoryUtil.directBuffer(accumAddresses[accumIndex], sketchSize))) : accumObjs[accumIndex];
+      if (reduceNdvHeap) {
+        int arrowBufIndex = accumIndex / SKETCHES_PER_BUF;
+        int arrowBufOffset = (accumIndex % SKETCHES_PER_BUF) * sketchSize;
+        accumAddresses[arrowBufIndex].limit(arrowBufOffset + sketchSize);
+        accumAddresses[arrowBufIndex].position(arrowBufOffset);
+        ByteBuffer bb = accumAddresses[arrowBufIndex].slice();
+        bb.order(ByteOrder.nativeOrder());
+        return Union.writableWrap(WritableMemory.wrap(bb));
+      } else {
+        return accumObjs[accumIndex];
+      }
     }
   }
 
@@ -138,7 +170,7 @@ abstract class BaseNdvUnionAccumulatorNoSpill implements AccumulatorNoSpill {
     for (int i = 0; i < batchSize; ++i) {
       Union sketch = ah.getAccumSketch(i);
       byte[] ba = sketch.toCompactByteArray();
-      outVec.setSafe(i, ba, 0, ba.length);
+      outVec.set(i, ba);
     }
   }
 

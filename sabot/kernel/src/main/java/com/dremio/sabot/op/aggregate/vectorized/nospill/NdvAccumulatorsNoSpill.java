@@ -16,19 +16,17 @@
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.datasketches.hll.HllSketch;
+import org.apache.datasketches.hll.Union;
 
 import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-import com.yahoo.memory.Memory;
-import com.yahoo.sketches.hll.HllSketch;
-import com.yahoo.sketches.hll.Union;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -111,10 +109,11 @@ public class NdvAccumulatorsNoSpill {
         final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
         final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
         final int len = endOffset - startOffset;
-        final ByteBuffer buffer = inputBuf.nioBuffer(startOffset, len);
+        byte[] bytes = new byte[len];
+        inputBuf.getBytes(startOffset, bytes);
 
         //apply the update
-        sketch.update(Memory.wrap(buffer), 0, len);
+        sketch.update(bytes);
       } //for
     } //accumulate
   }
@@ -299,8 +298,6 @@ public class NdvAccumulatorsNoSpill {
           continue;
         }
 
-        final ByteBuffer buffer = inputVector.getDataBuffer().nioBuffer(incomingIndex * WIDTH_INPUT, WIDTH_INPUT);
-
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -308,7 +305,10 @@ public class NdvAccumulatorsNoSpill {
         final HllAccumHolder ah = this.accumulators[chunkIndex];
         final HllSketch sketch = ah.getAccumSketch(chunkOffset);
 
-        sketch.update(Memory.wrap(buffer), 0, WIDTH_INPUT);
+        byte[] bytes = new byte[WIDTH_INPUT];
+        inputVector.getDataBuffer().getBytes(incomingIndex * WIDTH_INPUT, bytes);
+
+        sketch.update(bytes);
       } //for
     }
   }
@@ -442,12 +442,14 @@ public class NdvAccumulatorsNoSpill {
         final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
         final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
         final int len = endOffset - startOffset;
-        ByteBuffer buffer = inputBuf.nioBuffer(startOffset, len);
+        byte[] bytes = new byte[len];
+        inputBuf.getBytes(startOffset, bytes);
+        final HllSketch sketch = HllSketch.heapify(bytes);
 
         //apply the update
         final HllUnionAccumHolder ah = this.accumulators[chunkIndex];
         final Union unionSketch = ah.getAccumSketch(chunkOffset);
-        final HllSketch sketch = HllSketch.wrap(Memory.wrap(buffer));
+
         unionSketch.update(sketch);
       } //for
     } //accumulate

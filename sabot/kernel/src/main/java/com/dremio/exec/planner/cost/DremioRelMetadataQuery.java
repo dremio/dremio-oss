@@ -21,8 +21,8 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.MetadataHandlerProvider;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
+import org.apache.calcite.rel.metadata.RelMetadataHandlerProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.exec.store.sys.statistics.StatisticsService;
@@ -31,12 +31,12 @@ import com.google.common.collect.ImmutableSet;
 
 public class DremioRelMetadataQuery extends RelMetadataQuery{
   private static final DremioRelMetadataQuery PROTOTYPE =
-      new DremioRelMetadataQuery(DremioMetadataHandlerProvider.INSTANCE);
+      new DremioRelMetadataQuery(DremioRelMetadataHandlerProvider.INSTANCE);
 
   public static final RelMetadataQuerySupplier QUERY_SUPPLIER =
       () -> new DremioRelMetadataQuery(PROTOTYPE);
 
-  private DremioRelMetadataQuery(MetadataHandlerProvider metadataHandlerProvider) {
+  private DremioRelMetadataQuery(RelMetadataHandlerProvider metadataHandlerProvider) {
     super(metadataHandlerProvider);
   }
 
@@ -82,8 +82,8 @@ public class DremioRelMetadataQuery extends RelMetadataQuery{
    * Ensures only one instance of DremioRelMetadataQuery is created for statistics
    */
   public static RelMetadataQuerySupplier getSupplier(StatisticsService service) {
-    DremioMetadataHandlerProvider provider =
-        DremioMetadataHandlerProvider.createMetadataProviderWithStatics(service);
+    DremioRelMetadataHandlerProvider provider =
+        DremioRelMetadataHandlerProvider.createMetadataProviderWithStatics(service);
     DremioRelMetadataQuery prototype =
       new DremioRelMetadataQuery(provider);
     return () -> new DremioRelMetadataQuery(prototype);

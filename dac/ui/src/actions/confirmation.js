@@ -37,7 +37,8 @@ export function showUnsavedChangesConfirmDialog({text, confirm }) {
     confirmText: la('Leave'),
     cancelText: la('Stay'),
     text: text || la('You have unsaved changes. Are you sure you want to leave?'),
-    confirm
+    confirm,
+    isCentered: true // This is so that the modal header doesn't overlap with the modal header of the form.
   }));
 }
 

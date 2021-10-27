@@ -22,7 +22,9 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
@@ -30,6 +32,7 @@ import org.slf4j.Logger;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
+import com.google.common.base.Preconditions;
 
 public class HashJoinPrule extends JoinPruleBase {
   public static final RelOptRule DIST_INSTANCE = new HashJoinPrule("Prel.HashJoinDistPrule", RelOptHelper.any(JoinRel.class), true);
@@ -90,27 +93,60 @@ public class HashJoinPrule extends JoinPruleBase {
   protected void createBroadcastPlan(final RelOptRuleCall call, final JoinRel join,
                                      final RexNode joinCondition,
                                      final RelNode left, final RelNode right,
-                                     final RelCollation collationLeft, final RelCollation collationRight) throws InvalidRelException {
+                                     final RelCollation collationLeft, final RelCollation collationRight) {
 
     final RelNode convertedLeft = convert(left, left.getTraitSet().plus(Prel.PHYSICAL));
     final RelNode convertedRight = convert(right, right.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.BROADCAST));
-    call.transformTo(HashJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
-        join.getJoinType(), null));
+    final HashJoinConditionInfo hashJoinConditionInfo = getHashJoinCondition(join, PrelUtil.getPlannerSettings(call.getPlanner()));
+    call.transformTo(HashJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight,
+      hashJoinConditionInfo.getCondition(), hashJoinConditionInfo.getExtraCondition(), join.getJoinType()));
   }
 
   @Override
   protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
                                   RelNode left, RelNode right,
                                   RelCollation collationLeft, RelCollation collationRight,
-                                  DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws InvalidRelException {
+                                  DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) {
     RelTraitSet traitsLeft = left.getTraitSet().plus(Prel.PHYSICAL).plus(hashLeftPartition);
     RelTraitSet traitsRight = right.getTraitSet().plus(Prel.PHYSICAL).plus(hashRightPartition);
 
     final RelNode convertedLeft = convert(left, traitsLeft);
     final RelNode convertedRight = convert(right, traitsRight);
 
+    final HashJoinConditionInfo hashJoinConditionInfo = getHashJoinCondition(join, PrelUtil.getPlannerSettings(call.getPlanner()));
     call.transformTo(HashJoinPrel.create(join.getCluster(), traitsLeft,
-      convertedLeft, convertedRight, join.getCondition(),
-      join.getJoinType(), null));
+      convertedLeft, convertedRight, hashJoinConditionInfo.getCondition(),
+      hashJoinConditionInfo.getExtraCondition(), join.getJoinType()));
+  }
+
+  private HashJoinConditionInfo getHashJoinCondition(JoinRel join, PlannerSettings plannerSettings) {
+    if (isInequalityHashJoinSupported(join, plannerSettings.getOptions())) {
+      JoinInfo joinInfo = JoinInfo.of(join.getLeft(), join.getRight(), join.getCondition());
+      if (!joinInfo.isEqui()) {
+        RexBuilder rexBuilder = join.getCluster().getRexBuilder();
+        RexNode equiCondition = joinInfo.getEquiCondition(join.getLeft(), join.getRight(), rexBuilder);
+        RexNode extraCondition = joinInfo.getRemaining(rexBuilder);
+        return new HashJoinConditionInfo(equiCondition, extraCondition);
+      }
+    }
+    return new HashJoinConditionInfo(join.getCondition(), null);
+  }
+
+  private static class HashJoinConditionInfo {
+    private final RexNode condition;
+    private final RexNode extraCondition;
+
+    private HashJoinConditionInfo(RexNode condition, RexNode extraCondition) {
+      this.condition = Preconditions.checkNotNull(condition);
+      this.extraCondition = extraCondition;
+    }
+
+    public RexNode getCondition() {
+      return condition;
+    }
+
+    public RexNode getExtraCondition() {
+      return extraCondition;
+    }
   }
 }

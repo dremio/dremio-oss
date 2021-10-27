@@ -102,4 +102,9 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
    */
   @JsonIgnore
   Set<Integer> getExtCommunicableMajorFragments();
+
+  @JsonIgnore
+  default long getMemReserve() {
+    return getProps().getMemReserve();
+  }
 }

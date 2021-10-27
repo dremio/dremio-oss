@@ -15,6 +15,8 @@
  */
 package com.dremio.telemetry.api.metrics;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * Recorder of time to complete an operation.
  */
@@ -27,4 +29,6 @@ public interface Timer {
   public static interface TimerContext extends AutoCloseable {
     void close();
   }
+
+  void update(long duration, TimeUnit timeUnit);
 }

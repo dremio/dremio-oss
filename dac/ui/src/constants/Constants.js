@@ -51,20 +51,20 @@ export const CLIENT_TOOL_ID = {
 };
 
 export const TableColumns = [
-  { key: 'jobStatus', id: 'jobStatus', label: '', disableSort: true, isSelected: true, width: 20, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: true, isDraggable: false, headerClassName: '' },
-  { key: 'job', id: 'job', label: 'Job ID', disableSort: false, isSelected: true, width: 122, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '' },
-  { key: 'usr', id: 'usr', label: 'User', disableSort: false, isSelected: true, width: 167, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '' },
-  { key: 'reflection', id: 'reflection', label: 'reflection', disableSort: true, isSelected: true, width: 30, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: true, isDraggable: false, headerClassName: '' },
-  { key: 'ds', id: 'ds', label: 'Dataset', disableSort: false, isSelected: true, width: 205, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '' },
-  { key: 'qt', id: 'qt', label: 'Query Type', disableSort: true, width: 113, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '' },
+  { key: 'jobStatus', id: 'jobStatus', label: '', disableSort: true, isSelected: true, width: 20, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: true, isDraggable: false, headerClassName: '', disabled:true },
+  { key: 'job', id: 'job', label: 'Job ID', disableSort: false, isSelected: true, width: 122, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '', disabled:true },
+  { key: 'usr', id: 'usr', label: 'User', disableSort: false, isSelected: true, width: 167, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '', disabled:true },
+  { key: 'acceleration', id: 'acceleration', label: 'Accelerated', disableSort: true, isSelected: true, width: 40, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: true, isDraggable: false, headerClassName: '', disabled:true },
+  { key: 'ds', id: 'ds', label: 'Dataset', disableSort: true, isSelected: true, width: 205, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '', disabled:false },
+  { key: 'qt', id: 'qt', label: 'Query Type', disableSort: true, width: 113, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '', disabled:true },
   ...additionalColumns,
-  { key: 'st', id: 'st', label: 'Start Time', disableSort: false, width: 152, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '' },
-  { key: 'dur', id: 'dur', label: 'Duration', disableSort: false, width: 95, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders' },
-  { key: 'sql', id: 'sql', label: 'SQL', disableSort: true, isSelected: true, width: 432, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '' },
-  { key: 'cost', id: 'cost', label: 'Cost', disableSort: true, isSelected: false, width: 120, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders' },
-  { key: 'planningTime', id: 'planningTime', disableSort: true, isSelected: false, label: 'Planning Time', width: 130, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders' },
-  { key: 'rowsScanned', id: 'rowsScanned', disableSort: true, isSelected: false, label: 'Rows Scanned', width: 134, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders' },
-  { key: 'rowsReturned', id: 'rowsReturned', disableSort: true, isSelected: false, label: 'Rows Returned', width: 137, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders' }
+  { key: 'st', id: 'st', label: 'Start Time', disableSort: false, width: 152, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '', disabled:true },
+  { key: 'dur', id: 'dur', label: 'Duration', disableSort: false, width: 95, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
+  { key: 'sql', id: 'sql', label: 'SQL', disableSort: true, isSelected: true, width: 432, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '', disabled:false },
+  { key: 'cost', id: 'cost', label: 'Cost', disableSort: true, isSelected: false, width: 120, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
+  { key: 'planningTime', id: 'planningTime', disableSort: true, isSelected: false, label: 'Planning Time', width: 130, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
+  { key: 'rowsScanned', id: 'rowsScanned', disableSort: true, isSelected: false, label: 'Rows Scanned', width: 134, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
+  { key: 'rowsReturned', id: 'rowsReturned', disableSort: true, isSelected: false, label: 'Rows Returned', width: 137, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false }
 ];
 
 export const ScansForFilter = [

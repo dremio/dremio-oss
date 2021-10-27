@@ -26,6 +26,7 @@ import org.immutables.value.Value;
 public interface AuthResult {
   String getUserName();
   Date getExpiresAt();
+  String getUserId();
 
   static AuthResult of(String userName) {
     return new ImmutableAuthResult.Builder()

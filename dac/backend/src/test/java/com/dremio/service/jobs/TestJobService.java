@@ -74,6 +74,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.maestro.ResourceTracker;
 import com.dremio.exec.planner.DremioHepPlanner;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
+import com.dremio.exec.proto.SearchProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.beans.AttemptEvent;
 import com.dremio.exec.server.SabotContext;
@@ -90,6 +91,8 @@ import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.sabot.exec.CancelQueryContext;
 import com.dremio.sabot.exec.CoordinatorHeapClawBackStrategy;
+import com.dremio.service.job.ActiveJobSummary;
+import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
@@ -1133,6 +1136,42 @@ public class TestJobService extends BaseTestServer {
         .setLimit(Integer.MAX_VALUE)
         .setUserName("A").build()));
     assertEquals(14, jobs.size());
+
+
+    Job jobF1 = createJob("F1", Arrays.asList("space1", "ds2"), "v1", "F", "space1", JobState.RUNNING, "select * from LocalFS1.\"dac-sample1.json\"", 100L, 120L, QueryType.UI_RUN);
+    Job jobF2 = createJob("F2", Arrays.asList("space1", "ds2"), "v2", "G", "space1", JobState.RUNNING, "select * from LocalFS1.\"dac-sample1.json\"", 230L, 290L, QueryType.UI_RUN);
+    Job jobF3 = createJob("F3", Arrays.asList("space1", "ds2"), "v1", "F", "space1", JobState.RUNNING, "select * from LocalFS1.\"dac-sample1.json\"", 240L, 120L, QueryType.UI_RUN);
+    localJobsService.storeJob(jobF1);
+    localJobsService.storeJob(jobF2);
+    localJobsService.storeJob(jobF3);
+    // filter pushdown
+    ImmutableList<ActiveJobSummary> jobs2 = ImmutableList.copyOf(jobsService.getActiveJobs(ActiveJobsRequest.newBuilder()
+      .setQuery(SearchProtos.SearchQuery.newBuilder()
+        .setEquals(SearchProtos.SearchQuery.Equals.newBuilder()
+          .setField("user_name")
+          .setStringValue("F"))
+        .build())
+      .build()));
+    assertEquals(2, jobs2.size());
+
+    SearchProtos.SearchQuery usernameQuery = SearchProtos.SearchQuery.newBuilder()
+      .setEquals(SearchProtos.SearchQuery.Equals.newBuilder().setField("user_name").setStringValue("F"))
+      .build();
+    SearchProtos.SearchQuery startTimeQuery = SearchProtos.SearchQuery.newBuilder()
+      .setEquals(SearchProtos.SearchQuery.Equals.newBuilder().setField("start").setIntValue(100))
+      .build();
+
+    SearchProtos.SearchQuery andQueryforFallBackTest = SearchProtos.SearchQuery.newBuilder()
+      .setAnd(SearchProtos.SearchQuery.And.newBuilder().addClauses(usernameQuery).addClauses(startTimeQuery))
+      .build();
+    jobs2 = ImmutableList.copyOf(jobsService.getActiveJobs(ActiveJobsRequest.newBuilder()
+      .setQuery(andQueryforFallBackTest)
+      .build()));
+    assertEquals(2, jobs2.size());
+
+    // Username row pruning
+    jobs2 = ImmutableList.copyOf(jobsService.getActiveJobs(ActiveJobsRequest.newBuilder().setUserName("F").build()));
+    assertEquals(2, jobs2.size());
   }
 
   @Test

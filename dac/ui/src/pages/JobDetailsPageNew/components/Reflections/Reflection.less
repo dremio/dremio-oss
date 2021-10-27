@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/color-schema.less";
-@import "~@app/pages/JobDetailsPageNew/components/OverView/OverView.less";
+@font-size:16px;
+@line-height:20px;
+@font-weight:600;
 :global {
   .reflection {
     &-header {
@@ -100,5 +102,35 @@
   .starflakeNotUsed {
     height: 19px;
     width: 24px;
+  }
+  .jobsDetailsReflections {
+    margin-left: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 45px;
+    &__contentWrapper {
+    flex-basis: 72.5%;
+    display: inline-block;
+    align-items: center;
+    &__header {
+      font-size: 14px;
+      font-weight: @font-weight;
+      line-height: 20px;
+      color: @greyish-blue;
+      padding-left: 4px;
+    }
+    &__path {
+      font-size: 12px;
+      line-height: 16px;
+      color: @DARK_700;
+      padding-left: 4px;
+    }
+    }
+    &__age {
+      color: @DARK_700;
+      flex-basis: 27.5%;
+      padding-left: 8px;
+    }
   }
 }

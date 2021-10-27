@@ -17,6 +17,7 @@ package com.dremio.exec.tablefunctions;
 
 import java.util.function.Function;
 
+import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -26,6 +27,8 @@ import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.TranslatableTable;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
@@ -86,5 +89,15 @@ public final class ExternalQueryTranslatableTable implements TranslatableTable {
     // OTHER has the comment to indicate that the Calcite enum should be extended
     // to add a new table type.
     return Schema.TableType.LOCAL_TEMPORARY;
+  }
+
+  @Override
+  public boolean isRolledUp(String column) {
+    return false;
+  }
+
+  @Override
+  public boolean rolledUpColumnValidInsideAgg(String column, SqlCall call, SqlNode parent, CalciteConnectionConfig config) {
+    return true;
   }
 }

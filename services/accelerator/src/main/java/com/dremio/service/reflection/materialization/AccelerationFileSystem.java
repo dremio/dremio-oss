@@ -17,6 +17,7 @@ package com.dremio.service.reflection.materialization;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.util.Preconditions;
 
@@ -33,14 +34,14 @@ class AccelerationFileSystem extends FilterFileSystem {
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
+  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, Map<String, String> options) throws IOException {
     List<String> datasetKey = fileKey.getDatasetKey();
     if (datasetKey.size() == 2) {
-      return super.getAsyncByteReader(fileKey);
+      return super.getAsyncByteReader(fileKey, options);
     }
 
     Preconditions.checkState(datasetKey.size() == 3, "dataset size is more than 3 in acceleration filesystem", datasetKey.size());
     // The dataset used by accelerations should not include the materialization id. Strip the materialization id
-    return super.getAsyncByteReader(AsyncByteReader.FileKey.of(fileKey.getPath(), fileKey.getVersion(), fileKey.getFileType(), datasetKey.subList(0, 2)));
+    return super.getAsyncByteReader(AsyncByteReader.FileKey.of(fileKey.getPath(), fileKey.getVersion(), fileKey.getFileType(), datasetKey.subList(0, 2)), options);
   }
 }

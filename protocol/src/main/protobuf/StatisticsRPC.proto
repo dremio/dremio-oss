@@ -40,6 +40,7 @@ message StatisticsInfo {
   optional int64 rowCount = 5;
   optional int64 nullCount = 6;
   optional string quantiles = 7;
+  optional string heavyHitters = 8;
 }
 
 message StatisticsInfoResp {

@@ -24,7 +24,6 @@ import javax.inject.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.SerializedExecutor;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.catalog.Catalog;
@@ -38,6 +37,7 @@ import com.dremio.service.catalog.Schema;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.catalog.View;
+import com.dremio.service.grpc.OnReadyHandler;
 
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
@@ -154,98 +154,5 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
     final ListTableSchemata listTableSchemata = new ListTableSchemata();
     streamObserver.setOnReadyHandler(listTableSchemata);
     streamObserver.setOnCancelHandler(listTableSchemata::cancel);
-  }
-
-  /**
-   * Abstract handler which is invoked every time the peer is ready to receive more messages.
-   *
-   * @param <V> response type
-   */
-  private static abstract class OnReadyHandler<V> implements Runnable {
-    private final OnReadyEventExecutor executor;
-    private final ServerCallStreamObserver<V> responseObserver;
-
-    private volatile Iterator<V> iterator;
-
-    private OnReadyHandler(
-      String requestType,
-      Executor executor,
-      ServerCallStreamObserver<V> streamObserver,
-      Iterator<V> iterator
-    ) {
-      this.executor = new OnReadyEventExecutor(requestType, executor);
-      this.responseObserver = streamObserver;
-
-      this.iterator = iterator;
-    }
-
-    void cancel() {
-      // clear state
-      iterator = null;
-    }
-
-    @Override
-    public void run() {
-      if (iterator == null) {
-        logger.debug("Callback was invoked even though last message was sent");
-        return;
-      }
-
-      if (!responseObserver.isReady()) {
-        // see CallStreamObserver#setOnReadyHandler
-        // handle spurious notifications: although handled in handleStreamReady, this avoids volatile reads
-        return;
-      }
-
-      executor.execute(this::handleStreamReady);
-    }
-
-    private void handleStreamReady() {
-      // Every run try to send as many responses as the client is willing to receive. This also handles
-      // cancellation and depleting enqueued requests in SerializedExecutor#queuedRunnables.
-
-      Iterator<V> iterator = this.iterator;
-      int numSent = 0;
-
-      while (responseObserver.isReady() && iterator != null && iterator.hasNext()) {
-        try {
-          responseObserver.onNext(iterator.next());
-        } catch (Exception e) {
-          responseObserver.onError(e);
-          this.iterator = null;
-          return;
-        }
-
-        numSent++;
-        if (numSent == 500) { // refresh iterator
-          iterator = this.iterator;
-          numSent = 0;
-        }
-      }
-
-      iterator = this.iterator;
-      if (iterator != null && !iterator.hasNext()) {
-        responseObserver.onCompleted();
-        this.iterator = null;
-      }
-    }
-
-    /**
-     * Serializes execution of {@code #onReady} events, and offloads request handling.
-     * <p>
-     * This ensures there is no write contention (including errors).
-     */
-    private final class OnReadyEventExecutor extends SerializedExecutor<Runnable> {
-
-      private OnReadyEventExecutor(String requestType, Executor underlyingExecutor) {
-        super(requestType, underlyingExecutor, false);
-      }
-
-      @Override
-      protected void runException(Runnable command, Throwable t) {
-        responseObserver.onError(t);
-        iterator = null;
-      }
-    }
   }
 }

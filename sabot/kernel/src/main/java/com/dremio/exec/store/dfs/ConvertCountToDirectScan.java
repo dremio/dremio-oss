@@ -19,6 +19,7 @@ package com.dremio.exec.store.dfs;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
@@ -44,6 +45,7 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.Prule;
 import com.dremio.exec.planner.physical.ValuesPrel;
+import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
 import com.dremio.exec.vector.complex.fn.JsonOutput;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ColumnValueCount;
@@ -130,7 +132,18 @@ public class ConvertCountToDirectScan extends Prule {
     return def;
   }
 
-  private static long getAccurateColumnCount(String name, Iterator<PartitionChunkMetadata> partitionChunks){
+  private static long getAccurateColumnCount(String name, TableMetadata tableMetadata){
+    Iterator<PartitionChunkMetadata> partitionChunks = tableMetadata.getSplits();
+    /**
+     * Currently for internal iceberg table(Filesystem table) we don't store column level stats.
+     * So we should return GroupScan.NO_COLUMN_STATS
+     * - internal iceberg table(Filesystem table) stores row count for table its taken from snapshot.summary()
+     * - Ticket to implement column level stats for internal iceberg table can be track here DX-38342
+     */
+    if (Objects.nonNull(tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled()) &&
+            tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadataEnabled()) {
+      return GroupScan.NO_COLUMN_STATS;
+    }
     long def = 0;
     int splitCount = 0;
     int columnObservation = 0;
@@ -211,7 +224,7 @@ public class ConvertCountToDirectScan extends Prule {
 
         String columnName = scan.getRowType().getFieldNames().get(index).toLowerCase();
 
-        cnt = getAccurateColumnCount(columnName, scan.getTableMetadata().getSplits());
+        cnt = getAccurateColumnCount(columnName, scan.getTableMetadata());
         if (cnt == GroupScan.NO_COLUMN_STATS) {
           // if column stats are not available don't apply this rule
           return;

@@ -16,6 +16,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { connect } from 'react-redux';
 import { compose } from 'redux';
+import { withRouter } from 'react-router';
 import Immutable from 'immutable';
 import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
@@ -37,7 +38,7 @@ import { getViewState } from 'selectors/resources';
 import { isEqual, isEmpty } from 'lodash';
 
 import { parseQueryState } from 'utils/jobsQueryState';
-import MainHeader from 'components/MainHeader';
+import SideNav from '@app/components/SideNav/SideNav';
 
 import JobDetailsPage from '../JobDetailsPageNew/JobDetailsPage';
 import JobsContent from './components/JobsContent';
@@ -53,17 +54,31 @@ const JobPage = (props) => {
   };
 
   const {
-    queryState, viewState, style, location, intl, next,
-    isNextJobsInProgress, dataWithItemsForFilters, admin,
-    jobList, downloadJobFile, loadNextJobsList
+    queryState,
+    viewState,
+    style,
+    router,
+    location,
+    intl,
+    next,
+    isNextJobsInProgress,
+    dataWithItemsForFilters,
+    admin,
+    jobList,
+    downloadJobFile,
+    loadNextJobsList
   } = props;
-  const [selectedJobId, setSelectedJobId] = useState(null);
+  const {
+    state: {
+      selectedJobId,
+      isFromJobListing
+    } = {}
+  } = location || {};
   const [lastLoaded, setLastLoaded] = useState('');
   const [previousJobId, setPreviousJobId] = useState('');
   const prevQueryState = usePrevious(queryState);
 
   useEffect(() => {
-    props.updateQueryState(queryState.setIn(['filters', 'qt'], ['UI', 'EXTERNAL']));
     handleCluster();
   }, []);
 
@@ -78,10 +93,6 @@ const JobPage = (props) => {
       if (!queryState.equals(prevQueryState)) {
         props.updateQueryState(queryState.setIn(['filters', 'qt'], ['UI', 'EXTERNAL']));
       }
-      setSelectedJobId(null);
-    }
-    if (!(location.query.order && location.query.sort)) {
-      setSelectedJobId(null);
     }
   }, [location]);
 
@@ -96,13 +107,34 @@ const JobPage = (props) => {
   };
 
   const changePages = (data) => {
+    const {
+      state: locationState
+    } = location;
     if (data !== null) {
       const currentJobId = data.rowData.data.job.value;
-      setSelectedJobId(currentJobId);
+      router.push({
+        ...location,
+        state: {
+          ...locationState,
+          selectedJobId: currentJobId,
+          isFromJobListing: true
+        }
+      });
+      return;
+    }
+    if (isFromJobListing) {
+      router.goBack();
     } else {
-      setSelectedJobId(null);
+      router.push({
+        ...location,
+        state: {
+          ...locationState,
+          selectedJobId: null
+        }
+      });
     }
   };
+
   let recentJobId = '';
   const tableRowRenderer = (index) => {
     const lastJob = jobList.get(index);
@@ -121,39 +153,44 @@ const JobPage = (props) => {
   return (
     <div style={style}>
       <DocumentTitle title={intl.formatMessage({ id: 'Job.Jobs' })} />
-      <MainHeader />
-      {selectedJobId ?
-        <JobDetailsPage
-          jobId={selectedJobId}
-          totalAttempts={totalAttempts}
-          changePages={changePages}
-          downloadFile={downloadJobFile}
-        />
-        :
-        <div className='jobPageNew'>
-          <JobsContent
-            className={flexElementAuto} // Page object adds flex in style
-            loadNextJobs={tableRowRenderer}
-            // todo: update to react-router v3 so don't have to deep pass `location` anymore
-            location={location}
-            jobId={previousJobId}
-            jobs={jobList}
-            queryState={queryState}
-            next={next}
-            isNextJobsInProgress={isNextJobsInProgress}
-            viewState={viewState}
-            onUpdateQueryState={props.updateQueryState}
-            loadItemsForFilter={props.loadItemsForFilter}
-            dataWithItemsForFilters={dataWithItemsForFilters}
-            changePages={changePages}
-          />
+      <div className={'jobsPageBody'}>
+        <SideNav />
+        <div className={'jobPageContentDiv'}>
+          {selectedJobId ?
+            <JobDetailsPage
+              jobId={selectedJobId}
+              totalAttempts={totalAttempts}
+              changePages={changePages}
+              downloadFile={downloadJobFile}
+            />
+            :
+            <div className='jobPageNew'>
+              <JobsContent
+                className={flexElementAuto} // Page object adds flex in style
+                loadNextJobs={tableRowRenderer}
+                // todo: update to react-router v3 so don't have to deep pass `location` anymore
+                location={location}
+                jobId={previousJobId}
+                jobs={jobList}
+                queryState={queryState}
+                next={next}
+                isNextJobsInProgress={isNextJobsInProgress}
+                viewState={viewState}
+                onUpdateQueryState={props.updateQueryState}
+                loadItemsForFilter={props.loadItemsForFilter}
+                dataWithItemsForFilters={dataWithItemsForFilters}
+                changePages={changePages}
+              />
+            </div>
+          }
         </div>
-      }
+      </div>
     </div>
   );
 };
 
 JobPage.propTypes = {
+  router: PropTypes.object.isRequired,
   location: PropTypes.object.isRequired,
   jobId: PropTypes.string,
   jobList: PropTypes.instanceOf(Immutable.List).isRequired,
@@ -204,5 +241,6 @@ const mapDispatchToProps = dispatch => ({
 
 export default compose(
   connect(mapStateToProps, mapDispatchToProps),
+  withRouter,
   injectIntl
 )(JobPage);

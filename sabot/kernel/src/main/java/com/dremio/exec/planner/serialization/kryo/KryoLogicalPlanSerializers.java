@@ -23,6 +23,7 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.planner.serialization.DeserializationException;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.esotericsoftware.kryo.Kryo;
@@ -37,12 +38,6 @@ public final class KryoLogicalPlanSerializers {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(KryoLogicalPlanSerializers.class);
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
-
-  public static class KryoDeserializationException extends RuntimeException {
-    public KryoDeserializationException(Throwable cause) {
-      super(cause);
-    }
-  }
 
   private KryoLogicalPlanSerializers() { }
 
@@ -115,7 +110,7 @@ public final class KryoLogicalPlanSerializers {
         try {
           return serializer.deserialize(data);
         } catch (Throwable e) {
-          throw new KryoDeserializationException(e);
+          throw new DeserializationException(e);
         }
       }
 

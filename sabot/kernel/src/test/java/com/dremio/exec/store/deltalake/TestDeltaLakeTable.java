@@ -81,7 +81,7 @@ public class TestDeltaLakeTable extends BaseTestQuery {
 
   @Test
   public void testWithLargeVersion() throws IOException {
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 17);
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 17, 1L);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -96,7 +96,7 @@ public class TestDeltaLakeTable extends BaseTestQuery {
 
   @Test
   public void testWithSmallVersion() throws IOException {
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 7);
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 7, 1L);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -111,7 +111,7 @@ public class TestDeltaLakeTable extends BaseTestQuery {
 
   @Test
   public void testVersionZero() throws IOException {
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 0);
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 0, 1L);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -145,7 +145,7 @@ public class TestDeltaLakeTable extends BaseTestQuery {
   public void testEndingWithCheckpointDatasetReadVersion() throws IOException {
     f = new File("src/test/resources/deltalake/ending_with_checkpoint_dataset");
     selection = FileSelection.create(fs, Path.of(f.getAbsolutePath()));
-    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 10);
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection, 10, 1L);
     DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
 
     List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
@@ -156,6 +156,23 @@ public class TestDeltaLakeTable extends BaseTestQuery {
     assertEquals(snap.getSchema(), "{\"type\":\"struct\",\"fields\":[{\"name\":\"iso_code\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"location\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"date\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}");
     assertEquals(snap.getNetFilesAdded(), 11);
     assertEquals(snap.getNetBytesAdded(), 14663);
+  }
+
+  @Test
+  public void testEndingWithMultiPartCheckpointDatasetReadLatest() throws IOException {
+    f = new File("src/test/resources/deltalake/multiPartCheckpoint");
+    selection = FileSelection.create(fs, Path.of(f.getAbsolutePath()));
+    DeltaLakeTable table = new DeltaLakeTable(sabotContext, fs, selection);
+    DeltaLogSnapshot snap = table.getConsolidatedSnapshot();
+
+    List<String> actual = table.getAllSplits().stream().map(this::getPath).collect(Collectors.toList());
+    List<String> expected = Arrays.asList("00000000000000000010.checkpoint.0000000001.0000000002.parquet","00000000000000000010.checkpoint.0000000002.0000000002.parquet","00000000000000000011.json");
+
+    assertEquals(expected, actual);
+    assertEquals(snap.getVersionId(), 11);
+    assertEquals(snap.getSchema(), "{\"type\":\"struct\",\"fields\":[{\"name\":\"intcol\",\"type\":\"integer\",\"nullable\":true,\"metadata\":{}}, {\"name\":\"longcol\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}, {\"name\":\"stringcol\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}}]}");
+    assertEquals(snap.getNetFilesAdded(), 5);
+    assertEquals(snap.getNetBytesAdded(), 4739);
   }
 
   private String getPath(DatasetSplit datasetSplit) {

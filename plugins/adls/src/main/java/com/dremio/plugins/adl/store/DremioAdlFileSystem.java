@@ -17,6 +17,7 @@ package com.dremio.plugins.adl.store;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -152,7 +153,7 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(Path path, String version) throws IOException {
+  public AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options) throws IOException {
     if (asyncHttpClientManager == null) {
       synchronized (this) {
         if (asyncHttpClientManager == null) {

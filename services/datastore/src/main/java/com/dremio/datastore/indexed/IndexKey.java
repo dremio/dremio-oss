@@ -36,10 +36,12 @@ public final class IndexKey {
   private final boolean includeInSearchAllFields;
   private final Map<String, SearchQuery> reservedValues;
   private final boolean canContainMultipleValues;
+  public static final String LOWER_CASE_SUFFIX = "_LC";
+  private final Class<? extends Enum> enumType;
 
   private IndexKey(String shortName, String indexFieldName, Class<?> valueType, SearchFieldSorting.FieldType sortedValueType,
                    boolean includeInSearchAllFields, boolean stored, Map<String, SearchQuery> reservedValues,
-                   Boolean canContainMultipleValues) {
+                   Boolean canContainMultipleValues, Class<? extends Enum> enumType) {
     this.shortName = shortName;
     this.indexFieldName = indexFieldName;
     this.valueType = valueType;
@@ -48,6 +50,7 @@ public final class IndexKey {
     this.stored = stored;
     this.reservedValues = reservedValues;
     this.canContainMultipleValues = canContainMultipleValues;
+    this.enumType = enumType;
   }
 
   public Map<String, SearchQuery> getReservedValues() {
@@ -91,6 +94,10 @@ public final class IndexKey {
     return canContainMultipleValues;
   }
 
+  public Class<? extends Enum> getEnumType() {
+    return enumType;
+  }
+
   public SearchFieldSorting toSortField(SortOrder order){
     Preconditions.checkArgument(isSorted());
     return SearchFieldSorting.newBuilder()
@@ -108,6 +115,12 @@ public final class IndexKey {
     return new Builder(shortName, indexFieldName, valueType);
   }
 
+  public static Builder newBuilder(String shortName, String indexFieldName, Class<?> valueType, Class<? extends Enum> enumType) {
+    Builder builder = newBuilder(shortName, indexFieldName, valueType);
+    builder.setEnumType(enumType);
+    return builder;
+  }
+
   /**
    * IndexKey Builder
    */
@@ -120,6 +133,7 @@ public final class IndexKey {
     private boolean stored = false;
     private Map<String, SearchTypes.SearchQuery> reservedValues = Collections.emptyMap();
     private boolean canContainMultipleValues = false;
+    private Class<? extends Enum> enumType;
 
     Builder(String shortName, String indexFieldName, Class<?> valueType) {
       this.shortName = shortName;
@@ -152,8 +166,12 @@ public final class IndexKey {
       return this;
     }
 
+    public void setEnumType(Class<? extends Enum> enumType) {
+      this.enumType = enumType;
+    }
+
     public IndexKey build() {
-      return new IndexKey(shortName, indexFieldName, valueType, sortedValueType, includeInSearchAllFields, stored, reservedValues, canContainMultipleValues);
+      return new IndexKey(shortName, indexFieldName, valueType, sortedValueType, includeInSearchAllFields, stored, reservedValues, canContainMultipleValues, enumType);
     }
   }
 }

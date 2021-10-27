@@ -67,13 +67,4 @@ public class EasyScanPrel extends ScanPrelBase {
     return new EasyScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment);
   }
 
-  @Override
-  public boolean equals(final Object other) {
-    if (!(other instanceof EasyScanPrel)) {
-      return false;
-    }
-    return super.equals(other);
-  }
-
-
 }

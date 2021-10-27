@@ -30,6 +30,7 @@ import com.dremio.exec.planner.fragment.ParallelizationInfo;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -64,9 +65,9 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
       OpProps receiverProps,
       BatchSchema schema,
       PhysicalOperator child,
-      LogicalExpression expr
-      ) {
-    super(props, senderProps, receiverProps, schema, child);
+      LogicalExpression expr,
+      OptionManager optionManager) {
+    super(props, senderProps, receiverProps, schema, child, optionManager);
     this.expr = expr;
   }
 

@@ -130,6 +130,12 @@ public class IcebergUtils {
         value = byteBuffer.getInt();
         break;
       case LONG:
+        if(byteBuffer.remaining() == 4) {
+          value = byteBuffer.getInt();
+        } else {
+          value = byteBuffer.getLong();
+        }
+        break;
       case TIME:
       case TIMESTAMP:
         value = byteBuffer.getLong();
@@ -138,7 +144,11 @@ public class IcebergUtils {
         value = byteBuffer.getFloat();
         break;
       case DOUBLE:
-        value = byteBuffer.getDouble();
+        if(byteBuffer.remaining() == 4) {
+          value = byteBuffer.getFloat();
+        } else {
+          value = byteBuffer.getDouble();
+        }
         break;
       case STRING:
         value = new String(byteBuffer.array(), StandardCharsets.UTF_8);

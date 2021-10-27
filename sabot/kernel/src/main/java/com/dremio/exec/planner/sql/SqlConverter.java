@@ -36,7 +36,7 @@ import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
+import org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
@@ -70,6 +70,7 @@ import com.dremio.options.OptionResolver;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Class responsible for managing parsing, validation and toRel conversion for sql statements.
@@ -126,10 +127,11 @@ public class SqlConverter {
     this.catalogReader = new DremioCatalogReader(catalog, typeFactory);
     this.opTab = operatorTable;
     this.costFactory = (settings.useDefaultCosting()) ? null : new DremioCost.Factory();
-    this.validator = new SqlValidatorImpl(flattenCounter, ChainedSqlOperatorTable.of(opTab, catalogReader), this.catalogReader, typeFactory, DremioSqlConformance.INSTANCE);
+    this.validator = new SqlValidatorImpl(flattenCounter, SqlOperatorTables.chain(opTab, catalogReader), this.catalogReader, typeFactory, DremioSqlConformance.INSTANCE);
     validator.setIdentifierExpansion(true);
     this.materializations = new MaterializationList(this, session, materializationProvider);
-    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config,  materializations, this.settings.options));
+    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config,  materializations, this.settings.options,
+      operatorTable instanceof OperatorTable ? (OperatorTable) operatorTable : new OperatorTable(functions)));
     this.planner = DremioVolcanoPlanner.of(this);
     this.cluster = RelOptCluster.create(planner, new DremioRexBuilder(typeFactory));
     this.cluster.setMetadataQuery(relMetadataQuerySupplier);
@@ -159,7 +161,7 @@ public class SqlConverter {
     this.materializations = parent.materializations;
     // Note: Do not use the parent SqlConverter's catalog's operator table to validate user-defined table functions.
     // They may be inaccessible and will cause validation errors before checking if the functions are valid within the local context.
-    this.validator = new SqlValidatorImpl(parent.flattenCounter, ChainedSqlOperatorTable.of(opTab, catalog), catalog, typeFactory, DremioSqlConformance.INSTANCE);
+    this.validator = new SqlValidatorImpl(parent.flattenCounter, SqlOperatorTables.chain(opTab, catalog), catalog, typeFactory, DremioSqlConformance.INSTANCE);
     validator.setIdentifierExpansion(true);
     this.viewExpansionContext = parent.viewExpansionContext;
     this.config = parent.config;
@@ -310,7 +312,11 @@ public class SqlConverter {
       .withConvertTableAccess(withConvertTableAccess && o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT))
       .withExpand(expand)
       .build();
-    final ReflectionAllowedMonitoringConvertletTable convertletTable = new ReflectionAllowedMonitoringConvertletTable(new ConvertletTable(functionContext.getContextInformation()));
+    final ReflectionAllowedMonitoringConvertletTable convertletTable =
+      new ReflectionAllowedMonitoringConvertletTable(
+        new ConvertletTable(
+          functionContext.getContextInformation(),
+          o.getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS)));
     final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator, convertletTable, config);
     final boolean isComplexTypeSupport = o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT);
     // Previously we had "top" = !innerQuery, but calcite only adds project if it is not a top query.
@@ -352,7 +358,7 @@ public class SqlConverter {
 
     private RelRootPlus(RelNode rel, RelDataType validatedRowType, SqlKind kind, List<Pair<Integer, String>> fields,
         RelCollation collation, boolean contextSensitive, boolean planCacheable) {
-      super(rel, validatedRowType, kind, fields, collation);
+      super(rel, validatedRowType, kind, fields, collation, ImmutableList.of());
       this.contextSensitive = contextSensitive;
       this.planCacheable = planCacheable;
     }

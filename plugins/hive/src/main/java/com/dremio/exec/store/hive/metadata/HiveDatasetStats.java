@@ -22,6 +22,7 @@ public class HiveDatasetStats implements DatasetStats {
   private long recordCount;
   private long scanFactor;
   private boolean allowParquetNative;
+  private boolean isExactRecordCount;
 
   public HiveDatasetStats() {
     this(0, 0);
@@ -30,6 +31,13 @@ public class HiveDatasetStats implements DatasetStats {
   public HiveDatasetStats(long recordCount, long scanFactor) {
     this.recordCount = recordCount;
     this.scanFactor = scanFactor;
+    isExactRecordCount = false;
+  }
+
+  public HiveDatasetStats(long recordCount, long scanFactor, boolean isExactRecordCount) {
+    this.recordCount = recordCount;
+    this.scanFactor = scanFactor;
+    this.isExactRecordCount = isExactRecordCount;
   }
 
   public void setAllowParquetNative(boolean splitFileTypeChanged) {
@@ -51,6 +59,15 @@ public class HiveDatasetStats implements DatasetStats {
       return ScanCostFactor.PARQUET.getFactor();
     }
     return ScanCostFactor.HIVE.getFactor();
+  }
+
+  @Override
+  public boolean isExactRecordCount() {
+    return isExactRecordCount;
+  }
+
+  public void setIsExactRecordCount(boolean isExactRecordCount) {
+    this.isExactRecordCount = isExactRecordCount;
   }
 
   public boolean hasContent() {

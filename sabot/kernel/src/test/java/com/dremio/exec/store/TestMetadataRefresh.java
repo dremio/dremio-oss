@@ -215,7 +215,7 @@ public class TestMetadataRefresh extends BaseTestQuery {
       fail("Source should be unavailable.");
     } catch (Exception e) {
       assertTrue(e.getMessage()
-        .contains(String.format("Table '%s.blue.metadata_refresh' not found", name)));
+          .contains(String.format(" '%s' not found", name)));
     }
 
     // AUTO PROMOTION, data source should be promoted and Table metadata should be refreshed

@@ -90,7 +90,7 @@ public class TestDeltaMetadataFetchJobManager extends BaseTestQuery  {
 
   @Test
   public void testSingleBatchWithVersionGivenWithoutCheckpoint() {
-    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 5L);
+    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 5L, 1L);
 
     List<DeltaLogSnapshot> snapshotList = manager.getListOfSnapshots();
     List<Long> expectedVersions = Arrays.asList(5L, 4L, 3L, 2L, 1L, 0L);
@@ -102,7 +102,7 @@ public class TestDeltaMetadataFetchJobManager extends BaseTestQuery  {
 
   @Test
   public void testSingleBatchWithVersionGivenWithCheckpoint() {
-    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 17L);
+    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 17L, 1L);
 
     List<DeltaLogSnapshot> snapshotList = manager.getListOfSnapshots();
     List<Long> expectedVersions = Arrays.asList(17L, 16L, 15L, 14L, 13L, 12L, 11L, 10L, 9L, 8L);
@@ -114,7 +114,7 @@ public class TestDeltaMetadataFetchJobManager extends BaseTestQuery  {
 
   @Test
   public void testMultipleBatchesWithVersionGiven() {
-    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 8L);
+    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 8L, 1L);
     manager.setBatchSize(5);
 
     List<DeltaLogSnapshot> snapshotList = manager.getListOfSnapshots();
@@ -128,7 +128,7 @@ public class TestDeltaMetadataFetchJobManager extends BaseTestQuery  {
 
   @Test
   public void testMultipleBatchesWithVersionGivenWithCheckpoint() {
-    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 18L);
+    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 18L, 1L);
     manager.setBatchSize(4);
 
     List<DeltaLogSnapshot> snapshotList = manager.getListOfSnapshots();
@@ -142,7 +142,7 @@ public class TestDeltaMetadataFetchJobManager extends BaseTestQuery  {
 
   @Test
   public void testVeryLargeBatchSize() {
-    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 22L);
+    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 22L, 1L);
     //Will end up reading 2 checkpoint files
     manager.setBatchSize(20);
 
@@ -180,7 +180,7 @@ public class TestDeltaMetadataFetchJobManager extends BaseTestQuery  {
     File f = new File(path);
     selection = FileSelection.create(fs, Path.of(f.getAbsolutePath()));
 
-    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 10);
+    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 10, 1L);
     //Setting batch size more than files read
     manager.setBatchSize(3);
 
@@ -199,7 +199,7 @@ public class TestDeltaMetadataFetchJobManager extends BaseTestQuery  {
     //2 tasks they are queued and not dropped.
     DeltaMetadataFetchPool.POOL_SIZE = 2;
 
-    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 22L);
+    DeltaMetadataFetchJobManager manager = new DeltaMetadataFetchJobManager(sabotContext, fs, selection, 22L, 1L);
     manager.setBatchSize(10);
 
     List<DeltaLogSnapshot> snapshotList = manager.getListOfSnapshots();

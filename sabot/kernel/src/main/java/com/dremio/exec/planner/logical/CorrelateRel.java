@@ -21,7 +21,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.core.Correlate;
 import org.apache.calcite.rel.core.CorrelationId;
-import org.apache.calcite.sql.SemiJoinType;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.util.ImmutableBitSet;
 
 public class CorrelateRel extends Correlate implements Rel {
@@ -33,7 +33,7 @@ public class CorrelateRel extends Correlate implements Rel {
     RelNode right,
     CorrelationId correlationId,
     ImmutableBitSet requiredColumns,
-    SemiJoinType joinType) {
+    JoinRelType joinType) {
     super(cluster, traits, left, right, correlationId, requiredColumns, joinType);
     assert getConvention() == LOGICAL;
   }
@@ -41,7 +41,7 @@ public class CorrelateRel extends Correlate implements Rel {
   @Override
   public Correlate copy(RelTraitSet traitSet,
     RelNode left, RelNode right, CorrelationId correlationId,
-    ImmutableBitSet requiredColumns, SemiJoinType joinType) {
+    ImmutableBitSet requiredColumns, JoinRelType joinType) {
     return new CorrelateRel(getCluster(), traitSet, left, right,
       correlationId, requiredColumns, joinType);
   }

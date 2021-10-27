@@ -17,6 +17,7 @@ package com.dremio.common.expression;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.List;
 
 import org.joda.time.Period;
 
@@ -37,7 +38,6 @@ import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.Types;
-import com.google.common.collect.ImmutableList;
 
 public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBuilder, RuntimeException>{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionStringBuilder.class);
@@ -64,7 +64,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
 
   @Override
   public Void visitFunctionCall(FunctionCall call, StringBuilder sb) throws RuntimeException {
-    ImmutableList<LogicalExpression> args = call.args;
+    List<LogicalExpression> args = call.args;
     sb.append(call.getName());
     sb.append("(");
     for (int i = 0; i < args.size(); i++) {
@@ -95,7 +95,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
 
   @Override
   public Void visitFunctionHolderExpression(FunctionHolderExpression holder, StringBuilder sb) throws RuntimeException {
-    ImmutableList<LogicalExpression> args = holder.args;
+    List<LogicalExpression> args = holder.args;
     sb.append(holder.getName());
     sb.append("(");
     for (int i = 0; i < args.size(); i++) {

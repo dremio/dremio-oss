@@ -14,26 +14,427 @@
  * limitations under the License.
  */
 @font-face {
-    font-family: 'DremioIcons';
-    src: url('../fonts/DremioIcons.eot');
-    src: url('../fonts/DremioIcons.eot?#iefix') format('embedded-opentype'),
-         url('../fonts/DremioIcons.woff') format('woff'),
-         url('../fonts/DremioIcons.ttf') format('truetype'),
-         url('../fonts/DremioIcons.svg#DremioIcons') format('svg');
-    font-weight: normal;
-    font-style: normal;
+  font-family: 'DremioIcons';
+  src: url('../dremioFonts/DremioIcons.woff2?otwrev') format('woff2'),
+    url('../dremioFonts/DremioIcons.woff?otwrev') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
 }
-[class*='dremioIcon-']:before{
-   display: inline-block;
-   font-family: 'DremioIcons';
-   font-style: normal;
-   font-weight: normal;
-   line-height: 1;
-   -webkit-font-smoothing: antialiased;
-   -moz-osx-font-smoothing: grayscale
+
+[class^="dremioIcon-"], [class*=" dremioIcon-"] {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'DremioIcons' !important;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-.dremioIcon-HeaderJobs:before{content:'\0041';}
-.dremioIcon-HeaderHelp:before{content:'\0042';}
-.dremioIcon-HeaderDataset:before{content:'\0043';}
-.dremioIcon-HeaderTutorials:before{content:'\0044';}
-.dremioIcon-HeaderSettings:before{content:'\0045';}
+
+.dremioIcon-External-link:before {
+  content: "\e956";
+}
+.dremioIcon-Expand:before {
+  content: "\e954";
+  /* color: #6e7987; */
+}
+.dremioIcon-Collapse:before {
+  content: "\e955";
+  /* color: #6e7987; */
+}
+.dremioIcon-Project .path1:before {
+  content: "\e900";
+  color: rgb(100, 197, 191);
+}
+.dremioIcon-Project .path2:before {
+  content: "\e952";
+  margin-left: -1em;
+  color: rgb(42, 57, 74);
+}
+.dremioIcon-SQL:before {
+  content: "\e953";
+}
+.dremioIcon-Menu-Options:before {
+  content: "\e907";
+}
+.dremioIcon-Union:before {
+  content: "\e908";
+}
+.dremioIcon-Group-47 .path1:before {
+  content: "\e94c";
+  color: rgb(0, 0, 0);
+}
+.dremioIcon-Group-47 .path2:before {
+  content: "\e94d";
+  margin-left: -0.9658203125em;
+  color: rgb(255, 127, 67);
+}
+.dremioIcon-Group-47 .path3:before {
+  content: "\e94e";
+  margin-left: -0.9658203125em;
+  color: rgb(255, 255, 255);
+}
+.dremioIcon-search:before {
+  content: "\e94f";
+}
+.dremioIcon-profile .path1:before {
+  content: "\e950";
+  color: rgb(67, 184, 201);
+}
+.dremioIcon-profile .path2:before {
+  content: "\e951";
+  margin-left: -1em;
+  color: rgb(42, 57, 74);
+}
+.dremioIcon-authentication:before {
+  content: "\e94a";
+  /* color: #6e7987; */
+}
+.dremioIcon-admin:before {
+  content: "\e94b";
+  /* color: #6e7987; */
+}
+.dremioIcon-SideNavProjects:before {
+  content: "\e949";
+  /* color: #28415c; */
+}
+.dremioIcon-SideNavDatasets:before {
+  content: "\e901";
+  /* color: #28415c; */
+}
+.dremioIcon-SideNavjobs:before {
+  content: "\e902";
+  /* color: #28415c; */
+}
+.dremioIcon-SideNavNewquery:before {
+  content: "\e903";
+  color: #28415c;
+}
+.dremioIcon-SideNavResources:before {
+  content: "\e904";
+  /* color: #28415c; */
+}
+.dremioIcon-SideNavNotifications:before {
+  content: "\e906";
+  /* color: #28415c; */
+}
+.dremioIcon-SideNavHelp:before {
+  content: "\e905";
+}
+.dremioIcon-SideNavCaretLeft:before {
+  content: "\e909";
+}
+.dremioIcon-SideNavCaretRight:before {
+  content: "\e90a";
+}
+.dremioIcon-SideNavAvatar .path1:before {
+  content: "\e90b";
+  color: rgb(76, 91, 108);
+}
+.dremioIcon-SideNavAvatar .path2:before {
+  content: "\e90c";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavAvatar .path3:before {
+  content: "\e90d";
+  margin-left: -1em;
+  color: rgb(205, 203, 203);
+}
+.dremioIcon-SideNavAvatar .path4:before {
+  content: "\e90e";
+  margin-left: -1em;
+  color: rgb(181, 181, 180);
+}
+.dremioIcon-SideNavAvatar .path5:before {
+  content: "\e90f";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+.dremioIcon-SideNavAvatar .path6:before {
+  content: "\e910";
+  margin-left: -1em;
+  color: rgb(239, 119, 33);
+}
+.dremioIcon-SideNavAvatar .path7:before {
+  content: "\e911";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavAvatar .path8:before {
+  content: "\e912";
+  margin-left: -1em;
+  color: rgb(125, 124, 125);
+}
+.dremioIcon-SideNavAvatar .path9:before {
+  content: "\e913";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavMonkey .path1:before {
+  content: "\e914";
+  color: rgb(76, 91, 108);
+}
+.dremioIcon-SideNavMonkey .path2:before {
+  content: "\e915";
+  margin-left: -1em;
+  color: rgb(245, 142, 44);
+}
+.dremioIcon-SideNavMonkey .path3:before {
+  content: "\e916";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavMonkey .path4:before {
+  content: "\e917";
+  margin-left: -1em;
+  color: rgb(245, 142, 44);
+}
+.dremioIcon-SideNavMonkey .path5:before {
+  content: "\e918";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavMonkey .path6:before {
+  content: "\e919";
+  margin-left: -1em;
+  color: rgb(246, 154, 70);
+}
+.dremioIcon-SideNavMonkey .path7:before {
+  content: "\e91a";
+  margin-left: -1em;
+  color: rgb(71, 71, 73);
+}
+.dremioIcon-SideNavMonkey .path8:before {
+  content: "\e91b";
+  margin-left: -1em;
+  color: rgb(71, 71, 73);
+}
+.dremioIcon-SideNavMonkey .path9:before {
+  content: "\e91c";
+  margin-left: -1em;
+  color: rgb(71, 71, 73);
+}
+.dremioIcon-SideNavMonkey .path10:before {
+  content: "\e91d";
+  margin-left: -1em;
+  color: rgb(245, 201, 157);
+}
+.dremioIcon-SideNavMonkey .path11:before {
+  content: "\e91e";
+  margin-left: -1em;
+  color: rgb(233, 233, 233);
+}
+.dremioIcon-SideNavMonkey .path12:before {
+  content: "\e91f";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+.dremioIcon-SideNavMonkey .path13:before {
+  content: "\e920";
+  margin-left: -1em;
+  color: rgb(138, 80, 51);
+}
+.dremioIcon-SideNavMonkey .path14:before {
+  content: "\e921";
+  margin-left: -1em;
+  color: rgb(138, 80, 51);
+}
+.dremioIcon-SideNavMonkey .path15:before {
+  content: "\e922";
+  margin-left: -1em;
+  color: rgb(71, 71, 73);
+}
+.dremioIcon-SideNavMonkey .path16:before {
+  content: "\e923";
+  margin-left: -1em;
+  color: rgb(138, 80, 51);
+}
+.dremioIcon-SideNavMonkey .path17:before {
+  content: "\e924";
+  margin-left: -1em;
+  color: rgb(245, 142, 44);
+}
+.dremioIcon-SideNavMonkey .path18:before {
+  content: "\e925";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavMonkey .path19:before {
+  content: "\e926";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavMonkey .path20:before {
+  content: "\e927";
+  margin-left: -1em;
+  color: rgb(242, 193, 146);
+}
+.dremioIcon-SideNavMonkey .path21:before {
+  content: "\e928";
+  margin-left: -1em;
+  color: rgb(227, 228, 228);
+}
+.dremioIcon-SideNavMonkey .path22:before {
+  content: "\e929";
+  margin-left: -1em;
+  color: rgb(128, 59, 27);
+}
+.dremioIcon-SideNavMonkey .path23:before {
+  content: "\e92a";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavMonkey .path24:before {
+  content: "\e92b";
+  margin-left: -1em;
+  color: rgb(128, 59, 27);
+}
+.dremioIcon-SideNavRabbit .path1:before {
+  content: "\e92c";
+  color: rgb(76, 91, 108);
+}
+.dremioIcon-SideNavRabbit .path2:before {
+  content: "\e92d";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+.dremioIcon-SideNavRabbit .path3:before {
+  content: "\e92e";
+  margin-left: -1em;
+  color: rgb(248, 198, 197);
+}
+.dremioIcon-SideNavRabbit .path4:before {
+  content: "\e92f";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+.dremioIcon-SideNavRabbit .path5:before {
+  content: "\e930";
+  margin-left: -1em;
+  color: rgb(248, 198, 197);
+}
+.dremioIcon-SideNavRabbit .path6:before {
+  content: "\e931";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+.dremioIcon-SideNavRabbit .path7:before {
+  content: "\e932";
+  margin-left: -1em;
+  color: rgb(227, 228, 228);
+}
+.dremioIcon-SideNavRabbit .path8:before {
+  content: "\e933";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNavRabbit .path9:before {
+  content: "\e934";
+  margin-left: -1em;
+  color: rgb(223, 62, 82);
+}
+.dremioIcon-SideNav .path1:before {
+  content: "\e935";
+  color: rgb(76, 91, 108);
+}
+.dremioIcon-SideNav .path2:before {
+  content: "\e936";
+  margin-left: -1em;
+  color: rgb(239, 119, 33);
+}
+.dremioIcon-SideNav .path3:before {
+  content: "\e937";
+  margin-left: -1em;
+  color: rgb(90, 91, 92);
+}
+.dremioIcon-SideNav .path4:before {
+  content: "\e938";
+  margin-left: -1em;
+  color: rgb(239, 119, 33);
+}
+.dremioIcon-SideNav .path5:before {
+  content: "\e939";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNav .path6:before {
+  content: "\e93a";
+  margin-left: -1em;
+  color: rgb(245, 142, 44);
+}
+.dremioIcon-SideNav .path7:before {
+  content: "\e93b";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+.dremioIcon-SideNav .path8:before {
+  content: "\e93c";
+  margin-left: -1em;
+  color: rgb(255, 255, 255);
+}
+.dremioIcon-SideNav .path9:before {
+  content: "\e93d";
+  margin-left: -1em;
+  color: rgb(227, 228, 228);
+}
+.dremioIcon-SideNav .path10:before {
+  content: "\e93e";
+  margin-left: -1em;
+  color: rgb(239, 119, 33);
+}
+.dremioIcon-SideNav .path11:before {
+  content: "\e93f";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNav .path12:before {
+  content: "\e940";
+  margin-left: -1em;
+  color: rgb(90, 91, 92);
+}
+.dremioIcon-SideNav .path13:before {
+  content: "\e941";
+  margin-left: -1em;
+  color: rgb(90, 91, 92);
+}
+.dremioIcon-SideNav .path14:before {
+  content: "\e942";
+  margin-left: -1em;
+  color: rgb(90, 91, 92);
+}
+.dremioIcon-SideNav .path15:before {
+  content: "\e943";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNav .path16:before {
+  content: "\e944";
+  margin-left: -1em;
+  color: rgb(227, 228, 228);
+}
+.dremioIcon-SideNav .path17:before {
+  content: "\e945";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNav .path18:before {
+  content: "\e946";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}
+.dremioIcon-SideNav .path19:before {
+  content: "\e947";
+  margin-left: -1em;
+  color: rgb(223, 62, 82);
+}
+.dremioIcon-SideNav .path20:before {
+  content: "\e948";
+  margin-left: -1em;
+  color: rgb(46, 46, 47);
+}

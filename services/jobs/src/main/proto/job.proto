@@ -416,8 +416,9 @@ message Reflection {
   optional bool isUsed = 8;
   optional bool isStarFlake = 9;
   optional ReflectionMatchingType reflectionMatchingType = 10;
-  optional string datasetName = 11;
-  optional string reflectionDatasetPath = 12;
+  optional string datasetId = 11;
+  optional string datasetName = 12;
+  optional string reflectionDatasetPath = 13;
 }
 
 message ExecutionNode {

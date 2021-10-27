@@ -81,6 +81,7 @@ import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
@@ -271,56 +272,58 @@ public class TestServer extends BaseTestServer {
 
   @Test
   public void testDataGrid() throws Exception {
-    TestSpacesStoragePlugin.setup();
+    try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES, "true")) {
+      TestSpacesStoragePlugin.setup();
 
-    WebTarget pathA = getAPIv2()
+      WebTarget pathA = getAPIv2()
         .path(getPathJoiner().join("dataset", "testA.dsA3"));
-    DatasetUI datasetUIA = expectSuccess(getBuilder(pathA).buildGet(), DatasetUI.class);
+      DatasetUI datasetUIA = expectSuccess(getBuilder(pathA).buildGet(), DatasetUI.class);
 
-    InitialPreviewResponse previewResponseA = expectSuccess(
+      InitialPreviewResponse previewResponseA = expectSuccess(
         getBuilder(getAPIv2().path(
-            getPathJoiner().join("dataset", "testA.dsA3", "version", datasetUIA.getDatasetVersion(), "preview"))
+          getPathJoiner().join("dataset", "testA.dsA3", "version", datasetUIA.getDatasetVersion(), "preview"))
         ).buildGet(),
         InitialPreviewResponse.class);
 
-    JobDataFragment dataA = previewResponseA.getData();
-    assertEquals(10, dataA.getReturnedRowCount());
-    assertEquals(4, dataA.getColumns().size());
-    assertEquals(asList(
-      new Column("l_orderkey", INTEGER, 0),
-      new Column("revenue", FLOAT, 1),
-      new Column("o_orderdate", DATE, 2),
-      new Column("o_shippriority", INTEGER, 3)).toString(), dataA.getColumns().toString());
+      JobDataFragment dataA = previewResponseA.getData();
+      assertEquals(10, dataA.getReturnedRowCount());
+      assertEquals(4, dataA.getColumns().size());
+      assertEquals(asList(
+        new Column("l_orderkey", INTEGER, 0),
+        new Column("revenue", FLOAT, 1),
+        new Column("o_orderdate", DATE, 2),
+        new Column("o_shippriority", INTEGER, 3)).toString(), dataA.getColumns().toString());
 
 
-    DatasetUI datasetUIB = expectSuccess(
+      DatasetUI datasetUIB = expectSuccess(
         getBuilder(
-            getAPIv2().path(getPathJoiner().join("dataset", "testB.dsB1"))).buildGet(),
+          getAPIv2().path(getPathJoiner().join("dataset", "testB.dsB1"))).buildGet(),
         DatasetUI.class);
 
-    InitialPreviewResponse previewResponseB = expectSuccess(
+      InitialPreviewResponse previewResponseB = expectSuccess(
         getBuilder(getAPIv2().path(
-            getPathJoiner().join("dataset", "testB.dsB1", "version", datasetUIB.getDatasetVersion(), "preview"))
+          getPathJoiner().join("dataset", "testB.dsB1", "version", datasetUIB.getDatasetVersion(), "preview"))
         ).buildGet(),
         InitialPreviewResponse.class);
 
-    final JobDataFragment dataB = previewResponseB.getData();
+      final JobDataFragment dataB = previewResponseB.getData();
 
-    assertEquals(INITIAL_RESULTSET_SIZE, dataB.getReturnedRowCount());
-    assertEquals(2, dataB.getColumns().size());
-    assertEquals(DataType.INTEGER, dataB.getColumns().get(0).getType());
-    assertEquals(DataType.INTEGER, dataB.getColumns().get(1).getType());
-    TestSpacesStoragePlugin.cleanup(getCurrentDremioDaemon());
+      assertEquals(INITIAL_RESULTSET_SIZE, dataB.getReturnedRowCount());
+      assertEquals(2, dataB.getColumns().size());
+      assertEquals(DataType.INTEGER, dataB.getColumns().get(0).getType());
+      assertEquals(DataType.INTEGER, dataB.getColumns().get(1).getType());
+      TestSpacesStoragePlugin.cleanup(getCurrentDremioDaemon());
 
-    final WebTarget moreDataB = getAPIv2()
+      final WebTarget moreDataB = getAPIv2()
         .path(previewResponseB.getPaginationUrl())
         .queryParam("offset", 20L)
         .queryParam("limit", 200L);
-    final JobDataFragment dataBMore = expectSuccess(getBuilder(moreDataB).buildGet(), JobDataFragment.class);
-    assertEquals(200, dataBMore.getReturnedRowCount());
-    assertEquals(2, dataBMore.getColumns().size());
-    assertEquals(DataType.INTEGER, dataBMore.getColumns().get(0).getType());
-    assertEquals(DataType.INTEGER, dataBMore.getColumns().get(1).getType());
+      final JobDataFragment dataBMore = expectSuccess(getBuilder(moreDataB).buildGet(), JobDataFragment.class);
+      assertEquals(200, dataBMore.getReturnedRowCount());
+      assertEquals(2, dataBMore.getColumns().size());
+      assertEquals(DataType.INTEGER, dataBMore.getColumns().get(0).getType());
+      assertEquals(DataType.INTEGER, dataBMore.getColumns().get(1).getType());
+    }
   }
 
   @Test

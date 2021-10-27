@@ -22,8 +22,10 @@ import java.util.Properties;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.hive.metastore.api.Table;
 
+import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 
 /**
  * Helper class to hold table metadata details used in {@link HiveStoragePlugin#getDatasetMetadata}
@@ -38,12 +40,18 @@ public class TableMetadata {
   private final List<Field> fields;
   private final List<String> partitionColumns;
   private final List<ColumnInfo> columnInfos;
+  private final IcebergMetadata icebergMetadata;
+  private final DatasetStats manifestStats;
+  private final long recordCount;
 
   private final HiveStorageCapabilities tableStorageCapabilities;
 
   private TableMetadata(final Table table, final Properties tableProperties, final BatchSchema batchSchema,
                         final List<Field> fields, final List<String> partitionColumns,
-                        final List<ColumnInfo> columnInfos) {
+                        final List<ColumnInfo> columnInfos,
+                        final IcebergMetadata icebergMetadata,
+                        final DatasetStats manifestStats,
+                        final long recordCount) {
     this.table = table;
     this.tableProperties = tableProperties;
     this.batchSchema = batchSchema;
@@ -52,6 +60,9 @@ public class TableMetadata {
     this.columnInfos = columnInfos;
 
     this.tableStorageCapabilities = HiveMetadataUtils.getHiveStorageCapabilities(table.getSd());
+    this.icebergMetadata = icebergMetadata;
+    this.manifestStats = manifestStats;
+    this.recordCount = recordCount;
   }
 
   public Table getTable() {
@@ -82,9 +93,22 @@ public class TableMetadata {
     return tableStorageCapabilities;
   }
 
+  public IcebergMetadata getIcebergMetadata() {
+    return icebergMetadata;
+  }
+
+  public DatasetStats getManifestStats() {
+    return manifestStats;
+  }
+
+  public long getRecordCount() {
+    return recordCount;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
+
 
   public static final class Builder {
     private Table table;
@@ -93,6 +117,9 @@ public class TableMetadata {
     private List<Field> fields;
     private List<String> partitionColumns;
     private List<ColumnInfo> columnInfos;
+    private IcebergMetadata icebergMetadata;
+    private DatasetStats manifestStats;
+    private long recordCount;
 
     private Builder() {
     }
@@ -127,6 +154,21 @@ public class TableMetadata {
       return this;
     }
 
+    public Builder icebergMetadata(IcebergMetadata icebergMetadata) {
+      this.icebergMetadata = icebergMetadata;
+      return this;
+    }
+
+    public Builder manifestStats(DatasetStats manifestStats) {
+      this.manifestStats = manifestStats;
+      return this;
+    }
+
+    public Builder recordCount(long recordCount) {
+      this.recordCount = recordCount;
+      return this;
+    }
+
     public TableMetadata build() {
 
       Objects.requireNonNull(table, "table is required");
@@ -136,7 +178,7 @@ public class TableMetadata {
       Objects.requireNonNull(partitionColumns, "partition columns is required");
       Objects.requireNonNull(columnInfos, "column infos is required");
 
-      return new TableMetadata(table, tableProperties, batchSchema, fields, partitionColumns, columnInfos);
+      return new TableMetadata(table, tableProperties, batchSchema, fields, partitionColumns, columnInfos, icebergMetadata, manifestStats, recordCount);
     }
   }
 }

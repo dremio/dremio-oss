@@ -458,6 +458,34 @@ public class TestEnhancedFilterJoinRule {
   }
 
   /**
+   * (((x and y and a) or (x and y and b)) and w) or (((x and z and c) or (x and z and d)) and w)
+   */
+  @Test
+  public void testSimplifyRemainingUpperOrHaveCommonNotExact() {
+    testWithTopFilter(
+      rOr(
+        rAnd(
+          rOr(
+            rAnd(rEq(col_S_x, intLit10), rEq(col_S_y, intLit10), rEq(col_R_a, intLit10)),
+            rAnd(rEq(col_S_x, intLit10), rEq(col_S_y, intLit10), rEq(col_R_b, intLit10))),
+          rEq(col_S_w, intLit10)),
+        rAnd(
+          rOr(
+            rAnd(rEq(col_S_x, intLit10), rEq(col_S_z, intLit10), rEq(col_R_c, intLit10)),
+            rAnd(rEq(col_S_x, intLit10), rEq(col_S_z, intLit10), rEq(col_R_d, intLit10))),
+          rEq(col_S_w, intLit10))),
+      rexBuilder.makeLiteral(true),
+      JoinRelType.INNER,
+      JoinRelType.INNER,
+      "true",
+      "OR(=($0, 10), =($1, 10), =($2, 10), =($3, 10))",
+      "OR(AND(=($0, 10), =($1, 10), =($3, 10)), " +
+        "AND(=($0, 10), =($2, 10), =($3, 10)))",
+      "OR(AND(OR(=($0, 10), =($1, 10)), =($5, 10)), " +
+        "AND(OR(=($2, 10), =($3, 10)), =($6, 10)))");
+  }
+
+  /**
    * ((a = x AND b) OR (a = x AND y)) AND (c or d)
    */
   @Test

@@ -25,8 +25,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import org.apache.calcite.rel.metadata.RelColumnOrigin;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
+import org.apache.commons.math.exception.NullArgumentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,18 +86,11 @@ public class ReflectionExplanationManager {
   }
 
   private ReflectionExplanation clauseToDisplayHintMessage(FilterDisjointFeature filterDisjointFeature) {
-    return disjointFilterExplanation(filterDisjointFeature.getMaterializationFilter().toString());
+    return disjointFilterExplanation(getFilterWithColumnName(filterDisjointFeature.getMaterializationFilter(), filterDisjointFeature.getDatasetRowType()));
   }
 
   private ReflectionExplanation fieldMissingToDisplayHintMessage(FieldMissingFeature fieldMissingFeature){
     try {
-      RelMetadataQuery metadataQuery = fieldMissingFeature.getUserQueryNode().getCluster().getMetadataQuery();
-      RelColumnOrigin columnOrigin = metadataQuery.getColumnOrigin(
-          fieldMissingFeature.getUserQueryNode(),
-          fieldMissingFeature.getIndex());
-      if (null != columnOrigin) {
-        return fieldMissingExplanation(columnOrigin.toString(), fieldMissingFeature.getIndex());
-      }
       List<String> names = fieldMissingFeature.getUserQueryNode().getRowType().getFieldNames();
       if(names.size() > fieldMissingFeature.getIndex()) {
         return fieldMissingExplanation(names.get(fieldMissingFeature.getIndex()), fieldMissingFeature.getIndex());
@@ -113,7 +107,7 @@ public class ReflectionExplanationManager {
 
   private ReflectionExplanation featureToExplanation(
       MaterializationFilterOverSpecifiedFeature materializationFilterOverSpecified) {
-    return filterOverSpecified(materializationFilterOverSpecified.getMaterializationFilter().toString());
+    return filterOverSpecified(getFilterWithColumnName(materializationFilterOverSpecified.getMaterializationFilter(), materializationFilterOverSpecified.getDatasetRowType()));
   }
 
   private boolean nonZeroDistance(ReflectionExplanationsAndQueryDistance reflectionExplanationsAndQueryDistance) {
@@ -122,5 +116,43 @@ public class ReflectionExplanationManager {
 
   private double queryDistance(Set<HintFeature> hintFeatureSet) {
     return hintFeatureSet.size();
+  }
+
+  // Get filter and rewrite rex index with column name
+  private String getFilterWithColumnName(RexNode materializationFilter, RelDataType datasetRowType) throws NullArgumentException {
+    StringBuilder modified = new StringBuilder();
+
+    String original = materializationFilter.toString();
+    List<String> fields = datasetRowType.getFieldNames();
+
+    if (fields == null) {
+      throw new NullArgumentException();
+    }
+
+    int index = 0;
+    while (index < original.length()) {
+      if (original.charAt(index) == '\'') {
+        // Index after the closing single quote
+        int nextIndex = original.indexOf('\'', index + 1);
+        nextIndex =  nextIndex != -1 ? nextIndex + 1 : index + 1;
+        modified.append(original, index, nextIndex);
+        index = nextIndex;
+        continue;
+      }
+      if (original.charAt(index) == '$') {
+        // Index after numbers after $
+        int nextIndex = index + 1;
+        while (nextIndex < original.length() && Character.isDigit(original.charAt(nextIndex))) {
+          nextIndex++;
+        }
+        int columnIndex = Integer.valueOf(original.substring(index + 1, nextIndex));
+        modified.append((nextIndex - index == 1 || columnIndex >= fields.size()) ? '$' : fields.get(columnIndex));
+        index = nextIndex;
+        continue;
+      }
+      modified.append(original.charAt(index));
+      index++;
+    }
+    return modified.toString();
   }
 }

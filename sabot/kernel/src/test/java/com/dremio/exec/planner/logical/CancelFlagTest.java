@@ -32,4 +32,15 @@ public class CancelFlagTest {
     Assert.assertTrue("The cancel flag should be running after reset",
         cancelFlag.watch.isRunning());
   }
+
+  @Test
+  public void testIsNotRunningAfterStop () {
+    CancelFlag cancelFlag = new CancelFlag(Long.MAX_VALUE);
+    cancelFlag.reset();
+    Assert.assertTrue("The cancel flag should be running after reset",
+      cancelFlag.watch.isRunning());
+    cancelFlag.stop();
+    Assert.assertFalse("The cancel flag should not be running after stop",
+      cancelFlag.watch.isRunning());
+  }
 }

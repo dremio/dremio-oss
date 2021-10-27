@@ -102,6 +102,8 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
       "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/fewtypes_datepartition";
   private static final String EXCEPTION_WHILE_PARSING_CREATED_BY_META =
       "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/hive1dot2_fewtypes_null";
+  private static final String PARQUET_DATE_FILE_WITH_DATES_BEYOND_5000 =
+      "[WORKING_PATH]/src/test/resources/parquet/dates_beyond_5000.parquet";
 
   private static FileSystem fs;
   private static Path path;
@@ -132,6 +134,7 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   @Test
   public void testReadPartitionedOnCorrectedDates() throws Exception {
     try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
       for(String testPath : Arrays.asList(CORRECTED_PARTITIONED_DATES_1_9_PATH, CORRECTED_PARTITIONED_DATES_1_10_PATH)) {
         for (String selection : new String[]{"*", "date_col"}) {
           // for sanity, try reading all partitions without a filter
@@ -164,44 +167,60 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
 
   @Test
   public void testVarcharPartitionedReadWithCorruption() throws Exception {
-    testBuilder()
+    try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+
+      testBuilder()
         .sqlQuery("select date_col from " +
-            "dfs.\"" + VARCHAR_PARTITIONED + "\"" +
-            "where length(varchar_col) = 12")
+          "dfs.\"" + VARCHAR_PARTITIONED + "\"" +
+          "where length(varchar_col) = 12")
         .baselineColumns("date_col")
         .unOrdered()
         .baselineValues(new LocalDateTime(2039, 4, 9, 0, 0))
         .baselineValues(new LocalDateTime(1999, 1, 8, 0, 0))
         .go();
+    } finally {
+      test("alter session reset all");
+    }
   }
 
   @Test
   public void testDatePartitionedReadWithCorruption() throws Exception {
-    testBuilder()
-        .sqlQuery("select date_col from " +
-            "dfs.\"" + DATE_PARTITIONED + "\"" +
-            "where date_col = '1999-04-08'")
-        .baselineColumns("date_col")
-        .unOrdered()
-        .baselineValues(new LocalDateTime(1999, 4, 8, 0, 0))
-        .go();
+    try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      testBuilder()
+          .sqlQuery("select date_col from " +
+              "dfs.\"" + DATE_PARTITIONED + "\"" +
+              "where date_col = '1999-04-08'")
+          .baselineColumns("date_col")
+          .unOrdered()
+          .baselineValues(new LocalDateTime(1999, 4, 8, 0, 0))
+          .go();
 
-    String sql = "select date_col from dfs.\"" + DATE_PARTITIONED + "\" where date_col > '1999-04-08'";
-    testPlanMatchingPatterns(sql, new String[]{"splits=\\[6"}, null);
+      String sql = "select date_col from dfs.\"" + DATE_PARTITIONED + "\" where date_col > '1999-04-08'";
+      testPlanMatchingPatterns(sql, new String[]{"splits=\\[6"}, null);
+    } finally {
+      test("alter session reset all");
+    }
   }
 
   @Test
   public void testCorrectDatesAndExceptionWhileParsingCreatedBy() throws Exception {
-    testBuilder()
-        .sqlQuery("select date_col from " +
-            "dfs.\"" + EXCEPTION_WHILE_PARSING_CREATED_BY_META +
-            "\" where to_date(date_col, 'YYYY-MM-DD') < '1997-01-02'")
-        .baselineColumns("date_col")
-        .unOrdered()
-        .baselineValues(new LocalDateTime(1996, 1, 29, 0, 0))
-        .baselineValues(new LocalDateTime(1996, 3, 1, 0, 0))
-        .baselineValues(new LocalDateTime(1996, 3, 2, 0, 0))
-        .go();
+    try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      testBuilder()
+          .sqlQuery("select date_col from " +
+              "dfs.\"" + EXCEPTION_WHILE_PARSING_CREATED_BY_META +
+              "\" where to_date(date_col, 'YYYY-MM-DD') < '1997-01-02'")
+          .baselineColumns("date_col")
+          .unOrdered()
+          .baselineValues(new LocalDateTime(1996, 1, 29, 0, 0))
+          .baselineValues(new LocalDateTime(1996, 3, 1, 0, 0))
+          .baselineValues(new LocalDateTime(1996, 3, 2, 0, 0))
+          .go();
+    } finally {
+      test("alter session reset all");
+    }
   }
 
   /**
@@ -212,33 +231,28 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
    */
   @Test
   public void testReadPartitionedOnCorruptedDates() throws Exception {
-    try {
-      test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
-      for (String selection : new String[]{"*", "date_col"}) {
-        // for sanity, try reading all partitions without a filter
-        TestBuilder builder = testBuilder()
-            .sqlQuery("select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "\"" +
-                "(type => 'parquet'))")
-            .unOrdered()
-            .baselineColumns("date_col");
-        addDateBaselineVals(builder);
-        builder.go();
+    for (String selection : new String[]{"*", "date_col"}) {
+      // for sanity, try reading all partitions without a filter
+      TestBuilder builder = testBuilder()
+        .sqlQuery("select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "\"" +
+          "(type => 'parquet'))")
+        .unOrdered()
+        .baselineColumns("date_col");
+      addDateBaselineVals(builder);
+      builder.go();
 
-        String query = "select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "\" " +
-            "(type => 'parquet'))" + " where date_col = date '1970-01-01'";
-        // verify that pruning is actually taking place
-        testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
+      String query = "select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "\" " +
+        "(type => 'parquet'))" + " where date_col = date '1970-01-01'";
+      // verify that pruning is actually taking place
+      testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
 
-        // read with a filter on the partition column
-        testBuilder()
-            .sqlQuery(query)
-            .unOrdered()
-            .baselineColumns("date_col")
-            .baselineValues(new LocalDateTime(1970, 1, 1, 0, 0))
-            .go();
-      }
-    } finally {
-      test("alter session reset all");
+      // read with a filter on the partition column
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("date_col")
+        .baselineValues(new LocalDateTime(1970, 1, 1, 0, 0))
+        .go();
     }
   }
 
@@ -246,39 +260,35 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   @Ignore("DX-11468")
   @Test
   public void testReadPartitionedOnCorruptedDates_UserDisabledCorrection() throws Exception {
-    try {
-      test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
-      for (String selection : new String[]{"*", "date_col"}) {
-        // for sanity, try reading all partitions without a filter
-        TestBuilder builder = testBuilder()
-            .sqlQuery("select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\"" +
-                "(type => 'parquet'))")
-            .unOrdered()
-            .baselineColumns("date_col");
-        addCorruptedDateBaselineVals(builder);
-        builder.go();
+    for (String selection : new String[]{"*", "date_col"}) {
+      // for sanity, try reading all partitions without a filter
+      TestBuilder builder = testBuilder()
+        .sqlQuery("select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\"" +
+          "(type => 'parquet'))")
+        .unOrdered()
+        .baselineColumns("date_col");
+      addCorruptedDateBaselineVals(builder);
+      builder.go();
 
-        String query = "select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\" " +
-            "(type => 'parquet'))" + " where date_col > cast('15334-03-17' as date)";
-        // verify that pruning is actually taking place
-        testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
+      String query = "select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\" " +
+        "(type => 'parquet'))" + " where date_col > cast('15334-03-17' as date)";
+      // verify that pruning is actually taking place
+      testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
 
-        // read with a filter on the partition column
-        testBuilder()
-            .sqlQuery(query)
-            .unOrdered()
-            .baselineColumns("date_col")
-            .baselineValues(new LocalDateTime(15334, 03, 17, 0, 0))
-            .go();
-      }
-    } finally {
-      test("alter session reset all");
+      // read with a filter on the partition column
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("date_col")
+        .baselineValues(new LocalDateTime(15334, 03, 17, 0, 0))
+        .go();
     }
   }
 
   @Test
   public void testCorruptValDetectionDuringPruning() throws Exception {
     try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
       for (String selection : new String[]{"*", "date_col"}) {
         // for sanity, try reading all partitions without a filter
         TestBuilder builder = testBuilder()
@@ -319,35 +329,44 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
    */
   @Test
   public void testReadCorruptDatesWithNullFilledColumns() throws Exception {
-    testBuilder()
-        .sqlQuery("select null_dates_1, null_dates_2, date_col from dfs.\"" +
-            PARQUET_DATE_FILE_WITH_NULL_FILLED_COLS + "\"")
-        .unOrdered()
-        .baselineColumns("null_dates_1", "null_dates_2", "date_col")
-        .baselineValues(null, null, new LocalDateTime(1970, 1, 1, 0, 0))
-        .baselineValues(null, null, new LocalDateTime(1970, 1, 2, 0, 0))
-        .baselineValues(null, null, new LocalDateTime(1969, 12, 31, 0, 0))
-        .baselineValues(null, null, new LocalDateTime(1969, 12, 30, 0, 0))
-        .baselineValues(null, null, new LocalDateTime(1900, 1, 1, 0, 0))
-        .baselineValues(null, null, new LocalDateTime(2015, 1, 1, 0, 0))
-        .go();
+    try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      testBuilder()
+          .sqlQuery("select null_dates_1, null_dates_2, date_col from dfs.\"" +
+              PARQUET_DATE_FILE_WITH_NULL_FILLED_COLS + "\"")
+          .unOrdered()
+          .baselineColumns("null_dates_1", "null_dates_2", "date_col")
+          .baselineValues(null, null, new LocalDateTime(1970, 1, 1, 0, 0))
+          .baselineValues(null, null, new LocalDateTime(1970, 1, 2, 0, 0))
+          .baselineValues(null, null, new LocalDateTime(1969, 12, 31, 0, 0))
+          .baselineValues(null, null, new LocalDateTime(1969, 12, 30, 0, 0))
+          .baselineValues(null, null, new LocalDateTime(1900, 1, 1, 0, 0))
+          .baselineValues(null, null, new LocalDateTime(2015, 1, 1, 0, 0))
+          .go();
+    } finally {
+      test("alter session reset all");
+    }
   }
 
   @Test
   public void testReadZeroRowGroupEmptyParquetFile() throws Exception {
-    testBuilder()
-      .sqlQuery("select * from dfs.\"" +
-        PARQUET_FILE_WITH_ZERO_ROWGROUPS + "\"")
-      .unOrdered()
-      .baselineColumns("f1", "f2")
-      .expectsEmptyResultSet()
-      .go();
+    try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      testBuilder()
+        .sqlQuery("select * from dfs.\"" +
+          PARQUET_FILE_WITH_ZERO_ROWGROUPS + "\"")
+        .unOrdered()
+        .baselineColumns("f1", "f2")
+        .expectsEmptyResultSet()
+        .go();
+    } finally {
+      test("alter session reset all");
+    }
   }
 
   @Test
   public void testUserOverrideDateCorrection() throws Exception {
     try {
-      test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
       // read once with the flat reader
       readFilesWithUserDisabledAutoCorrection();
       test(String.format("alter session set %s = true", ExecConstants.PARQUET_NEW_RECORD_READER));
@@ -356,7 +375,6 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
     } finally {
       test("alter session reset all");
     }
-
   }
 
   /**
@@ -369,16 +387,31 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
    */
   @Test
   public void testReadMixedOldAndNewBothReaders() throws Exception {
-    /// read once with the flat reader
-    readMixedCorruptedAndCorrectedDates();
-
     try {
+      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      /// read once with the flat reader
+      readMixedCorruptedAndCorrectedDates();
       // read all of the types with the complex reader
-      test(String.format("alter session set %s = true", ExecConstants.PARQUET_NEW_RECORD_READER));
       readMixedCorruptedAndCorrectedDates();
     } finally {
       test(String.format("alter session set %s = false", ExecConstants.PARQUET_NEW_RECORD_READER));
     }
+  }
+
+  /**
+   * Input file has a column with dates beyond 5000th year.
+   * By default, date correction is disabled. So, those dates should be in output without any conversion
+   * @throws Exception
+   */
+  @Test
+  public void testDeaultDateCorrectionDisabled() throws Exception {
+    testBuilder()
+      .sqlQuery("select f1, f2 from dfs.\"" + PARQUET_DATE_FILE_WITH_DATES_BEYOND_5000 + "\"")
+      .unOrdered()
+      .baselineColumns("f1", "f2")
+      .baselineValues(new LocalDateTime(2020, 1, 1, 0, 0), new LocalDateTime(5050, 1, 1, 0, 0))
+      .baselineValues(new LocalDateTime(2020, 1, 2, 0, 0), new LocalDateTime(5050, 1, 2, 0, 0))
+      .go();
   }
 
   /**

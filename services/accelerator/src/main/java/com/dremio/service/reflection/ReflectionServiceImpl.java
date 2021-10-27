@@ -32,6 +32,7 @@ import static java.time.Instant.ofEpochMilli;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -44,6 +45,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
@@ -71,7 +73,7 @@ import com.dremio.exec.planner.acceleration.MaterializationExpander;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
-import com.dremio.exec.planner.serialization.kryo.KryoLogicalPlanSerializers;
+import com.dremio.exec.planner.serialization.DeserializationException;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -486,7 +488,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return Iterables.filter(materializationStore.getAllDoneWhen(now), new Predicate<Materialization>() {
       @Override
       public boolean apply(Materialization m) {
-        return internalStore.get(m.getReflectionId()).getState() != ReflectionState.FAILED && !Iterables.isEmpty(materializationStore.getRefreshes(m));
+        ReflectionEntry entry = internalStore.get(m.getReflectionId());
+        return entry != null && entry.getState() != ReflectionState.FAILED && !Iterables.isEmpty(materializationStore.getRefreshes(m));
       }
     });
   }
@@ -672,23 +675,26 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return super.getDependencies(reflectionId);
   }
 
-  @Override
-  public Iterable<AccelerationListManager.DependencyInfo> getReflectionDependencies() {
-    final Iterable<ReflectionGoal> goalReflections = getAllReflections();
-    final List<AccelerationListManager.DependencyInfo> reflectionDependencies = new LinkedList<>();
-    for(ReflectionGoal goal : goalReflections) {
-      ReflectionId goalId = goal.getId();
-      final List<DependencyEntry> dependencyEntries = dependencyManager.getDependencies(goalId);
-      for(DependencyEntry entry: dependencyEntries) {
-        reflectionDependencies.add(new AccelerationListManager.DependencyInfo(
+  private Stream<AccelerationListManager.DependencyInfo> getGoalDependencies(ReflectionGoal goal){
+    ReflectionId goalId = goal.getId();
+    final List<DependencyEntry> dependencyEntries = dependencyManager.getDependencies(goalId);
+
+    return StreamSupport.stream(dependencyEntries.spliterator(), false).map(new Function<DependencyEntry, AccelerationListManager.DependencyInfo>() {
+      public AccelerationListManager.DependencyInfo apply(DependencyEntry entry){
+        return new AccelerationListManager.DependencyInfo(
           goalId.getId(),
           entry.getId(),
           entry.getType().toString(),
           entry.getPath().toString()
-        ));
+        );
       }
-    }
-    return reflectionDependencies;
+    });
+  }
+
+  @Override
+  public Iterator<AccelerationListManager.DependencyInfo> getReflectionDependencies() {
+    final Iterable<ReflectionGoal> goalReflections = getAllReflections();
+    return StreamSupport.stream(goalReflections.spliterator(), false).flatMap(this::getGoalDependencies).iterator();
   }
 
   @Override
@@ -1116,7 +1122,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       // matching. We should really do a better job in matching.
       try (ExpansionHelper helper = expansionHelper.get()) {
         return descriptor.getMaterializationFor(helper.getConverter());
-      } catch (KryoLogicalPlanSerializers.KryoDeserializationException e) {
+      } catch (DeserializationException e) {
         final UserException uex = ErrorHelper.findWrappedCause(e, UserException.class);
         if (uex != null && uex.getErrorType() == UserBitShared.DremioPBError.ErrorType.SOURCE_BAD_STATE) {
           logger.debug("failed to expand materialization descriptor {}/{} because source is down, skip for now",

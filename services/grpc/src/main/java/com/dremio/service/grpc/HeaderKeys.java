@@ -39,4 +39,11 @@ public class HeaderKeys {
 
   public static final Metadata.Key<String> SERVICE_NAME_HEADER_KEY =
     Metadata.Key.of("x-dremio-control-plane-service", Metadata.ASCII_STRING_MARSHALLER);
+
+  public static final Metadata.Key<String> SUPPORT_TICKET_HEADER_KEY =
+    Metadata.Key.of("x-dremio-support-ticket-key", Metadata.ASCII_STRING_MARSHALLER);
+
+  public static final Metadata.Key<String> SUPPORT_EMAIL_HEADER_KEY =
+    Metadata.Key.of("x-dremio-support-email-key", Metadata.ASCII_STRING_MARSHALLER);
+
 }

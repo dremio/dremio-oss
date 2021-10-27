@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.calcite.config.CalciteConnectionConfig;
+import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptSchema;
@@ -360,13 +362,23 @@ public class TestSQLAnalyzer {
     }
 
     @Override
+    public CalciteSchema getRootSchema() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CalciteConnectionConfig getConfig() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
     public SqlNameMatcher nameMatcher() {
       return SqlNameMatchers.withCaseSensitive(caseSensitive);
     }
 
     @Override
     public void lookupOperatorOverloads(SqlIdentifier opName, SqlFunctionCategory category, SqlSyntax syntax,
-                                        List<SqlOperator> operatorList) {
+                                        List<SqlOperator> operatorList, SqlNameMatcher nameMatcher) {
       // Do nothing
     }
 
@@ -398,7 +410,7 @@ public class TestSQLAnalyzer {
 
       @Override
       public RelNode toRel(ToRelContext context) {
-        return LogicalTableScan.create(context.getCluster(), this);
+        return LogicalTableScan.create(context.getCluster(), this, ImmutableList.of());
       }
 
       @Override

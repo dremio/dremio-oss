@@ -49,4 +49,6 @@ public interface ScanFilter {
   List<SchemaPath> getPaths();
 
   RexNode getRexFilter();
+
+  RexNode getExactRexFilter();
 }

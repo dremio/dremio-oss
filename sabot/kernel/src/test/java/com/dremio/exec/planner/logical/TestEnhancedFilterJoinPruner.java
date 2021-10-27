@@ -234,6 +234,22 @@ public class TestEnhancedFilterJoinPruner {
     Assert.assertEquals("=($1, 20)", nodePruned.toString());
   }
 
+  @Test
+  public void testPrunePushdownExtractPrune() {
+    Join joinRel = makeJoinRel(
+      rEq(col_R_a, col_S_x),
+      rOr(
+        rAnd(rEq(col_R_a_sh, intLit10), rEq(col_R_b_sh, intLit10)),
+        rAnd(rEq(col_R_a_sh, intLit20), rEq(col_R_c_sh, intLit20))),
+      rexBuilder.makeLiteral(true));
+    RelNode leftRel = joinRel.getLeft();
+    RelMetadataQuery mq = joinRel.getCluster().getMetadataQuery();
+
+    RexNode nodeToPrune = rOr(rEq(col_R_b_sh, intLit10), rEq(col_R_c_sh, intLit20));
+    RexNode nodePruned = EnhancedFilterJoinPruner.prunePushdown(nodeToPrune, mq, leftRel, rexBuilder);
+    Assert.assertEquals("true", nodePruned.toString());
+  }
+
   private void testPruneSuperset(RexNode rexNode, boolean toLeaf, String expectedNodeString) {
     RexNode nodePruned = EnhancedFilterJoinPruner.pruneSuperset(rexNode, toLeaf, rexBuilder);
     Assert.assertEquals(expectedNodeString, nodePruned.toString());

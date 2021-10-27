@@ -41,6 +41,7 @@ import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.exec.ExecConstants;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
@@ -156,66 +157,68 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
 
   @Test
   public void testSpacesPlugin() throws Exception {
-    setup();
-    // update storage plugin
+    try (AutoCloseable ac = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES, "true")) {
+      setup();
+      // update storage plugin
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA1", 1000)) {
-      assertEquals(1000, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA1", 1000)) {
+        assertEquals(1000, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testB.dsB1", 500)) {
-      assertEquals(500, results.getReturnedRowCount());
-    }
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA2", 250)) {
-      assertEquals(250, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from testB.dsB1", 500)) {
+        assertEquals(500, results.getReturnedRowCount());
+      }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA2", 250)) {
+        assertEquals(250, results.getReturnedRowCount());
+      }
 
-    try(final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA1 t1 where t1.A >= 400", 600)) {
-      assertEquals(600, results.getReturnedRowCount());
-    }
+      try(final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA1 t1 where t1.A >= 400", 600)) {
+        assertEquals(600, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData(
-      "select * from testA.dsA1 t1 inner join testB.dsB1 t2 on t1.A = t2.C inner join testA.dsA2 t3 on t2.C = t3.E where t3.F >= 900", 100) ) {
-      assertEquals(100, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData(
+        "select * from testA.dsA1 t1 inner join testB.dsB1 t2 on t1.A = t2.C inner join testA.dsA2 t3 on t2.C = t3.E where t3.F >= 900", 100) ) {
+        assertEquals(100, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA3", 10)) {
-      assertEquals(10, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.dsA3", 10)) {
+        assertEquals(10, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.dsA1", 1000)) {
-      assertEquals(1000, results.getReturnedRowCount());
-    }
-    // folder/subschemas
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.dsA1", 1000)) {
+        assertEquals(1000, results.getReturnedRowCount());
+      }
+      // folder/subschemas
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.dsB1", 500)) {
-      assertEquals(500, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.dsB1", 500)) {
+        assertEquals(500, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.F3.dsA2", 250)) {
-      assertEquals(250, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.F3.dsA2", 250)) {
+        assertEquals(250, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.F3.F4.dsA3", 10)) {
-      assertEquals(10, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from testA.F1.F2.F3.F4.dsA3", 10)) {
+        assertEquals(10, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.dsA1", 1000)) {
-      assertEquals(1000, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.dsA1", 1000)) {
+        assertEquals(1000, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.dsB1", 500)) {
-      assertEquals(500, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.dsB1", 500)) {
+        assertEquals(500, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.F3.dsA2", 250)) {
-      assertEquals(250, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.F3.dsA2", 250)) {
+        assertEquals(250, results.getReturnedRowCount());
+      }
 
-    try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.F3.F4.dsA3", 10)) {
-      assertEquals(10, results.getReturnedRowCount());
-    }
+      try (final JobDataFragment results = runExternalQueryAndGetData("select * from \"@"+DEFAULT_USER_NAME+"\".F1.F2.F3.F4.dsA3", 10)) {
+        assertEquals(10, results.getReturnedRowCount());
+      }
 
-    cleanup(getCurrentDremioDaemon());
+      cleanup(getCurrentDremioDaemon());
+    }
   }
 }

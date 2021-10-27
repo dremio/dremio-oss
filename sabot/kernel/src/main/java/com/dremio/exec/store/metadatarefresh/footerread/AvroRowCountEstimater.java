@@ -18,7 +18,6 @@ package com.dremio.exec.store.metadatarefresh.footerread;
 import java.io.IOException;
 
 import org.apache.avro.file.DataFileConstants;
-import org.apache.iceberg.FileFormat;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
@@ -50,6 +49,6 @@ public class AvroRowCountEstimater implements FooterReader {
     }
     long uncompressedFileSize = fileSize * compressionFactor;
     long estimatedTotalRecords = (long) Math.ceil((double) uncompressedFileSize / estimatedRecordSize);
-    return new Footer(tableSchema, estimatedTotalRecords, FileFormat.AVRO);
+    return new AvroFooter(tableSchema, estimatedTotalRecords);
   }
 }

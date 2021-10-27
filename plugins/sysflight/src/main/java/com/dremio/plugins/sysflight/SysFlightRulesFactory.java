@@ -37,7 +37,9 @@ public class SysFlightRulesFactory extends StoragePluginTypeRulesFactory {
       return ImmutableSet.<RelOptRule>of(new SysFlightScanDrule(pluginType));
 
     case PHYSICAL:
-      return ImmutableSet.of(SysFlightScanPrule.INSTANCE);
+      return ImmutableSet.of(SysFlightScanPrule.INSTANCE,
+         SysFlightPushFilterIntoScan.IS_FILTER_ON_PROJECT,
+         SysFlightPushFilterIntoScan.IS_FILTER_ON_SCAN);
 
     default:
       return ImmutableSet.of();

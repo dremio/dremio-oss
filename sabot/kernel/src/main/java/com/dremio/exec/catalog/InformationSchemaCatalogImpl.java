@@ -16,7 +16,7 @@
 
 package com.dremio.exec.catalog;
 
-import static com.dremio.service.namespace.DatasetIndexKeys.LOWER_CASE_SUFFIX;
+import static com.dremio.datastore.indexed.IndexKey.LOWER_CASE_SUFFIX;
 
 import java.util.Collections;
 import java.util.HashSet;

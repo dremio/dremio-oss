@@ -40,7 +40,8 @@ class ModalsContainer extends PureComponent {
   lastModalHideTimerId = null;
   lastModalKey = null;
   handleHide = () => {
-    this.context.router.replace({...this.props.location, state: {}});
+    const { modal, query, ...otherState } = this.props.location.state || {};
+    this.context.router.replace({...this.props.location, state: { ...otherState }});
     this.lastModalHideTimerId = setTimeout(() => {
       this.lastModalKey = null;
       this.lastModalHideTimerId = null;

@@ -427,6 +427,12 @@
    > `<=` javax.ws.rs.core.Response   
 
 
+## Resource defined by class com.dremio.dac.resource.JobProfileResource
+
+ - GET /queryProfile/{jobId}/JobProfile?attempt={int}0 (path params: jobId={String})   
+   > `<=` java.util.List`<`[com.dremio.service.jobAnalysis.proto.PhaseData](#class-comdremioservicejobanalysisprotophasedata)`>`   
+
+
 ## Resource defined by class com.dremio.dac.resource.ResourceTreeResource
 
  - GET /resourcetree?showSpaces={boolean}&showSources={boolean}&showHomes={boolean}   
@@ -2226,6 +2232,10 @@
       datasetID: "abc",
       datasetName: "abc",
       datasetPath: "abc",
+      datasetPathsList: [
+        "abc",
+        ...
+      ],
       datasetSizeRows: 1,
       datasetType: "abc",
       reflectionsDefinedList: [
@@ -2277,6 +2287,10 @@
         datasetID: "abc",
         datasetName: "abc",
         datasetPath: "abc",
+        datasetPathsList: [
+          "abc",
+          ...
+        ],
         datasetSizeRows: 1,
         datasetType: "abc",
         reflectionsDefinedList: [
@@ -2308,6 +2322,7 @@
     },
     ...
   ],
+  datasetVersion: "abc",
   description: "abc",
   duration: 1,
   durationDetails: [
@@ -2351,6 +2366,10 @@
       datasetID: "abc",
       datasetName: "abc",
       datasetPath: "abc",
+      datasetPathsList: [
+        "abc",
+        ...
+      ],
       datasetSizeRows: 1,
       datasetType: "abc",
       reflectionsDefinedList: [
@@ -2376,6 +2395,23 @@
   queryText: "abc",
   queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
   queryUser: "abc",
+  reflections: [
+    { /** Reflection **/
+      datasetName: "abc",
+      isStarFlake: true | false,
+      isUsed: true | false,
+      reflectionCreated: "abc",
+      reflectionDatasetPath: "abc",
+      reflectionID: "abc",
+      reflectionLastRefreshed: "abc",
+      reflectionMatchingType: "EXPANSION" | "ALGEBRAIC",
+      reflectionName: "abc",
+      reflectionSizeRows: 1,
+      reflectionStatus: "abc",
+      reflectionType: "RAW" | "AGGREGATE" | "EXTERNAL",
+    },
+    ...
+  ],
   reflectionsMatched: [
     { /** Reflection **/
       datasetName: "abc",
@@ -2411,6 +2447,7 @@
     ...
   ],
   requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+  resultsAvailable: true | false,
   scannedDatasets: [
     {
       datasetID: "abc",
@@ -2917,6 +2954,10 @@
           datasetID: "abc",
           datasetName: "abc",
           datasetPath: "abc",
+          datasetPathsList: [
+            "abc",
+            ...
+          ],
           datasetSizeRows: 1,
           datasetType: "abc",
           reflectionsDefinedList: [
@@ -2942,7 +2983,7 @@
       queryText: "abc",
       queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
       queryUser: "abc",
-      requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+      requestType: "INVALID_REQUEST_TYPE" | "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META" | "UNRECOGNIZED",
       rowsReturned: 1,
       rowsScanned: 1,
       spilled: true | false,
@@ -5110,6 +5151,45 @@ any
     ...
   ],
   urlPath: "abc",
+}
+```
+
+## `class com.dremio.service.jobAnalysis.proto.PhaseData`
+- Example:
+```
+{
+  bytesProcessed: 1,
+  numThreads: 1,
+  operatorDataList: {
+    operatorDataList: [
+      {
+        baseMetrics: {
+          bytesProcessed: 1,
+          ioWaitTime: 1,
+          numThreads: 1,
+          peakMemory: 1,
+          processingTime: 1,
+          recordsProcessed: 1,
+          setupTime: 1,
+        },
+        mergeNodeName: "abc",
+        nodeId: "abc",
+        operatorName: "abc",
+        operatorType: 1,
+        successorId: {
+          successorIdList: [
+            "abc",
+            ...
+          ],
+        },
+      },
+      ...
+    ],
+  },
+  peakMemory: 1,
+  phaseId: "abc",
+  processingTime: 1,
+  recordsProcessed: 1,
 }
 ```
 

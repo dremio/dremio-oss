@@ -15,17 +15,14 @@
  */
 package com.dremio.exec.expr.fn.hll;
 
-import java.nio.ByteBuffer;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ObjectHolder;
+import org.apache.datasketches.hll.HllSketch;
+import org.apache.datasketches.hll.TgtHllType;
+import org.apache.datasketches.memory.WritableMemory;
 
 import com.dremio.sabot.exec.context.SlicedBufferManager;
-import com.yahoo.memory.Memory;
-import com.yahoo.memory.WritableMemory;
-import com.yahoo.sketches.hll.HllSketch;
-import com.yahoo.sketches.hll.TgtHllType;
 
 /**
  * Holding class for HLL Accumulation object. Implement this abstraction to keep UDFs simple.
@@ -38,8 +35,9 @@ public final class HLLAccum {
   private HLLAccum(BufferManager manager, int lgConfigK) {
     final int size = HllSketch.getMaxUpdatableSerializationBytes(lgConfigK, TgtHllType.HLL_8);
     final ArrowBuf buf = ((SlicedBufferManager) manager).getManagedBufferSliced(size);
-    buf.setZero(0, size);
-    this.sketch = new HllSketch(lgConfigK, TgtHllType.HLL_8, WritableMemory.wrap(buf.nioBuffer(0, size)));
+    byte[] bytes = new byte[size];
+    buf.getBytes(0, bytes);
+    this.sketch = new HllSketch(lgConfigK, TgtHllType.HLL_8, WritableMemory.wrap(bytes));
   }
 
   public void addInt(int value) {
@@ -60,9 +58,9 @@ public final class HLLAccum {
 
   public void addBytes(final ArrowBuf buf, final int start, final int end) {
     final int len = end - start;
-    ByteBuffer buffer = buf.nioBuffer(start, len);
-    Memory.wrap(buffer);
-    sketch.update(Memory.wrap(buffer), 0, len);
+    byte[] bytes = new byte[len];
+    buf.getBytes(start, bytes);
+    sketch.update(bytes);
   }
 
   public byte[] getOutputBytes() {
@@ -86,7 +84,10 @@ public final class HLLAccum {
   }
 
   public static long getEstimate(ArrowBuf buf, int start, int end) {
-    return (long) HllSketch.wrap(Memory.wrap(buf.nioBuffer(start, end - start))).getEstimate();
+    final int len = end - start;
+    byte[] bytes = new byte[len];
+    buf.getBytes(start, bytes);
+    return (long) HllSketch.heapify(bytes).getEstimate();
   }
 
 

@@ -54,7 +54,7 @@ message DatasetConfig {
 
   // job queue for this dataset
   optional string queue_id = 18;
-  optional string engine_id = 19;
+  optional string engine_name = 19;
 }
 
 message VirtualDataset {

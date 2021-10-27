@@ -30,6 +30,13 @@ public interface ExternalStatusListener {
   default void queryProgressed(JobSummary jobSummary) {}
 
   /**
+   * Called one or more times when a query makes progress.
+   *
+   * @param jobSummary updated jobsummary
+   */
+  default void queryProgressed(JobSummary jobSummary,boolean newJobsUi) {}
+
+  /**
    * Called when job is completed. Provides final job object.
    *
    * @param jobSummary updated jobsummary

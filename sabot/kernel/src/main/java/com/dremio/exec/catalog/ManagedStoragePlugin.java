@@ -821,13 +821,13 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @param requestOptions request options
    * @return true iff the metadata is complete and meets validity constraints
    */
-  public boolean isCompleteAndValid(DatasetConfig datasetConfig, MetadataRequestOptions requestOptions) {
+  public boolean isCompleteAndValid(DatasetConfig datasetConfig, MetadataRequestOptions requestOptions, NamespaceService userNamespaceService) {
     try (AutoCloseableLock l = readLock()) {
       checkState();
       final boolean checkValidity = requestOptions.checkValidity() && !getConfig().getDisableMetadataValidityCheck();
       return isComplete(datasetConfig) &&
         metadataManager.isStillValid(ImmutableMetadataRequestOptions.copyOf(requestOptions)
-          .withCheckValidity(checkValidity), datasetConfig);
+          .withCheckValidity(checkValidity), datasetConfig, this.unwrap(StoragePlugin.class), userNamespaceService);
     }
   }
 

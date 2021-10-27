@@ -19,8 +19,8 @@ import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorT
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.util.List;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.commons.codec.binary.Base64;
@@ -83,11 +83,13 @@ public class HiveUtilities {
    * @param outputProps
    * @param propsToAdd
    */
-  public static final void addProperties(JobConf jobConf, Properties outputProps, List<Prop> propsToAdd){
-    for(Prop p : propsToAdd){
-      outputProps.setProperty(p.getKey(), p.getValue());
+  public static void addProperties(JobConf jobConf, Properties outputProps, Stream<Prop> propsToAdd) {
+    propsToAdd.forEach(p -> {
+      if (outputProps != null) {
+        outputProps.setProperty(p.getKey(), p.getValue());
+      }
       jobConf.set(p.getKey(), p.getValue());
-    }
+    });
 
     addACIDPropertiesIfNeeded(jobConf);
   }

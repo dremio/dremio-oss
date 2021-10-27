@@ -17,7 +17,6 @@ package com.dremio.exec.planner.physical;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitDef;
-import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
@@ -32,32 +31,14 @@ public class DistributionTraitDef extends RelTraitDef<DistributionTrait>{
   @Override
   public boolean canConvert(
       RelOptPlanner planner, DistributionTrait fromTrait, DistributionTrait toTrait) {
-    return false;
-  }
-
-
-  @Override
-  public boolean canConvert(
-      RelOptPlanner planner, DistributionTrait fromTrait, DistributionTrait toTrait, RelNode fromRel) {
     if (fromTrait.equals(toTrait)) {
       return true;
-    }
-
-    // Source trait is "ANY", which is abstract type of distribution.
-    // We do not want to convert from "ANY", since it's abstract.
-    // Source trait should be concrete type: SINGLETON, HASH_DISTRIBUTED, etc.
-    if (fromTrait.equals(DistributionTrait.DEFAULT) && !(fromRel instanceof RelSubset) ) {
+    } else if (fromTrait.getType() == DistributionType.BROADCAST_DISTRIBUTED
+      && toTrait.getType() == DistributionType.HASH_DISTRIBUTED) {
       return false;
+    } else {
+      return true;
     }
-
-    // It is only possible to apply a distribution trait to a PHYSICAL convention.
-    if (fromRel.getConvention() != Prel.PHYSICAL) {
-      return false;
-    }
-    if (fromTrait.getType() == DistributionType.BROADCAST_DISTRIBUTED && toTrait.getType() == DistributionType.HASH_DISTRIBUTED) {
-      return false;
-    }
-    return true;
   }
 
   @Override

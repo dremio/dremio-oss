@@ -54,6 +54,6 @@ describe('DurationProgress', () => {
     };
     const wrapper = shallow(<DurationProgress {...props} />);
     const element = wrapper.find('[data-qa="duration-breakdown-value"]');
-    expect(element.text()).to.equal('15s(60%)');
+    expect(element.text()).to.equal('15s (60%)');
   });
 });

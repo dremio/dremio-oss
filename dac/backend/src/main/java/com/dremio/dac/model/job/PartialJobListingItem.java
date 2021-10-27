@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.model.job;
 
-import static com.dremio.dac.util.JobsConstant.ERROR_JOB_STATE_NOT_SET;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,19 +37,18 @@ import com.google.common.base.Preconditions;
 /**
  * Initializing values to send as part of API response
  */
-@JsonIgnoreProperties(value = {"isFinalState"}, allowGetters = true)
+@JsonIgnoreProperties(value = {"isComplete"}, allowGetters = true)
 public class PartialJobListingItem {
   private final String id;
   private final JobState state;
-  private final String queryUser;
+  private final String user;
   private final Long startTime;
   private final Long endTime;
   private final String queryText;
   private final boolean isAccelerated;
   private final QueryType queryType;
-  private final boolean isFinalState;
   private final long duration;
-  private final long rowsReturned;
+  private final long outputRecords;
   private final long rowsScanned;
   private final String wlmQueue;
   private List<DurationDetails> durationDetails = new ArrayList<>();
@@ -68,19 +65,21 @@ public class PartialJobListingItem {
   private int totalAttempts;
   private boolean isStarFlakeAccelerated;
   private RequestType requestType;
-  private  String description;
+  private String description;
+  private boolean isComplete;
+  private final String datasetVersion;
+  private final Boolean outputLimited;
 
   @JsonCreator
   public PartialJobListingItem(
     @JsonProperty("id") String id,
     @JsonProperty("state") JobState state,
-    @JsonProperty("isFinalState") boolean isFinalState,
-    @JsonProperty("queryUser") String queryUser,
+    @JsonProperty("user") String user,
     @JsonProperty("startTime") Long startTime,
     @JsonProperty("endTime") Long endTime,
     @JsonProperty("duration") Long duration,
     @JsonProperty("rowsScanned") Long rowsScanned,
-    @JsonProperty("rowsReturned") Long rowsReturned,
+    @JsonProperty("outputRecords") Long outputRecords,
     @JsonProperty("wlmQueue") String wlmQueue,
     @JsonProperty("queryText") String queryText,
     @JsonProperty("queryType") QueryType queryType,
@@ -98,20 +97,23 @@ public class PartialJobListingItem {
     @JsonProperty("totalAttempts") int totalAttempts,
     @JsonProperty("output") boolean isStarFlakeAccelerated,
     @JsonProperty("requestType") RequestType requestType,
-    @JsonProperty("description") String description) {
+    @JsonProperty("description") String description,
+    @JsonProperty("isComplete") boolean isComplete,
+    @JsonProperty("datasetVersion") String datasetVersion,
+    @JsonProperty("outputLimited") boolean outputLimited
+    ) {
     super();
     this.id = id;
     this.state = state;
-    this.queryUser = queryUser;
+    this.user = user;
     this.startTime = startTime;
     this.endTime = endTime;
     this.duration = duration;
     this.rowsScanned = rowsScanned;
-    this.rowsReturned = rowsReturned;
+    this.outputRecords = outputRecords;
     this.queryText = queryText;
     this.isAccelerated = isAccelerated;
     this.queryType = queryType;
-    this.isFinalState = getIsFinalState(this.state);
     this.wlmQueue = wlmQueue;
     this.durationDetails = durationDetails;
     this.plannerEstimatedCost = plannerEstimatedCost;
@@ -127,29 +129,32 @@ public class PartialJobListingItem {
     this.isStarFlakeAccelerated = isStarFlakeAccelerated;
     this.requestType = requestType;
     this.description = description;
+    this.isComplete = isComplete;
+    this.datasetVersion = datasetVersion;
+    this.outputLimited = outputLimited;
   }
 
   public PartialJobListingItem(JobSummary input) {
     this.id = input.getJobId().getId();
-    this.queryUser = input.getUser();
+    this.user = input.getUser();
     int totalAttempts = (int) input.getNumAttempts();
     this.totalAttempts = totalAttempts;
     this.state = JobsProtoUtil.toStuff(input.getJobState());
     this.startTime = input.getStartTime() != 0 ? input.getStartTime() : 0;
     this.endTime = input.getEndTime() != 0 ? input.getEndTime() : 0;
-    this.isFinalState = getIsFinalState(state);
-    this.duration = JobUtil.getTotalDuration(input,isFinalState);
+    this.isComplete = isComplete(this.state);
+    this.duration = JobUtil.getTotalDuration(input, isComplete);
     this.durationDetails = JobUtil.buildDurationDetails(input.getStateListList());
     this.rowsScanned = input.getInputRecords();
-    this.rowsReturned = input.getOutputRecords();
+    this.outputRecords = input.getOutputRecords();
     this.wlmQueue = input.getQueueName();
-     this.queryText = input.getSql();
+    this.queryText = input.getSql();
     this.isAccelerated = input.getAccelerated();
     this.queryType = JobsProtoUtil.toStuff(input.getQueryType());
     this.plannerEstimatedCost = input.getOriginalCost();
     this.engine = input.getEngine();
     this.subEngine = input.getSubEngine();
-    this.queriedDatasets = JobUtil.buildQueriedDatasets(JobsProtoUtil.toStuffParentDatasetInfoList(input.getParentsList()), input.getRequestType());
+    this.queriedDatasets = JobUtil.buildQueriedDatasets(JobsProtoUtil.toStuffParentDatasetInfoList(input.getParentsList()), input.getRequestType(), input.getDatasetPathList());
     this.durationDetails.stream().filter(d -> d.getPhaseName().equalsIgnoreCase("QUEUED")).forEach(mp -> enqueuedTime = mp.getPhaseDuration());
     this.waitInClient = input.getWaitInclient();
     this.input = JobUtil.getConvertedBytes(input.getInputBytes()) + " / " +
@@ -160,6 +165,8 @@ public class PartialJobListingItem {
     this.isStarFlakeAccelerated = input.getSnowflakeAccelerated();
     this.description = input.getDescription();
     this.requestType = input.getRequestType();
+    this.datasetVersion = input.getDatasetVersion();
+    this.outputLimited = input.getOutputLimited();
   }
 
   public RequestType getRequestType() {
@@ -190,8 +197,8 @@ public class PartialJobListingItem {
     return state;
   }
 
-  public String getQueryUser() {
-    return queryUser;
+  public String getUser() {
+    return user;
   }
 
   public Long getStartTime() {
@@ -202,8 +209,8 @@ public class PartialJobListingItem {
     return endTime;
   }
 
-  public Long getRowsReturned() {
-    return rowsReturned;
+  public Long getOutputRecords() {
+    return outputRecords;
   }
 
   public Long getRowsScanned() {
@@ -224,11 +231,6 @@ public class PartialJobListingItem {
 
   public QueryType getQueryType() {
     return queryType;
-  }
-
-  @JsonProperty("isFinalState")
-  public boolean getFinalState() {
-    return isFinalState;
   }
 
   public Double getPlannerEstimatedCost() {
@@ -271,10 +273,23 @@ public class PartialJobListingItem {
     return spilled;
   }
 
-  private boolean getIsFinalState(JobState state) {
-    Preconditions.checkNotNull(state, ERROR_JOB_STATE_NOT_SET);
+  @JsonProperty("isComplete")
+  public boolean isComplete() {
+    return isComplete;
+  }
 
-    switch (state) {
+  public String getDatasetVersion() {
+    return datasetVersion;
+  }
+
+  public Boolean getOutputLimited() {
+    return outputLimited;
+  }
+
+  private boolean isComplete(JobState state) {
+    Preconditions.checkNotNull(state, "JobState must be set");
+
+    switch(state){
       case CANCELLATION_REQUESTED:
       case ENQUEUED:
       case NOT_SUBMITTED:

@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.util.Pair;
@@ -38,6 +39,7 @@ import com.dremio.exec.planner.PlanCache;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.explain.PrelSequencer;
 import com.dremio.exec.planner.physical.visitor.WriterPathUpdater;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
@@ -64,7 +66,7 @@ public class NormalHandler implements SqlToPlanHandler {
       final PlanCache planCache = config.getContext().getPlanCache();
       final Cache<Long, CachedPlan> cachedPlans = (planCache != null) ? planCache.getCachePlans():null;
       final long cachedKey = planCache.generateCacheKey(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
-        config.getContext().getWorkloadType().name());
+        config.getContext().getWorkloadType().name(), config.getContext().getContextInformation().getCurrentDefaultSchema());
       config.getObserver().setCacheKey(cachedKey);
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlNode);
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
@@ -107,14 +109,11 @@ public class NormalHandler implements SqlToPlanHandler {
         }
       } else {
         prel = cachedPlan.getPrel();
-        textPlan = cachedPlan.getTextPlan();
-        cachedPlan.updateUseCount();
         CachedAccelDetails accelDetails = cachedPlan.getAccelDetails();
         if (accelDetails != null && accelDetails.getSubstitutionInfo() != null) {
           config.getObserver().applyAccelDetails(accelDetails);
         }
-        config.getObserver().planCacheUsed(cachedPlan.getUseCount());
-        config.getObserver().planText(textPlan, 0);
+        config.getObserver().planCacheUsed(cachedPlan.updateUseCount());
         //update writer if needed
         final OptionManager options = config.getContext().getOptions();
         final PlannerSettings.StoreQueryResultsPolicy storeQueryResultsPolicy = Optional
@@ -124,6 +123,14 @@ public class NormalHandler implements SqlToPlanHandler {
         if (storeQueryResultsPolicy == PlannerSettings.StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID) {
           //update writing path for this case only
           prel = WriterPathUpdater.update(prel, config);
+        }
+        if (logger.isDebugEnabled() || config.getObserver() != null) {
+          textPlan = PrelSequencer.setPlansWithIds(prel, SqlExplainLevel.ALL_ATTRIBUTES, config.getObserver(), 0);
+          if (logger.isDebugEnabled()) {
+            logger.debug(String.format("%s:\n%s", "Final Physical Transformation", textPlan));
+          }
+        } else {
+          textPlan = "";
         }
       }
       final PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);

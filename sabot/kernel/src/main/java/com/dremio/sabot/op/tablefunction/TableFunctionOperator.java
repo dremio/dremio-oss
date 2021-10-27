@@ -41,7 +41,8 @@ public class TableFunctionOperator implements SingleInputOperator {
 
   public enum Metric implements MetricDef {
     NUM_DATA_FILE,
-    NUM_MANIFEST_FILE;
+    NUM_MANIFEST_FILE,
+    MAX_SCHEMA_WIDTH;
 
     @Override
     public int metricId() {

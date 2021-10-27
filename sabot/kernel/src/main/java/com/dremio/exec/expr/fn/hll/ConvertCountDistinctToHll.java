@@ -32,6 +32,7 @@ import org.apache.calcite.tools.RelBuilder;
 
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.dremio.exec.store.NamespaceTable;
 
 /**
@@ -95,7 +96,7 @@ public class ConvertCountDistinctToHll extends RelOptRule {
 
 
       if(allowed) {
-        calls.add(AggregateCall.create(HyperLogLog.NDV, false, c.getArgList(), -1, c.getType(), c.getName()));
+        calls.add(AggregateCall.create(DremioSqlOperatorTable.NDV, false, c.getArgList(), -1, c.getType(), c.getName()));
         distinctReplaced = true;
       } else {
         calls.add(c);

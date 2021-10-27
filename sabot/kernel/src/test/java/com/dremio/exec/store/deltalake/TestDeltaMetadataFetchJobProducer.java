@@ -41,7 +41,7 @@ public class TestDeltaMetadataFetchJobProducer {
 
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(null, null, metaDir, 0L, true);
+    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(null, null, metaDir, 0L, 1L, true);
 
     assertTrue(producer.hasNext());
     DeltaMetadataFetchJob job = producer.next();
@@ -65,7 +65,7 @@ public class TestDeltaMetadataFetchJobProducer {
 
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(null, null, metaDir, 4L, false);
+    DeltaMetadataFetchJobProducer producer = new DeltaMetadataFetchJobProducer(null, null, metaDir, 4L, 1L, false);
 
     assertTrue(producer.hasNext());
     DeltaMetadataFetchJob job = producer.next();
@@ -87,7 +87,7 @@ public class TestDeltaMetadataFetchJobProducer {
     // Any dummy path will do for this test
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-    DeltaMetadataFetchJobProducer producer1 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 4L, true);
+    DeltaMetadataFetchJobProducer producer1 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 4L, 1L, true);
 
     DeltaMetadataFetchJob job = producer1.next();
     //Moving forward then first job should be a checkpoint read
@@ -101,7 +101,7 @@ public class TestDeltaMetadataFetchJobProducer {
     assertEquals(job.tryCheckpointRead, false);
 
 
-    DeltaMetadataFetchJobProducer producer2 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 0L, true);
+    DeltaMetadataFetchJobProducer producer2 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 0L, 1L, true);
 
     job = producer2.next();
     //starting from 0 then even the first job should be commit read
@@ -110,7 +110,7 @@ public class TestDeltaMetadataFetchJobProducer {
     job = producer2.next();
     assertEquals(job.tryCheckpointRead, false);
 
-    DeltaMetadataFetchJobProducer producer3 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 9L, false);
+    DeltaMetadataFetchJobProducer producer3 = new DeltaMetadataFetchJobProducer(null, null, metaDir, 9L, 1L, false);
     //Moving backwards then we will try and read both
     while(producer3.hasNext()) {
       job = producer3.next();

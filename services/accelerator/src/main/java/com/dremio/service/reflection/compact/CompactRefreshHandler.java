@@ -211,6 +211,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       null,
       null,
       null,
+      null,
       null
     );
 

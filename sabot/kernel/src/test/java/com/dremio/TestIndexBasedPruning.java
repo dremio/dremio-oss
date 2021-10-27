@@ -29,6 +29,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
 
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -365,7 +366,7 @@ public class TestIndexBasedPruning extends DremioTest {
   private RelOptRuleCall newCall(PruneScanRuleBase rule, RelNode... operands) {
     return new RelOptRuleCall(null, rule.getOperand(), operands, Collections.emptyMap()) {
       @Override
-      public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv) {
+      public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, BiFunction<RelNode, RelNode, RelNode> handler) {
         if (rule instanceof PruneScanRuleBase.PruneScanRuleFilterOnSampleScan) {
           assertTrue("SampleRel is expected after pruning", rel instanceof SampleRel && ((SampleRel) rel).getInput() instanceof EmptyRel);
         } else {

@@ -16,6 +16,8 @@
 package com.dremio.exec.maestro;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.Queue;
 
 import javax.inject.Provider;
 
@@ -29,12 +31,16 @@ import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.UserRpcException;
+import com.dremio.service.Pointer;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.service.jobresults.JobResultsResponse;
 import com.dremio.service.jobresults.JobResultsServiceGrpc;
 import com.dremio.service.maestroservice.MaestroServiceGrpc;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
 
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 
@@ -47,6 +53,9 @@ public class MaestroForwarderImpl implements MaestroForwarder {
   private final Provider<ConduitProvider> conduitProvider;
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpointProvider;
   private final Provider<Collection<CoordinationProtos.NodeEndpoint>> jobServiceInstances;
+  private static final Map<String, StreamObserver> resultForwardingStreams = Maps.newConcurrentMap();
+  private static final Map<String, Queue<ResponseSender>> responseSenderQueueForQuery =
+    Maps.newConcurrentMap();
 
   public MaestroForwarderImpl(
     final Provider<ConduitProvider> conduitProvider,
@@ -105,30 +114,50 @@ public class MaestroForwarderImpl implements MaestroForwarder {
     if (mustForwardRequest(jobResultsRequest.getForeman())) {
       logger.debug("Forwarding DataArrived request for Query {} to target {}",
         queryId, jobResultsRequest.getForeman().getAddress());
+      StreamObserver<JobResultsRequest> streamObserver =
+        resultForwardingStreams.computeIfAbsent(queryId, k -> {
+          responseSenderQueueForQuery.put(queryId, Queues.newConcurrentLinkedQueue());
+          final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(jobResultsRequest.getForeman());
+          final JobResultsServiceGrpc.JobResultsServiceStub stub = JobResultsServiceGrpc.newStub(channel);
+          Pointer<StreamObserver<JobResultsRequest>> streamObserverInternal = new Pointer<>();
+          Context.current().fork().run( () -> {
+            streamObserverInternal.value = stub.jobResults(new StreamObserver<JobResultsResponse>() {
+            private final String queryIdForStream = queryId;
+            @Override
+            public void onNext(JobResultsResponse value) {
+              ackit(queryIdForStream);
+            }
 
-      final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(jobResultsRequest.getForeman());
-      final JobResultsServiceGrpc.JobResultsServiceStub stub = JobResultsServiceGrpc.newStub(channel);
-      StreamObserver<JobResultsRequest> streamObserver = stub.jobResults(new StreamObserver<JobResultsResponse>() {
-        @Override
-        public void onNext(JobResultsResponse value) { ackit(sender); }
+            @Override
+            public void onError(Throwable t) {
+              try {
+                logger.error("Failed to forward job results request to {} for queryId {}",
+                  jobResultsRequest.getForeman().getAddress(), queryId, t);
+                cleanupQuery(queryId);
+                // ok to use any sender since they all point to the same response observer.
+                sender.sendFailure(new UserRpcException(jobResultsRequest.getForeman(), "Failed to forward job results request", t));
+              } catch (IllegalStateException e) {
+                // if the "sender" has illegal state, then no point of sending ack. So ignore the exception.
+                logger.debug("Exception raised while acking onError for JobResultsResponse: {}", e);
+              }
+            }
 
-        @Override
-        public void onError(Throwable t) {
-          try {
-            logger.error("Failed to forward job results request to {} for queryId {}",
-              jobResultsRequest.getForeman().getAddress(), queryId, t);
-            sender.sendFailure(new UserRpcException(jobResultsRequest.getForeman(), "Failed to forward job results request", t));
-          } catch (IllegalStateException e) {
-            // if the "sender" has illegal state, then no point of sending ack. So ignore the exception.
-            logger.debug("Exception raised while acking onError for JobResultsResponse: {}", e);
-          }
-        }
+            @Override
+            public void onCompleted() {
+              // we initiated the closure. nothing to do.
+              logger.info("Forwarding for query {} complete.", queryId);
+            }
+          });
+            });
+          return streamObserverInternal.value;
+        });
 
-        @Override
-        public void onCompleted() { ackit(sender); }
-      });
-
-      streamObserver.onNext(jobResultsRequest);
+      // make sure we are writing results
+      // sequentially
+      synchronized (streamObserver) {
+        responseSenderQueueForQuery.get(queryId).add(sender);
+        streamObserver.onNext(jobResultsRequest);
+      }
 
     } else {
       logger.info("User data arrived post query termination from {}, dropping. Data was from QueryId: {}.",
@@ -137,7 +166,33 @@ public class MaestroForwarderImpl implements MaestroForwarder {
     }
   }
 
-  private void ackit(ResponseSender sender){
+  private void cleanupQuery(String queryId) {
+    resultForwardingStreams.remove(queryId);
+    responseSenderQueueForQuery.remove(queryId);
+  }
+
+  @Override
+  public void resultsCompleted(String queryId) {
+    StreamObserver<JobResultsRequest> streamObserver = resultForwardingStreams.get(queryId);
+    if (streamObserver != null) {
+      streamObserver.onCompleted();
+      cleanupQuery(queryId);
+    }
+  }
+
+  @Override
+  public void resultsError(String queryId, Throwable exception) {
+    StreamObserver<JobResultsRequest> streamObserver = resultForwardingStreams.get(queryId);
+    if (streamObserver != null) {
+      streamObserver.onError(exception);
+      cleanupQuery(queryId);
+    }
+  }
+
+  private void ackit(String queryId){
+    // response will be in order. pop the sender in order
+    // so that we use the right sequence id.
+    ResponseSender sender = responseSenderQueueForQuery.get(queryId).remove();
     sender.send(new Response(RpcType.ACK, Acks.OK));
   }
 

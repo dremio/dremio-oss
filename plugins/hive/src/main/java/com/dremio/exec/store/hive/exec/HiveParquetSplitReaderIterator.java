@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.arrow.util.Preconditions;
 import org.apache.hadoop.mapred.JobConf;
@@ -30,7 +31,6 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.Closeable;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.HiveParquetCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
 import com.dremio.exec.store.RuntimeFilterEvaluator;
@@ -42,6 +42,7 @@ import com.dremio.exec.store.dfs.implicit.NameValuePair;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.metadata.ManagedHiveSchema;
+import com.dremio.exec.store.parquet.ParquetCoercionReader;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
@@ -156,12 +157,12 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
 
         curr.setNextFileSplitReader(next);
 
-        return currentUGI.doAs((PrivilegedAction<HiveParquetCoercionReader>) () -> {
+        return currentUGI.doAs((PrivilegedAction<ParquetCoercionReader>) () -> {
             final TypeCoercion hiveTypeCoercion = new HiveTypeCoercion(hiveSchema.getTypeInfos(),
                     hiveSchema.isVarcharTruncationEnabled());
             RecordReader wrappedRecordReader = compositeReader.wrapIfNecessary(context.getAllocator(), curr,
                     hiveParquetSplits.get(location).getDatasetSplit());
-            return HiveParquetCoercionReader.newInstance(context, compositeReader.getInnerColumns(),
+            return ParquetCoercionReader.newInstance(context, compositeReader.getInnerColumns(),
                     wrappedRecordReader, fullSchema, hiveTypeCoercion, curr.getFilterConditions());
         });
     }
@@ -192,7 +193,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
 
     private FileSplitParquetRecordReader createFileSplitReaderFromSplit(final HiveParquetSplit hiveParquetSplit) {
         try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-            final List<HiveReaderProto.Prop> partitionProperties;
+            final Stream<HiveReaderProto.Prop> partitionProperties;
             // If Partition Properties are stored in DatasetMetadata (Pre 3.2.0)
             if (HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr)) {
                 logger.debug("Reading partition properties from DatasetMetadata");
@@ -203,10 +204,7 @@ public class HiveParquetSplitReaderIterator implements RecordReaderIterator {
                         HiveReaderProtoUtil.getPartitionXattr(hiveParquetSplit.getDatasetSplit()));
             }
 
-            for (HiveReaderProto.Prop prop : partitionProperties) {
-                jobConf.set(prop.getKey(), prop.getValue());
-            }
-
+            partitionProperties.forEach(prop -> jobConf.set(prop.getKey(), prop.getValue()));
             final List<ParquetFilterCondition> copyOfFilterConditions =
                     conditions==null ? null:
                             conditions.stream()

@@ -33,7 +33,6 @@ import org.apache.calcite.avatica.MissingResultsException;
 import org.apache.calcite.avatica.NoSuchStatementException;
 import org.apache.calcite.avatica.QueryState;
 import org.apache.calcite.avatica.remote.TypedValue;
-import org.apache.calcite.util.Util;
 
 import com.dremio.exec.client.ServerMethod;
 import com.google.common.collect.ImmutableList;
@@ -219,7 +218,7 @@ class DremioMetaImpl extends MetaImpl {
         };
 
     for (String sqlCommand : sqlCommands) {
-      Util.discard(prepareAndExecute(h, sqlCommand, -1L, -1, callback));
+      prepareAndExecute(h, sqlCommand, -1L, -1, callback);
     }
     return new ExecuteBatchResult(Longs.toArray(updateCounts));
   }

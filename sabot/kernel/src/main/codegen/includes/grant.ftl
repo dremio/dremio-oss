@@ -370,12 +370,12 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
     |
     <PROJECT> {
       grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.PROJECT, getPos()));
-      entity = SimpleIdentifier();
+      entity = null;
     }
     |
     <ORG> {
       grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.ORG, getPos()));
-      entity = SimpleIdentifier();
+      entity = null;
     }
     |
     <CLOUD> {
@@ -387,7 +387,11 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
       grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.ENGINE, getPos()));
       entity = SimpleIdentifier();
     }
-
+    |
+    <ROLE> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.ROLE, getPos()));
+      entity = SimpleIdentifier();
+    }
   )
   <TO>
     granteeType = ParseGranteeType()

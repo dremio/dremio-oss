@@ -64,7 +64,7 @@ public class ITTestEmptyIndexType extends ElasticBaseTestQuery {
   @Test
   public void testIndexNotPresent() throws Exception {
     errorMsgTestHelper("SELECT * FROM elasticsearch.noIndex.noTable",
-        "Table 'elasticsearch.noIndex.noTable' not found");
+        "'noIndex' not found within 'elasticsearch'");
 
     final ElasticsearchCluster.ColumnData[] justMapping = new ElasticsearchCluster.ColumnData[]{
         new ElasticsearchCluster.ColumnData("full_address", TEXT, null),
@@ -75,6 +75,6 @@ public class ITTestEmptyIndexType extends ElasticBaseTestQuery {
 
     elastic.load(schema, table, justMapping);
     errorMsgTestHelper(String.format("SELECT * FROM elasticsearch.%s.noTable", schema),
-        String.format("Table 'elasticsearch.%s.noTable' not found", schema));
+        "not found within 'elasticsearch");
   }
 }

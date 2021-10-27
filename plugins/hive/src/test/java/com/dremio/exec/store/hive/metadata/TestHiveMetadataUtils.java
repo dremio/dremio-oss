@@ -85,7 +85,7 @@ public class TestHiveMetadataUtils {
 
   @Test
   public void getHiveTableCapabilities_abfs_supportsImpersonation() {
-    assertTrue(HiveMetadataUtils.getHiveStorageCapabilities(storageDescriptor_abfs).supportsImpersonation());
+    assertFalse(HiveMetadataUtils.getHiveStorageCapabilities(storageDescriptor_abfs).supportsImpersonation());
   }
 
   @Test

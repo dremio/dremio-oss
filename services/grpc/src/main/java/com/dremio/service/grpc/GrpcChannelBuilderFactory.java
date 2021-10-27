@@ -42,7 +42,6 @@ public interface GrpcChannelBuilderFactory {
 
   ManagedChannelBuilder<?> newManagedChannelBuilder(String target, Map<String, Object> defaultServiceConfigProvider);
 
-
   /**
    * Returns a new gRPC InProcessChannelBuilder with instrumentation.
    */

@@ -42,7 +42,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 
-import com.dremio.exec.planner.sql.SqlFlattenOperator;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.google.common.collect.Lists;
 
 public class PushFilterPastProjectRule extends RelOptRule {
@@ -82,7 +82,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
             @Override
             public Void visitCall(RexCall call) {
               if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
-                  SqlFlattenOperator.INSTANCE.getName().toLowerCase().equals(call.getOperator().getName().toLowerCase())) {
+                  DremioSqlOperatorTable.FLATTEN.getName().toLowerCase().equals(call.getOperator().getName().toLowerCase())) {
                 throw new Util.FoundOne(call);
               }
               return super.visitCall(call);
@@ -239,7 +239,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
     @Override
     public Void visitCall(RexCall call) {
       if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
-          SqlFlattenOperator.INSTANCE.getName().toLowerCase().equals(call.getOperator().getName().toLowerCase())) {
+          DremioSqlOperatorTable.FLATTEN.getName().equalsIgnoreCase(call.getOperator().getName())) {
         throw new Util.FoundOne(call);
       }
       return super.visitCall(call);

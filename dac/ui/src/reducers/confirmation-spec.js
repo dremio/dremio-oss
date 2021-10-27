@@ -44,6 +44,7 @@ describe('confirmation reducer', () => {
         cancelText: 'Cancel',
         confirm: confirmFn,
         cancel: cancelFn,
+        style: {},
         doNotAskAgainKey: 'Do not ask again key',
         doNotAskAgainText: 'Do not ask again text',
         hideCancelButton: true,
@@ -52,7 +53,8 @@ describe('confirmation reducer', () => {
         promptLabel: 'Prompt Label',
         promptFieldProps: {},
         dataQa: 'test',
-        validatePromptText: validateFn
+        validatePromptText: validateFn,
+        isCentered: true
       });
       expect(result).to.be.eql({
         isOpen: true,
@@ -63,6 +65,7 @@ describe('confirmation reducer', () => {
         confirmButtonStyle: undefined,
         confirm: confirmFn,
         cancel: cancelFn,
+        style: {},
         doNotAskAgainKey: 'Do not ask again key',
         doNotAskAgainText: 'Do not ask again text',
         hideCancelButton: true,
@@ -71,7 +74,8 @@ describe('confirmation reducer', () => {
         promptLabel: 'Prompt Label',
         promptFieldProps: {},
         dataQa: 'test',
-        validatePromptText: validateFn
+        validatePromptText: validateFn,
+        isCentered: true
       });
     });
   });

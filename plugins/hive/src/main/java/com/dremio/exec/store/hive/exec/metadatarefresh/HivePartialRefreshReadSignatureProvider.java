@@ -21,6 +21,7 @@ import static com.dremio.exec.store.hive.exec.metadatarefresh.HiveFullRefreshRea
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.apache.arrow.util.Preconditions;
 
@@ -39,15 +40,15 @@ public class HivePartialRefreshReadSignatureProvider extends AbstractReadSignatu
 
   public HivePartialRefreshReadSignatureProvider(ByteString existingReadSignature,
                                                  final String dataTableRoot, final long queryStartTime,
-                                                 List<String> partitionPaths) {
-    super(dataTableRoot, queryStartTime, path -> true);
+                                                 List<String> partitionPaths, Predicate<String> partitionExists) {
+    super(dataTableRoot, queryStartTime, partitionExists);
     oldReadSignatureBytes = existingReadSignature;
     this.partitionPaths = partitionPaths;
   }
 
   @Override
   public ByteString compute(Set<IcebergPartitionData> addedPartitions, Set<IcebergPartitionData> deletedPartitions) {
-    assertPartitionsCount(addedPartitions, deletedPartitions);
+    assertPartitionsCount(deletedPartitions);
     final HiveReaderProto.HiveReadSignature oldReadSignature = decodeHiveReadSignatureByteString(oldReadSignatureBytes);
     final List<HiveReaderProto.FileSystemPartitionUpdateKey> fileSystemPartitionUpdateKeys = new ArrayList<>();
 
@@ -62,17 +63,19 @@ public class HivePartialRefreshReadSignatureProvider extends AbstractReadSignatu
         }
       });
     // add new partitions
-    partitionPaths.stream()
+    partitionPaths
+      .stream()
+      .filter(path -> doesPartitionExist.test(path))
       .forEach(path -> fileSystemPartitionUpdateKeys.add(createFileSystemPartitionUpdateKey(path, queryStartTime)));
 
-    return HiveReaderProto.HiveReadSignature.newBuilder()
+    return fileSystemPartitionUpdateKeys.isEmpty() ? ByteString.EMPTY : HiveReaderProto.HiveReadSignature.newBuilder()
       .setType(HiveReaderProto.HiveReadSignatureType.FILESYSTEM)
       .addAllFsPartitionUpdateKeys(fileSystemPartitionUpdateKeys)
       .build()
       .toByteString();
   }
 
-  private void assertPartitionsCount(Set<IcebergPartitionData> addedPartitions, Set<IcebergPartitionData> deletedPartitions) {
+  private void assertPartitionsCount(Set<IcebergPartitionData> deletedPartitions) {
     Preconditions.checkArgument(deletedPartitions.size() == 0, "Delete data file operation not allowed in Hive partial metadata refresh");
   }
 }

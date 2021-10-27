@@ -29,12 +29,12 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.FlightProtos.CoordinatorFlightTicket;
 import com.dremio.exec.proto.FlightProtos.JobsFlightTicket;
 import com.dremio.exec.record.RecordBatchHolder;
+import com.dremio.service.flight.FlightRpcUtils;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsProtoUtil;
-import com.dremio.service.jobs.JobsRpcUtils;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.RecordBatches;
 import com.google.common.base.Preconditions;
@@ -106,7 +106,7 @@ public class JobDataWrapper implements JobData {
       List<RecordBatchHolder> batches = JobDataClientUtils.getData(stream, allocator, limit);
       return new JobDataFragmentWrapper(offset, ReleasingData.from(new RecordBatches(batches), jobId));
     } catch (FlightRuntimeException fre) {
-      Optional<UserException> ue = JobsRpcUtils.fromFlightRuntimeException(fre);
+      Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(fre);
       throw ue.isPresent() ? ue.get() : fre;
     } catch (Exception e) {
       Throwables.throwIfUnchecked(e);

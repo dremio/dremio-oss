@@ -17,9 +17,9 @@ package com.dremio.service.accelerator;
 
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.slf4j.Logger;
@@ -55,7 +55,7 @@ public class AccelerationMaterializationUtils {
     return dataPartitions.toString();
   }
 
-  public static Iterable<AccelerationListManager.MaterializationInfo> getMaterializationsFromStore(MaterializationStore materializationStore) {
+  public static Iterator<AccelerationListManager.MaterializationInfo> getMaterializationsFromStore(MaterializationStore materializationStore) {
     return StreamSupport.stream(ReflectionUtils.getAllMaterializations(materializationStore).spliterator(), false)
       .map(materialization -> {
           long footPrint = -1L;
@@ -91,6 +91,6 @@ public class AccelerationMaterializationUtils {
             dataPartitionsToString(materialization.getPartitionList()),
             new Timestamp(Optional.ofNullable(materialization.getLastRefreshFromPds()).orElse(0L))
           );
-       }).collect(Collectors.toList());
+       }).iterator();
   }
 }

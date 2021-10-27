@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -31,10 +32,8 @@ import com.dremio.hive.proto.HiveReaderProto.HiveTableXattrOrBuilder;
 import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.PropertyCollectionType;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -235,28 +234,21 @@ public final class HiveReaderProtoUtil {
   }
 
   /**
-   * Get the list of table properties from the given attribute.
+   * Get table properties from the given attribute.
    *
    * @param tableXattr hive table extended attribute
-   * @return list of table properties
+   * @return a stream of table properties
    */
-  public static List<Prop> getTableProperties(final HiveTableXattr tableXattr) {
+  public static Stream<Prop> getTableProperties(final HiveTableXattr tableXattr) {
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.getTablePropertyList();
+      return tableXattr.getTablePropertyList().stream();
     }
 
-    return FluentIterable.from(tableXattr.getTablePropertySubscriptList())
-        .transform(new Function<Integer, Prop>() {
-          @Override
-          public Prop apply(Integer input) {
-            return Prop.newBuilder()
-                .setKey(tableXattr.getPropertyDictionary(input)
-                    .getKey())
-                .setValue(tableXattr.getPropertyDictionary(input)
-                    .getValue())
-                .build();
-          }
-        }).toList();
+    return tableXattr.getTablePropertySubscriptList().stream()
+      .map(input -> Prop.newBuilder()
+        .setKey(tableXattr.getPropertyDictionary(input).getKey())
+        .setValue(tableXattr.getPropertyDictionary(input).getValue())
+        .build());
   }
 
   /**
@@ -316,12 +308,11 @@ public final class HiveReaderProtoUtil {
    * @param partitionIndex partition index
    * @return list of properties
    */
-  public static List<Prop> getPartitionProperties(final HiveTableXattr tableXattr, int partitionIndex) {
+  public static Stream<Prop> getPartitionProperties(final HiveTableXattr tableXattr, int partitionIndex) {
     Preconditions.checkArgument(partitionIndex >= 0 && partitionIndex < tableXattr.getPartitionXattrsList().size());
 
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.getPartitionXattrs(partitionIndex)
-        .getPartitionPropertyList();
+      return tableXattr.getPartitionXattrs(partitionIndex).getPartitionPropertyList().stream();
     }
 
     return getPartitionProperties(tableXattr, tableXattr.getPartitionXattrs(partitionIndex));
@@ -335,13 +326,12 @@ public final class HiveReaderProtoUtil {
    * @param partitionXattr hive partition extended attribute
    * @return list of properties
    */
-  public static List<Prop> getPartitionProperties(final HiveTableXattr tableXattr, final PartitionXattr partitionXattr) {
+  public static Stream<Prop> getPartitionProperties(final HiveTableXattr tableXattr, final PartitionXattr partitionXattr) {
     return partitionXattr.getPropertySubscriptList().stream()
       .map(input -> Prop.newBuilder()
         .setKey(tableXattr.getPropertyDictionary(input).getKey())
         .setValue(tableXattr.getPropertyDictionary(input).getValue())
-        .build())
-      .collect(Collectors.toList());
+        .build());
   }
 
   /**

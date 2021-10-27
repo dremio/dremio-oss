@@ -38,6 +38,7 @@ import enableFatalPropTypes from '@app/enableFatalPropTypes';
 
 import ModalsContainer from '@app/components/Modals/ModalsContainer';
 import AboutModal from '@app/pages/HomePage/components/modals/AboutModal/AboutModal';
+import InviteHOC from '@inject/containers/InviteHOC';
 import NotificationContainer from '@app/containers/Notification';
 import ConfirmationContainer from '@app/containers/Confirmation';
 import ProdErrorContainer from '@app/containers/ProdError';
@@ -234,6 +235,7 @@ function mapStateToProps(state) {
 }
 
 export default compose(
+  InviteHOC,
   withHookProvider,
   connect(mapStateToProps),
   DnDContextDecorator

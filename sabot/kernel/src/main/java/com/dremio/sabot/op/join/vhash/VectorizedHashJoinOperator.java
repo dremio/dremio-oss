@@ -23,7 +23,9 @@ import static org.apache.arrow.util.Preconditions.checkState;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -86,7 +88,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashJoinOperator.class);
 
-  public static enum Mode {
+  public enum Mode {
     UNKNOWN,
     VECTORIZED_GENERIC,
     VECTORIZED_BIGINT
@@ -138,6 +140,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   private final RuntimeFilterManager filterManager;
 
   private final VectorContainer outgoing;
+  private final Map<String, String> build2ProbeKeyMap = new HashMap<>();
   private ExpandableHyperContainer hyperContainer;
   private Mode mode = Mode.UNKNOWN;
 
@@ -162,6 +165,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   private boolean debugInsertion = false;
   private long outputRecords = 0;
   private int runtimeValFilterCap;
+  private long duplicateBuildRecordCount;
 
   public VectorizedHashJoinOperator(OperatorContext context, HashJoinPOP popConfig) throws OutOfMemoryException {
     this.context = context;
@@ -225,6 +229,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       buildFields.add(new FieldVectorPair(build, build));
       final FieldVector probe = getField(left, c.getLeft());
       probeFields.add(new FieldVectorPair(probe, probe));
+      if (mode == Mode.VECTORIZED_GENERIC) {
+        build2ProbeKeyMap.put(build.getField().getName(), probe.getField().getName());
+      }
 
       /* Collect the corresponding probe side field vectors for build side keys
        * Only for VECTORIZED_GENERIC, we should do it because we don't know the final mode
@@ -461,6 +468,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         PlatformDependent.putInt(startIndexMemStart, buildBatch);
         PlatformDependent.putShort(startIndexMemStart + 4, (short) incomingRecordIndex);
       } else {
+        duplicateBuildRecordCount++;
         /* Head of this list is not empty, if the first link
          * is empty insert there
          */
@@ -514,6 +522,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     stats.setLongStat(Metric.VECTORIZED, mode.ordinal());
     stats.setLongStat(Metric.LINK_TIME_NANOS, linkWatch.elapsed(ns));
+    stats.setLongStat(Metric.DUPLICATE_BUILD_RECORD_COUNT, duplicateBuildRecordCount);
 
     if(probe != null){
       stats.setLongStat(Metric.PROBE_PIVOT_NANOS, table.getProbePivotTime(ns));
@@ -528,6 +537,10 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.UNMATCHED_PROBE_COUNT, probe.getUnmatchedProbeCount());
       stats.setLongStat(Metric.OUTPUT_RECORDS, outputRecords);
       stats.setLongStat(Metric.PROBE_HASHCOMPUTATION_TIME_NANOS, table.getProbeHashComputationTime(ns));
+
+      stats.setLongStat(Metric.EXTRA_CONDITION_EVALUATION_COUNT, probe.getEvaluationCount());
+      stats.setLongStat(Metric.EXTRA_CONDITION_EVALUATION_MATCHED, probe.getEvaluationMatchedCount());
+      stats.setLongStat(Metric.EXTRA_CONDITION_SETUP_NANOS, probe.getSetupNanos());
     }
   }
 
@@ -544,13 +557,14 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     tryPushRuntimeFilter();
     this.probe = new VectorizedProbe();
     this.probe.setup(
-        context.getAllocator(),
+        context,
         hyperContainer,
         left,
         probeOutputs,
         buildOutputs,
         probeIncomingKeys,
         buildOutputKeys,
+        build2ProbeKeyMap,
         mode,
         config.getJoinType(),
         buildInfoList,
@@ -558,10 +572,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         keyMatchBitVectors,
         maxHashTableIndex,
         table,
-        probePivot,
         buildUnpivot,
-        context.getTargetBatchSize(),
-        comparator);
+        config.getExtraCondition());
     state = State.CAN_CONSUME_L;
   }
 

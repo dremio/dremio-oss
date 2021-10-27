@@ -43,6 +43,8 @@ message NameSpaceContainer {
   optional com.dremio.service.namespace.space.proto.HomeConfig home = 7;
 
   repeated common.Any attributes = 8;
+
+  optional int32 version = 9 [default = 0];
 }
 
 message NameSpaceContainers {

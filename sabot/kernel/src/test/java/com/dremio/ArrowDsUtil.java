@@ -17,6 +17,7 @@ package com.dremio;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
@@ -59,6 +60,14 @@ public class ArrowDsUtil {
   public static JsonStringArrayList<BigDecimal> decimalList(String value) {
     JsonStringArrayList<BigDecimal> list = new JsonStringArrayList<>(1);
     list.add(new BigDecimal(value));
+    return list;
+  }
+
+  public static JsonStringArrayList<BigDecimal> listOfDecimals(List<String> values) {
+    JsonStringArrayList<BigDecimal> list = new JsonStringArrayList<>(values.size());
+    for (String value: values) {
+      list.add(new BigDecimal(value));
+    }
     return list;
   }
 

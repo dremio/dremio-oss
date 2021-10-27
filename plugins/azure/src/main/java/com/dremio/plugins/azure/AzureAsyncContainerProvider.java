@@ -130,15 +130,17 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
 
   @Override
   public void assertContainerExists(final String containerName) {
-    // API: https://docs.microsoft.com/en-gb/rest/api/storageservices/datalakestoragegen2/filesystem/getproperties
+    // API: https://docs.microsoft.com/en-gb/rest/api/storageservices/datalakestoragegen2/path/list
     logger.debug("Checking for missing azure container " + account + ":" + containerName);
-    final Request req = new RequestBuilder(HttpConstants.Methods.HEAD)
+    final Request req = new RequestBuilder(HttpConstants.Methods.GET)
       .addHeader("x-ms-date", toHttpDateFormat(System.currentTimeMillis()))
       .addHeader("x-ms-version", XMS_VERSION)
-      .addHeader("Content-Length", 0)
       .addHeader("x-ms-client-request-id", UUID.randomUUID().toString())
+      .addHeader("Content-Length", 0)
       .setUrl(AzureAsyncHttpClientUtils.getBaseEndpointURL(azureEndpoint, account, true) + "/" + containerName)
+      .addQueryParam("recursive", "false")
       .addQueryParam("resource", "filesystem")
+      .addQueryParam("maxresults", "1")
       .addQueryParam("timeout", String.valueOf(requestTimeoutSeconds)).build();
 
     req.getHeaders().add("Authorization", authProvider.getAuthzHeaderValue(req));
@@ -152,8 +154,8 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
       if (status == 200) {
         logger.debug("Azure container is found valid " + account + ":" + containerName);
       } else if (status == 403) {
-        throw new ContainerAccessDeniedException(String.format("Access to container %s denied - [%d %s]", containerName,
-                status, response.getStatusText()));
+        throw new ContainerAccessDeniedException(String.format("Either access to container %s was denied or Container %s does not exist - [%d %s]", containerName,
+                containerName, status, response.getStatusText()));
       } else {
         throw new ContainerNotFoundException(String.format("Unable to find container %s - [%d %s]", containerName,
                 status, response.getStatusText()));
@@ -171,7 +173,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
         assertContainerExists(c);
       } catch (Retryer.OperationFailedAfterRetriesException e) {
         throw UserException.validationError()
-          .message(String.format("Failure while validating existence of container %s. Error %s", c, e.getCause().getMessage()))
+          .message(String.format("Failure while validating existence of container %s. Error: %s", c, e.getCause().getMessage()))
           .build();
       }
     }

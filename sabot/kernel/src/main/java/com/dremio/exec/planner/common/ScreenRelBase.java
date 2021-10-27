@@ -40,7 +40,7 @@ public abstract class ScreenRelBase extends SingleRel {
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
-      return super.computeSelfCost(planner).multiplyBy(.1);
+      return super.computeSelfCost(planner, relMetadataQuery).multiplyBy(.1);
     }
     // by default, assume cost is proportional to number of rows
     double rowCount = relMetadataQuery.getRowCount(this);

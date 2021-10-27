@@ -45,6 +45,7 @@ const Select = (props) => {
     onChange,
     label,
     name,
+    helpText,
     ...otherProps
   } = props;
 
@@ -53,7 +54,7 @@ const Select = (props) => {
 
   return (
     <div className={rootClass}>
-      { label && <Label value={label} className={labelClass} id={`select-label-${name}`}/> }
+      { label && <Label value={label} className={labelClass} id={`select-label-${name}`} helpText={helpText}/> }
 
       <MuiSelect
         classes={{
@@ -97,7 +98,8 @@ Select.propTypes = {
   })).isRequired,
   onChange: PropTypes.func,
   label: PropTypes.string,
-  name: PropTypes.string
+  name: PropTypes.string,
+  helpText: PropTypes.string
 };
 
 Select.defaultProps = {

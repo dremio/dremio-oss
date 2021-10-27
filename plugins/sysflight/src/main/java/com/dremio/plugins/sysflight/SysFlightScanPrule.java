@@ -40,6 +40,7 @@ public class SysFlightScanPrule extends RelOptRule {
         logicalScan.getTraitSet().replace(Prel.PHYSICAL),
         logicalScan.getTable(),
         logicalScan.getTableMetadata(),
+        null,
         logicalScan.getProjectedColumns(),
         logicalScan.getObservedRowcountAdjustment()
         );

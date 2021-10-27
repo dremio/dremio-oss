@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Optional;
 
+import org.apache.calcite.util.Pair;
+
 import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -39,16 +41,16 @@ public class DeltaLastCheckPointReader {
 
   }
 
-  public static Optional<Long> getLastCheckPoint(FileSystem fs, Path versionFilePath) throws IOException {
+  public static Pair<Optional<Long>, Optional<Long>> getLastCheckPoint(FileSystem fs, Path versionFilePath) throws IOException {
     if (fs.exists(versionFilePath)) {
       try (final FSInputStream lastCheckPointFs = fs.open(versionFilePath);
            final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(lastCheckPointFs))) {
         final LastCheckpoint checkpoint = OBJECT_MAPPER.readValue(bufferedReader.readLine(), LastCheckpoint.class);
-        return Optional.of(checkpoint.version);
+        return new Pair(Optional.of(checkpoint.version), Optional.ofNullable(checkpoint.parts));
       }
     }
 
-    return Optional.empty();
+    return new Pair(Optional.empty(), Optional.empty());
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -57,6 +59,8 @@ public class DeltaLastCheckPointReader {
     Long version;
     @JsonProperty
     Long size;
+    @JsonProperty
+    Long parts;
 
     public LastCheckpoint() {
     }

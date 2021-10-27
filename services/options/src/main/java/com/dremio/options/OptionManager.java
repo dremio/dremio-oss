@@ -15,6 +15,9 @@
  */
 package com.dremio.options;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.dremio.options.OptionValue.OptionType;
 
 /**
@@ -78,5 +81,13 @@ public interface OptionManager extends Iterable<OptionValue>, OptionResolver {
 
   default void addOptionChangeListener(OptionChangeListener optionChangeListener) throws UnsupportedOperationException {
     throw new UnsupportedOperationException("Adding option change listener not supported");
+  }
+
+  default Map<String, String> optionsAsMap(String... keys) {
+    Map<String, String> props = new HashMap<>();
+    for (String key : keys) {
+      props.put(key, String.valueOf(getOption(key).getValue()));
+    }
+    return props;
   }
 }

@@ -23,15 +23,16 @@ import java.util.Map;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.planner.fragment.ParallelizationInfo;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 public abstract class AbstractExchange extends AbstractSingle implements Exchange {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractExchange.class);
 
   protected final OpProps senderProps;
   protected final OpProps receiverProps;
@@ -43,11 +44,27 @@ public abstract class AbstractExchange extends AbstractSingle implements Exchang
   protected List<NodeEndpoint> senderLocations;
   protected List<NodeEndpoint> receiverLocations;
 
-  public AbstractExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema, PhysicalOperator child) {
+  private boolean isMemReserveUpdated = false;
+
+  private final OptionManager optionManager;
+
+  public AbstractExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema, PhysicalOperator child, OptionManager optionManager) {
     super(props, child);
     this.senderProps = senderProps;
     this.receiverProps = receiverProps;
     this.schema = schema;
+    this.optionManager = optionManager;
+  }
+
+  protected long computeMemReserve() {
+    final boolean enableAccurateMemoryCalculation = optionManager.getOption(PlannerSettings.ENABLE_ACCURATE_MEMORY_ESTIMATION);
+    if(enableAccurateMemoryCalculation && !isMemReserveUpdated && receiverLocations != null && receiverLocations.size() >= 1) {
+      isMemReserveUpdated = true;
+
+      //Memory required by HashPartitionSender depends on number of downstream receiver fragments
+      props.setMemReserve(receiverLocations.size() * props.getMemReserve());
+    }
+    return props.getMemReserve();
   }
 
   /**

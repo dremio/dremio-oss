@@ -17,6 +17,7 @@
 package com.dremio.exec.expr.fn.ItemsSketch;
 
 
+import java.io.Serializable;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -43,6 +44,13 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.datasketches.ArrayOfBooleansSerDe;
+import org.apache.datasketches.ArrayOfDoublesSerDe;
+import org.apache.datasketches.ArrayOfItemsSerDe;
+import org.apache.datasketches.ArrayOfLongsSerDe;
+import org.apache.datasketches.ArrayOfNumbersSerDe;
+import org.apache.datasketches.ArrayOfStringsSerDe;
 
 import com.dremio.exec.expr.AggrFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
@@ -78,20 +86,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Integer>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Integer>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.value);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Number> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -102,7 +110,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -124,20 +132,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Long>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Long>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Long>) sketch.obj).update(in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj).update(in.value);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Long> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Long>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfLongsSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfLongsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -148,7 +156,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Long>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Long>(maxSize.value);
     }
   }
 
@@ -170,20 +178,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Number>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Number>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.milliseconds);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.milliseconds);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Number> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -194,7 +202,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Number>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Number>(maxSize.value);
     }
   }
 
@@ -216,20 +224,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Number>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Number>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.value);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Number> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -240,7 +248,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Number>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Number>(maxSize.value);
     }
   }
 
@@ -262,20 +270,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Number>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Number>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.value);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Number> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj;
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -286,7 +294,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -308,20 +316,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Double>) sketch.obj).update(in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj).update(in.value);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Double> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Double>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfDoublesSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj;
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfDoublesSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -332,7 +340,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -354,20 +362,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Long>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Long>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Long>) sketch.obj).update(in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj).update(in.value);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Long> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Long>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfLongsSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = (org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj;
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfLongsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -378,7 +386,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -401,20 +409,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Number>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Number>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj).update(in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).update((long)in.value);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Number> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -425,7 +433,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -447,20 +455,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Long>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Long>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Long>) sketch.obj).update(in.value);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj).update(in.value);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Long> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Long>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfLongsSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfLongsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -471,7 +479,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -493,20 +501,20 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Boolean>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Boolean>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Boolean>) sketch.obj).update(in.value == 1);
+        ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj).update(in.value == 1);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Boolean> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Boolean>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfBooleansSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfBooleansSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -517,7 +525,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -539,21 +547,21 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<String>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<String>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        ((com.yahoo.sketches.frequencies.ItemsSketch<String>) sketch.obj).update(
+        ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj).update(
           com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer));
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<String> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<String>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfStringsSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfStringsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -564,7 +572,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -589,22 +597,22 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Number>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Number>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        com.yahoo.sketches.frequencies.ItemsSketch<Number> itemsSketch = com.yahoo.sketches.frequencies.ItemsSketch.getInstance(
-          com.yahoo.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start)), new com.yahoo.sketches.ArrayOfNumbersSerDe());
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj).merge(itemsSketch);
+        org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+           org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfNumbersSerDe());
+        ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Number> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Number>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfNumbersSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Number> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Number>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfNumbersSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -615,7 +623,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Number>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Number>(maxSize.value);
     }
   }
 
@@ -637,22 +645,22 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        com.yahoo.sketches.frequencies.ItemsSketch<Double> itemsSketch = com.yahoo.sketches.frequencies.ItemsSketch.getInstance(
-          com.yahoo.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start)), new com.yahoo.sketches.ArrayOfDoublesSerDe());
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Double>) sketch.obj).merge(itemsSketch);
+        org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+          org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfDoublesSerDe());
+        ((org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Double> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Double>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfDoublesSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Double> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Double>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfDoublesSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -663,7 +671,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Double>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Double>(maxSize.value);
     }
   }
 
@@ -685,22 +693,22 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<String>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<String>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        com.yahoo.sketches.frequencies.ItemsSketch<String> itemsSketch = com.yahoo.sketches.frequencies.ItemsSketch.getInstance(
-          com.yahoo.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start)), new com.yahoo.sketches.ArrayOfStringsSerDe());
-        ((com.yahoo.sketches.frequencies.ItemsSketch<String>) sketch.obj).merge(itemsSketch);
+        org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+          org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfStringsSerDe());
+        ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<String> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<String>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfStringsSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<String> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<String>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfStringsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -711,7 +719,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<String>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<String>(maxSize.value);
     }
   }
 
@@ -733,22 +741,22 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Long>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Long>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        com.yahoo.sketches.frequencies.ItemsSketch<Long> itemsSketch = com.yahoo.sketches.frequencies.ItemsSketch.getInstance(
-          com.yahoo.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start)), new com.yahoo.sketches.ArrayOfLongsSerDe());
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Long>) sketch.obj).merge(itemsSketch);
+        org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+          org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfLongsSerDe());
+        ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Long> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Long>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfLongsSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Long> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Long>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfLongsSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -759,7 +767,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Long>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Long>(maxSize.value);
     }
   }
 
@@ -782,22 +790,22 @@ public class ItemsSketchFunctions {
     public void setup() {
       sketch = new ObjectHolder();
       maxSize.value = (int) options.getOption(com.dremio.exec.ExecConstants.ITEMS_SKETCH_MAX_SIZE);
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Boolean>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Boolean>(maxSize.value);
     }
 
     @Override
     public void add() {
       if (in.isSet == 1) {
-        com.yahoo.sketches.frequencies.ItemsSketch<Boolean> itemsSketch = com.yahoo.sketches.frequencies.ItemsSketch.getInstance(
-          com.yahoo.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start)), new com.yahoo.sketches.ArrayOfBooleansSerDe());
-        ((com.yahoo.sketches.frequencies.ItemsSketch<Boolean>) sketch.obj).merge(itemsSketch);
+        org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch = org.apache.datasketches.frequencies.ItemsSketch.getInstance(
+          org.apache.datasketches.memory.Memory.wrap(in.buffer.nioBuffer(in.start, in.end - in.start).order(java.nio.ByteOrder.nativeOrder())), new org.apache.datasketches.ArrayOfBooleansSerDe());
+        ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj).merge(itemsSketch);
       }
     }
 
     @Override
     public void output() {
-      com.yahoo.sketches.frequencies.ItemsSketch<Boolean> itemsSketch = ((com.yahoo.sketches.frequencies.ItemsSketch<Boolean>) sketch.obj);
-      byte[] serialized = itemsSketch.toByteArray(new com.yahoo.sketches.ArrayOfBooleansSerDe());
+      org.apache.datasketches.frequencies.ItemsSketch<Boolean> itemsSketch = ((org.apache.datasketches.frequencies.ItemsSketch<Boolean>) sketch.obj);
+      byte[] serialized = itemsSketch.toByteArray(new org.apache.datasketches.ArrayOfBooleansSerDe());
       buffer = buffer.reallocIfNeeded(serialized.length);
       out.buffer = buffer;
       out.start = 0;
@@ -808,7 +816,7 @@ public class ItemsSketchFunctions {
 
     @Override
     public void reset() {
-      sketch.obj = new com.yahoo.sketches.frequencies.ItemsSketch<Boolean>(maxSize.value);
+      sketch.obj = new org.apache.datasketches.frequencies.ItemsSketch<Boolean>(maxSize.value);
     }
   }
 
@@ -959,6 +967,32 @@ public class ItemsSketchFunctions {
 
     public RelDataType getReturnType(RelDataTypeFactory typeFactory) {
       return type;
+    }
+  }
+
+  public static ArrayOfItemsSerDe<? extends Serializable> getSerdeFromSqlTypeName(SqlTypeName typeName) {
+    switch (typeName) {
+    case BOOLEAN:
+      return new ArrayOfBooleansSerDe();
+    case DOUBLE:
+    case DECIMAL:
+      return new ArrayOfDoublesSerDe();
+    case VARCHAR:
+      return new ArrayOfStringsSerDe();
+    case FLOAT:
+    case INTEGER:
+    case SMALLINT:
+    case TINYINT:
+    case VARBINARY:
+    case INTERVAL_DAY:
+    case TIME:
+      return new ArrayOfNumbersSerDe();
+    case BIGINT:
+    case DATE:
+    case TIMESTAMP:
+      return new ArrayOfLongsSerDe();
+    default:
+      throw new UnsupportedOperationException(String.format("Cannot Create Serde for type %s.", typeName.getName()));
     }
   }
 }

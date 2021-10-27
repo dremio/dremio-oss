@@ -16,6 +16,7 @@
 package com.dremio.exec.hadoop;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
 
@@ -35,8 +36,9 @@ interface MayProvideAsyncStream {
   /**
    * For a given file key, get an AsyncByteReader.
    * @param path path for which async reader is requested
+   * @param options
    * @return async reader
    * @throws IOException if async reader cannot be instantiated
    */
-  AsyncByteReader getAsyncByteReader(Path path, String version) throws IOException;
+  AsyncByteReader getAsyncByteReader(Path path, String version, Map<String, String> options) throws IOException;
 }

@@ -58,7 +58,7 @@ export default class DataFreshnessSection extends Component {
   static validate(values) {
     const errors = {};
 
-    if (values.accelerationRefreshPeriod  && values.accelerationRefreshPeriod < MIN_DURATION) {
+    if (values.accelerationRefreshPeriod === 0 || values.accelerationRefreshPeriod < MIN_DURATION) {
       if (config.subhourAccelerationPoliciesEnabled) {
         errors.accelerationRefreshPeriod = la('Reflection refresh must be at least 1 minute.');
       } else {

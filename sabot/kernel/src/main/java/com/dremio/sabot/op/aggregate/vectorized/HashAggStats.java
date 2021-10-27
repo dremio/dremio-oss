@@ -71,6 +71,8 @@ public class HashAggStats {
     ALLOCATED_FOR_VARIABLE_KEYS, /* total capacity allocated for variable block vectors */
     UNUSED_FOR_VARIABLE_KEYS, /* unused capacity for variable block vectors */
     MAX_VARIABLE_BLOCK_LENGTH, /* maximum amount of data (pivoted keys) that can be stored in variable block vector */
+    SPLICE_TIME,               /* total time takes for splicing */
+    SPLICE_COUNT,              /* total number of batches spliced */
 
     // OOB related metrics
     OOB_SENDS, // Number of times operator informed others of spilling

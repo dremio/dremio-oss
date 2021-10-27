@@ -23,8 +23,11 @@ import java.util.Map;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.Numbers;
 import com.dremio.sabot.op.common.ht2.ResizeListener;
 import com.google.common.annotations.VisibleForTesting;
@@ -45,7 +48,8 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   private final Accumulator[] children;
   private final Map<Integer, List<List<Integer>>> combinedAccumulators;
   private final List<Integer> singleAccumulators;
-  private final int validitySizeForSingleAccumulator;
+  private List<Accumulator> varLenAccums;
+  private List<Accumulator> fixedLenAccums;
 
   public AccumulatorSet(final long jointAllocationMin, final long jointAllocationLimit,
                         final BufferAllocator allocator, final Accumulator... children) {
@@ -54,7 +58,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     this.jointAllocationLimit = (int)jointAllocationLimit;
     this.allocator = allocator;
     this.children = children;
-    this.validitySizeForSingleAccumulator = children.length > 0 ? children[0].getValidityBufferSize() : 0;
+    updateVarlenAndFixedAccumusLst();
     final int numAllocationBuckets = Long.numberOfTrailingZeros(jointAllocationLimit) - Long.numberOfTrailingZeros(jointAllocationMin);
     this.combinedAccumulators = new HashMap<>(numAllocationBuckets);
     this.singleAccumulators = new ArrayList<>();
@@ -70,6 +74,20 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     computeAllocationBoundaries(sortedChildIndices, 0);
   }
 
+  public void updateVarlenAndFixedAccumusLst() {
+    varLenAccums = new ArrayList<Accumulator>();
+    fixedLenAccums = new ArrayList<Accumulator>();
+    for (Accumulator a : children) {
+      FieldVector output = a.getOutput();
+      final TypeProtos.MinorType type = CompleteType.fromField(output.getField()).toMinorType();
+      if (type == TypeProtos.MinorType.VARCHAR || type == TypeProtos.MinorType.VARBINARY) {
+        varLenAccums.add(a);
+      } else {
+        fixedLenAccums.add(a);
+      }
+    }
+  }
+
   @Override
   public void addBatch() throws Exception {
     addBatchWithLimitOptimizedForDirect();
@@ -78,7 +96,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   private int computeAccumulatorSize(int index) {
     final Accumulator accumulator = children[index];
     return Numbers.nextMultipleOfEight(accumulator.getDataBufferSize()) +
-      Numbers.nextMultipleOfEight(validitySizeForSingleAccumulator);
+      Numbers.nextMultipleOfEight(accumulator.getValidityBufferSize());
   }
 
   /**
@@ -179,7 +197,6 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   }
 
   private void allocatePowerOfTwoOrLessAndSlice(final int totalSize, List<Integer> childIndices) throws Exception {
-    final int validitySize = this.validitySizeForSingleAccumulator;
     try(AutoCloseables.RollbackCloseable rollbackable = new AutoCloseables.RollbackCloseable()) {
       final ArrowBuf bufferForAllAccumulators = allocator.buffer(totalSize);
       rollbackable.add(bufferForAllAccumulators);
@@ -187,8 +204,8 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
       for (final Integer index : childIndices) {
         Accumulator accumulator = children[index];
         // slice validity buffer from the combined buffer.
-        final ArrowBuf validityBuffer = bufferForAllAccumulators.slice(offset, validitySize);
-        offset += Numbers.nextMultipleOfEight(validitySize);
+        final ArrowBuf validityBuffer = bufferForAllAccumulators.slice(offset, accumulator.getValidityBufferSize());
+        offset += Numbers.nextMultipleOfEight(accumulator.getValidityBufferSize());
 
         // slice data buffer from the combined buffer.
         final int dataSize = accumulator.getDataBufferSize();
@@ -202,6 +219,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     } // hashtable/operator will handle the exception
   }
 
+  @Override
   public void accumulate(final long memoryAddr, final int count,
                          final int bitsInChunk, final int chunkOffsetMask) {
     for(Accumulator a : children){
@@ -209,14 +227,34 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     }
   }
 
-  public void output(int batchIndex) {
+  public void output(int batchIndex, int numRecords) {
     for(Accumulator a : children){
-      a.output(batchIndex);
+      a.output(batchIndex, numRecords);
     }
   }
 
   public Accumulator[] getChildren() {
     return children;
+  }
+
+  public List<Accumulator> getVarlenAccumChildern() {
+    return varLenAccums;
+  }
+
+  public List<FieldVector> getVarlenAccumulators(final int batchIndex) {
+    final List<FieldVector> varLenAccumulator = new ArrayList<FieldVector>();
+    for (Accumulator a : varLenAccums) {
+      varLenAccumulator.add(((BaseVarBinaryAccumulator)a).getAccumulatorVector(batchIndex));
+    }
+    return varLenAccumulator;
+  }
+
+  public List<FieldVector> getFixedlenAccumulators(final int batchIndex) {
+    final List<FieldVector> fixedLenAccumulator = new ArrayList<FieldVector>();
+    for (Accumulator a : fixedLenAccums) {
+      fixedLenAccumulator.add(((BaseSingleAccumulator)a).getAccumulatorVector(batchIndex));
+    }
+    return fixedLenAccumulator;
   }
 
   /**
@@ -271,11 +309,20 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   }
 
   @Override
-  public void releaseBatch(final int batchIdx)
-  {
+  public void releaseBatch(final int batchIdx) {
     for(Accumulator a : children){
       a.releaseBatch(batchIdx);
     }
+  }
+
+  @Override
+  public boolean hasSpace(final int space, final int batchIndex) {
+    for(Accumulator a : children) {
+      if (!a.hasSpace(space, batchIndex)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @VisibleForTesting

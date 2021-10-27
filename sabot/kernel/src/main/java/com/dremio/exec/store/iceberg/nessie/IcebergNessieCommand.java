@@ -25,6 +25,7 @@ import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.nessieapi.ContentsApiGrpc;
 import com.dremio.service.nessieapi.TreeApiGrpc;
 
@@ -34,6 +35,7 @@ import com.dremio.service.nessieapi.TreeApiGrpc;
 class IcebergNessieCommand extends IcebergBaseCommand {
     private final IcebergNessieTableIdentifier nessieTableIdentifier;
     private final NessieGrpcClient client;
+    private final OperatorStats operatorStats;
 
     public IcebergNessieCommand(IcebergTableIdentifier tableIdentifier,
                                 Configuration configuration,
@@ -43,17 +45,18 @@ class IcebergNessieCommand extends IcebergBaseCommand {
         super(configuration, ((IcebergNessieTableIdentifier) tableIdentifier).getTableFolder(), fs, context, dataset);
         nessieTableIdentifier = ((IcebergNessieTableIdentifier) tableIdentifier);
         this.client = new NessieGrpcClient(nessieContentsApiBlockingStub, treeApiBlockingStub);
+        this.operatorStats = context == null ? null : context.getStats();
     }
 
     @Override
     public TableOperations getTableOperations() {
-        return new IcebergNessieTableOperations(client,
+        return new IcebergNessieTableOperations(operatorStats, client,
                 new DremioFileIO(fs, context, dataset, null, null, configuration),
                 nessieTableIdentifier);
     }
 
     public void deleteRootPointerStoreKey () {
-      IcebergNessieTableOperations icebergNessieTableOperations = new IcebergNessieTableOperations(client,
+      IcebergNessieTableOperations icebergNessieTableOperations = new IcebergNessieTableOperations(operatorStats, client,
         new DremioFileIO(fs, context, dataset, null, null, configuration),
         nessieTableIdentifier);
       icebergNessieTableOperations.deleteKey();

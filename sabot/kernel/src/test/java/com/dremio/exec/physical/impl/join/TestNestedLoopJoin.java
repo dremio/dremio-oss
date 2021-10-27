@@ -20,6 +20,7 @@ import org.junit.Test;
 
 import com.dremio.PlanTestBase;
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestNestedLoopJoin extends PlanTestBase {
 
@@ -74,6 +75,18 @@ public class TestNestedLoopJoin extends PlanTestBase {
       + "(select * from cp.\"tpch/nation.parquet\" inner join cp.\"tpch/region.parquet\" on r_regionkey = n_regionkey) "
       + "on true";
     testPlanMatchingPatterns(query, new String[]{nlpattern});
+  }
+
+  @Test
+  public void testNlJoinWithLeftOuterJoin() throws Exception {
+    try (AutoCloseable ignored = withOption(PlannerSettings.EXTRA_CONDITIONS_HASHJOIN, false)) {
+      String query = "SELECT * FROM cp.\"tpch/orders.parquet\" o \n" +
+        "LEFT OUTER JOIN cp.\"tpch/lineitem.parquet\" l \n" +
+        "ON o.o_orderkey = l.l_orderkey\n" +
+        "AND o.o_custkey = 63190\n" +
+        "AND o.o_totalprice / l.l_quantity > 100.0";
+      testPlanMatchingPatterns(query, new String[]{nlpattern});
+    }
   }
 
   @Test

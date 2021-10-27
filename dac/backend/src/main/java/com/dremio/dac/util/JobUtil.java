@@ -29,12 +29,11 @@ import static com.dremio.dac.util.JobsConstant.UNAVAILABLE;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.dremio.dac.explore.DatasetTool;
 import com.dremio.dac.model.job.JobCancellationInfo;
 import com.dremio.dac.model.job.JobFailureInfo;
 import com.dremio.dac.model.job.JobFailureType;
@@ -59,19 +58,20 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 public class JobUtil {
 
   public static List<DataSet> getQueriedDatasets(JobInfo jobInfo, RequestType requestType) {
-   return buildQueriedDatasets(jobInfo.getParentsList(),requestType);
+   return buildQueriedDatasets(jobInfo.getParentsList(), requestType, jobInfo.getDatasetPathList());
   }
 
-  public static List<DataSet> buildQueriedDatasets(List<ParentDatasetInfo> parents, RequestType requestType) {
+  public static List<DataSet> buildQueriedDatasets(List<ParentDatasetInfo> parents, RequestType requestType, List<String> pathList) {
     List<DataSet> queriedDatasets = new ArrayList<>();
     if (parents != null && parents.size() > 0) {
       parents.stream().forEach(
         parent -> {
           String datasetName = DEFAULT;
           String datasetType = DEFAULT_DATASET_TYPE;
+          String datasetPath;
           List<String> datasetPathList = parent.getDatasetPathList();
           datasetName = datasetPathList.get(datasetPathList.size() - 1);
-          String datasetPath = StringUtils.join(datasetPathList, ".");
+          datasetPath = StringUtils.join(datasetPathList, ".");
           if (!queriedDatasets.stream().anyMatch(dataSet -> dataSet.getDatasetPath().equals(datasetPath))) {
             if (!parent.getDatasetPathList().contains(EXTERNAL_QUERY)) {
               try {
@@ -80,20 +80,17 @@ public class JobUtil {
                 datasetType = com.dremio.service.namespace.dataset.proto.DatasetType.values()[0].toString();
               }
             }
-            queriedDatasets.add(new DataSet());
-            queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(datasetName);
-            queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPath(datasetPath);
-            queriedDatasets.get(queriedDatasets.size() - 1).setDatasetType(datasetType);
-            queriedDatasets.get(queriedDatasets.size() -1).setDatasetPathsList(parent.getDatasetPathList());
+            populateQueriedDataset(queriedDatasets, datasetName, datasetType, datasetPath, parent.getDatasetPathList());
           }
         }
       );
+    } else if (isTruePath(pathList)) {
+      String datasetName = pathList.get(pathList.size() - 1);
+      String datasetPath = StringUtils.join(pathList, ".");
+      String datasetType = EMPTY_DATASET_FIELD;
+      populateQueriedDataset(queriedDatasets, datasetName, datasetType, datasetPath, pathList);
     } else {
-      queriedDatasets.add(new DataSet());
-      queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(UNAVAILABLE);
-      queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPath(EMPTY_DATASET_FIELD);
-      queriedDatasets.get(queriedDatasets.size() - 1).setDatasetType(EMPTY_DATASET_FIELD);
-      queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPathsList(new ArrayList<>());
+      populateQueriedDataset(queriedDatasets, UNAVAILABLE, EMPTY_DATASET_FIELD, EMPTY_DATASET_FIELD, new ArrayList<>());
       switch (requestType) {
         case GET_CATALOGS:
         case GET_COLUMNS:
@@ -107,34 +104,22 @@ public class JobUtil {
   }
 
   public static List<DurationDetails> buildDurationDetails(List<UserBitShared.AttemptEvent> attemptEvent) {
-    Long totalDuration;
-    Map<UserBitShared.AttemptEvent.State, Long> stateDurations = new HashMap<>();
     List<DurationDetails> durationDetails = new ArrayList<>();
     final List<UserBitShared.AttemptEvent> events = new ArrayList<>(attemptEvent);
     Collections.sort(events, stateStartTime);
-
-    for (int i = 0; i < events.size(); i++) {
-      if (isTerminal(events.get(i).getState())) {
-        totalDuration = events.get(i).getStartTime() - events.get(0).getStartTime();
-        break;
-      }
-      if (i + 1 < events.size()) {
-        long timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
-        stateDurations.compute(events.get(i).getState(), (k, v) -> (v == null) ? timeSpent : v + timeSpent);
-      }
-    }
-    stateDurations.forEach((key, value) -> {
-      durationDetails.add(new DurationDetails());
-      durationDetails.get(durationDetails.size() - 1).setPhaseName(String.valueOf(key));
-      durationDetails.get(durationDetails.size() - 1).setPhaseDuration(String.valueOf(value));
-    });
-    for (int i = 0; i < events.size(); i++) {
-      for (int j = 0; j < durationDetails.size(); j++) {
-        if (durationDetails.get(j).getPhaseName() == String.valueOf(events.get(i).getState())) {
-          durationDetails.get(j).setPhaseStartTime(String.valueOf(events.get(i).getStartTime()));
+    for (int i = 0; i < events.size() && !isTerminal(events.get(i).getState()); i++) {
+          long timeSpent=0;
+          // Condition to check if job state is RUNNING
+          if(i==events.size() -1) {
+            timeSpent = System.currentTimeMillis() - events.get(i).getStartTime();
+          } else {
+            timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
+          }
+          durationDetails.add(new DurationDetails());
+          durationDetails.get(durationDetails.size() - 1).setPhaseName(events.get(i).getState().toString());
+          durationDetails.get(durationDetails.size() - 1).setPhaseDuration(String.valueOf(timeSpent));
+          durationDetails.get(durationDetails.size() -1).setPhaseStartTime(String.valueOf(events.get(i).getStartTime()));
         }
-      }
-    }
     return durationDetails;
   }
 
@@ -182,11 +167,10 @@ public class JobUtil {
   }
 
   public static String extractDatasetConfigName(DatasetConfig datasetConfig) {
-    return datasetConfig.getFullPathList().get(datasetConfig.getFullPathList().size()-1);
+    return datasetConfig.getFullPathList().get(datasetConfig.getFullPathList().size() - 1);
   }
 
-
-  public static long getTotalDuration(JobSummary summary,boolean isFinalState) {
+  public static long getTotalDuration(JobSummary summary, boolean isFinalState) {
     long finishTime = summary.getEndTime();
     long currentMillisecond = System.currentTimeMillis();
     if (!isFinalState) {
@@ -205,12 +189,6 @@ public class JobUtil {
     return finishTime - startTime;
   }
 
-  private static boolean isTerminal(UserBitShared.AttemptEvent.State state) {
-    return (state == UserBitShared.AttemptEvent.State.COMPLETED ||
-      state == UserBitShared.AttemptEvent.State.CANCELED ||
-      state == UserBitShared.AttemptEvent.State.FAILED);
-  }
-
   public static JobFailureInfo toJobFailureInfo(String jobFailureInfo, com.dremio.service.job.proto.JobFailureInfo detailedJobFailureInfo) {
     if (detailedJobFailureInfo == null) {
       return new JobFailureInfo(jobFailureInfo, JobFailureType.UNKNOWN, null);
@@ -220,7 +198,7 @@ public class JobUtil {
     if (detailedJobFailureInfo.getType() == null) {
       failureType = JobFailureType.UNKNOWN;
     } else {
-      switch(detailedJobFailureInfo.getType()) {
+      switch (detailedJobFailureInfo.getType()) {
         case PARSE:
           failureType = JobFailureType.PARSE;
           break;
@@ -243,12 +221,42 @@ public class JobUtil {
       errors = null;
     } else {
       errors = new ArrayList<>();
-      for(com.dremio.service.job.proto.JobFailureInfo.Error error: detailedJobFailureInfo.getErrorsList()) {
+      for (com.dremio.service.job.proto.JobFailureInfo.Error error : detailedJobFailureInfo.getErrorsList()) {
         errors.add(new QueryError(error.getMessage(), toRange(error)));
       }
     }
 
     return new JobFailureInfo(detailedJobFailureInfo.getMessage(), failureType, errors);
+  }
+
+  public static JobCancellationInfo toJobCancellationInfo(JobState jobState, com.dremio.service.job.proto.JobCancellationInfo jobCancellationInfo) {
+    if (jobState != JobState.CANCELED) {
+      return null;
+    }
+
+    return new JobCancellationInfo(jobCancellationInfo == null ?
+      "Query was cancelled" : //backward compatibility
+      jobCancellationInfo.getMessage());
+  }
+
+  private static void populateQueriedDataset(List<DataSet> queriedDatasets, String datasetName, String datasetType, String datasetPath, List<String> datasetPathList) {
+    queriedDatasets.add(new DataSet());
+    queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(datasetName);
+    queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPath(datasetPath);
+    queriedDatasets.get(queriedDatasets.size() - 1).setDatasetType(datasetType);
+    queriedDatasets.get(queriedDatasets.size() - 1).setDatasetPathsList(datasetPathList);
+  }
+
+  private static Comparator<UserBitShared.AttemptEvent> stateStartTime = new Comparator<UserBitShared.AttemptEvent>() {
+    public int compare(final UserBitShared.AttemptEvent a1, final UserBitShared.AttemptEvent a2) {
+      return Long.compare(a1.getStartTime(), a2.getStartTime());
+    }
+  };
+
+  private static boolean isTerminal(UserBitShared.AttemptEvent.State state) {
+    return (state == UserBitShared.AttemptEvent.State.COMPLETED ||
+      state == UserBitShared.AttemptEvent.State.CANCELED ||
+      state == UserBitShared.AttemptEvent.State.FAILED);
   }
 
   private static QueryError.Range toRange(com.dremio.service.job.proto.JobFailureInfo.Error error) {
@@ -262,25 +270,20 @@ public class JobUtil {
       // Ranges are 1-based and inclusive.
       return new QueryError.Range(startLine, startColumn, endLine, endColumn);
 
-    } catch(NullPointerException e) {
+    } catch (NullPointerException e) {
       return null;
     }
   }
 
-  public static JobCancellationInfo toJobCancellationInfo(JobState jobState, com.dremio.service.job.proto.JobCancellationInfo jobCancellationInfo) {
-    if (jobState != JobState.CANCELED) {
-      return null;
+  public static boolean isTruePath(List<String> datasetPathList) {
+    if(
+      datasetPathList != null
+        && !datasetPathList.equals(DatasetTool.TMP_DATASET_PATH.toPathList())
+        && !datasetPathList.isEmpty()
+        && !datasetPathList.get(0).equals("UNKNOWN")){
+      return true;
     }
 
-    return new JobCancellationInfo(jobCancellationInfo == null ?
-      "Query was cancelled" : //backward compatibility
-      jobCancellationInfo.getMessage());
+    return false;
   }
-
-
-  private static Comparator<UserBitShared.AttemptEvent> stateStartTime = new Comparator<UserBitShared.AttemptEvent>() {
-    public int compare(final UserBitShared.AttemptEvent a1, final UserBitShared.AttemptEvent a2) {
-      return Long.compare(a1.getStartTime(), a2.getStartTime());
-    }
-  };
 }

@@ -35,6 +35,7 @@ const dremioVersion = getVersion();
 const devtool = isProductionBuild ? 'source-map' : 'eval-source-map';  // chris says: '#cheap-eval-source-map' is really great for debugging
 const isStaticDremioConfig = process.env.STATIC_DREMIO_CONFIG === 'true';
 
+const dcsPath = process.env.DREMIO_DCS_LOADER_PATH ? path.resolve(__dirname, process.env.DREMIO_DCS_LOADER_PATH) : null;
 
 let outputPath = path.join(__dirname, 'build');
 const pathArg = '--output-path=';
@@ -54,6 +55,8 @@ console.info({
   isProductionBuild,
   isBeta,
   isRelease,
+  injectPath: injectionPath,
+  dcsLoaderPath: dcsPath,
   dynLoaderPath: dynLoader.path,
   devtool,
   sentry: {
@@ -145,12 +148,13 @@ const getStyleLoader = (isCss) => {
 };
 
 const injectionPathAsList = injectionPath ? [injectionPath] : [];
+const dcsPathAsList = dcsPath ? [dcsPath] : [];
 
 const rules = [
   {
     test : /\.(js(x)?|ts(x)?)$/,
     exclude: /node_modules(?!\/regenerator-runtime|\/redux-saga|\/whatwg-fetch)/,
-    include:  [__dirname, dynLoader.path, ...injectionPathAsList],
+    include:  [__dirname, dynLoader.path, ...injectionPathAsList, ...dcsPathAsList],
     use: [babelLoader]
   },
   getStyleLoader(false),
@@ -315,6 +319,9 @@ const config = {
       path.resolve(__dirname, 'node_modules') // TODO: this is ugly, needed to resolve module dependencies outside of src/ so they can find our main node_modules
     ],
     alias: {
+      ...(dcsPath ? {
+        '@dcs': dcsPath
+      } : {}),
       'dyn-load': dynLoader.path, // ref for std code to ref dynamic componentsd
       '@app': path.resolve(__dirname, 'src'),
       '@root': path.resolve(__dirname),

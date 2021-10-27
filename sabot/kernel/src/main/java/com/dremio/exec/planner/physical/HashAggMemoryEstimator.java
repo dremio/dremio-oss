@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.expression.CompleteType;
@@ -260,6 +261,7 @@ public class HashAggMemoryEstimator {
   private int computeAccumulatorSizeForSinglePartition() {
     int validitySize = 0;
     int dataSize = 0;
+
     for (Field field : materializedAggExpressions.getOutputVectorFields()) {
       TypeProtos.MinorType minorType = CompleteType.fromField(field).toMinorType();
       switch (minorType) {
@@ -292,6 +294,20 @@ public class HashAggMemoryEstimator {
           validitySize += getValidityBufferSizeFromCount(hashTableBatchSize);
           dataSize += (16 * hashTableBatchSize);
           break;
+
+        case VARCHAR:
+        case VARBINARY:
+          /* Calculate the temporary buffer */
+          validitySize += getValidityBufferSizeFromCount(hashTableBatchSize);
+          dataSize += hashTableBatchSize * 4;
+          final int estimatedVariableWidthKeySize = (int)this.optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+          dataSize += estimatedVariableWidthKeySize * hashTableBatchSize;
+
+          /* Calculate the accumulator buffer */
+          validitySize += MutableVarcharVector.getValidityBufferSizeFromCount(hashTableBatchSize);
+          dataSize += MutableVarcharVector.getDataBufferSizeFromCount(hashTableBatchSize,
+            hashTableBatchSize * (int) optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
+          break;
       }
     }
 
@@ -321,7 +337,7 @@ public class HashAggMemoryEstimator {
      * pivot sizes.
      */
     final int listSizeEstimate = (int)options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
-    final int estimatedVariableWidthKeySize = (int)options.getOption(VectorizedHashAggOperator.VARIABLE_FIELD_SIZE_ESTIMATE);
+    final int estimatedVariableWidthKeySize = (int)options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
     final int estimatedRecordSize = schema.estimateRecordSize(listSizeEstimate, estimatedVariableWidthKeySize);
 
     /*

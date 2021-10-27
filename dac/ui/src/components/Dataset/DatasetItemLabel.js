@@ -41,7 +41,8 @@ export default class DatasetItemLabel extends PureComponent {
     typeIcon: PropTypes.string.isRequired,
     iconSize: PropTypes.oneOf(['MEDIUM', 'LARGE']),
     style: PropTypes.object,
-    shouldShowOverlay: PropTypes.bool
+    shouldShowOverlay: PropTypes.bool,
+    className: PropTypes.string
   };
 
   static defaultProps = {
@@ -99,7 +100,7 @@ export default class DatasetItemLabel extends PureComponent {
   }
 
   render() {
-    const { fullPath, customNode, typeIcon, isNewQuery, style, iconSize, shouldShowOverlay } = this.props;
+    const { fullPath, customNode, typeIcon, isNewQuery, style, iconSize, shouldShowOverlay, className } = this.props;
     const iconStyle = iconSize === 'LARGE' ? styles.largeIcon : {};
     const labelTypeIcon = iconSize === 'LARGE' ? `${typeIcon}Large` : typeIcon;
     const infoIconStyle = iconSize === 'LARGE' ? { width: 18, height: 18 } : {};
@@ -109,7 +110,7 @@ export default class DatasetItemLabel extends PureComponent {
     const showInfoIcon = canShowOverlay && (this.state.isOpenOverlay || this.state.isIconHovered);
 
     return (
-      <div style={[styles.base, style]}>
+      <div style={[styles.base, style]} className={className}>
         <div
           data-qa='info-icon'
           style={{...styles.iconsBase, ...(showInfoIcon && {cursor: 'pointer'})}}

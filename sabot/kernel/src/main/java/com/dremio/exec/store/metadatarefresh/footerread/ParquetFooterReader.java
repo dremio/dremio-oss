@@ -88,7 +88,11 @@ public class ParquetFooterReader implements FooterReader {
   @Override
   public Footer getFooter(String path, long fileSize) throws IOException {
     MutableParquetMetadata parquetMetadata = this.readFooter ? readFooter(path, fileSize) : null;
-    return new Footer(createBatchSchemaIfNeeded(parquetMetadata, path, fileSize), getRowCount(parquetMetadata, fileSize), FileFormat.PARQUET);
+    if(readFooter) {
+      return new ParquetFooter(createBatchSchemaIfNeeded(parquetMetadata, path, fileSize), getRowCount(parquetMetadata, fileSize), parquetMetadata.getBlocks().size());
+    } else {
+      return new Footer(createBatchSchemaIfNeeded(parquetMetadata, path, fileSize), getRowCount(parquetMetadata, fileSize), FileFormat.PARQUET);
+    }
   }
 
   private long getRowCount(MutableParquetMetadata parquetMetadata, long fileSize) {

@@ -19,20 +19,20 @@ import invariant from 'invariant';
 import { loadNextRows, EXPLORE_PAGE_EXIT, updateExploreJobProgress, updateJobRecordCount } from 'actions/explore/dataset/data';
 import { updateHistoryWithJobState } from 'actions/explore/history';
 
-import socket, { WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_JOB_RECORDS, WS_CONNECTION_OPEN } from '@inject/utils/socket';
+import socket, { WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_QV_JOB_PROGRESS, WS_MESSAGE_JOB_RECORDS, WS_CONNECTION_OPEN } from '@inject/utils/socket';
 import { getExplorePageLocationChangePredicate } from '@app/sagas/utils';
 import { getTableDataRaw, getCurrentRouteParams } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
 import { LOGOUT_USER_SUCCESS } from '@app/actions/account';
 
 const getJobDoneActionFilter = (jobId) => (action) =>
-  action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId && action.payload.update.isComplete;
+  (action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS) && action.payload.id.id === jobId && action.payload.update.isComplete;
 
 const getJobProgressActionFilter = (jobId) => (action) =>
-  action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId && !action.payload.update.isComplete;
+  (action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS) && action.payload.id.id === jobId && !action.payload.update.isComplete;
 
 const getJobUpdateActionFilter = (jobId) => (action) =>
-  action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId;
+  (action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS) && action.payload.id.id === jobId;
 
 const getJobRecordsActionFilter = (jobId) => (action) =>
   action.type === WS_MESSAGE_JOB_RECORDS && action.payload.id.id === jobId;

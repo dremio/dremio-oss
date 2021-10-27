@@ -21,6 +21,7 @@ import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
 import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.common.expression.InExpression;
@@ -37,6 +38,11 @@ import com.google.common.collect.ObjectArrays;
  * Test that multi or optimization is working
  */
 public class TestMultiOrOptimization extends BaseTestFunction {
+
+  @Before
+  public void cleanCache() {
+    testContext.invalidateExpToCompiledClazzCacheInCodeCompiler();
+  }
 
   @Test
   public void dateNoMatch(){

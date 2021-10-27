@@ -75,10 +75,12 @@ export function fetchJobsList(queryState, viewId) {
   };
 }
 
-function loadJobDetailsAction(jobId, viewId, attempts) {
+function loadJobDetailsAction(jobId, viewId, attempts, skipStartAction = false) {
   const meta = { viewId };
   return (dispatch) => {
-    dispatch({ type: FETCH_JOB_DETAILS_BY_ID_REQUEST, meta });
+    if (!skipStartAction) {
+      dispatch({ type: FETCH_JOB_DETAILS_BY_ID_REQUEST, meta });
+    }
     return apiUtils.fetch(`jobs-listing/v1.0/${jobId}/jobDetails?detailLevel=1&attempt=${attempts}`, {}, 2)
       .then(response => {
         try {
@@ -126,9 +128,9 @@ const loadJobDetailsActionFailure = (response, meta = {}) => ({
 });
 
 
-export function loadJobDetails(jobId, viewId, attempts) {
+export function loadJobDetails(jobId, viewId, attempts, skipStartAction) {
   return (dispatch) => {
-    return dispatch(loadJobDetailsAction(jobId, viewId, attempts));
+    return dispatch(loadJobDetailsAction(jobId, viewId, attempts, skipStartAction));
   };
 }
 

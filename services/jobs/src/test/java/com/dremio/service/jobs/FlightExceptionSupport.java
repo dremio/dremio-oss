@@ -37,6 +37,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.service.flight.FlightRpcUtils;
 
 /**
  * test to ensure grpc trailers are being passed through FlightRuntimeException and we are able to rehydrate UserException
@@ -74,7 +75,7 @@ public class FlightExceptionSupport {
       results.getDescriptor();
       Assert.fail();
     } catch (FlightRuntimeException e) {
-      Optional<UserException> ue = JobsRpcUtils.fromFlightRuntimeException(e);
+      Optional<UserException> ue = FlightRpcUtils.fromFlightRuntimeException(e);
       Assert.assertTrue(ue.isPresent());
       Assert.assertEquals(expectedMessage, ue.get().getOriginalMessage());
     }

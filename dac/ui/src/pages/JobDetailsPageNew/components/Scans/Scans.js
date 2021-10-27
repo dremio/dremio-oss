@@ -22,12 +22,12 @@ import './Scans.less';
 const Scans = ({ scans, scansForFilter, intl: { formatMessage } }) => {
   return (
     <div className='scans'>
-      <div className='scans-title'>
+      {scans.size > 0 && <div className='scans-title'>
         {formatMessage({ id: 'Scans' })}
-      </div>
+      </div>}
 
       {
-        scans && scans.map((scan, index) => {
+        scans.map((scan, index) => {
           return (
             <ScanItem
               key={`scans-${index}`}
@@ -44,6 +44,6 @@ const Scans = ({ scans, scansForFilter, intl: { formatMessage } }) => {
 Scans.propTypes = {
   intl: PropTypes.object.isRequired,
   scansForFilter: PropTypes.array,
-  scans: PropTypes.instanceOf(Immutable.List)
+  scans: PropTypes.instanceOf(Immutable.List).isRequired
 };
 export default injectIntl(Scans);

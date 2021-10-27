@@ -424,7 +424,11 @@ public class ProjectOperator implements SingleInputOperator {
           outgoing.addOrGet(originalExpr.getCompleteType().toField(namedExpression.getRef()));
           // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
           ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExpr).getHolder()).setReference(namedExpression.getRef());
-          cg.addExpr(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+          if (context.getOptions().getOption(ExecConstants.LAZYEXPEVAL_ENABLED)) {
+            cg.lazyAddExp(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+          } else {
+            cg.addExpr(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+          }
           if (nonDirectExprs != null) {
             nonDirectExprs.add(namedExpression);
           }

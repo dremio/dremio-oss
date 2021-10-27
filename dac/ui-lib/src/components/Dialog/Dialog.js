@@ -20,11 +20,15 @@ import clsx from 'clsx';
 
 import MuiDialog from '@material-ui/core/Dialog';
 
+import DialogContext from './DialogContext';
 import DialogTitle from './DialogTitle';
+
+import './dialog.scss';
 
 const Dialog = (props) => {
   const {
     classes,
+    isCentered,
     onClose,
     onEnter,
     onEntered,
@@ -39,7 +43,8 @@ const Dialog = (props) => {
 
   const dialogClasses = {
     ...classes,
-    root: clsx(['dialog', { [classes.root]: classes.root }])
+    root: clsx(['dremioDialog', { [classes.root]: classes.root }]),
+    container: clsx('dremioDialog__container', { '--centered': isCentered })
   };
 
   return <MuiDialog
@@ -53,17 +58,20 @@ const Dialog = (props) => {
     onExiting={onExiting}
     open={open}
   >
-    {title && <DialogTitle onClose={onClose}>
-      {title}
-    </DialogTitle>}
+    <DialogContext.Provider value={{ onClose }}>
+      {title && <DialogTitle onClose={onClose}>
+        {title}
+      </DialogTitle>}
 
-    { children }
+      { children }
+    </DialogContext.Provider>
   </MuiDialog>;
 };
 
 Dialog.propTypes = {
   // Dialog Props
   size: PropTypes.oneOf(['xs', 'sm', 'md', 'lg', 'xl']),
+  isCentered: PropTypes.bool,
   onClose: PropTypes.func,
   onEnter: PropTypes.func,
   onEntered: PropTypes.func,
@@ -80,6 +88,7 @@ Dialog.propTypes = {
 };
 
 Dialog.defaultProps = {
+  isCentered: false,
   size: 'sm',
   classes: {}
 };

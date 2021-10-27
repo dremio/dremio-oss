@@ -29,6 +29,7 @@ import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.ColumnStrategy;
+import org.apache.calcite.schema.Table;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.exec.catalog.DremioTable;
@@ -109,13 +110,14 @@ public final class RelOptNamespaceTable implements RelOptTable {
   @Override
   public <T> T unwrap(Class<T> clazz) {
     if(clazz == NamespaceTable.class){
-      return (T) table;
-    } else if (clazz == DremioTable.class) {
-      return (T) table;
-    } else if(clazz == RelOptNamespaceTable.class) {
-      return (T) this;
+      return clazz.cast(table);
+    } else if (clazz == DremioTable.class
+        || clazz == RelOptNamespaceTable.class
+        || clazz == Table.class) {
+      return clazz.cast(table);
+    } else {
+      return null;
     }
-    return null;
   }
 
   @Override

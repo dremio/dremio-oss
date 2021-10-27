@@ -35,9 +35,9 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.io.file.FileSystem;
@@ -101,11 +101,11 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, EasySubScan config) throws ExecutionSetupException {
-    final FileSystemPlugin<?> plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
+    final SupportsIcebergRootPointer plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
 
     FileSystem fs;
     try {
-      fs = plugin.createFS(config.getProps().getUserName(), context);
+      fs = plugin.createFSWithAsyncOptions(config.getFileConfig().getLocation(), config.getProps().getUserName(), context);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

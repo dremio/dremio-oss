@@ -57,7 +57,8 @@ export default class VirtualizedTableViewer extends Component {
     scrollToIndex: PropTypes.number,
     sortRecords: PropTypes.func,
     disableSort: PropTypes.bool,
-    showIconHeaders: PropTypes.object
+    showIconHeaders: PropTypes.object,
+    disableZebraStripes: PropTypes.any // for Jobs Page specific styling with no zebra stripes
     // other props passed into react-virtualized Table
   };
 
@@ -102,7 +103,12 @@ export default class VirtualizedTableViewer extends Component {
   };
 
   rowClassName(rowData, index) {
-    return classNames(((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even'), virtualizedRow, 'virtualized-row'); // Adding virtualizedRow for keeping the Row styles stable wrt another class
+    const { disableZebraStripes } = this.props;
+    if (!disableZebraStripes) { //zebra stripes set on odd rows below
+      return classNames(((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even'), virtualizedRow, 'virtualized-row'); // Adding virtualizedRow for keeping the Row styles stable wrt another class
+    } else {
+      return classNames(((rowData && rowData.rowClassName) || ''), virtualizedRow, 'virtualized-row', 'ReactVirtualized__Table--noZebraStripesRows'); // Adding virtualizedRow for keeping the Row styles stable wrt another class
+    }
   }
 
   handleScroll = ({ scrollTop }) => {

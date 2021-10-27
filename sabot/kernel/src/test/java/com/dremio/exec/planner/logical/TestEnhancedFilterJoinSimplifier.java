@@ -17,6 +17,7 @@ package com.dremio.exec.planner.logical;
 
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.AND;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
+import static org.apache.calcite.sql.fun.SqlStdOperatorTable.OR;
 import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
 
 import java.util.Arrays;
@@ -47,6 +48,8 @@ public class TestEnhancedFilterJoinSimplifier {
   private static final RexNode col_R_c = rexBuilder.makeInputRef(intColumnType,2);
   private static final RexNode col_S_x = rexBuilder.makeInputRef(intColumnType,3);
   private static final RexNode col_S_y = rexBuilder.makeInputRef(intColumnType,4);
+  private static final RexNode col_S_z = rexBuilder.makeInputRef(intColumnType,5);
+  private static final RexNode col_S_w = rexBuilder.makeInputRef(intColumnType,6);
 
   private static final RexNode intLit10 = rexBuilder.makeLiteral(10,
     typeFactory.createSqlType(INTEGER), false);
@@ -186,11 +189,42 @@ public class TestEnhancedFilterJoinSimplifier {
       simplifiedFilter.toString());
   }
 
+  @Test
+  public void testOrNonEntirelyPushedHasCommonButNotExactExtraction() {
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
+      Arrays.asList(
+        rAnd(
+          rOr(
+            rAnd(rEq(col_S_x, intLit10), rEq(col_S_y, intLit10), rEq(col_R_a, intLit10)),
+            rAnd(rEq(col_S_x, intLit10), rEq(col_S_y, intLit10), rEq(col_R_b, intLit10))),
+          rEq(col_S_w, intLit10)),
+        rAnd(
+          rOr(
+            rAnd(rEq(col_S_x, intLit10), rEq(col_S_z, intLit10), rEq(col_R_a, intLit10)),
+            rAnd(rEq(col_S_x, intLit10), rEq(col_S_z, intLit10), rEq(col_R_c, intLit10))),
+          rEq(col_S_w, intLit10))),
+      Arrays.asList(
+        Pair.of(rAnd(rEq(col_S_x, intLit10), rEq(col_S_y, intLit10), rEq(col_S_w, intLit10)),
+          rAnd(rOr(rEq(col_R_a, intLit10), rEq(col_R_b, intLit10)), rEq(col_S_w, intLit10))),
+        Pair.of(rAnd(rEq(col_S_x, intLit10), rEq(col_S_z, intLit10), rEq(col_S_w, intLit10)),
+          rAnd(rOr(rEq(col_R_a, intLit10), rEq(col_R_c, intLit10)), rEq(col_S_w, intLit10)))),
+      SqlKind.OR,
+      true,
+      rexBuilder);
+    Assert.assertEquals("OR(AND(OR(=($0, 10), =($1, 10)), =($4, 10)), " +
+        "AND(OR(=($0, 10), =($2, 10)), =($5, 10)))",
+      simplifiedFilter.toString());
+  }
+
   private static RexNode rEq(RexNode rexNode1, RexNode rexNode2) {
     return rexBuilder.makeCall(EQUALS, rexNode1, rexNode2);
   }
 
   private static RexNode rAnd(RexNode... rexNodes) {
     return rexBuilder.makeCall(AND, rexNodes);
+  }
+
+  private static RexNode rOr(RexNode... rexNodes) {
+    return rexBuilder.makeCall(OR, rexNodes);
   }
 }

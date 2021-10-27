@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -73,6 +74,42 @@ public class TestIcebergScan extends BaseTestQuery {
     testRootPath = "/tmp/empty_iceberg";
     copyFromJar("iceberg/empty_table", testRootPath);
     runQueryExpectingRecordCount("select count(*) c from dfs_hadoop.tmp.empty_iceberg", 0L);
+  }
+
+  @Test
+  public void testScanNonIcebergTableWithColumnIds() throws Exception {
+    testRootPath = "/tmp/non_iceberg_with_column_ids";
+    copyFromJar("iceberg/non_iceberg_with_column_ids", testRootPath);
+    testBuilder()
+      .sqlQuery("select * from dfs_hadoop.tmp.non_iceberg_with_column_ids")
+      .unOrdered()
+      .baselineColumns("value")
+      .baselineValues(new BigDecimal("1.00"))
+      .baselineValues(new BigDecimal("2.00"))
+      .baselineValues(new BigDecimal("3.00"))
+      .baselineValues(new BigDecimal("4.00"))
+      .baselineValues(new BigDecimal("5.00"))
+      .baselineValues(new BigDecimal("6.00"))
+      .baselineValues(new BigDecimal("7.00"))
+      .baselineValues(new BigDecimal("8.00"))
+      .baselineValues(new BigDecimal("9.00"))
+      .baselineValues(new BigDecimal("10.00"))
+      .baselineValues(new BigDecimal("11.00"))
+      .baselineValues(new BigDecimal("12.00"))
+      .baselineValues(new BigDecimal("13.00"))
+      .baselineValues(new BigDecimal("14.00"))
+      .baselineValues(new BigDecimal("15.00"))
+      .baselineValues(new BigDecimal("16.00"))
+      .baselineValues(new BigDecimal("17.00"))
+      .baselineValues(new BigDecimal("18.00"))
+      .baselineValues(new BigDecimal("19.00"))
+      .baselineValues(new BigDecimal("20.00"))
+      .baselineValues(new BigDecimal("21.00"))
+      .baselineValues(new BigDecimal("22.00"))
+      .baselineValues(new BigDecimal("23.00"))
+      .baselineValues(new BigDecimal("24.00"))
+      .build()
+      .run();
   }
 
   @Test

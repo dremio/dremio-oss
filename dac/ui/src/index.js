@@ -25,6 +25,7 @@ import sentryUtil from 'utils/sentryUtil';
 import startup from 'dyn-load/startup';
 import setupMetrics from '@inject/setupMetrics';
 
+import '@inject/vendor/segment';
 import './vendor/chat';
 import 'imports-loader?this=>window!script-loader!jsplumb/dist/js/jsPlumb-2.1.4-min.js';
 import 'dremio-ui-lib/dist/index.css';

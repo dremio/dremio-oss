@@ -57,6 +57,12 @@ public class UserServiceHelper {
     return handleHomeSpace(userName);
   }
 
+  public boolean deleteUser(UID uid, String version) throws UserNotFoundException, IOException {
+    final String userName = userService.getUser(uid).getUserName();
+    userService.deleteUser(uid, version);
+    return handleHomeSpace(userName);
+  }
+
   public boolean deleteUser(String userName, String version) throws IOException, UserNotFoundException {
     userService.deleteUser(userName, version);
     return handleHomeSpace(userName);

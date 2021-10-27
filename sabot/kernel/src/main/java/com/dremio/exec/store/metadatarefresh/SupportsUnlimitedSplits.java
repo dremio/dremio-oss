@@ -16,7 +16,6 @@
 package com.dremio.exec.store.metadatarefresh;
 
 import com.dremio.connector.metadata.DatasetHandle;
-import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
@@ -38,15 +37,4 @@ public interface SupportsUnlimitedSplits {
   }
 
   default void runRefreshQuery(String refreshQuery, String system) throws Exception {}
-
-
-  /**
-   * Check if all partitions in partition chunk lists are valid or not.
-   * This is used by Hive / Glue source in DMP 2.0 flow to check if all partitions use same input format or not
-   * @param chunkListing partition chunk listing
-   * @return
-   */
-  default boolean validatePartitions(PartitionChunkListing chunkListing) {
-    return true;
-  }
 }

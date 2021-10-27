@@ -15,14 +15,14 @@
  */
 
 import config from 'dyn-load/utils/config';
-
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import JobPage from '../JobPage/JobPage';
 import JobPageNew from '../JobPageNew/JobPageNew';
 
 const QVJobPage = (props) => {
 
   const isDremioJobNewUI = config.showNewJobsPage;
-
+  localStorageUtils.setIsQVJobs(isDremioJobNewUI);
   const ViewJobPage = isDremioJobNewUI ? JobPageNew : JobPage;
   return (
     <ViewJobPage {...props} />

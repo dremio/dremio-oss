@@ -24,6 +24,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.AccessControlException;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -332,10 +333,11 @@ public interface FileSystem extends Closeable {
   /**
    * For a given file key, get an AsyncByteReader.
    * @param fileKey for which async reader is requested
+   * @param options
    * @return async reader
    * @throws IOException if async reader cannot be instantiated
    */
-  AsyncByteReader getAsyncByteReader(FileKey fileKey) throws IOException;
+  AsyncByteReader getAsyncByteReader(FileKey fileKey, Map<String, String> options) throws IOException;
   /**
    * Calculation of host affinities for various filesystems are different. For example, HDFS read
    * can be on any of the replicas of the block. So, no ordering is required. In case of cached
@@ -351,5 +353,13 @@ public interface FileSystem extends Closeable {
   default BoostedFileSystem getBoostedFilesystem() {
     Preconditions.checkArgument(this.supportsBoosting(), "FileSystem does not support boosting.");
     return null;
+  }
+
+  /**
+   *
+   * @return true if FS can handle file paths with scheme
+   */
+  default boolean supportsPathsWithScheme() {
+    return true;
   }
 }

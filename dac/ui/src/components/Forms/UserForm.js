@@ -36,7 +36,8 @@ export default class UserForm extends Component { // todo: rename, make proper "
     style: PropTypes.object,
     passwordHolderStyles: PropTypes.object,
     isReadMode: PropTypes.bool,
-    noExtras: PropTypes.bool
+    noExtras: PropTypes.bool,
+    source: PropTypes.string
   };
 
   static defaultProps = {
@@ -71,10 +72,12 @@ export default class UserForm extends Component { // todo: rename, make proper "
   }
 
   render() {
-    const { fields, style, passwordHolderStyles, isReadMode, className, noExtras } = this.props;
+    const { fields, style, passwordHolderStyles, isReadMode, className, noExtras, source } = this.props;
     const edition = VersionUtils.getEditionFromConfig();
     const isME = edition === EDITION.ME;
     const isAuthed = localStorageUtils.getInstanceId();
+
+    const hidePasswordFields = source === 'external' || isReadMode;
 
     return (
       <div style={style} className={className}>
@@ -98,7 +101,7 @@ export default class UserForm extends Component { // todo: rename, make proper "
             <TextField {...fields.email} disabled={isReadMode}/>
           </FieldWithError>
         </div>
-        {!isReadMode &&
+        {!hidePasswordFields &&
           <div style={passwordHolderStyles}>
             <div style={styles.formRow}>
               <div className='field-item' style={styles.formItem}>

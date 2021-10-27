@@ -16,6 +16,7 @@
 package com.dremio.service.grpc;
 
 import com.dremio.context.RequestContext;
+import com.dremio.context.SupportContext;
 import com.dremio.context.TenantContext;
 import com.dremio.context.UserContext;
 
@@ -43,6 +44,12 @@ public class MultiTenantClientInterceptor implements ClientInterceptor {
         headers.put(HeaderKeys.ORG_ID_HEADER_KEY,
           RequestContext.current().get(TenantContext.CTX_KEY).getOrgId().toString());
         headers.put(HeaderKeys.USER_HEADER_KEY, RequestContext.current().get(UserContext.CTX_KEY).serialize());
+
+        SupportContext supportContext = RequestContext.current().get(SupportContext.CTX_KEY);
+        if (supportContext != null) {
+          headers.put(HeaderKeys.SUPPORT_TICKET_HEADER_KEY, supportContext.getTicket());
+          headers.put(HeaderKeys.SUPPORT_EMAIL_HEADER_KEY, supportContext.getEmail());
+        }
 
         super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(responseListener) {
           @Override

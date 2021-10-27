@@ -15,9 +15,10 @@
  */
 package com.dremio.exec.planner.sql;
 
-
+import static org.apache.calcite.sql.SqlUtil.stripAs;
 import static org.apache.calcite.util.Static.RESOURCE;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.rel.type.DynamicRecordType;
@@ -27,39 +28,73 @@ import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlJdbcFunctionCall;
 import org.apache.calcite.sql.SqlJoin;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
-import org.apache.calcite.sql.SqlUtil;
+import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlWindow;
 import org.apache.calcite.sql.fun.SqlLeadLagAggFunction;
 import org.apache.calcite.sql.fun.SqlNtileAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.DremioEmptyScope;
 import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql.validate.SqlScopedShuttle;
+import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorException;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.Util;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl {
-
   private final FlattenOpCounter flattenCount;
 
   protected SqlValidatorImpl(
       FlattenOpCounter flattenCount,
-      SqlOperatorTable opTab,
+      SqlOperatorTable sqlOperatorTable,
       SqlValidatorCatalogReader catalogReader,
       RelDataTypeFactory typeFactory,
       SqlConformance conformance) {
-    super(opTab, catalogReader, typeFactory, conformance);
+    super(sqlOperatorTable, catalogReader, typeFactory, conformance);
     this.flattenCount = flattenCount;
+  }
+
+  @Override
+  public SqlNode validate(SqlNode topNode) {
+    final SqlValidatorScope scope = DremioEmptyScope.createBaseScope(this);
+    final SqlNode topNode2 = validateScopedExpression(topNode, scope);
+    final RelDataType type = getValidatedNodeType(topNode2);
+    Util.discard(type);
+    return topNode2;
+  }
+
+  @Override
+  protected SqlNode performUnconditionalRewrites(SqlNode node, boolean underFrom) {
+    if(node instanceof SqlBasicCall
+        && ((SqlBasicCall)node).getOperator() instanceof SqlJdbcFunctionCall) {
+      //Check for operator overrides in DremioSqlOperatorTable
+      SqlBasicCall call = (SqlBasicCall) node;
+      final SqlJdbcFunctionCall function = (SqlJdbcFunctionCall) call.getOperator();
+      final List<SqlOperator> overloads = new ArrayList<>();
+      //The name is in the format {fn operator_name}, so we need to remove the prefix '{fn ' and
+      //the suffix '}' to get the original operators name.
+      String functionName = function.getName().substring(4, function.getName().length()-1);
+      //ROUND and TRUNCATE have been overridden in DremioSqlOperatorTable
+      if(functionName.equalsIgnoreCase(DremioSqlOperatorTable.ROUND.getName())) {
+        call.setOperator(DremioSqlOperatorTable.ROUND);
+      } else if(functionName.equalsIgnoreCase(DremioSqlOperatorTable.TRUNCATE.getName())) {
+        call.setOperator(DremioSqlOperatorTable.TRUNCATE);
+      }
+    }
+    return super.performUnconditionalRewrites(node, underFrom);
   }
 
   @Override
@@ -144,13 +179,6 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
 
   @Override
   public void validateAggregateParams(SqlCall aggCall, SqlNode filter, SqlNodeList orderList, SqlValidatorScope scope) {
-    if (filter != null) {
-      Exception e = new SqlValidatorException("Dremio does not currently support aggregate functions with a filter clause", null);
-      SqlParserPos pos = filter.getParserPosition();
-      CalciteContextException ex = RESOURCE.validatorContextPoint(pos.getLineNum(), pos.getColumnNum()).ex(e);
-      ex.setPosition(pos.getLineNum(), pos.getColumnNum());
-      throw ex;
-    }
     super.validateAggregateParams(aggCall, filter, orderList, scope);
   }
 
@@ -165,6 +193,59 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
     return newExpr;
   }
 
+  /**Overriden to Handle the ITEM operator.*/
+  @Override
+  protected @Nullable SqlNode stripDot(@Nullable SqlNode node) {
+    //Checking for Item operator which is similiar to the dot operator.
+    if (null == node) {
+      return null;
+    } else if (node.getKind() == SqlKind.DOT) {
+      return stripDot(((SqlCall) node).operand(0));
+    } else if (node.getKind() == SqlKind.OTHER_FUNCTION
+        && SqlStdOperatorTable.ITEM == ((SqlCall) node).getOperator()) {
+      return stripDot(((SqlCall) node).operand(0));
+    } else {
+      return node;
+    }
+  }
+
+  /**We are seeing nested AS nodes that reference SqlIdentifiers.*/
+  @Override
+  protected void checkRollUp(SqlNode grandParent,
+      SqlNode parent,
+      SqlNode current,
+      SqlValidatorScope scope,
+      String optionalClause) {
+    current = stripAs(current);
+    if (current instanceof SqlCall && !(current instanceof SqlSelect)) {
+      // Validate OVER separately
+      checkRollUpInWindow(getWindowInOver(current), scope);
+      current = stripOver(current);
+
+      SqlNode stripped =  stripAs(stripDot(current));
+
+      if (stripped instanceof SqlCall) {
+        List<SqlNode> children = ((SqlCall) stripped).getOperandList();
+        for (SqlNode child : children) {
+          checkRollUp(parent, current, child, scope, optionalClause);
+        }
+      } else {
+        current = stripped;
+      }
+    }
+    if (current instanceof SqlIdentifier) {
+      SqlIdentifier id = (SqlIdentifier) current;
+      if (!id.isStar() && isRolledUpColumn(id, scope)) {
+        if (!isAggregation(parent.getKind())
+            || !isRolledUpColumnAllowedInAgg(id, scope, (SqlCall) parent, grandParent)) {
+          String context = optionalClause != null ? optionalClause : parent.getKind().toString();
+          throw newValidationError(id,
+              RESOURCE.rolledUpNotAllowed(deriveAlias(id, 0), context));
+        }
+      }
+    }
+  }
+
   /**
    * Expander
    */
@@ -177,7 +258,8 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
     }
 
     public SqlNode visit(SqlIdentifier id) {
-      SqlCall call = SqlUtil.makeCall(this.validator.getOperatorTable(), id);
+      SqlValidator validator = getScope().getValidator();
+      final SqlCall call = validator.makeNullaryCall(id);
       if (call != null) {
         return (SqlNode)call.accept(this);
       } else {
@@ -210,6 +292,7 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
       }
     }
 
+    @Override
     protected SqlNode visitScoped(SqlCall call) {
       switch(call.getKind()) {
         case WITH:

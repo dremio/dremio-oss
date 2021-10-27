@@ -29,10 +29,13 @@ import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TimeStampVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchData;
@@ -40,13 +43,13 @@ import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.record.VectorContainer;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Message;
+import com.google.protobuf.Timestamp;
 
 /**
  * Utility class for getting schema and populating the vectors automatically. Supports only primitve types.
  */
 public class ProtobufRecordReader {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ProtobufRecordReader.class);
-  //TODO: Add support for timesptamp datafields(BigInt to TimeStamp).
 
   /**
    * Builds the schema based on the field types of the gRPC message, fields should be of
@@ -77,16 +80,17 @@ public class ProtobufRecordReader {
       } else if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.STRING) {
         schemaBuilder.addField(CompleteType.VARCHAR.toField(field.getName()));
 
+      } else if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.MESSAGE && field.getMessageType().getFullName().equals("google.protobuf.Timestamp")){
+        schemaBuilder.addField(CompleteType.TIMESTAMP.toField(field.getName()));
       } else {
         LOGGER.debug("{} is of type {} which is not a primitive type. ", field.getName(),field.getJavaType());
       }
     });
     BatchSchema schema = schemaBuilder.build();
-    LOGGER.debug("BatchSchema {}", schema);
     return schema;
   }
 
-  private static Map<String, ValueVector> setup(Descriptors.Descriptor descriptor,BufferAllocator allocator){
+  public static Map<String, ValueVector> setup(Descriptors.Descriptor descriptor, BufferAllocator allocator) {
     LOGGER.debug("Setting up ValueVectors");
     //Using LinkedHashMap important for maintaining order of vectors between the schema generated from BatchData and the gRPC message descriptor.
     Map<String, ValueVector> vectorMap = new LinkedHashMap<>();
@@ -116,6 +120,10 @@ public class ProtobufRecordReader {
         VarCharVector e = new VarCharVector(CompleteType.VARCHAR.toField(field.getName()), allocator);
         vectorMap.put(field.getName(), e);
 
+      } else if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.MESSAGE && field.getMessageType().getFullName().equals("google.protobuf.Timestamp")){
+        TimeStampVector e = new TimeStampMilliVector(CompleteType.TIMESTAMP.toField(field.getName()), allocator);
+        vectorMap.put(field.getName(), e);
+
       } else {
         LOGGER.debug("{} is of type {} which is not a primitive type. ", field.getName(),field.getJavaType());
       }
@@ -129,77 +137,44 @@ public class ProtobufRecordReader {
    * @param messageIterator
    * @param descriptor
    * @param listener
-   * @param RECORD_BATCH_SIZE
+   * @param recordBatchSize
    * @param <T>
    */
   public static <T extends Message> void streamData(BufferAllocator allocator,
                                                     Iterator<T> messageIterator,
                                                     Descriptors.Descriptor descriptor,
                                                     ServerStreamListener listener,
-                                                    int RECORD_BATCH_SIZE) {
+                                                    int recordBatchSize) throws Exception {
     LOGGER.debug("Got request to stream Arrowbatches");
 
     Map<String, ValueVector> vectorMap = setup(descriptor,allocator);
     final AtomicInteger count = new AtomicInteger(0);
-    final AtomicInteger numRecordBatchesSent = new AtomicInteger(0);
 
-    try( VectorSchemaRoot root = VectorSchemaRoot.create(getSchema(descriptor), allocator)) {
+    try(VectorSchemaRoot root = VectorSchemaRoot.create(getSchema(descriptor), allocator)) {
       listener.start(root);
       allocateNewUtil(vectorMap);
 
       while(messageIterator.hasNext()) {
         T message = messageIterator.next();
-
-        message.getDescriptorForType().getFields().forEach(field -> {
-          ValueVector v = vectorMap.get(field.getName());
-
-          if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.INT) {
-            ((IntVector) v).setSafe(count.get(),Integer.parseInt(message.getField(field).toString()));
-
-          } else if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.LONG) {
-            ((BigIntVector) v).setSafe(count.get(), Long.parseLong(message.getField(field).toString()));
-
-          } else if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.FLOAT) {
-            ((Float4Vector) v).setSafe(count.get(), Float.parseFloat(message.getField(field).toString()));
-
-          } else if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.DOUBLE) {
-            ((Float8Vector) v).setSafe(count.get(), Double.parseDouble(message.getField(field).toString()));
-
-          } else if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.BOOLEAN) {
-            boolean flag = Boolean.parseBoolean(message.getField(field).toString());
-            ((BitVector) v).setSafe(count.get(), flag ? 1:0);
-
-          } else if(field.getJavaType() == Descriptors.FieldDescriptor.JavaType.STRING) {
-            ((VarCharVector) v).setSafe(count.get(), message.getField(field).toString().getBytes());
-
-          } else {
-            LOGGER.debug("{} is of type {} which is not a primitive type. ", field.getName(),field.getJavaType());
-          }
-        });
-        count.getAndAdd(1);
-
-        if(count.get() == RECORD_BATCH_SIZE) {
-          streamHelper(vectorMap, count.get(), root, allocator, listener);
-          numRecordBatchesSent.getAndAdd(1);
-          count.set(0);
-        }
+        handleMessage(message, root, vectorMap, allocator, listener, count, recordBatchSize);
       }
 
       if(count.get() > 0) {
-        streamHelper(vectorMap, count.get(), root, allocator, listener);
-        numRecordBatchesSent.getAndAdd(1);
+        stream(vectorMap, count.get(), root, allocator, listener, true);
       }
     }
     closeResources(vectorMap, listener);
   }
 
-  private static void streamHelper(Map<String,ValueVector> vectorMap,
+  //Flight streamer method
+  public static void stream(Map<String,ValueVector> vectorMap,
                             int count,
                             VectorSchemaRoot root,
                             BufferAllocator allocator,
-                            ServerStreamListener listener) {
+                            ServerStreamListener listener,
+                            boolean isLastBatch) {
 
-    try(VectorContainer container = new VectorContainer()){
+    try(VectorContainer container = new VectorContainer()) {
       setValueCount(count, vectorMap);
 
       List<ValueVector> vectorList = new ArrayList<>(vectorMap.values());
@@ -208,17 +183,17 @@ public class ProtobufRecordReader {
       container.setRecordCount(count);
 
       try(RecordBatchData recordBatchData = new  RecordBatchData(container, allocator)) {
-        stream(recordBatchData, listener, root);
-        allocateNewUtil(vectorMap);
+        streamHelper(recordBatchData, listener, root);
+        if (!isLastBatch) {
+          allocateNewUtil(vectorMap);
+        }
       }
     }
   }
 
-  //Flight streamer method
-  private static void stream(RecordBatchData recordBatch,
-                             ServerStreamListener serverStreamListener,
-                             VectorSchemaRoot root) {
-
+  private static void streamHelper(RecordBatchData recordBatch,
+                                   ServerStreamListener serverStreamListener,
+                                   VectorSchemaRoot root) {
     int rowCount = recordBatch.getRecordCount();
     BatchSchema schema = recordBatch.getSchema();
 
@@ -240,22 +215,67 @@ public class ProtobufRecordReader {
     root.allocateNew();
   }
 
+  static <T extends Message> void handleMessage(T message, VectorSchemaRoot root,
+    Map<String, ValueVector> vectorMap, BufferAllocator allocator, ServerStreamListener listener,
+    AtomicInteger count, int recordBatchSize) {
+    message.getDescriptorForType().getFields().forEach(field -> {
+      ValueVector v = vectorMap.get(field.getName());
+      if (v != null) {
+
+        if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.INT) {
+          ((IntVector) v).setSafe(count.get(), Integer.parseInt(message.getField(field).toString()));
+
+        } else if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.LONG) {
+          ((BigIntVector) v).setSafe(count.get(), Long.parseLong(message.getField(field).toString()));
+
+        } else if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.FLOAT) {
+          ((Float4Vector) v).setSafe(count.get(), Float.parseFloat(message.getField(field).toString()));
+
+        } else if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.DOUBLE) {
+          ((Float8Vector) v).setSafe(count.get(), Double.parseDouble(message.getField(field).toString()));
+
+        } else if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.BOOLEAN) {
+          boolean flag = Boolean.parseBoolean(message.getField(field).toString());
+          ((BitVector) v).setSafe(count.get(), flag ? 1 : 0);
+
+        } else if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.STRING) {
+          ((VarCharVector) v).setSafe(count.get(), message.getField(field).toString().getBytes());
+
+        } else if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.MESSAGE && field.getMessageType().getFullName().equals("google.protobuf.Timestamp")) {
+          ((TimeStampVector) v).setSafe(count.get(), ((Timestamp) (message.getField(field))).getSeconds());
+
+        } else {
+          LOGGER.warn("ProtobufRecordReader doesn't handle non-primitive types, {} is of type {}.", field.getName(), field.getJavaType());
+        }
+      }
+    });
+    count.getAndAdd(1);
+
+    if(count.get() == recordBatchSize) {
+      LOGGER.info("Sending a RecordBatch to SysFlight stream.");
+      stream(vectorMap, count.get(), root, allocator, listener, false);
+      count.set(0);
+    }
+  }
+
+  static void allocateNewUtil(Map<String, ValueVector> vectorMap) {
+    for (ValueVector v : vectorMap.values()) {
+      v.allocateNew();
+    }
+  }
+
   private static void setValueCount(int i, Map<String,ValueVector> vectorMap) {
     for (ValueVector v : vectorMap.values()) {
       v.setValueCount(i);
     }
   }
 
-  private static void allocateNewUtil(Map<String, ValueVector> vectorMap) {
-    for (ValueVector v : vectorMap.values()) {
-      v.allocateNew();
+  private static void closeResources(Map<String, ValueVector> vectorMap, ServerStreamListener listener)
+    throws Exception {
+    try{
+      listener.completed();
+    } finally {
+      AutoCloseables.close(vectorMap.values());
     }
-  }
-
-  private static void closeResources(Map<String, ValueVector> vectorMap, ServerStreamListener listener){
-    for(ValueVector v : vectorMap.values()) {
-      v.close();
-    }
-    listener.completed();
   }
 }

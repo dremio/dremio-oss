@@ -315,7 +315,7 @@ class AttemptProfileTracker {
   }
 
   // add latest state to the profile builder.
-  private void addLatestState(UserBitShared.QueryProfile.Builder builder) {
+  void addLatestState(UserBitShared.QueryProfile.Builder builder) {
     builder.setState(queryStateSupplier.get());
     if (stateList != null) {
       builder.clearStateList().addAllStateList(stateList);

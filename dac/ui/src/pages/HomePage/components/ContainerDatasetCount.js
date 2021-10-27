@@ -28,6 +28,19 @@ export class ContainerDatasetCount extends Component {
     isBounded: PropTypes.bool
   }
 
+  shouldComponentUpdate(nextProps) {
+    const { count } = this.props;
+    if (count !== nextProps.count) {
+      if (count !== undefined && nextProps.count === undefined) {
+        return false;
+      } else {
+        return true;
+      }
+    } else {
+      return false;
+    }
+  }
+
   render() {
     const { count, isBounded } = this.props;
     let displayedValue = null;

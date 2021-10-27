@@ -33,7 +33,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CoercionReader;
-import com.dremio.exec.store.HiveParquetCoercionReader;
+import com.dremio.exec.store.FileTypeCoercion;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.SplitReaderCreator;
@@ -231,7 +231,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
 
         final SchemaDerivationHelper schemaHelper = schemaHelperBuilder.build();
         Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
-        ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields);
+        ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields, isConvertedIcebergDataset);
         RecordReader inner;
         if (!isConvertedIcebergDataset && DatasetHelper.isIcebergFile(formatSettings)) {
           IcebergParquetReader innerIcebergParquetReader = new IcebergParquetReader(
@@ -249,9 +249,14 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                   vectorize,
                   enableDetailedTracing,
                   supportsColocatedReads,
-                  inputStreamProvider
+                  inputStreamProvider,
+                  isConvertedIcebergDataset
           );
-          RecordReader wrappedRecordReader = new CoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, fullSchema);
+          Map<String, Field> fieldsByName = CaseInsensitiveMap.newHashMap();
+          fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));
+          RecordReader wrappedRecordReader = ParquetCoercionReader.newInstance(context,
+            projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, fullSchema,
+            new FileTypeCoercion(fieldsByName), conditions);
           inner = readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
         } else if (DatasetHelper.isDeltaLake(formatSettings)) {
           DeltaLakeParquetReader innerDeltaParquetReader = new DeltaLakeParquetReader(
@@ -298,9 +303,9 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
 
             Map<String, Field> fieldsByName = CaseInsensitiveMap.newHashMap();
             fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));
-            RecordReader wrappedRecordReader = HiveParquetCoercionReader.newInstance(context,
+            RecordReader wrappedRecordReader = ParquetCoercionReader.newInstance(context,
                     projectedColumns.getBatchSchemaProjectedColumns(), innerParquetReader, fullSchema,
-                    new ParquetTypeCoercion(fieldsByName), conditions);
+                    new FileTypeCoercion(fieldsByName), conditions);
             return readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
           }
 
@@ -328,7 +333,6 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
         }
         return inner;
       }finally {
-        this.datasetSplit = null;
         this.inputStreamProvider = null;
       }
     });

@@ -26,6 +26,7 @@
   }
   .overview {
     display: flex;
+    max-width: calc(100vw - 64px); // 64px is the offset of the left nav
     min-height: 100vh;
 
     &__leftSidePanel {
@@ -48,7 +49,8 @@
       border-radius: 5px !important;
       height: 190px !important ;
       font-size:11px !important;
-      line-height: 20px!important ;
+      line-height: 20px!important;
+      width: calc(100vw - 498px); // 498px is the offset of the left nav and the left colmun of content
     }
   }
   .failureInfo {
@@ -63,13 +65,13 @@
     }
   }
   .helpSectionQvlogo{
-    height: 112px;
-    width: 120px;
+    height: 92px;
+    width: 144px;
     flex-basis: 50%;
     position: relative;
-    left: 0px;
+    left: 15px;
     right: 2.17%;
-    bottom: 30px;
+    bottom: 34px;
     padding-right: 16px;
   }
 }

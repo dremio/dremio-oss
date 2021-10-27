@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>18.2.0-202110081842420694-7e500f14</version>
+    <version>19.0.0-202110270341120595-3e3e05e7</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -263,9 +263,10 @@
             -Xms512m
             -Xmx3g
             -Xss2048k
-            -Djava.net.preferIPv4Stack=true"
+            -Djava.net.preferIPv4Stack=true
             -XX:MaxDirectMemorySize=3072M
             -XX:+CMSClassUnloadingEnabled
+            -Dio.netty.tryReflectionSetAccessible=true
             -ea
             @{argLine}
           </argLine>
@@ -279,7 +280,11 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <forkCount>1</forkCount>
-          <argLine>-Xmx1024m @{argLine}</argLine>
+          <argLine>
+            -Xmx1024m
+            -Dio.netty.tryReflectionSetAccessible=true
+            @{argLine}
+          </argLine>
         </configuration>
       </plugin>
       <plugin>

@@ -18,6 +18,7 @@ package org.apache.arrow.vector;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -30,7 +31,9 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 
-import io.netty.util.internal.PlatformDependent;
+import com.dremio.common.types.TypeProtos;
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.base.Preconditions;
 
 
 /**
@@ -75,25 +78,70 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public MutableVarcharVector(String name, FieldType fieldType, BufferAllocator allocator, double compactionThreshold) {
     super(new Field(name, fieldType, null), allocator);
 
+    assert compactionThreshold <= 1.0;
     this.compactionThreshold = compactionThreshold;
     fwdIndex = new UInt2Vector(name, allocator);
   }
 
   public final void setCompactionThreshold(double in) {
+    assert compactionThreshold <= 1.0;
     compactionThreshold = in;
   }
 
   public final boolean needsCompaction() {
-    return (((garbageSizeInBytes * (1.0D)) / getDataBuffer().capacity()) > compactionThreshold);
+    /*
+     * Though external facing index is fwdIndex, internally "head" points the current
+     * used index, due to holes in between, can be higher than the total fwdIndex count.
+     * If head index reach the end of the validity buffer, need compaction to remove the
+     * holes to gain "head"room.
+     *
+     * XXX: Ideally, the backing (BaseVariableWidthVector) may be allocated twice in size
+     * for validity and offset buffer, so that the number of compactions can be reduced.
+     */
+    return head >= super.getValueCapacity() ||
+      (getDataBuffer().capacity() > 0 &&
+        ((garbageSizeInBytes * 1.0D) / getDataBuffer().capacity()) > compactionThreshold);
+  }
+
+  public static int getValidityBufferSizeFromCount(int count) {
+    // validity bits for index + validity bits for the data buffer
+    return UInt2Vector.getValidityBufferSizeFromCount(count) + VarCharVector.getValidityBufferSizeFromCount(count);
+  }
+
+  public static int getIndexDataBufferSizeFromCount(int count) {
+    return ((2 /* fwdIndex.TYPE_WIDTH */ * count + 7) / 8) * 8;
+  }
+
+  /**
+   * @param count num elements to be stored
+   * @param capacity total size of those elements
+   * @return the data buffer capacity required to hold such mutable vector
+   */
+  public static int getDataBufferSizeFromCount(int count, int capacity) {
+    // Size of the elements in value buffer
+    int bufSize = capacity;
+
+    // accommodate offset-buffer size
+    if (count > 0) {
+      bufSize += (count + 1) * 4;
+    }
+
+    // accommodate index buffer size
+    bufSize += getIndexDataBufferSizeFromCount(count);
+
+    return bufSize;
+  }
+
+  public final int getSizeInBytes() {
+    return getDataBufferSizeFromCount(head, getUsedByteCapacity());
   }
 
   /**
    * @return The offset at which the next valid data may be put in the buffer.
    */
   public final int getCurrentOffset() {
-    return getstartOffset(head);
+    return getStartOffset(head);
   }
-
 
   /**
    * This value gets updated as the previous values in the buffer are updated with newer ones.
@@ -109,9 +157,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @return the size used in the buffer
    */
   public final int getUsedByteCapacity() {
-    return (getByteCapacity() - getGarbageSizeInBytes());
+    return (getCurrentOffset() - getGarbageSizeInBytes());
   }
-
 
   /**
    * Get a reader that supports reading values from this vector.
@@ -120,7 +167,6 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    */
   @Override
   public FieldReader getReader() {
-    //return reader;
     throw new UnsupportedOperationException("not supported");
   }
 
@@ -134,7 +180,6 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public MinorType getMinorType() {
     return MinorType.VARCHAR;
   }
-
 
   /**
    * zero out the vector and the data in associated buffers.
@@ -202,12 +247,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     if (super.isSet(actualIndex) == 0) {
       throw new IllegalStateException("Value at index is null");
     }
-    final int startOffset = getStartOffset(actualIndex);
-    final int dataLength =
-      offsetBuffer.getInt((actualIndex + 1) * OFFSET_WIDTH) - startOffset;
-    final byte[] result = new byte[dataLength];
-    valueBuffer.getBytes(startOffset, result, 0, dataLength);
-    return result;
+    return super.get(getDataBuffer(), getOffsetBuffer(), actualIndex);
   }
 
   /**
@@ -251,9 +291,9 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     }
 
     holder.isSet = 1;
-    holder.start = getstartOffset(actualIndex);
-    holder.end = offsetBuffer.getInt((actualIndex + 1) * OFFSET_WIDTH);
-    holder.buffer = valueBuffer;
+    holder.start = getStartOffset(actualIndex);
+    holder.end = getStartOffset(actualIndex + 1);
+    holder.buffer = getDataBuffer();
   }
 
 
@@ -312,6 +352,14 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     throw new UnsupportedOperationException("not supported");
   }
 
+  public int getAvailableSpace() {
+    /*
+     * XXX: How about garbage space? If insert take garbase space into account,
+     * we may reduce total number of splices.
+     */
+    return getByteCapacity() - getCurrentOffset();
+  }
+
   /**
    * This api is invoked during the 'set/setSafe' operations.
    * If the index is already valid, then increment the garbageSizeInBytes, as the value
@@ -322,15 +370,15 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    */
   private final void updateGarbageAndCompact(final int index) {
     final boolean isUpdate = (fwdIndex.isSafe(index) && !fwdIndex.isNull(index));
+
     if (isUpdate) {
       final int actualIndex = fwdIndex.get(index);
-      final int dataOffset = getstartOffset(actualIndex);
-      final int dataLength =
-        offsetBuffer.getInt((actualIndex + 1) * OFFSET_WIDTH) - dataOffset;
+      final int dataOffset = getStartOffset(actualIndex);
+      final int dataLength = getStartOffset(actualIndex + 1) - dataOffset;
       garbageSizeInBytes += dataLength;
 
       //mark the value in buffer as invalid
-      setNull(actualIndex);
+       super.setNull(actualIndex);
 
       //treat this index also as invalid, as its going to get overwritten
       fwdIndex.setNull(index);
@@ -339,20 +387,6 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     if (needsCompaction()) {
       compactInternal();
     }
-  }
-
-  /*
-   * Compact the data buffer by moving all the valid entries
-   * to the top. First check if the threshold has been met.
-   *
-   * */
-  public void compact() {
-    //threshold not met
-    if (!needsCompaction()) {
-      return;
-    }
-
-    compactInternal();
   }
 
   /*
@@ -372,56 +406,38 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     final int idxCapacity = fwdIndex.getValueCapacity();
     for (int i = 0; i < idxCapacity; ++i) {
       if (!fwdIndex.isNull(i)) {
-        validOffsetMap.put((int) fwdIndex.get(i), i);
+        final int actualIndex = fwdIndex.get(i);
+        validOffsetMap.put(actualIndex, i);
       }
     }
 
-    final ArrowBuf buffer = getDataBuffer();
-    final ArrowBuf offsetBuffer = getOffsetBuffer();
-
-    int lastOffset = -1;
     int current = 0;
     int target = 0;
 
     while (current < head) {
       //check the validity bitmap
-      final boolean isValid = (super.isSet(current) !=0) ;
+      final boolean isValid = (super.isSet(current) != 0);
 
-      if (isValid && (current == target)) {
+      if (!isValid) {
         ++current;
-        ++target;
         continue;
       }
 
-      if (isValid && (current != target)) {
+      if (current != target) {
+        final int validOffset = getStartOffset(current);
+        final int validLen = getStartOffset(current + 1) - validOffset;
 
-        //get the corresponding offsets
-        final int validOffset = offsetBuffer.getInt(current * OFFSET_WIDTH);
-        final int validLen = offsetBuffer.getInt((current + 1) * OFFSET_WIDTH) - validOffset;
+        // update entry at target
+        super.set(target, validOffset, validLen, getDataBuffer());
 
-        if (lastOffset == -1) {
-          lastOffset = offsetBuffer.getInt(target * OFFSET_WIDTH);
-        }
-
-        //shift the valid data to lastOffset
-        PlatformDependent.copyMemory(buffer.memoryAddress() + validOffset, buffer.memoryAddress() + lastOffset, validLen);
-
-        //This is the new location where next valid data is put.
-        lastOffset += validLen;
-
-        //fix the length as per the valid size
-        offsetBuffer.setInt(((target + 1) * OFFSET_WIDTH), lastOffset);
-
-        //update the index to point to new position
+        // update the index to point to new position
         fwdIndex.set(validOffsetMap.get(current), target);
 
-        //fix the validity bit
-        BitVectorHelper.setValidityBit(validityBuffer, target, 1);
-        setNull(current);
-
-        ++target;
+        // reset old position
+        super.setNull(current);
       }
 
+      ++target;
       ++current;
     } //while
 
@@ -444,17 +460,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     updateGarbageAndCompact(index);
 
     //update the index
-    fwdIndex.setSafe(index, head);
+    fwdIndex.set(index, head);
 
     //append at the end
-    fillHoles(head);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    final int dataLength = holder.end - holder.start;
-    final int startOffset = getstartOffset(head);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + dataLength);
-    valueBuffer.setBytes(startOffset, holder.buffer, holder.start, dataLength);
-    lastSet = head;
-
+    super.set(head, holder.start, holder.end - holder.start, holder.buffer);
     ++head;
   }
 
@@ -475,14 +484,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     fwdIndex.setSafe(index, head);
 
     //append at the end
-    final int dataLength = holder.end - holder.start;
-    fillEmpties(head);
-    handleSafe(head, dataLength);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    final int startOffset = getstartOffset(head);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + dataLength);
-    valueBuffer.setBytes(startOffset, holder.buffer, holder.start, dataLength);
-    lastSet = head;
+    super.setSafe(head, holder.start, holder.end - holder.start, holder.buffer);
 
     ++head;
   }
@@ -500,16 +502,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     updateGarbageAndCompact(index);
 
     //update the index
-    fwdIndex.setSafe(index, head);
+    fwdIndex.set(index, head);
 
     //append at the end
-    fillHoles(head);
-    BitVectorHelper.setValidityBit(validityBuffer, head, holder.isSet);
-    final int dataLength = holder.end - holder.start;
-    final int startOffset = getstartOffset(head);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + dataLength);
-    valueBuffer.setBytes(startOffset, holder.buffer, holder.start, dataLength);
-    lastSet = head;
+    super.set(head, holder.start, holder.end - holder.start, holder.buffer);
 
     ++head;
   }
@@ -531,14 +527,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     fwdIndex.setSafe(index, head);
 
     //append at the end
-    final int dataLength = holder.end - holder.start;
-    fillEmpties(head);
-    handleSafe(head, dataLength);
-    BitVectorHelper.setValidityBit(validityBuffer, head, holder.isSet);
-    final int startOffset = getstartOffset(head);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + dataLength);
-    valueBuffer.setBytes(startOffset, holder.buffer, holder.start, dataLength);
-    lastSet = head;
+    super.setSafe(head, holder.start, holder.end - holder.start, holder.buffer);
 
     ++head;
   }
@@ -581,12 +570,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     updateGarbageAndCompact(index);
 
     //update the index
-    fwdIndex.setSafe(index, head);
+    fwdIndex.set(index, head);
 
-    fillHoles(head);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    setBytes(head, value, 0, value.length);
-    lastSet = head;
+    //append at the end
+    super.set(head, value);
 
     ++head;
   }
@@ -607,11 +594,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     //update the index
     fwdIndex.setSafe(index, head);
 
-    fillEmpties(head);
-    handleSafe(head, value.length);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    setBytes(head, value, 0, value.length);
-    lastSet = head;
+    //append at the end
+    super.setSafe(head, value);
 
     ++head;
   }
@@ -631,12 +615,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     updateGarbageAndCompact(index);
 
     //update the index
-    fwdIndex.setSafe(index, head);
+    fwdIndex.set(index, head);
 
-    fillHoles(head);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    setBytes(head, value, start, length);
-    lastSet = head;
+    //append at the end
+    super.set(head, value, start, length);
 
     ++head;
   }
@@ -659,11 +641,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     //update the index
     fwdIndex.setSafe(index, head);
 
-    fillEmpties(head);
-    handleSafe(head, length);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    setBytes(head, value, start, length);
-    lastSet = head;
+    //append at the end
+    super.setSafe(head, value, start, length);
 
     ++head;
   }
@@ -683,14 +662,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     updateGarbageAndCompact(index);
 
     //update the index
-    fwdIndex.setSafe(index, head);
+    fwdIndex.set(index, head);
 
-    fillHoles(head);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    final int startOffset = getstartOffset(head);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + length);
-    valueBuffer.setBytes(startOffset, value, start, length);
-    lastSet = head;
+    //append at the end
+    super.set(head, value, start, length);
 
     ++head;
   }
@@ -713,13 +688,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     //update the index
     fwdIndex.setSafe(index, head);
 
-    fillEmpties(head);
-    handleSafe(head, length);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    final int startOffset = getstartOffset(head);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + length);
-    valueBuffer.setBytes(startOffset, value, start, length);
-    lastSet = head;
+    //append at the end
+    super.setSafe(head, value, start, length);
 
     ++head;
   }
@@ -742,15 +712,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     updateGarbageAndCompact(index);
 
     //update the index
-    fwdIndex.setSafe(index, head);
+    fwdIndex.set(index, head);
 
-    final int dataLength = end - start;
-    fillHoles(head);
-    BitVectorHelper.setValidityBit(validityBuffer, head, isSet);
-    final int startOffset = offsetBuffer.getInt(head * OFFSET_WIDTH);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + dataLength);
-    valueBuffer.setBytes(startOffset, buffer, start, dataLength);
-    lastSet = head;
+    //update the index
+    super.set(head, isSet, start, end, buffer);
 
     ++head;
   }
@@ -775,14 +740,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     //update the index
     fwdIndex.setSafe(index, head);
 
-    final int dataLength = end - start;
-    fillEmpties(head);
-    handleSafe(head, end);
-    BitVectorHelper.setValidityBit(validityBuffer, head, isSet);
-    final int startOffset = offsetBuffer.getInt(head * OFFSET_WIDTH);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + dataLength);
-    valueBuffer.setBytes(startOffset, buffer, start, dataLength);
-    lastSet = head;
+    //update the index
+    super.setSafe(head, isSet, start, end, buffer);
 
     ++head;
   }
@@ -803,15 +762,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     updateGarbageAndCompact(index);
 
     //update the index
-    fwdIndex.setSafe(index, head);
+    fwdIndex.set(index, head);
 
-    fillHoles(head);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    final int startOffset = offsetBuffer.getInt(head * OFFSET_WIDTH);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + length);
-    final ArrowBuf bb = buffer.slice(start, length);
-    valueBuffer.setBytes(startOffset, bb);
-    lastSet = head;
+    //update the index
+    super.set(head, start, length, buffer);
 
     ++head;
   }
@@ -835,14 +789,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     //update the index
     fwdIndex.setSafe(index, head);
 
-    fillEmpties(head);
-    handleSafe(head, length);
-    BitVectorHelper.setValidityBitToOne(validityBuffer, head);
-    final int startOffset = offsetBuffer.getInt(head * OFFSET_WIDTH);
-    offsetBuffer.setInt((head + 1) * OFFSET_WIDTH, startOffset + length);
-    final ArrowBuf bb = buffer.slice(start, length);
-    valueBuffer.setBytes(startOffset, bb);
-    lastSet = head;
+    //update the index
+    super.setSafe(head, start, length, buffer);
 
     ++head;
   }
@@ -850,27 +798,179 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   /**
    * Copies the entries pointed by fwdIndex into the varchar vector.
    * It assumes that the vector has been sized to hold the entries.
-   * @param in Varchar vector where data is copied
-   * @param from starting index (inclusive)
-   * @param to end index (inclusive) (should be less than value capacity)
+   *
+   * @param in BaseVariableWidthVector where data is copied
+   * @param numRecords number of entries to copy
    */
-  public void copyToVarchar(VarCharVector in, final int from, final int to)
-  {
-    final int valCapacity = fwdIndex.getValueCapacity();
-    for (int i = from; i <= to && i < valCapacity; ++i) {
+  public void copyToVarWidthVec(BaseVariableWidthVector in, final int numRecords) {
+    Preconditions.checkArgument(numRecords <= fwdIndex.getValueCapacity());
+    for (int i = 0; i < numRecords; ++i) {
       if (!fwdIndex.isNull(i)) {
         final int actualIndex = fwdIndex.get(i);
-        final int startOffset = getstartOffset(actualIndex);
-        final int dataLength =
-          offsetBuffer.getInt((actualIndex + 1) * OFFSET_WIDTH) - startOffset;
-        in.set(i, startOffset, dataLength, valueBuffer);
+        Preconditions.checkArgument(actualIndex >= 0);
+        Preconditions.checkArgument(!super.isNull(actualIndex));
+        final int startOffset = getStartOffset(actualIndex);
+        final int dataLength = getStartOffset(actualIndex + 1) - startOffset;
+        in.set(i, startOffset, dataLength, getDataBuffer());
       }
     }
+    in.setValueCount(numRecords);
   }
 
-  public boolean isIndexSafe(int index)
-  {
-    return fwdIndex.isSafe(index);
+  public boolean isIndexSafe(int index) {
+    return fwdIndex.isSafe(index) && !fwdIndex.isNull(index);
+  }
+
+  @Override
+  public List<ArrowBuf> getFieldBuffers() {
+    throw new UnsupportedOperationException("not supported");
+  }
+
+  public void loadBuffers(int valueCount, final int varLenAccumulatorCapacity, final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
+    //load validity buffers
+    final int indexValSize = UInt2Vector.getValidityBufferSizeFromCount(valueCount);
+    fwdIndex.validityBuffer = validityBuffer.slice(0, indexValSize);
+    fwdIndex.validityBuffer.writerIndex(indexValSize);
+    fwdIndex.validityBuffer.getReferenceManager().retain(1);
+
+    final int dataValSize = VarCharVector.getValidityBufferSizeFromCount(valueCount);
+    super.validityBuffer = validityBuffer.slice(indexValSize, dataValSize);
+    super.validityBuffer.writerIndex(dataValSize);
+    super.validityBuffer.getReferenceManager().retain(1);
+
+    //load offset buffer
+    final int offsetSize = ((valueCount + 1) * 4);
+    super.offsetBuffer = dataBuffer.slice(0, offsetSize);
+    super.offsetBuffer.writerIndex(offsetSize);
+    super.offsetBuffer.getReferenceManager().retain(1);
+
+    //load index data buffer
+    final int indexBufSize = this.getIndexDataBufferSizeFromCount(valueCount);
+    fwdIndex.valueBuffer = dataBuffer.slice(offsetSize, indexBufSize);
+    fwdIndex.valueBuffer.writerIndex(indexBufSize);
+    fwdIndex.valueBuffer.getReferenceManager().retain(1);
+
+    //load value data buffer
+    super.valueBuffer = dataBuffer.slice((offsetSize + indexBufSize), varLenAccumulatorCapacity);
+    super.valueBuffer.writerIndex(varLenAccumulatorCapacity);
+    super.valueBuffer.getReferenceManager().retain(1);
+
+    fwdIndex.refreshValueCapacity();
+  }
+
+  /**
+   * returns the actual buffer size needed to hold recordCount items from MutableVarchar Vector
+   * includes validity & offset sizes as well.
+   * @param recordCount
+   * @return
+   */
+  public int getActualBufferSize(int recordCount) {
+    int size = 0;
+    Preconditions.checkArgument(recordCount <= fwdIndex.getValueCapacity());
+    for (int i = 0; i < recordCount; ++i) {
+      if (!fwdIndex.isNull(i)) {
+        final int actualIndex = fwdIndex.get(i);
+        Preconditions.checkArgument(actualIndex >= 0);
+        Preconditions.checkArgument(!super.isNull(actualIndex));
+        final int startOffset = getStartOffset(actualIndex);
+        final int dataLength = getStartOffset(actualIndex + 1) - startOffset;
+        size += dataLength;
+      }
+    }
+
+    // validity
+    size += super.getValidityBufferSizeFromCount(recordCount);
+
+    //offset
+    size += (recordCount + 1) * 4;
+
+    return size;
+  }
+
+  /**
+   * Returns a SerializedField that represents an equivalent VarCharVector that has 'recordCount' records
+   * @param recordCount
+   * @return
+   */
+  public UserBitShared.SerializedField getSerializedField(final int recordCount) {
+    final int totalBufSize = this.getActualBufferSize(recordCount);
+    final int validityBufSize = super.getValidityBufferSizeFromCount(recordCount);
+
+    UserBitShared.SerializedField.Builder b = UserBitShared.SerializedField.newBuilder().setNamePart(UserBitShared.NamePart.newBuilder().setName(super.getName()).build())
+      .setValueCount(recordCount)
+      .setBufferLength(totalBufSize);
+
+      b.addChild(this.buildValidityMetadata(recordCount, validityBufSize))
+       .addChild(this.buildOffsetAndDataMetadata(recordCount, totalBufSize, validityBufSize))
+       .setMajorType(com.dremio.common.util.MajorTypeHelper.getMajorTypeForField(super.getField()));
+
+    return b.build();
+  }
+
+  private UserBitShared.SerializedField buildOffsetAndDataMetadata(final int recordCount, final int bufferSize,
+                                                                   final int validitySize) {
+    UserBitShared.SerializedField offsetField = UserBitShared.SerializedField.newBuilder()
+      .setNamePart(UserBitShared.NamePart.newBuilder().setName("$offsets$").build())
+      .setValueCount((recordCount == 0) ? 0 : recordCount + 1)
+      .setBufferLength((recordCount == 0) ? 0 : (recordCount + 1) * 4)
+      .setMajorType(com.dremio.common.types.Types.required(com.dremio.common.types.TypeProtos.MinorType.UINT4))
+      .build();
+
+    UserBitShared.SerializedField.Builder dataBuilder = UserBitShared.SerializedField.newBuilder()
+      .setNamePart(UserBitShared.NamePart.newBuilder().setName("$values$").build())
+      .setValueCount(recordCount)
+      .setBufferLength(bufferSize - validitySize) // This include offset as well.
+      .addChild(offsetField)
+      .setMajorType(com.dremio.common.types.Types.required(com.dremio.common.types.TypeProtos.MinorType.VARCHAR));
+
+    return dataBuilder.build();
+  }
+
+  private UserBitShared.SerializedField buildValidityMetadata(final int recordCount, final int validityBufSize) {
+    UserBitShared.SerializedField.Builder validityBuilder = UserBitShared.SerializedField.newBuilder()
+      .setNamePart(UserBitShared.NamePart.newBuilder().setName("$bits$").build())
+      .setValueCount(recordCount)
+      .setBufferLength(validityBufSize)
+      .setMajorType(com.dremio.common.types.Types.required(TypeProtos.MinorType.BIT));
+
+    return validityBuilder.build();
+  }
+
+  /**
+   * This api copies the records to the target vector. It starts copying from 'startIndex' till the end.
+   * It frees up the space after copying the records to destination.
+   * @param startIndex index from which the records to be moved
+   * @param dstStartIndex start index to which the records are moved to
+   * @param toVector destination
+   * @return
+   */
+  public int moveToAndFreeSpace(final int startIndex, int dstStartIndex, final int numRecords, FieldVector toVector) {
+    int dataMoved = 0;
+
+    Preconditions.checkArgument(startIndex + numRecords <= fwdIndex.getValueCapacity());
+    for (int count = 0; count < numRecords; ++dstStartIndex, ++count) {
+      if (!fwdIndex.isNull(startIndex + count)) {
+        //copy the record
+        final int actualIndex = fwdIndex.get(startIndex + count);
+        Preconditions.checkArgument(actualIndex >= 0);
+        final int startOffset = getStartOffset(actualIndex);
+        final int dataLength = getStartOffset(actualIndex + 1) - startOffset;
+        ((MutableVarcharVector)toVector).set(dstStartIndex, startOffset, dataLength, getDataBuffer());
+
+        dataMoved += dataLength;
+
+        //mark it as free now
+        super.setNull(actualIndex);
+        fwdIndex.setNull(startIndex + count);
+      }
+    }
+
+    //force compact to clean up the 'moved' data
+    if (dataMoved > 0) {
+      this.forceCompact();
+    }
+
+    return dataMoved;
   }
 
 
@@ -906,37 +1006,28 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     throw new UnsupportedOperationException("not supported");
   }
 
-    /*
-    private class TransferImpl implements TransferPair {
-        VarCharVector to;
-
-        public TransferImpl(String ref, BufferAllocator allocator) {
-            to = new VarCharVector(ref, field.getFieldType(), allocator);
-        }
-
-        public TransferImpl(VarCharVector to) {
-            this.to = to;
-        }
-
-        @Override
-        public VarCharVector getTo() {
-            return to;
-        }
-
-        @Override
-        public void transfer() {
-            transferTo(to);
-        }
-
-        @Override
-        public void splitAndTransfer(int startIndex, int length) {
-            splitAndTransferTo(startIndex, length, to);
-        }
-
-        @Override
-        public void copyValueSafe(int fromIndex, int toIndex) {
-            to.copyFromSafe(fromIndex, toIndex, VarCharVector.this);
-        }
+  /* Use this function to verify the consistency of the mutable vector */
+  public void checkMV() {
+    final HashMap<Integer, Integer> validOffsetMap = new HashMap<> ();
+    final int idxCapacity = fwdIndex.getValueCapacity();
+    for (int i = 0; i < idxCapacity; ++i) {
+      if (!fwdIndex.isNull(i)) {
+        final int actualIndex = fwdIndex.get(i);
+        Preconditions.checkArgument(!super.isNull(actualIndex));
+        validOffsetMap.put(actualIndex, i);
+      }
     }
-    */
+
+    int current = 0;
+    while (current < head) {
+      if (super.isNull(current)) {
+        Preconditions.checkArgument(validOffsetMap.get(current) == null);
+      } else {
+        Preconditions.checkArgument(validOffsetMap.get(current) != null);
+        validOffsetMap.remove(current);
+      }
+      current++;
+    }
+    Preconditions.checkArgument(validOffsetMap.isEmpty());
+  }
 }

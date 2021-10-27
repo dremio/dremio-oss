@@ -1,0 +1,35 @@
+/**
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@font-face {
+    font-family: 'DremioIconsOld';
+    src: url('../fonts/DremioIcons.woff');
+    font-weight: normal;
+    font-style: normal;
+}
+[class*='dremioIconOld-']:before{
+   display: inline-block;
+   font-family: 'DremioIconsOld';
+   font-style: normal;
+   font-weight: normal;
+   line-height: 1;
+   -webkit-font-smoothing: antialiased;
+   -moz-osx-font-smoothing: grayscale
+}
+.dremioIconOld-HeaderJobs:before{content:'\0041';}
+.dremioIconOld-HeaderHelp:before{content:'\0042';}
+.dremioIconOld-HeaderDataset:before{content:'\0043';}
+.dremioIconOld-HeaderTutorials:before{content:'\0044';}
+.dremioIconOld-HeaderSettings:before{content:'\0045';}

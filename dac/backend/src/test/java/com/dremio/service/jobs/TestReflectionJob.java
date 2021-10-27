@@ -15,6 +15,8 @@
  */
 package com.dremio.service.jobs;
 
+import static com.dremio.dac.server.UIOptions.JOBS_UI_CHECK;
+import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static com.google.common.collect.Iterables.isEmpty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -42,6 +44,7 @@ import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.socket.SocketMessage;
 import com.dremio.dac.server.socket.TestWebSocket;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.BaseTestReflection;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
@@ -179,6 +182,8 @@ public class TestReflectionJob extends BaseTestReflection {
     client.connect(socket, socketUri, request);
     socket.awaitConnection(2);
     assertEquals(getAuthHeaderValue(), socket.getSession().getUpgradeResponse().getAcceptedSubProtocol());
+    OptionValue option = OptionValue.createBoolean(SYSTEM, JOBS_UI_CHECK.getOptionName(), false);
+    getSabotContext().getOptionManager().setOption(option);
   }
 
   @Before
@@ -196,7 +201,6 @@ public class TestReflectionJob extends BaseTestReflection {
     dataset1 = addJson(new DatasetPath(ImmutableList.of("dfs", dataFile)));
     datasetId = dataset1.getId().getId();
     datasetDependency = dependency(datasetId, datasetKey);
-
   }
 
   @After

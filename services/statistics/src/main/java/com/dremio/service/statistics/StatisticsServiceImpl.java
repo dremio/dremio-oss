@@ -18,6 +18,7 @@ package com.dremio.service.statistics;
 import static com.dremio.service.statistics.StatisticsUtil.createRowCountStatisticId;
 import static com.dremio.service.statistics.StatisticsUtil.createStatisticId;
 
+import java.nio.ByteOrder;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -33,11 +35,18 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.planner.sql.TypeInferenceUtils;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.service.job.JobDetails;
@@ -67,9 +76,10 @@ import com.google.common.base.Preconditions;
  * Statistics service
  */
 public class StatisticsServiceImpl implements StatisticsService {
-
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StatisticsServiceImpl.class);
 
   private static final String TABLE_COLUMN_NAME = "TABLE_PATH";
+  private static final long HEAVY_HITTERS_THRESHOLD = 3;
   public static final String ROW_COUNT_IDENTIFIER = "null";
   private final Provider<JobsService> jobsService;
   private final Provider<SchedulerService> schedulerService;
@@ -110,6 +120,16 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
   }
 
+  private SqlTypeName getSqlTypeNameFromColumn(String column, BatchSchema schema) throws IllegalArgumentException {
+    Optional<Field> field = schema.findFieldIgnoreCase(column);
+    if (!field.isPresent()) {
+      throw new IllegalArgumentException(String.format("Failed to find field, %s, from schema, %s.", field.toString(), schema.toString()));
+    }
+
+    CompleteType completeType = new CompleteType(field.get().getType(), new ArrayList<>());
+    return TypeInferenceUtils.getCalciteTypeFromMinorType(completeType.toMinorType());
+  }
+
   @Override
   public Iterable<StatisticsListManager.StatisticsInfo> getStatisticsInfos() {
     final Map<String, Long> rowCountMap = new HashMap<>();
@@ -129,34 +149,52 @@ public class StatisticsServiceImpl implements StatisticsService {
         Long colRowCount = e.getValue().getColumnRowCount();
         Long nullCount = rowCount != null && colRowCount != null ? rowCount - colRowCount : null;
         String quantiles = null;
-
-        if (e.getValue().getSerializedTdigest() != null) {
-          Histogram histogram = new HistogramImpl(e.getValue().getSerializedTdigest().asReadOnlyByteBuffer());
-          String quantilesBuilder = "[" +
-            String.format("0: %.4f ,", histogram.quantile(0)) +
-            String.format("0.25: %.4f ,", histogram.quantile(0.25)) +
-            String.format("0.5: %.4f ,", histogram.quantile(0.5)) +
-            String.format("0.75: %.4f ,", histogram.quantile(0.75)) +
-            String.format("1: %.4f ", histogram.quantile(1)) +
-            "]";
-          quantiles = quantilesBuilder;
+        String heavyHitters = null;
+        if(e.getValue().getSerializedItemsSketch() != null) {
+          try {
+            List<String> pathComponents = PathUtils.parseFullPath(table);
+            BatchSchema actualSchema = BatchSchema.deserialize(namespaceService.get().getDataset(new NamespaceKey(pathComponents)).getRecordSchema().toByteArray());
+            Histogram histogram = new HistogramImpl(null, e.getValue().getSerializedItemsSketch().asReadOnlyByteBuffer().order(ByteOrder.nativeOrder()), getSqlTypeNameFromColumn(column, actualSchema));
+            Set<Object> freq = histogram.getFrequentItems(HEAVY_HITTERS_THRESHOLD);
+            heavyHitters = freq.toString();
+          } catch (Exception ex) {
+            logger.warn("ItemsSketch could not be retrieved from the store for table: {} , column: {}", table, column, ex);
+            heavyHitters = String.format("ItemsSketch could not be retrieved from the store for table: %s , column: %s: %s", table, column, ex.toString());
+          }
         }
 
-        return new StatisticsListManager.StatisticsInfo(table, column, createdAt, ndv, rowCount, nullCount, quantiles);
+        if (e.getValue().getSerializedTdigest() != null) {
+          try {
+            Histogram histogram = new HistogramImpl(e.getValue().getSerializedTdigest().asReadOnlyByteBuffer(), null, null);
+            quantiles = "[" +
+              String.format("0: %.4f ,", histogram.quantile(0)) +
+              String.format("0.25: %.4f ,", histogram.quantile(0.25)) +
+              String.format("0.5: %.4f ,", histogram.quantile(0.5)) +
+              String.format("0.75: %.4f ,", histogram.quantile(0.75)) +
+              String.format("1: %.4f ", histogram.quantile(1)) +
+              "]";
+          } catch (Exception ex) {
+            logger.warn("T-Digest could not be retrieved from the store for table: {} , column: {}", table, column, ex);
+            quantiles = String.format("T-Digest could not be retrieved from the store for table: %s , column: %s: %s", table, column, ex.toString());
+          }
+        }
+
+        return new StatisticsListManager.StatisticsInfo(table, column, createdAt, ndv, rowCount, nullCount, quantiles, heavyHitters);
       }).filter(StatisticsListManager.StatisticsInfo::isValid).collect(Collectors.toList());
   }
 
   @Override
-  public List<String> deleteStatistics(List<String> columns, NamespaceKey key) {
+  public List<String> deleteStatistics(List<String> fields, NamespaceKey key) {
     validateDataset(key);
     List<String> fail = new ArrayList<>();
     if (entries.containsKey(key.toString().toLowerCase())) {
       throw new ConcurrentModificationException(String.format("Cannot delete statistics for dataset, %s, as compute statistics job is currently running", key));
     }
 
-    for (String column : columns) {
-      if (!deleteStatistic(column, key)) {
-        fail.add(column);
+    for (String column : fields) {
+      String normalizedColumn = column.toLowerCase();
+      if (!deleteStatistic(normalizedColumn, key)) {
+        fail.add(normalizedColumn);
       }
     }
     return fail;
@@ -171,11 +209,12 @@ public class StatisticsServiceImpl implements StatisticsService {
   @Override
   public boolean deleteStatistic(String column, NamespaceKey key) {
     validateDataset(key);
-    if (entries.containsKey(key.toString())) {
+    if (entries.containsKey(key.toString().toLowerCase())) {
       throw new ConcurrentModificationException(String.format("Cannot delete statistics for dataset, %s, as compute statistics job is currently running", key));
     }
     final StatisticId statisticId = createStatisticId(column, key);
     if (statisticStore.get(statisticId) == null) {
+      logger.debug(String.format("Statistic Not Found for column %s and dataset %s",column,key.toString()));
       return false;
     } else {
       statisticStore.delete(createStatisticId(column, key));
@@ -189,6 +228,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
+      logger.debug(String.format("NDV Statistic Not Found for column %s and dataset %s",column,key.toString()));
       return null;
     }
     return statistic.getNdv();
@@ -204,6 +244,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     StatisticId statisticId = createRowCountStatisticId(key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
+      logger.debug(String.format("RowCount Statistic Not Found for dataset %s",key.toString()));
       return null;
     }
     return statistic.getRowCount();
@@ -215,32 +256,51 @@ public class StatisticsServiceImpl implements StatisticsService {
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     Statistic rowCountStatistic = statisticStore.get(createRowCountStatisticId(key));
-    if (statistic == null || rowCountStatistic == null) {
+    if (statistic == null) {
+      logger.debug(String.format("NullCount Statistic Not Found for column %s and dataset %s",column, key.toString()));
+      return null;
+    }else if(rowCountStatistic == null){
+      logger.debug(String.format("RowCount Statistic Not Found for dataset %s", key.toString()));
       return null;
     }
+
     return rowCountStatistic.getRowCount() - statistic.getColumnRowCount();
   }
 
   @Override
-  public Histogram getHistogram(String column, NamespaceKey key) {
+  public Histogram getHistogram(String column, TableMetadata tableMetaData) {
+    SqlTypeName sqlTypeName = getSqlTypeNameFromColumn(column, tableMetaData.getSchema());
+    String normalizedColumn = column.toLowerCase();
+    validateDataset(tableMetaData.getName());
+    StatisticId statisticId = createStatisticId(column, tableMetaData.getName().toString());
+    Statistic statistic = statisticStore.get(statisticId);
+    if (statistic == null) {
+      logger.debug(String.format("Histogram Statistic Not Found for column %s and dataset %s",column,tableMetaData.getName().toString()));
+      return null;
+    }
+    return statistic.getHistogram(sqlTypeName);
+  }
+
+  @Override
+  @VisibleForTesting
+  public Histogram getHistogram(String column,  NamespaceKey key,SqlTypeName sqlTypeName){
     validateDataset(key);
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
+      logger.debug(String.format("Histogram Statistic Not Found for column %s and dataset %s",column, key));
       return null;
     }
-    return statistic.getHistogram();
+    return statistic.getHistogram(sqlTypeName);
   }
 
   @Override
-  public String requestStatistics(List<String> columns, NamespaceKey key) {
+  public String requestStatistics(List<Field> fields, NamespaceKey key) {
     validateDataset(key);
     final JobSubmittedListener listener = new JobSubmittedListener();
-    final JobId jobId = jobsService.get().submitJob(SubmitJobRequest.newBuilder()
-      .setQueryType(QueryType.UI_INTERNAL_RUN)
-      .setSqlQuery(com.dremio.service.job.SqlQuery.newBuilder()
-        .setSql(getSql(columns, key.toString()))
-        .setUsername(SystemUser.SYSTEM_USERNAME)).build(), listener);
+    final JobId jobId = jobsService.get().submitJob(SubmitJobRequest.newBuilder().setQueryType(QueryType.UI_INTERNAL_RUN).
+      setSqlQuery(com.dremio.service.job.SqlQuery.newBuilder().setSql(getSql(fields, key.toString())).
+        setUsername(SystemUser.SYSTEM_USERNAME)).build(), listener);
     statisticEntriesStore.save(key.toString().toLowerCase(), jobId);
     entries.put(key.toString().toLowerCase(), jobId);
     return jobId.getId();
@@ -248,8 +308,9 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   public void setNdv(String column, Long val, NamespaceKey key) {
+    String normalizedColumn = column.toLowerCase();
     validateDataset(key);
-    updateStatistic(key.toString(), column, Statistic.StatisticType.NDV, val);
+    updateStatistic(key.toString(), normalizedColumn, Statistic.StatisticType.NDV, val);
   }
 
   @Override
@@ -263,59 +324,98 @@ public class StatisticsServiceImpl implements StatisticsService {
     return type + "_" + name;
   }
 
-  public String getSql(List<String> columns, String table) {
+  public String getSql(List<Field> fields, String table) {
     StringBuilder stringBuilder = new StringBuilder("SELECT '");
-    stringBuilder.append(table).append("' as ").append(TABLE_COLUMN_NAME).append(", ");
-    populateNdvSql(stringBuilder, columns);
-    if (columns.size() > 0) {
-      stringBuilder.append(", ");
-    }
+    stringBuilder.append(table).append("' as ").append(TABLE_COLUMN_NAME);
+    populateNdvSql(stringBuilder, fields);
     populateCountStarSql(stringBuilder);
-    stringBuilder.append(", ");
-    populateCountColumnSql(stringBuilder, columns);
-    stringBuilder.append(", ");
-    populateTDigestSql(stringBuilder, columns);
+    populateCountColumnSql(stringBuilder, fields);
+    populateTDigestSql(stringBuilder, fields);
+    populateItemsSketchSql(stringBuilder, fields);
     stringBuilder.append("FROM ").append(table);
     return stringBuilder.toString();
   }
 
-  private void populateNdvSql(StringBuilder stringBuilder, List<String> columns) {
-    for (int i = 0; i < columns.size(); i++) {
-      String column = columns.get(i);
-      stringBuilder.append(String.format("ndv(%s) as \"%s\"", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.NDV, column)));
-      if (i == columns.size() - 1) {
-        stringBuilder.append(" ");
-      } else {
-        stringBuilder.append(", ");
-      }
+  private void populateNdvSql(StringBuilder stringBuilder, List<Field> fields) {
+    for (Field field : fields) {
+      String column = field.getName();
+      stringBuilder.append(", ");
+      stringBuilder.append(String.format("ndv(%s) as \"%s\" ", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.NDV, column)));
     }
   }
 
   private void populateCountStarSql(StringBuilder stringBuilder) {
+    stringBuilder.append(", ");
     stringBuilder.append(String.format("count(*) as \"%s\" ", getColumnName(Statistic.StatisticType.RCOUNT, ROW_COUNT_IDENTIFIER)));
   }
 
-  private void populateCountColumnSql(StringBuilder stringBuilder, List<String> columns) {
-    for (int i = 0; i < columns.size(); i++) {
-      String column = columns.get(i);
-      stringBuilder.append(String.format("count(%s) as \"%s\"", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
-      if (i == columns.size() - 1) {
-        stringBuilder.append(" ");
-      } else {
-        stringBuilder.append(", ");
-      }
+  private void populateCountColumnSql(StringBuilder stringBuilder, List<Field> fields) {
+    for (Field field : fields) {
+      String column = field.getName();
+      stringBuilder.append(", ");
+      stringBuilder.append(String.format("count(%s) as \"%s\" ", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.COLRCOUNT, column)));
     }
   }
 
-  private void populateTDigestSql(StringBuilder stringBuilder, List<String> columns) {
-    for (int i = 0; i < columns.size(); i++) {
-      String column = columns.get(i);
-      stringBuilder.append(String.format("tdigest(%s) as \"%s\"", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.TDIGEST, column)));
-      if (i == columns.size() - 1) {
-        stringBuilder.append(" ");
-      } else {
-        stringBuilder.append(", ");
+  private void populateTDigestSql(StringBuilder stringBuilder, List<Field> fields) {
+    for (Field field : fields) {
+      String column = field.getName();
+      if (!isSupportedTypeForTDigest(field.getFieldType())) {
+        logger.warn(String.format("Could not Populate TDigest for column %s", column));
+        continue;
       }
+      stringBuilder.append(", ");
+      stringBuilder.append(String.format("tdigest(%s) as \"%s\" ", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.TDIGEST, column)));
+    }
+  }
+
+  private void populateItemsSketchSql(StringBuilder stringBuilder, List<Field> fields) {
+    for (Field field : fields) {
+      String column = field.getName();
+      if (!isSupportedTypeForItemsSketch(field.getFieldType())) {
+        logger.warn(String.format("Could not Populate ItemsSketch for column %s", column));
+        continue;
+      }
+      stringBuilder.append(", ");
+      stringBuilder.append(String.format("ITEMS_SKETCH(%s) as \"%s\" ", String.format("\"%s\"", column), getColumnName(Statistic.StatisticType.ITEMSSKETCH, column)));
+    }
+  }
+
+
+  private boolean isSupportedTypeForTDigest(FieldType fieldType) {
+    switch (fieldType.getType().getTypeID()) {
+    case Struct:
+    case List:
+    case LargeList:
+    case FixedSizeList:
+    case Union:
+    case Map:
+    case Interval:
+    case Duration:
+    case Utf8:
+    case LargeBinary:
+    case Binary:
+    case FixedSizeBinary:
+      return false;
+    default:
+      return true;
+    }
+  }
+
+  private boolean isSupportedTypeForItemsSketch(FieldType fieldType) {
+    switch (fieldType.getType().getTypeID()) {
+    case Struct:
+    case List:
+    case LargeList:
+    case FixedSizeList:
+    case Union:
+    case Map:
+    case LargeBinary:
+    case Binary:
+    case FixedSizeBinary:
+      return false;
+    default:
+      return true;
     }
   }
 

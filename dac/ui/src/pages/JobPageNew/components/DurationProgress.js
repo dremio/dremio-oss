@@ -37,7 +37,7 @@ const DurationProgress = (
           <span
             data-qa='duration-breakdown-value'
             className='durationProgress-content__value'>
-            {time < 1 ? '<1s' : jobsUtils.formatJobDuration(time * 1000)}({timePercentage}%)
+            {time < 1 ? '<1s ' : `${jobsUtils.formatJobDuration(time * 1000)} `}({timePercentage}%)
           </span>
         </div>
       }

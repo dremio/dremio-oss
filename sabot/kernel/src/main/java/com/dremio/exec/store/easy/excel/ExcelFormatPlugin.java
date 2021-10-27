@@ -16,7 +16,6 @@
 package com.dremio.exec.store.easy.excel;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -76,7 +75,7 @@ public class ExcelFormatPlugin extends EasyFormatPlugin<ExcelFormatPluginConfig>
   @Override
   public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, EasySubScan config) throws ExecutionSetupException {
     RecordReader inner = getRecordReader(context, dfs, splitAttributes, columns);
-    return new EasyCoercionReader(context, columns, inner, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null), Collections.emptyList());
+    return new EasyCoercionReader(context, columns, inner, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null));
   }
 
   /**

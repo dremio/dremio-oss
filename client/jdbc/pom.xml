@@ -21,25 +21,15 @@
   <parent>
     <groupId>com.dremio.client</groupId>
     <artifactId>dremio-client-parent</artifactId>
-    <version>18.2.0-202110081842420694-7e500f14</version>
+    <version>19.0.0-202110270341120595-3e3e05e7</version>
   </parent>
   <artifactId>dremio-client-jdbc</artifactId>
   <name>Client - JDBC Driver</name>
 
   <dependencies>
     <dependency>
-      <!-- See DX-4419
-           JDBC needs a more recent version of avatica than the one
-           calcite depends on
-      -->
       <groupId>org.apache.calcite.avatica</groupId>
-      <artifactId>avatica</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-      </exclusions>
+      <artifactId>avatica-core</artifactId>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
@@ -76,6 +66,13 @@
       <artifactId>dremio-sabot-kernel</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.calcite</groupId>
+      <artifactId>calcite-linq4j</artifactId>
+      <scope>test</scope>
+      <version>${calcite.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>

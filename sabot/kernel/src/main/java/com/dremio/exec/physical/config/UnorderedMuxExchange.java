@@ -23,19 +23,24 @@ import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 
 /**
  * UnorderedMuxExchange is a version of MuxExchange where the incoming batches are not sorted.
  */
 public class UnorderedMuxExchange extends AbstractMuxExchange {
 
+  private final OptionManager optionManager;
+
   public UnorderedMuxExchange(
-      OpProps props,
-      OpProps senderProps,
-      OpProps receiverProps,
-      BatchSchema schema,
-      PhysicalOperator child) {
-    super(props, senderProps, receiverProps, schema, child);
+    OpProps props,
+    OpProps senderProps,
+    OpProps receiverProps,
+    BatchSchema schema,
+    PhysicalOperator child,
+    OptionManager optionManager) {
+    super(props, senderProps, receiverProps, schema, child, optionManager);
+    this.optionManager = optionManager;
   }
 
   @Override
@@ -51,6 +56,6 @@ public class UnorderedMuxExchange extends AbstractMuxExchange {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new UnorderedMuxExchange(props, senderProps, receiverProps, schema, child);
+    return new UnorderedMuxExchange(props, senderProps, receiverProps, schema, child, optionManager);
   }
 }

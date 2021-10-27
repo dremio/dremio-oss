@@ -16,7 +16,6 @@
 package com.dremio.exec.catalog;
 
 import static com.dremio.common.util.DremioStringUtils.firstLine;
-import static com.dremio.exec.planner.sql.handlers.refresh.AbstractRefreshPlanBuilder.unsupportedPartitionListingError;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -55,6 +54,7 @@ import io.protostuff.ByteString;
 public class DatasetSaverImpl implements DatasetSaver {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DatasetSaverImpl.class);
+  public static final String unsupportedPartitionListingError = "Found unsupported partition listing in the table";
 
   private final NamespaceService systemNamespace;
   private final MetadataUpdateListener updateListener;
@@ -165,6 +165,7 @@ public class DatasetSaverImpl implements DatasetSaver {
         throw new IllegalStateException("Refresh query succeeded but catalog was not updated");
       }
 
+      datasetConfig.setId(savedConfig.getId());
       datasetConfig.setRecordSchema(savedConfig.getRecordSchema());
       datasetConfig.setReadDefinition(savedConfig.getReadDefinition());
       datasetConfig.setPhysicalDataset(savedConfig.getPhysicalDataset());

@@ -27,6 +27,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.CloseableIterator;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.google.common.collect.Iterators;
 
@@ -50,6 +51,10 @@ public interface RecordReaderIterator extends CloseableIterator<RecordReader> {
     List<RuntimeFilter> getRuntimeFilters();
 
     default ParquetProtobuf.ParquetDatasetSplitScanXAttr getCurrentSplitXAttr() {
+      return null;
+    }
+
+    default SplitAndPartitionInfo getCurrentSplitAndPartitionInfo() {
       return null;
     }
 

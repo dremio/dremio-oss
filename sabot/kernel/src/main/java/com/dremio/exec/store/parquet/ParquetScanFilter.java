@@ -125,7 +125,23 @@ public class ParquetScanFilter implements ScanFilter {
       return null;
     }
     // assume that conditions are joined only by AND for now
-    List<RexNode> rexNodeList = conditions.stream().map(ParquetFilterCondition::getRexFilter)
+    List<RexNode> rexNodeList = conditions.stream()
+      .filter(c -> c.getFilter().exact())
+      .map(ParquetFilterCondition::getRexFilter)
+      .collect(Collectors.toList());
+    return RexUtil.composeConjunction(new RexBuilder(SqlTypeFactoryImpl.INSTANCE), rexNodeList, true);
+  }
+
+  @Override
+  @JsonIgnore
+  public RexNode getExactRexFilter() {
+    if (conditions.get(0) == null) {
+      return null;
+    }
+    // assume that conditions are joined only by AND for now
+    List<RexNode> rexNodeList = conditions.stream()
+      .filter(c -> c.getFilter().exact())
+      .map(ParquetFilterCondition::getRexFilter)
       .collect(Collectors.toList());
     return RexUtil.composeConjunction(new RexBuilder(SqlTypeFactoryImpl.INSTANCE), rexNodeList, true);
   }

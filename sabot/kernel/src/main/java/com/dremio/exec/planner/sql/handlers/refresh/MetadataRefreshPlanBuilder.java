@@ -17,8 +17,6 @@ package com.dremio.exec.planner.sql.handlers.refresh;
 
 import java.io.IOException;
 
-import org.apache.calcite.tools.RelConversionException;
-
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.planner.physical.Prel;
@@ -32,7 +30,7 @@ public interface MetadataRefreshPlanBuilder {
   /**
    * Return the root prel node after building the Prel
    */
-  Prel buildPlan() throws RelConversionException;
+  Prel buildPlan();
 
   /**
    * Returns a listing of partition chunks. There must be one or more partition chunks in a dataset.

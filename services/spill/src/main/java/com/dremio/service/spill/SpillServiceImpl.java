@@ -158,8 +158,12 @@ public class SpillServiceImpl implements SpillService {
           if (healthCheckEnabled) {
             healthySpillDirs.add(spillDir);
           }
+        } else {
+          logger.warn("Unable to find or create spill directory {} due to lack of permissions", spillDir);
         }
       } catch (Exception e) {
+        logger.info("Sub directory creation in spill directory {} hit a temporary error `{}` " +
+            "and is not added to healthy list. Will monitor periodically", spillDir, e.getMessage());
       }
     }
 
@@ -310,18 +314,22 @@ public class SpillServiceImpl implements SpillService {
     @Override
     public void run() {
       ArrayList<String> newHealthySpillDirs = Lists.newArrayList();
-      // Local copy of spillDirs, to protect against changes
-      ArrayList<String> currentSpillDirs = spillDirs;
-      for (String spillDir : currentSpillDirs) {
+      for (String spillDir : spillDirs) {
         final Path spillDirPath = new Path(spillDir);
         if (isHealthy(spillDirPath)) {
-          newHealthySpillDirs.add(spillDir);
+          boolean healthy = true;
           if (!monitoredSpillDirectoryMap.containsKey(spillDir)) {
             try {
               monitoredSpillDirectoryMap.put(spillDir, folderManager.createTmpDirectory(spillDirPath));
-            } catch (IOException ignored) {
-              // if we cannot create temp folder now, try again
+            } catch (IOException e) {
+              // if we cannot create temp folder now, try again later
+              healthy = false;
+              logger.warn("Spill directory hit disk issues immediately after successful health check. Error was: {} ",
+                e.getMessage());
             }
+          }
+          if (healthy) {
+            newHealthySpillDirs.add(spillDir);
           }
         }
       }

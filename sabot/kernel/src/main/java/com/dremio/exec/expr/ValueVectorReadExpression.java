@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.Collections;
-import java.util.Iterator;
-
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.LogicalExpression;
@@ -66,11 +63,6 @@ public class ValueVectorReadExpression implements LogicalExpression{
 
   public TypedFieldId getFieldId() {
     return fieldId;
-  }
-
-  @Override
-  public Iterator<LogicalExpression> iterator() {
-    return Collections.emptyIterator();
   }
 
   @Override

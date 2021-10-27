@@ -216,6 +216,28 @@ export class LocalStorageUtils {
   getSqlThemeContrast() {
     return localStorage.getItem('isContrast') && JSON.parse(localStorage.getItem('isContrast'));
   }
+
+  isSideNavWide() {
+    const sideNavWide = localStorage.getItem('sideNavWide');
+    if (sideNavWide === null) {
+      return false;
+    }
+
+    return sideNavWide === 'true';
+  }
+
+  setSideNavWide(isWide) {
+    localStorage.setItem('sideNavWide', isWide);
+  }
+
+  setIsQVJobs(isQVJob) {
+    localStorage.setItem('isQVJob', isQVJob);
+  }
+
+  getIsQVJobs() {
+    return localStorage.getItem('isQVJob') && localStorage.getItem('isQVJob') !== 'undefined' && JSON.parse(localStorage.getItem('isQVJob'));
+  }
+
 }
 
 // todo: this shouldn't export `undefined` - it should use an in-memory only store

@@ -50,9 +50,11 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.ValuesPrel;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.reflection.rules.ReplacementPointer;
 
@@ -214,7 +216,14 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
 
   public Double getDistinctRowCount(TableScan rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
-      return getDistinctRowCountFromTableMetadata(rel, mq, groupKey, predicate);
+      RexNode relFilter = null;
+      if (rel instanceof FilterableScan && ((FilterableScan) rel).getFilter() != null) {
+        relFilter = ((FilterableScan) rel).getFilter().getExactRexFilter();
+      } else if (rel instanceof ScanPrelBase && ((ScanPrelBase) rel).hasFilter() && ((ScanPrelBase) rel).getFilter() != null) {
+        relFilter = ((ScanPrelBase) rel).getFilter().getExactRexFilter();
+      }
+      RexNode unionPreds =  RelMdUtil.unionPreds(rel.getCluster().getRexBuilder(), predicate,relFilter);
+      return getDistinctRowCountFromTableMetadata(rel, mq, groupKey, unionPreds);
     }
     return getDistinctRowCountFromEstimateRowCount(rel, mq, groupKey, predicate);
   }
@@ -258,7 +267,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
     // Note: projected fields do not affect this as the join conditions are based on the join's inputs and not projected fields
     for (RexNode filter : conjunctions(joinRel.getCondition())) {
       final RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(filter);
-      ImmutableBitSet bitsSet = inputFinder.inputBitSet.build();
+      ImmutableBitSet bitsSet = inputFinder.build();
       joinFiltersSet.add(bitsSet);
     }
     for (int idx = 0; idx < groupKey.length(); idx++) {
@@ -438,7 +447,11 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
       distinctRowCount *= subRowCount;
     }
 
-    return RelMdUtil.numDistinctVals(distinctRowCount, mq.getRowCount(rel));
+    Double res = RelMdUtil.numDistinctVals(distinctRowCount, mq.getRowCount(rel));
+    if(res > 0.0){
+      return res;
+    }
+    return getDistinctRowCountFromEstimateRowCount(rel,mq,groupKey,predicate);
   }
 
   public static void splitFilters(Project rel, ImmutableBitSet childBitmap,
@@ -450,7 +463,7 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
     conjunctions(predicate).forEach(filter -> {
       ImmutableBitSet filterRefs = RelOptUtil.InputFinder.bits(filter);
       for (int i = filterRefs.nextSetBit(0); i >= 0; i = filterRefs.nextSetBit(i + 1)) {
-        if ((rel.getChildExps().get(i) instanceof RexFieldAccess)) {
+        if ((rel.getProjects().get(i) instanceof RexFieldAccess)) {
           notPushable.add(filter);
           return;
         }

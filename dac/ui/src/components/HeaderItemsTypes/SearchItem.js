@@ -14,18 +14,21 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import { connect }   from 'react-redux';
+import { compose } from 'redux';
+import { connect } from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { Popover } from '@app/components/Popover';
+import {injectIntl} from 'react-intl';
 
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetsSearch from 'components/DatasetsSearch';
 import {loadSearchData} from 'actions/search';
 import { getSearchResult, getViewState } from 'selectors/resources';
 import { getSearchText } from '@app/selectors/search';
-import { bodyWhite } from 'uiTheme/radium/typography';
+
+import './SearchItem.less';
 
 @Radium
 export class SearchItem extends Component {
@@ -33,7 +36,8 @@ export class SearchItem extends Component {
     loadSearchData: PropTypes.func,
     search: PropTypes.instanceOf(Immutable.List).isRequired,
     searchViewState: PropTypes.instanceOf(Immutable.Map),
-    searchText: PropTypes.string
+    searchText: PropTypes.string,
+    intl: PropTypes.object.isRequired
   }
   input = null; // ill store input ref
 
@@ -76,12 +80,14 @@ export class SearchItem extends Component {
   }
 
   getInputText() {
-    const placeholderText = la('Search Catalog...');
+    const {intl} = this.props;
+
+    const placeholderText = intl.formatMessage({id: 'SideNav.SearchPlaceHolder'}); //('Search Catalog...');
     return (
-      <div style={styles.searchItem} className='search-item'>
+      <div className='searchItem search-item'>
         <FontIcon
           key='icon'
-          type='SearchPaleNavy'
+          type='Search'
           theme={styles.fontIcon}
         />
         <input
@@ -90,7 +96,7 @@ export class SearchItem extends Component {
           placeholder={placeholderText}
           ref={this.onInputRef}
           onInput={this.onInput}
-          style={{...styles.searchInput, outline: 'none'}}
+          className={'searchInput'}
         />
       </div>
     );
@@ -128,9 +134,9 @@ export class SearchItem extends Component {
     }
 
     return (
-      <div style={[styles.table]}>
-        <div style={[styles.row]}>
-          <div style={[styles.col1]}>{this.getInputText()}</div>
+      <div className={'searchTable'}>
+        <div className={'searchTableRow'}>
+          <div className={'searchTableCol1'}>{this.getInputText()}</div>
         </div>
         <Popover
           anchorEl={searchVisible ? anchorEl : null}
@@ -158,40 +164,12 @@ function mapStateToProps(state) {
   };
 }
 
-export default connect(mapStateToProps, {loadSearchData})(SearchItem);
+export default compose(connect(mapStateToProps, {loadSearchData}), injectIntl)(SearchItem);
 
 const styles = {
   searchStyle: {
     margin: '9px 0 0 -18px',
     zIndex: 1001
-  },
-  searchItem: {
-    display: 'flex'
-  },
-  searchInput: {
-    ...bodyWhite,
-    backgroundColor: 'transparent',
-    border: 0,
-    height: 20,
-    width: 300,
-    fontSize: 13,
-    marginTop: 2
-  },
-  table: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '0 0 0 12px'
-  },
-  row: {
-    width: 336,
-    height: 32,
-    borderRadius: 4,
-    backgroundColor: '#3F4C5C'
-  },
-  col1: {
-    display: 'table-cell',
-    verticalAlign: 'middle'
   },
   fontIcon: {
     'Icon': {

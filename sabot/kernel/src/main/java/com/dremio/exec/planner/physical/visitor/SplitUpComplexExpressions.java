@@ -87,14 +87,14 @@ public class SplitUpComplexExpressions {
 
     List<RelDataTypeField> origRelDataTypes = new ArrayList<>();
     List<RexNode> exprList = new ArrayList<>();
-    for (RexNode rex : project.getChildExps()) {
+    for (RexNode rex : project.getProjects()) {
       origRelDataTypes.add(project.getRowType().getFieldList().get(i));
       i++;
       exprList.add(rex.accept(exprSplitter));
     }
     List<RexNode> complexExprs = exprSplitter.getComplexExprs();
 
-    if (complexExprs.size() == 1 && findTopComplexFunc(funcReg, project.getChildExps()).size() == 1) {
+    if (complexExprs.size() == 1 && findTopComplexFunc(funcReg, project.getProjects()).size() == 1) {
       return null;
     }
 

@@ -16,6 +16,7 @@
 package com.dremio.service.grpc;
 
 import com.dremio.context.RequestContext;
+import com.dremio.context.SupportContext;
 import com.dremio.context.TenantContext;
 import com.dremio.context.UserContext;
 
@@ -35,12 +36,22 @@ public class MultiTenantServerInterceptor implements ServerInterceptor {
     final Metadata requestHeaders,
     ServerCallHandler<ReqT, RespT> next) {
     try {
-      RequestContext context = RequestContext.empty()
+      RequestContext contextBuilder = RequestContext.empty()
         .with(TenantContext.CTX_KEY,
           new TenantContext(requestHeaders.get(HeaderKeys.PROJECT_ID_HEADER_KEY),
             requestHeaders.get(HeaderKeys.ORG_ID_HEADER_KEY)))
         .with(UserContext.CTX_KEY, new UserContext(requestHeaders.get(HeaderKeys.USER_HEADER_KEY)));
 
+      if (requestHeaders.containsKey(HeaderKeys.SUPPORT_TICKET_HEADER_KEY)
+        && requestHeaders.containsKey(HeaderKeys.SUPPORT_EMAIL_HEADER_KEY))
+      {
+        contextBuilder = contextBuilder.with(SupportContext.CTX_KEY,
+          new SupportContext(
+            requestHeaders.get(HeaderKeys.SUPPORT_TICKET_HEADER_KEY),
+            requestHeaders.get(HeaderKeys.SUPPORT_EMAIL_HEADER_KEY)));
+      }
+
+      final RequestContext context = contextBuilder;
       return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(context.call(() -> next.startCall(call, requestHeaders))) {
         @Override
         public void onHalfClose() {

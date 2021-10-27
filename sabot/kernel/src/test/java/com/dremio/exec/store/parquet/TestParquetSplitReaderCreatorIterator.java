@@ -325,7 +325,8 @@ public class TestParquetSplitReaderCreatorIterator {
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
     when(context.getStats()).thenReturn(operatorStats);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
-    when(fileSystemPlugin.createFS(anyString(), any())).thenReturn(fs);
+    when(fileSystemPlugin.createFS(anyString(), anyString(), any())).thenReturn(fs);
+    when(fileSystemPlugin.createFSWithAsyncOptions(anyString(), anyString(), any())).thenReturn(fs);
     when(fs.supportsPath(any())).thenReturn(true);
     when(fs.supportsAsync()).thenReturn(true);
     when(config.getPluginId()).thenReturn(storagePluginId);
@@ -405,7 +406,8 @@ public class TestParquetSplitReaderCreatorIterator {
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
     when(context.getStats()).thenReturn(operatorStats);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
-    when(fileSystemPlugin.createFS(anyString(), any())).thenReturn(fs);
+    when(fileSystemPlugin.createFS(anyString(), anyString(), any())).thenReturn(fs);
+    when(fileSystemPlugin.createFSWithAsyncOptions(anyString(), anyString(), any())).thenReturn(fs);
     when(fs.supportsPath(any())).thenReturn(true);
     when(fs.supportsAsync()).thenReturn(true);
     when(tableFunctionContext.getPluginId()).thenReturn(storagePluginId);

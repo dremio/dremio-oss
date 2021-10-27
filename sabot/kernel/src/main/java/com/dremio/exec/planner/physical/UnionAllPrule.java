@@ -22,6 +22,7 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
@@ -45,7 +46,8 @@ public class UnionAllPrule extends Prule {
   @Override
   public boolean matches(RelOptRuleCall call) {
     UnionRel union = (UnionRel) call.rel(0);
-    return (! union.isDistinct());
+    final RelMetadataQuery mq = union.getCluster().getMetadataQuery();
+    return (! Boolean.TRUE.equals(mq.areRowsUnique(union)));
   }
 
   @Override

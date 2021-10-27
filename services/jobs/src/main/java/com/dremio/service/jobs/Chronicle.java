@@ -17,6 +17,10 @@ package com.dremio.service.jobs;
 
 import javax.inject.Provider;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.dremio.datastore.EnumSearchValueNotFoundException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.JobCounts;
@@ -47,6 +51,7 @@ import io.grpc.stub.StreamObserver;
 public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
 
   private final Provider<LocalJobsService> localJobsServiceProvider;
+  private static final Logger LOGGER = LoggerFactory.getLogger(Chronicle.class);
 
   public Chronicle(final Provider<LocalJobsService> jobsService) {
     this.localJobsServiceProvider = jobsService;
@@ -85,8 +90,13 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   @Override
   public void getActiveJobs(com.dremio.service.job.ActiveJobsRequest request,
                             io.grpc.stub.StreamObserver<com.dremio.service.job.ActiveJobSummary> responseObserver) {
-    getJobsService().getActiveJobs(request).forEach(responseObserver::onNext);
-    responseObserver.onCompleted();
+    try {
+      getJobsService().getActiveJobs(request).forEach(responseObserver::onNext);
+      responseObserver.onCompleted();
+    } catch (EnumSearchValueNotFoundException e) {
+      LOGGER.info("EnumSearchValueNotFoundException received : returning empty response for query {}", request.getQuery());
+      responseObserver.onCompleted();
+    }
   }
 
   @Override

@@ -399,6 +399,7 @@ public class ParquetGroupScanUtils {
     this.rowCount = 0;
     boolean first = true;
     for (ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
+      logger.debug("Processing parquet file metadata for {}.", file);
       int rowGroupIdx = 0;
       for (RowGroupMetadata rowGroup : file.getRowGroups()) {
         long rowCount = rowGroup.getRowCount();

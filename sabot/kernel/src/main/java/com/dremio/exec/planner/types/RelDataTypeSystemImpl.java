@@ -145,7 +145,6 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
       .OperationType.MOD);
   }
 
-  @Override
   public RelDataType deriveDecimalTruncateType(RelDataTypeFactory typeFactory, RelDataType type1,
     Integer scale2) {
     if (!SqlTypeUtil.isExactNumeric(type1) || !SqlTypeUtil.isDecimal(type1)) {
@@ -159,7 +158,6 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
       finalPrecisionScale.getScale());
   }
 
-  @Override
   public RelDataType deriveDecimalRoundType(RelDataTypeFactory typeFactory, RelDataType type1,
     Integer scale2) {
     if (!SqlTypeUtil.isExactNumeric(type1) || !SqlTypeUtil.isDecimal(type1)) {

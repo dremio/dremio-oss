@@ -41,6 +41,7 @@ public class MetadataAccumulator {
   private final DictionaryBuilder<String> storageHandlerDictionary;
   private final DictionaryBuilder<Prop> propertyDictionary;
 
+  private HiveReaderProto.RootPointer rootPointer;
   private boolean allFSBasedPartitions;
   private boolean allowParquetNative;
   private boolean allPartitionsUseSameInputFormat;
@@ -63,6 +64,10 @@ public class MetadataAccumulator {
 
   public void accumulateFileSystemPartitionUpdateKey(HiveReaderProto.FileSystemPartitionUpdateKey fileSystemPartitionUpdateKey) {
     fileSystemPartitionUpdateKeys.add(fileSystemPartitionUpdateKey);
+  }
+
+  public void setRootPointer(HiveReaderProto.RootPointer rootPointer) {
+    this.rootPointer = rootPointer;
   }
 
   public PartitionXattr buildPartitionXattrDictionaries(Partition partition, List<Prop> props) {
@@ -130,12 +135,20 @@ public class MetadataAccumulator {
     datasetStats.addRecords(splitEstimatedRecords);
   }
 
+  public void setIsExactRecordCount(boolean isExactRecordCount) {
+    datasetStats.setIsExactRecordCount(isExactRecordCount);
+  }
+
   public HiveDatasetStats getDatasetStats() {
     return datasetStats;
   }
 
   public List<HiveReaderProto.FileSystemPartitionUpdateKey> getFileSystemPartitionUpdateKeys() {
     return fileSystemPartitionUpdateKeys;
+  }
+
+  public HiveReaderProto.RootPointer getRootPointer() {
+    return rootPointer;
   }
 
   public boolean allFSBasedPartitions() {

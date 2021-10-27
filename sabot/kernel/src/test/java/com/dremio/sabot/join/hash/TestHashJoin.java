@@ -16,7 +16,6 @@
 package com.dremio.sabot.join.hash;
 
 import java.util.List;
-import java.util.Set;
 
 import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Ignore;
@@ -30,8 +29,8 @@ import com.dremio.sabot.op.join.hash.HashJoinOperator;
 public class TestHashJoin extends BaseTestJoin {
 
   @Override
-  protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type, Set<Integer> buildProjected, Set<Integer> probeProjected) {
-    return new JoinInfo(HashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, type, false, null));
+  protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
+    return new JoinInfo(HashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, null, type, false, null));
   }
 
   @Ignore("DX-5845")

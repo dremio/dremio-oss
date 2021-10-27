@@ -31,11 +31,9 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
-import org.joda.time.LocalDateTime;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.util.JodaDateUtility;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
@@ -45,19 +43,9 @@ import com.dremio.exec.util.ByteBufUtil.HadoopWritables;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 
 public class TestConvertFunctions extends BaseTestQuery {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestConvertFunctions.class);
 
   private static final FunctionErrorContext context = FunctionErrorContextBuilder.builder().build();
   private static final float DELTA = (float) 0.0001;
-
-  // "1980-01-01 01:23:45.678"
-  private static final String DATE_TIME_BE = "\\x00\\x00\\x00\\x49\\x77\\x85\\x1f\\x8e";
-  private static final String DATE_TIME_LE = "\\x8e\\x1f\\x85\\x77\\x49\\x00\\x00\\x00";
-
-  private static LocalDateTime time = LocalDateTime.parse("01:23:45.678", JodaDateUtility.formatTime);
-  private static LocalDateTime date = LocalDateTime.parse("1980-01-01", JodaDateUtility.getDateTimeFormatter());
-
-  String textFileContent;
 
   @Test // DRILL-3854
   public void testConvertFromConvertToInt() throws Exception {
@@ -95,6 +83,18 @@ public class TestConvertFunctions extends BaseTestQuery {
     final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.L[1] AS L1, q.M.f AS Mf FROM (" + subQuery + ") q";
     test("EXPLAIN PLAN FOR " + query);
+  }
+
+  @Test
+  public void testFnConvert() throws Exception {
+    final String query = ""
+      + "SELECT {fn CONVERT('100', DOUBLE)} AS c1";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("c1")
+      .baselineValues(100.0)
+      .go();
   }
 
   @Test

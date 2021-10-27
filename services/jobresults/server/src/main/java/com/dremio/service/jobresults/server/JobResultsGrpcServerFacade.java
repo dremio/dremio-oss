@@ -24,6 +24,7 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
@@ -46,20 +47,25 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
 
   private Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider;
   private final BufferAllocator allocator;
+  private final Provider<MaestroForwarder> forwarder;
 
   public JobResultsGrpcServerFacade(Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider,
-                                    BufferAllocator allocator) {
+                                    BufferAllocator allocator,
+                                    Provider<MaestroForwarder> forwarder) {
     this.execToCoordResultsHandlerProvider = execToCoordResultsHandlerProvider;
     this.allocator = allocator;
+    this.forwarder = forwarder;
   }
 
   public StreamObserver<JobResultsRequest> jobResults(StreamObserver<JobResultsResponse> responseObserver) {
 
     return new StreamObserver<JobResultsRequest>() {
+      private String queryId;
+
       @Override
       public void onNext(JobResultsRequest request) {
         try (ArrowBuf buf = allocator.buffer(request.getData().size())) {
-          String queryId = QueryIdHelper.getQueryId(request.getHeader().getQueryId());
+          queryId = QueryIdHelper.getQueryId(request.getHeader().getQueryId());
           try {
             ByteBuf dBody = NettyArrowBuf.unwrapBuffer(buf);
             dBody.writeBytes(request.getData().toByteArray());
@@ -76,11 +82,13 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
       @Override
       public void onError(Throwable t) {
         logger.error("JobResultsService stream failed with error ", t);
+        forwarder.get().resultsError(queryId, t);
         responseObserver.onError(t);
       }
 
       @Override
       public void onCompleted() {
+        forwarder.get().resultsCompleted(queryId);
         responseObserver.onCompleted();
       }
     };

@@ -36,6 +36,7 @@ import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableMetadata;
@@ -50,7 +51,6 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitIdentity;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -75,7 +75,7 @@ public class IcebergManifestListRecordReader implements RecordReader {
 
   private Schema icebergTableSchema;
   private byte[] icebergDatasetXAttr;
-  private final FileSystemPlugin<?> fsPlugin;
+  private final SupportsIcebergRootPointer pluginForIceberg;
   private final OpProps props;
   private ArrowBuf tmpBuf;
   private boolean emptyTable;
@@ -84,11 +84,11 @@ public class IcebergManifestListRecordReader implements RecordReader {
   public IcebergManifestListRecordReader(OperatorContext context,
                                          FileSystem fileSystem,
                                          EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
-                                         FileSystemPlugin<?> fsPlugin,
+                                         SupportsIcebergRootPointer pluginForIceberg,
                                          EasySubScan config) {
     this.splitAttributes = splitAttributes;
     this.context = context;
-    this.fsPlugin = fsPlugin;
+    this.pluginForIceberg = pluginForIceberg;
     this.dataset = config.getReferencedTables() != null ? config.getReferencedTables().iterator().next() : null;
     this.datasourcePluginUID = config.getDatasourcePluginId().getName();
     this.schema = config.getFullSchema();
@@ -104,13 +104,14 @@ public class IcebergManifestListRecordReader implements RecordReader {
     this.output = output;
     FileSystem fs;
     try {
-      fs = fsPlugin.createFS(props.getUserName(), context);
+      fs = pluginForIceberg.createFSWithAsyncOptions(splitAttributes.getPath(), props.getUserName(), context);
     } catch (IOException e) {
       throw new RuntimeException("Failed creating filesystem", e);
     }
     TableMetadata tableMetadata = TableMetadataParser.read(new DremioFileIO(
-            fs, context, dataset, datasourcePluginUID, null, fsPlugin.getFsConfCopy()),
+            fs, context, dataset, datasourcePluginUID, null, pluginForIceberg.getFsConfCopy()),
             splitAttributes.getPath());
+    checkForPartitionSpecEvolution(tableMetadata); // We don't support partition spec evolution. so throw user exception in case of partition evol.
     icebergTableSchema = tableMetadata.schema();
     Snapshot snapshot = tableMetadata.currentSnapshot();
     if (snapshot == null) {
@@ -199,6 +200,26 @@ public class IcebergManifestListRecordReader implements RecordReader {
     }
 
     return value;
+  }
+
+  private void checkForPartitionSpecEvolution(TableMetadata tableMetadata) {
+    if (tableMetadata.specs().size() > 1) {
+      throw UserException
+              .unsupportedError()
+              .message("Iceberg tables with partition spec evolution are not supported")
+              .buildSilently();
+    }
+
+    if (checkNonIdentityTransform(tableMetadata.spec())) {
+      throw UserException
+              .unsupportedError()
+              .message("Iceberg tables with Non-identity partition transforms are not supported")
+              .buildSilently();
+    }
+  }
+
+  private boolean checkNonIdentityTransform(PartitionSpec partitionSpec) {
+    return partitionSpec.fields().stream().anyMatch(partitionField -> !partitionField.transform().isIdentity());
   }
 
   @Override

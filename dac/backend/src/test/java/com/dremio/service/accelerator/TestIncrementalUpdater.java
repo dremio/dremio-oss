@@ -104,7 +104,7 @@ public class TestIncrementalUpdater extends BaseTestServer {
     }
     ex.close();
     long currentTime = System.currentTimeMillis();
-    RelNode newLogicalPlan = logicalPlan.get().accept(new MaterializationShuttle(IncrementalUpdateUtils.UPDATE_COLUMN, new UpdateId().setLongUpdateId(currentTime).setType(MinorType.BIGINT)));
+    RelNode newLogicalPlan = logicalPlan.get().accept(new MaterializationShuttle(IncrementalUpdateUtils.UPDATE_COLUMN, true, new UpdateId().setLongUpdateId(currentTime).setType(MinorType.BIGINT)));
     assertNotNull(newLogicalPlan.getRowType().getField(IncrementalUpdateUtils.UPDATE_COLUMN, false, false));
   }
 }

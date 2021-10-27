@@ -136,14 +136,16 @@ public class TestJobDetails extends BaseTestServer {
 
     com.dremio.service.job.JobDetails jobDetailsService = jobsService.getJobDetails(detailRequest);
     jobInfoDetailsUI = new JobInfoDetailsUI();
-    jobInfoDetailsUI = jobInfoDetailsUI.of(jobDetailsService, profile, summary, null, reflectionServiceHelper, namespaceService, 1, 0);
+    jobInfoDetailsUI = jobInfoDetailsUI.of(jobDetailsService, profile, null, reflectionServiceHelper, namespaceService, 1, 0);
 
     assertEquals(jobId, jobInfoDetailsUI.getId());
     assertEquals("UI_RUN", jobInfoDetailsUI.getQueryType().toString());
     assertEquals("A", jobInfoDetailsUI.getQueryUser());
     assertEquals(sql, jobInfoDetailsUI.getQueryText());
-    assertEquals("0 B / 0 Records", jobInfoDetailsUI.getInput());
-    assertEquals("0 B / 0 Records", jobInfoDetailsUI.getOutput());
+    assertEquals(Long.valueOf(0), jobInfoDetailsUI.getInputBytes());
+    assertEquals(Long.valueOf(0), jobInfoDetailsUI.getInputRecords());
+    assertEquals(Long.valueOf(0), jobInfoDetailsUI.getOutputBytes());
+    assertEquals(Long.valueOf(0), jobInfoDetailsUI.getOutputRecords());
     assertEquals("SMALL", jobInfoDetailsUI.getWlmQueue());
     assertFalse(jobInfoDetailsUI.isAccelerated());
     assertEquals(0, jobInfoDetailsUI.getNrReflectionsMatched());
@@ -152,7 +154,7 @@ public class TestJobDetails extends BaseTestServer {
     assertEquals(0, jobInfoDetailsUI.getReflectionsMatched().size());
     assertEquals(0, jobInfoDetailsUI.getReflectionsUsed().size());
     assertEquals(java.util.Optional.ofNullable(100l).get(), java.util.Optional.ofNullable(jobInfoDetailsUI.getStartTime()).get());
-    assertEquals(java.util.Optional.ofNullable(107l).get(), java.util.Optional.ofNullable(jobInfoDetailsUI.getEndTime()).get());
+    assertEquals(java.util.Optional.ofNullable(110l).get(), java.util.Optional.ofNullable(jobInfoDetailsUI.getEndTime()).get());
     assertEquals(0, jobInfoDetailsUI.getDatasetGraph().size());
   }
 

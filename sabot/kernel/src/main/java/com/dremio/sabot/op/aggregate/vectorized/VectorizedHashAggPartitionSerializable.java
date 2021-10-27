@@ -25,7 +25,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.types.Types;
 
 import com.dremio.exec.cache.AbstractStreamSerializable;
 import com.dremio.exec.proto.UserBitShared;
@@ -221,19 +223,30 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     Preconditions.checkArgument(fieldList.size() == vectorList.length, "Error: read incorrect number of accumulator vectors from spilled batch");
     int count = 0;
     long length = 0;
+
     for (UserBitShared.SerializedField metaData : fieldList) {
       final FieldVector vector = vectorList[count];
       final int rawDataLength = metaData.getBufferLength();
       length += rawDataLength;
+
       final UserBitShared.SerializedField bitsField = metaData.getChild(0);
       final UserBitShared.SerializedField valuesField = metaData.getChild(1);
-      final int bitsLength = bitsField.getBufferLength();
-      final int dataLength = valuesField.getBufferLength();
-      Preconditions.checkArgument(rawDataLength == bitsLength + dataLength, "Error, read incorrect accumulator vector buffer length");
       final ArrowBuf validityBuffer = vector.getValidityBuffer();
       final ArrowBuf dataBuffer = vector.getDataBuffer();
-      readIntoArrowBuf(validityBuffer, bitsLength, input);
-      readIntoArrowBuf(dataBuffer, dataLength, input);
+
+      readIntoArrowBuf(validityBuffer, bitsField.getBufferLength(), input);
+
+      final Types.MinorType type = org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(vector.getField().getType());
+      if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
+        final ArrowBuf offsetBuffer = vector.getOffsetBuffer();
+        final UserBitShared.SerializedField offsetField = valuesField.getChild(0);
+        readIntoArrowBuf(offsetBuffer, offsetField.getBufferLength(), input);
+        readIntoArrowBuf(dataBuffer, (valuesField.getBufferLength() - offsetField.getBufferLength()), input);
+        /* TODO: Seems hacky however needed. Fina a better way. */
+        ((BaseVariableWidthVector)vector).setLastSet(metaData.getValueCount() - 1);
+      } else {
+        readIntoArrowBuf(dataBuffer, valuesField.getBufferLength(), input);
+      }
       vector.setValueCount(metaData.getValueCount());
       count++;
     }

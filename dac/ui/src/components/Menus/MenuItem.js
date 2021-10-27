@@ -23,8 +23,7 @@ import MenuItemMaterial from '@material-ui/core/MenuItem';
 import Popper from '@material-ui/core/Popper';
 import Paper from '@material-ui/core/Paper';
 import ClickAwayListener from '@material-ui/core/ClickAwayListener';
-import { PALE_NAVY } from 'uiTheme/radium/colors';
-
+import { MENU_SELECTED } from 'uiTheme/radium/colors';
 
 import './MenuItem.less';
 
@@ -35,6 +34,8 @@ export default class MenuItem extends Component {
   static propTypes = {
     menuItems: PropTypes.array,
     rightIcon: PropTypes.object,
+    leftIcon: PropTypes.object,
+    title: PropTypes.string,
     onClick: PropTypes.func,
     children: PropTypes.node,
     disabled: PropTypes.bool,
@@ -96,7 +97,7 @@ export default class MenuItem extends Component {
   };
 
   render() {
-    const { menuItems, rightIcon, onClick, disabled, selected, isInformational, style } = this.props;
+    const { menuItems, rightIcon, leftIcon, title, onClick, disabled, selected, isInformational, style } = this.props;
     const itemStyle = {...styles.menuItem, ...(isInformational && styles.informational), ...(selected && styles.selected), ...style};
     const className = classNames({disabled}, 'menu-item-inner');
     return (
@@ -106,12 +107,14 @@ export default class MenuItem extends Component {
           onClick={onClick}
           disabled={disabled}>
           <div
+            title={title}
             onMouseOver={this.handleMouseOver}
             onMouseLeave={this.handleMouseLeave}
             ref={this.menuItemRef}
             className={className}
             style={itemStyle}
           >
+            {leftIcon ? leftIcon : null}
             {this.props.children}
             {rightIcon ? rightIcon : null}
           </div>
@@ -155,8 +158,9 @@ const styles = {
   },
   menuItem: {
     fontSize: 12,
-    padding: '0 10px',
-    height: 25,
+    height: 36,
+    paddingLeft: 16,
+    paddingRight: 16,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between'
@@ -166,6 +170,6 @@ const styles = {
     cursor: 'default'
   },
   selected: {
-    backgroundColor: PALE_NAVY
+    backgroundColor: MENU_SELECTED
   }
 };

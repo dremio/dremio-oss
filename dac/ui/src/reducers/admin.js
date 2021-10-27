@@ -38,12 +38,10 @@ export default function admins(state = initialState, action) {
     return state.set('sourceNodesList', Immutable.fromJS({
       nodes: []
     }));
-
   case ActionTypes.SOURCE_NODES_SUCCESS:
     return state.set('sourceNodesList', Immutable.fromJS({
       nodes: adminMapper.mapSourceNodesList(action.payload)
     }));
-
   case ActionTypes.LOAD_FILTERED_USER_SUCCESS:
     return state.set('users', action.payload.getIn(['result', 'users']));
   case ActionTypes.LOAD_FILTERED_GROUP_SUCCESS:

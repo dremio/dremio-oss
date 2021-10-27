@@ -16,7 +16,7 @@
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
 
-import MainHeader from 'components/MainHeader';
+import SideNav from '@app/components/SideNav/SideNav';
 import SettingPage from '@app/containers/SettingPage';
 import UserNavigation from 'components/UserNavigation';
 import { accountSection } from 'dyn-load/pages/AccountPage/AccountPageConstants';
@@ -33,8 +33,8 @@ const AccountPage = (props) => {
 
   return (
     <SettingPage id='account-page' style={style}>
-      <MainHeader />
       <div className='page-content'>
+        <SideNav />
         <UserNavigation
           title={formatMessage({ id: 'Common.Settings' })}
           sections={[accountSection]}

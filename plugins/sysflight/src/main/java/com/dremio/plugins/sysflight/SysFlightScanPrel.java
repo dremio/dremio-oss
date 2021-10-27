@@ -22,6 +22,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
@@ -30,6 +31,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.ScanPrelBase;
+import com.dremio.exec.proto.SearchProtos.SearchQuery;
 import com.dremio.exec.store.TableMetadata;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -39,17 +41,22 @@ import com.google.common.base.Preconditions;
  */
 public class SysFlightScanPrel extends ScanPrelBase {
 
+  private final SearchQuery query;
   private final StoragePluginId pluginId;
 
-  public SysFlightScanPrel(RelOptCluster cluster,
-                           RelTraitSet traitSet,
-                           RelOptTable table,
-                           TableMetadata dataset,
-                           List<SchemaPath> projectedColumns,
-                           double observedRowcountAdjustment
-                           ) {
+  public SysFlightScanPrel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      TableMetadata dataset,
+      SearchQuery query,
+      List<SchemaPath> projectedColumns,
+      double observedRowcountAdjustment
+      ) {
     super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
+
     this.pluginId = dataset.getStoragePluginId();
+    this.query = query;
   }
 
   @VisibleForTesting
@@ -58,6 +65,7 @@ public class SysFlightScanPrel extends ScanPrelBase {
       RelTraitSet traitSet,
       RelOptTable table,
       TableMetadata dataset,
+      SearchQuery query,
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment,
       RelDataType rowType
@@ -65,6 +73,8 @@ public class SysFlightScanPrel extends ScanPrelBase {
     super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
     this.rowType = rowType;
     this.pluginId = dataset.getStoragePluginId();
+
+    this.query = query;
   }
 
   @Override
@@ -75,6 +85,22 @@ public class SysFlightScanPrel extends ScanPrelBase {
   @Override
   public int getMinParallelizationWidth() {
     return 1;
+  }
+
+  @Override
+  public boolean hasFilter() {
+    return query != null;
+  }
+
+  @Override
+  public double getFilterReduction() {
+    return query == null ? super.getFilterReduction() : 0.15d;
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    String str = query == null ? null : query.toString().replace('\n', ' ');
+    return super.explainTerms(pw).itemIf("query", str, query != null);
   }
 
   @Override
@@ -89,18 +115,19 @@ public class SysFlightScanPrel extends ScanPrelBase {
         getTableMetadata().getName().getPathComponents(),
         getTableMetadata().getSchema(),
         getProjectedColumns(),
+        query,
         pluginId);
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     Preconditions.checkArgument(inputs == null || inputs.size() == 0);
-    return new SysFlightScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), getProjectedColumns(), getCostAdjustmentFactor());
+    return new SysFlightScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), query, getProjectedColumns(), getCostAdjustmentFactor());
   }
 
   @Override
   public SysFlightScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new SysFlightScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), projection, getCostAdjustmentFactor());
+    return new SysFlightScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), query, projection, getCostAdjustmentFactor());
   }
 
 }

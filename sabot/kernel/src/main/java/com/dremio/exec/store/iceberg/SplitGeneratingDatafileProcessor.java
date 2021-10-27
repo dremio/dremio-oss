@@ -102,7 +102,7 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     if (functionContext.getExtendedProperty() != null) {
       this.extendedProperty = functionContext.getExtendedProperty().toByteArray();
     }
-    splitGenerator = new BlockBasedSplitGenerator(context, plugin, functionContext.getPluginId(), props, this.extendedProperty);
+    splitGenerator = new BlockBasedSplitGenerator(context, plugin, functionContext.getPluginId(), props, this.extendedProperty, functionContext.getInternalTablePluginId() != null);
     partitionCols = functionContext.getPartitionColumns();
     outputSchema = functionContext.getFullSchema();
     partColToKeyMap = partitionCols != null ? IntStream.range(0, partitionCols.size())

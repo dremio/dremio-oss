@@ -31,6 +31,7 @@ import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
+import com.dremio.exec.proto.SearchProtos.SearchQuery;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.schedule.SimpleCompleteWork;
@@ -43,6 +44,7 @@ import com.google.common.base.Objects;
 public class SysFlightGroupScan extends AbstractBase implements GroupScan<SimpleCompleteWork>  {
 
   private final List<SchemaPath> columns;
+  private final SearchQuery query;
   private final List<String> datasetPath;
   private final BatchSchema schema;
   private final StoragePluginId pluginId;
@@ -51,6 +53,7 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
                             List<String> datasetPath,
                             BatchSchema schema,
                             List<SchemaPath> columns,
+                            SearchQuery query,
                             StoragePluginId pluginId
                             ) {
     super(props);
@@ -58,7 +61,18 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
     this.datasetPath = datasetPath;
     this.schema = schema;
     this.pluginId = pluginId;
+
+    this.query = query;
   }
+
+  public StoragePluginId getPluginId() {
+    return pluginId;
+  }
+
+  public SearchQuery getQuery() {
+    return query;
+  }
+
 
   @Override
   @JsonIgnore
@@ -108,7 +122,7 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
 
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) {
-    return new SysFlightSubScan(props, new EntityPath(datasetPath).getComponents(), schema, getColumns(), pluginId);
+    return new SysFlightSubScan(props, new EntityPath(datasetPath).getComponents(), schema, getColumns(), query, pluginId);
   }
 
   @Override
@@ -128,7 +142,7 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
 
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-    return new SysFlightGroupScan(props, datasetPath, schema, columns, pluginId);
+    return new SysFlightGroupScan(props, datasetPath, schema, columns, query, pluginId);
   }
 
 }

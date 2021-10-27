@@ -16,7 +16,7 @@
 import { race, take, put, call, takeEvery } from 'redux-saga/effects';
 import { delay } from 'redux-saga';
 
-import socket, { WS_MESSAGE_JOB_PROGRESS } from '@inject/utils/socket';
+import socket, { WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_QV_JOB_PROGRESS } from '@inject/utils/socket';
 import { addNotification } from 'actions/notification';
 
 
@@ -35,7 +35,7 @@ const LOCATION_CHANGE = '@@router/LOCATION_CHANGE';
 const DELAY_BEFORE_MODAL = 1000;
 
 const getJobDoneActionFilter = (jobId) => (action) =>
-  action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId && action.payload.update.isComplete;
+  action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS && action.payload.id.id === jobId && action.payload.update.isComplete;
 
 export default function* () {
   yield takeEvery(START_DATASET_DOWNLOAD, handleStartDatasetDownload);

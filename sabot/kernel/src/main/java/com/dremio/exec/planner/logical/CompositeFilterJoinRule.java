@@ -18,11 +18,12 @@ package com.dremio.exec.planner.logical;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.core.Filter;
@@ -30,6 +31,7 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.rules.FilterJoinRule;
+import org.apache.calcite.util.ImmutableBeans;
 
 /**
  * Combined rule of FilterJoinRule and DremioJoinPushTransitivePredicatesRule.
@@ -54,15 +56,21 @@ public abstract class CompositeFilterJoinRule extends FilterJoinRule {
   public static final CompositeFilterJoinRule TOP_FILTER = new WithFilter();
   public static final CompositeFilterJoinRule NO_TOP_FILTER = new NoFilter();
 
-  private CompositeFilterJoinRule(RelOptRuleOperand operand, String desc) {
-    super(operand, desc, true, DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-      FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
+  private CompositeFilterJoinRule(JoinConditionPushRule.Config config) {
+    super(config);
   }
 
   private static class NoFilter extends CompositeFilterJoinRule {
     private NoFilter() {
-      super(RelOptRule.operand(LogicalJoin.class, RelOptRule.any()),
-        "CompositeFilterJoinRule:no-filter");
+      super(JoinConditionPushRule.Config.EMPTY
+        .withRelBuilderFactory(DremioRelFactories.CALCITE_LOGICAL_BUILDER)
+        .withOperandSupplier(b ->
+          b.operand(LogicalJoin.class).anyInputs())
+        .withDescription("CompositeFilterJoinRule:no-filter")
+        .as(JoinConditionPushRule.Config.class)
+        .withSmart(true)
+        .withPredicate(FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM)
+        .as(JoinConditionPushRule.Config.class));
     }
 
     @Override
@@ -79,8 +87,16 @@ public abstract class CompositeFilterJoinRule extends FilterJoinRule {
 
   private static class WithFilter extends CompositeFilterJoinRule {
     private WithFilter() {
-      super(RelOptRule.operand(LogicalFilter.class, RelOptRule.operand(LogicalJoin.class, RelOptRule.any())),
-        "CompositeFilterJoinRule:filter");
+      super(JoinConditionPushRule.Config.EMPTY
+        .withRelBuilderFactory(DremioRelFactories.CALCITE_LOGICAL_BUILDER)
+        .withOperandSupplier(b0 ->
+                b0.operand(LogicalFilter.class).oneInput(b1 ->
+                b1.operand(LogicalJoin.class).anyInputs()))
+        .withDescription("CompositeFilterJoinRule:filter")
+        .as(JoinConditionPushRule.Config.class)
+        .withSmart(true)
+        .withPredicate(FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM)
+        .as(JoinConditionPushRule.Config.class));
     }
 
     @Override
@@ -128,8 +144,27 @@ public abstract class CompositeFilterJoinRule extends FilterJoinRule {
     }
 
     @Override
-    public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv) {
+    public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, BiFunction<RelNode, RelNode, RelNode> handler) {
       outcome.add(rel);
     }
+  }
+  /** Rule configuration. */
+  public interface Config extends RelRule.Config {
+    /** Whether to try to strengthen join-type, default false. */
+    @ImmutableBeans.Property
+    @ImmutableBeans.BooleanDefault(false)
+    boolean isSmart();
+
+    /** Sets {@link #isSmart()}. */
+    FilterIntoJoinRule.Config withSmart(boolean smart);
+
+    /** Predicate that returns whether a filter is valid in the ON clause of a
+     * join for this particular kind of join. If not, Calcite will push it back to
+     * above the join. */
+    @ImmutableBeans.Property
+    Predicate getPredicate();
+
+    /** Sets {@link #getPredicate()} ()}. */
+    FilterIntoJoinRule.Config withPredicate(Predicate predicate);
   }
 }

@@ -141,7 +141,7 @@ public class TestHive3StoragePlugin {
     when(optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_TIMEOUT_MS)).thenReturn(timeoutMS);
 
     Hive3StoragePlugin storagePlugin = spy(new Hive3StoragePlugin(conf, ctx, "testplugin"));
-    Mockito.doReturn(SupportsReadSignature.MetadataValidity.VALID).when(storagePlugin).checkHiveMetadata(any(HiveReaderProto.HiveTableXattr.class), any(EntityPath.class), any(BatchSchema.class));
+    Mockito.doReturn(SupportsReadSignature.MetadataValidity.VALID).when(storagePlugin).checkHiveMetadata(any(HiveReaderProto.HiveTableXattr.class), any(EntityPath.class), any(BatchSchema.class), any(HiveReaderProto.HiveReadSignature.class));
     Mockito.doReturn(Lists.newArrayList(false, false, false, false))
       .when(storagePlugin)
       .runValidations(any(DatasetHandle.class), any(List.class), any(Integer.class), any(Long.class));

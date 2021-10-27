@@ -106,7 +106,7 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
   public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PercentileFunctionsRewriteRule.class);
   public static final RelOptRule INSTANCE = new PercentileFunctionsRewriteRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
-  private static final String TOTAL_COUNT = "tot_cnt";
+  private static final String TOTAL_COUNT = "TotalCount";
   private static final String SUM_PREFIX = "Sum";
   private static final String PERCENTILE_CONT_FIELD = "PercentileCont";
   private static final String PERCENTILE_DISC_FIELD = "PercentileDisc";
@@ -126,7 +126,13 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
     final List<AggregateCall> aggCalls = aggregate.getAggCallList();
     for (AggregateCall c : aggCalls) {
       final SqlKind kind = c.getAggregation().getKind();
-      if (kind == SqlKind.PERCENTILE_CONT || kind == SqlKind.PERCENTILE_DISC) {
+      //Median/Percentil rewrite rule doesn't handle the filter at all currently.
+      //So when it fires, it does an incorrect transformation.
+      //Each rule needs to correctly transform, regardless of whatever other rules might be out there.
+      //As long as the filter rewrite rule is in the same phase (or earlier) than the percentile rewrite,
+      //it should be fine.
+      if ((kind == SqlKind.PERCENTILE_CONT || kind == SqlKind.PERCENTILE_DISC)
+          && !c.hasFilter()){
         return true;
       }
     }
@@ -372,7 +378,7 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
       Pair<Integer, RelDataTypeField> leftField = findFieldWithIndex(left, field, true);
       Pair<Integer, RelDataTypeField> rightField = findFieldWithIndex(right, field, true);
 
-      final RexNode node = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
+      final RexNode node = rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_DISTINCT_FROM,
         rexBuilder.makeInputRef(leftRowType.getFieldList().get(leftField.left).getType(), leftField.left),
         rexBuilder.makeInputRef(rightRowType.getFieldList().get(rightField.left).getType(), rightField.left + leftRowType.getFieldCount()));
       rexNodes.add(node);

@@ -1525,19 +1525,7 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   private Dataset createPDS(List<String> path, FileFormat format) {
-    return new Dataset(
-      null,
-      Dataset.DatasetType.PHYSICAL_DATASET,
-      path,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      format,
-      null
-    );
+    return createPDS(path, format, null);
   }
 
   private Dataset createPDS(List<String> path, FileFormat format, Dataset.RefreshSettings refreshSettings) {
@@ -1570,7 +1558,6 @@ public class TestCatalogResource extends BaseTestServer {
       dataset.getApproximateStatisticsAllowed()
     );
   }
-
 
   private Dataset getVDSConfig(List<String> path, String sql) {
     return new Dataset(

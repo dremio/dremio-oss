@@ -21,6 +21,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 
 import com.dremio.exec.planner.RoutingShuttle;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 public class CrelUniqifier extends RoutingShuttle {
@@ -38,7 +39,7 @@ public class CrelUniqifier extends RoutingShuttle {
     if(!data.add(other)) {
       if (other instanceof LogicalTableScan) {
         // LogicalTableScan does not have implementation of a deep copy. Create a new instance.
-        other = LogicalTableScan.create(other.getCluster(), other.getTable());
+        other = LogicalTableScan.create(other.getCluster(), other.getTable(), ImmutableList.of());
       } else {
         other = other.copy(other.getTraitSet(), other.getInputs());
       }

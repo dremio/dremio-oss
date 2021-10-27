@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>18.2.0-202110081842420694-7e500f14</version>
+    <version>19.0.0-202110270341120595-3e3e05e7</version>
   </parent>
 
   <artifactId>dremio-hive-plugin</artifactId>
@@ -576,37 +576,14 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <reportNameSuffix>hive</reportNameSuffix>
+          <skip>true</skip>
         </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>default-integration-test</id>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-          </execution>
-        </executions>
         <configuration>
-          <reportNameSuffix>hive</reportNameSuffix>
-          <forkCount>1</forkCount>
-          <trimStackTrace>false</trimStackTrace>
-          <argLine>
-            -Xms512M
-            -Xmx3G
-            -Xss2048k
-            -XX:MaxDirectMemorySize=5120M
-            -XX:+CMSClassUnloadingEnabled
-            @{argLine}
-          </argLine>
-
-          <systemPropertyVariables>
-            <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
-          </systemPropertyVariables>
+          <skip>true</skip>
         </configuration>
       </plugin>
     </plugins>
@@ -670,39 +647,6 @@
                 </configuration>
               </execution>
             </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <reportNameSuffix>hive</reportNameSuffix>
-              <!-- java.library.path property can only be set using argLine -->
-              <argLine>
-                -Xms512M
-                -Xmx3G
-                -XX:MaxDirectMemorySize=5120M
-                -XX:+CMSClassUnloadingEnabled
-                -Djava.library.path=${project.build.directory}/native-libraries
-                @{argLine}
-              </argLine>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <configuration>
-              <reportNameSuffix>hive</reportNameSuffix>
-              <!-- java.library.path property can only be set using argLine -->
-              <argLine>
-                -Xms512M
-                -Xmx3G
-                -Xss2048k
-                -XX:MaxDirectMemorySize=5120M
-                -XX:+CMSClassUnloadingEnabled
-                -Djava.library.path=${project.build.directory}/native-libraries
-                @{argLine}
-              </argLine>
-            </configuration>
           </plugin>
         </plugins>
       </build>
