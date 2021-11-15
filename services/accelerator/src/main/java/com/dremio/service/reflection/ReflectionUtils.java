@@ -684,4 +684,31 @@ public class ReflectionUtils {
     Preconditions.checkState(refreshPath.size() >= 2, "Unexpected state");
     return refreshPath.get(refreshPath.size() - 1);
   }
+
+  public static boolean areReflectionDetailsEqual(ReflectionDetails details1, ReflectionDetails details2) {
+    boolean equal = false;
+
+    if (
+      areBothListsEqual(details1.getDimensionFieldList(), details2.getDimensionFieldList()) &&
+        areBothListsEqual(details1.getDisplayFieldList(), details2.getDisplayFieldList()) &&
+        areBothListsEqual(details1.getDistributionFieldList(), details2.getDistributionFieldList()) &&
+        areBothListsEqual(details1.getMeasureFieldList(), details2.getMeasureFieldList()) &&
+        areBothListsEqual(details1.getPartitionFieldList(), details2.getPartitionFieldList()) &&
+        areBothListsEqual(details1.getSortFieldList(), details2.getSortFieldList()) &&
+        details1.getPartitionDistributionStrategy().equals(details2.getPartitionDistributionStrategy())
+    ) {
+      equal = true;
+    }
+
+    return equal;
+  }
+
+  private static boolean areBothListsEqual(Collection collection1, Collection collection2) {
+    // CollectionUtils.isEqualCollection is not null safe
+    if (collection1 == null || collection2 == null) {
+      return CollectionUtils.isEmpty(collection1) && CollectionUtils.isEmpty(collection2);
+    } else {
+      return CollectionUtils.isEqualCollection(collection1, collection2);
+    }
+  }
 }

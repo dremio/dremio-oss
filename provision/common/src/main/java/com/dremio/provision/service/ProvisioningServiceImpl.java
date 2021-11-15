@@ -257,6 +257,17 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   }
 
   @Override
+  public void checkClusterState(Cluster cluster) {
+    final ProvisioningServiceDelegate service = concreteServices.get(cluster.getClusterConfig().getClusterType());
+    if (service == null) {
+      logger.warn("Can not find service implementation for: " + cluster.getClusterConfig().getClusterType());
+      return;
+    }
+
+    service.checkClusterState(cluster);
+  }
+
+  @Override
   public synchronized ClusterEnriched modifyCluster(ClusterId clusterId, ClusterState desiredState, ClusterConfig clusterconfig) throws ProvisioningHandlingException {
     logger.debug("Modifying cluster {}, desired state: {}", clusterId, desiredState);
     Preconditions.checkNotNull(clusterId, "id is required");
@@ -864,7 +875,20 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   }
 
   @Override
+  public List<ClusterId> getStartingClustersByName(String name) {
+    List<ClusterId> ids = getClustersByNameAndState(name, ClusterState.STARTING);
+    logger.debug("Clusters in STARTING state {}", ids);
+    return ids;
+  }
+
+  @Override
   public List<ClusterId> getRunningStoppableClustersByName(String name) {
+    List<ClusterId> ids = getClustersByNameAndState(name, ClusterState.RUNNING);
+    logger.debug("Clusters in RUNNING state to be stopped {}", ids);
+    return ids;
+  }
+
+  private List<ClusterId> getClustersByNameAndState(String name, ClusterState state) {
     List<ClusterId> ids = new ArrayList<>();
     logger.debug("Finding clusters with name {}", name);
     for(Entry<ClusterId, Cluster> c : store.find()) {
@@ -878,8 +902,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       if(allowAutoStop == null || !allowAutoStop) {
         continue;
       }
-      if(cluster.getState() == ClusterState.RUNNING) {
-        logger.debug("Adding {} to be stopped", c.getKey());
+      if(cluster.getState() == state) {
         ids.add(c.getKey());
       }
     }

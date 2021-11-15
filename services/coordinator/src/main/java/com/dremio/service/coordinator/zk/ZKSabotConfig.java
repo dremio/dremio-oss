@@ -18,6 +18,7 @@ package com.dremio.service.coordinator.zk;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.CLUSTER_ID;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_CONNECTION;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_CONNECTION_HANDLE_ENABLED;
+import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ELECTION_POLLING;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT;
 import static com.dremio.service.coordinator.ClusterCoordinator.Options.ZK_INITIAL_TIMEOUT_MS;
@@ -85,6 +86,10 @@ class ZKSabotConfig implements ZKClusterConfig {
 
   public long getElectionPollingMilliSecs() {
     return config.getMilliseconds(ZK_ELECTION_POLLING);
+  }
+
+  public long getElectionDelayForLeaderCallbackMilliSecs() {
+    return config.getMilliseconds(ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK);
   }
 
   public CoordinatorLostHandle getConnectionLostHandler() {

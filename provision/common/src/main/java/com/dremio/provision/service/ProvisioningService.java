@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterId;
@@ -143,7 +144,15 @@ public interface ProvisioningService extends Service {
    */
   void updateCluster(ClusterId clusterId);
 
+  /**
+   * Health check of the cluster state
+   * @param cluster
+   */
+  void checkClusterState(Cluster cluster);
+
   public List<ClusterId> getRunningStoppableClustersByName(String name);
+
+  public List<ClusterId> getStartingClustersByName(String name);
 
   /**
    * Return info about clusters of a particular {@link ClusterType}

@@ -370,4 +370,8 @@ public class BloomFilter implements AutoCloseable {
             logger.error("Error while closing bloomfilter " + this.name, e);
         }
     }
+
+  public int getNumHashFunctions() {
+    return numHashFunctions;
+  }
 }

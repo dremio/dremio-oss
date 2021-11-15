@@ -214,6 +214,7 @@ class ZKClusterClient implements com.dremio.service.Service {
     leaderLatch.addListener(new LeaderLatchListener() {
       private final long electionTimeoutMs = config.getElectionTimeoutMilliSecs();
       private final long electionPollingMs = config.getElectionPollingMilliSecs();
+      private final long delayForLeaderCallbackMs = config.getElectionDelayForLeaderCallbackMilliSecs();
 
       @Override
       public void notLeader() {
@@ -244,6 +245,9 @@ class ZKClusterClient implements com.dremio.service.Service {
                 if (listener instanceof ZKElectionListener) {
                   ((ZKElectionListener) listener).onReconnection();
                 }
+
+                // Add a small delay to make sure that curator has made the isLeader() callback.
+                TimeUnit.MILLISECONDS.sleep(delayForLeaderCallbackMs);
                 return null;
               }
 
@@ -258,6 +262,8 @@ class ZKClusterClient implements com.dremio.service.Service {
               // A dummy participant can be returned if election hasn't happen yet,
               // but it would not be leader...
               if (participant.isLeader()) {
+                // Add a small delay to make sure that curator has made the isLeader() callback.
+                TimeUnit.MILLISECONDS.sleep(delayForLeaderCallbackMs);
                 return null;
               }
 
@@ -302,6 +308,11 @@ class ZKClusterClient implements com.dremio.service.Service {
 
       @Override
       public void isLeader() {
+        // For testing purpose
+        if (listener instanceof ZKElectionListener) {
+          ((ZKElectionListener) listener).onBeginIsLeader();
+        }
+
         logger.info("Acquired latch {} for election {}.", id, name);
         // Cancel possible watcher task
         ListenableFuture<?> newLeader = newLeaderRef.getAndSet(null);

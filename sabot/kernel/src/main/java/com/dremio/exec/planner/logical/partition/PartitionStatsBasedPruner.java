@@ -122,13 +122,13 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     long qualifiedCount = 0;
     ConditionsByColumn conditionsByColumn = buildSargPrunableConditions(usedIndexes, projectedColumns, rexVisitor, rexConditions);
     if (canPruneWhollyWithSarg(holder, conditionsByColumn)) {
-      qualifiedCount = evaluateWithSarg(conditionsByColumn);
+      qualifiedCount = evaluateWithSarg(conditionsByColumn, tableMetadata);
     } else {
       int batchIndex = 0;
       long[] recordCounts = null;
       LogicalExpression materializedExpr = null;
-
-      while (statsEntryIterator.hasNext()) {
+      boolean countOverflowFound = false;
+      while (!countOverflowFound && statsEntryIterator.hasNext()) {
         List<PartitionStatsEntry> entriesInBatch = createRecordBatch(conditionsByColumn, batchIndex);
         int batchSize = entriesInBatch.size();
         if (batchSize == 0) {
@@ -149,15 +149,24 @@ public class PartitionStatsBasedPruner extends RecordPruner {
         for (int i = 0; i < batchSize; ++i) {
           if (!outputVector.isNull(i) && outputVector.get(i) == 1) {
             qualifiedCount += recordCounts[i];
+            if (recordCounts[i] < 0 || qualifiedCount < 0) {
+              qualifiedCount = tableMetadata.getApproximateRecordCount();;
+              countOverflowFound = true;
+              break;
+            }
           }
         }
 
         logger.debug("Within batch: {}, qualified records: {}", batchIndex, qualifiedCount);
         batchIndex++;
       }
-    }
 
+      if (countOverflowFound) {
+        qualifiedCount = tableMetadata.getApproximateRecordCount();;
+      }
+    }
     updateCounters(holder);
+    qualifiedCount = ( qualifiedCount < 0 ) ? tableMetadata.getApproximateRecordCount() : qualifiedCount;
     return qualifiedCount;
   }
 
@@ -180,14 +189,19 @@ public class PartitionStatsBasedPruner extends RecordPruner {
     }
   }
 
-  private long evaluateWithSarg(ConditionsByColumn conditionsByColumn) {
+  private long evaluateWithSarg(ConditionsByColumn conditionsByColumn, TableMetadata tableMetadata) {
     timer.start();
     long qualifiedCount = 0;
     while (statsEntryIterator.hasNext()) {
       PartitionStatsEntry statsEntry = statsEntryIterator.next();
       StructLike partitionData = statsEntry.getPartition();
       if (isRecordMatch(conditionsByColumn, partitionData)) {
-        qualifiedCount += statsEntry.getRecordCount();
+        long statsEntryReocrdCount = statsEntry.getRecordCount();
+        qualifiedCount += statsEntryReocrdCount;
+        if (statsEntryReocrdCount < 0 || qualifiedCount < 0) {
+          qualifiedCount = tableMetadata.getApproximateRecordCount();;
+          break;
+        }
       }
     }
     logger.debug("Elapsed time to find surviving records: {}ms", timer.elapsed(TimeUnit.MILLISECONDS));

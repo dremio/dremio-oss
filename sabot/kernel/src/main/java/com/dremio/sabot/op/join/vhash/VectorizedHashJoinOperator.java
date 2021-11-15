@@ -21,6 +21,7 @@ import static org.apache.arrow.util.Preconditions.checkArgument;
 import static org.apache.arrow.util.Preconditions.checkState;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,6 +56,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.ExecProtos.CompositeColumnFilter;
 import com.dremio.exec.proto.ExecProtos.RuntimeFilter;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
@@ -706,12 +708,18 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
         if (runtimeFilterInfo.isBroadcastJoin()) {
           sendRuntimeFilterToProbeScan(runtimeFilter, partitionColFilter, nonPartitionColFilters);
+          long numberOfValuesInBloomFilter = partitionColFilter.isPresent() ? partitionColFilter.get().getNumBitsSet() :0;
+          int numberOfHashFunctions = partitionColFilter.isPresent() ? partitionColFilter.get().getNumHashFunctions() : 0;
+          addRunTimeFilterInfosToProfileDetails(prepareRunTimeFilterDetailsInfos(probeTarget, runtimeFilter, numberOfValuesInBloomFilter, numberOfHashFunctions));
         } else if (fmEntry!=null && fmEntry.isComplete() && !fmEntry.isDropped()) {
           // All other filter pieces have already arrived. This one was last one to join.
           // Send merged filter to probe scan and close this individual piece explicitly.
           sendRuntimeFilterToProbeScan(runtimeFilter, Optional.ofNullable(fmEntry.getPartitionColFilter()),
                   fmEntry.getNonPartitionColFilters());
           filterManager.remove(fmEntry);
+          long numberOfValuesInBloomFilter = partitionColFilter.isPresent() ? partitionColFilter.get().getNumBitsSet() :0;
+          int numberOfHashFunctions = partitionColFilter.isPresent() ? partitionColFilter.get().getNumHashFunctions() : 0;
+          addRunTimeFilterInfosToProfileDetails(prepareRunTimeFilterDetailsInfos(probeTarget, runtimeFilter, numberOfValuesInBloomFilter, numberOfHashFunctions));
           AutoCloseables.close(closeOnErr.getCloseables());
         } else {
           // Send filter to merge points (minor fragments <=2) if not complete.
@@ -733,6 +741,44 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         }
       }
     }
+  }
+
+  private List<UserBitShared.RunTimeFilterDetailsInfo> prepareRunTimeFilterDetailsInfos(RuntimeFilterProbeTarget probeTarget, RuntimeFilter runtimeFilter, long numberOfValuesInBloomFilter, int numberOfHashFuntions) {
+    List<UserBitShared.RunTimeFilterDetailsInfo> runTimeFilterDetailsInfos = new ArrayList<>();
+    String probe_target_scan_id = String.format("%02d-%02d", probeTarget.getProbeScanMajorFragmentId(), probeTarget.getProbeScanOperatorId() & 0xFF);;
+
+    if(!probeTarget.getPartitionProbeTableKeys().isEmpty()) {
+      UserBitShared.RunTimeFilterDetailsInfo runTimeFilterDetailsInfo = UserBitShared.RunTimeFilterDetailsInfo.newBuilder()
+        .setProbeTarget(probe_target_scan_id)
+        .addAllProbeFieldNames(probeTarget.getPartitionProbeTableKeys())
+        .setIsNonPartitionedColumn(false)
+        .setIsPartitionedCoulmn(true)
+        .setNumberOfValues(numberOfValuesInBloomFilter)
+        .setNumberOfHashFunctions(numberOfHashFuntions)
+        .build();
+      runTimeFilterDetailsInfos.add(runTimeFilterDetailsInfo);
+    }
+    if(isRuntimeFilterEnabledForNonPartitionedCols()) {
+      for (int i = 0; i < probeTarget.getNonPartitionProbeTableKeys().size(); i++) {
+        String probeField = probeTarget.getNonPartitionProbeTableKeys().get(i);
+        UserBitShared.RunTimeFilterDetailsInfo runTimeFilterDetailsInfo_for_NonPartitionColumn = UserBitShared.RunTimeFilterDetailsInfo.newBuilder()
+          .setProbeTarget(probe_target_scan_id)
+          .addAllProbeFieldNames(Arrays.asList(probeField))
+          .setIsNonPartitionedColumn(true)
+          .setIsPartitionedCoulmn(false)
+          .setNumberOfValues(runtimeFilter.getNonPartitionColumnFilter(i).getValueCount())
+          .setNumberOfHashFunctions(0)
+          .build();
+        runTimeFilterDetailsInfos.add(runTimeFilterDetailsInfo_for_NonPartitionColumn);
+      }
+    }
+    return runTimeFilterDetailsInfos;
+
+  }
+
+  private void addRunTimeFilterInfosToProfileDetails(List<UserBitShared.RunTimeFilterDetailsInfo> runTimeFilterDetailsInfos) {
+    OperatorStats stats = context.getStats();
+    stats.setProfileDetails(UserBitShared.OperatorProfileDetails.newBuilder().addAllRuntimefilterDetailsInfos(runTimeFilterDetailsInfos).build());
   }
 
   private Optional<BloomFilter> addPartitionColFilters(RuntimeFilterProbeTarget probeTarget,

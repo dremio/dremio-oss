@@ -651,7 +651,8 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     final List<String> dataset = referencedTables == null || referencedTables.isEmpty() ? null : referencedTables.iterator().next();
 
     Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
-    ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields, isConvertedIcebergDataset);
+    ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(
+            realFields, icebergSchemaFields, isConvertedIcebergDataset, context);
 
     // If the ExecOption to ReadColumnIndexes is True and the configuration has a Filter, set readColumnIndices to true.
     boolean readColumnIndices = (context.getOptions().getOption(READ_COLUMN_INDEXES) &&

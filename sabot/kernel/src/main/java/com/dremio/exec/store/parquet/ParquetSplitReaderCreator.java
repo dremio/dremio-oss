@@ -231,7 +231,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
 
         final SchemaDerivationHelper schemaHelper = schemaHelperBuilder.build();
         Preconditions.checkArgument(formatSettings.getType() != FileType.ICEBERG || icebergSchemaFields != null);
-        ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields, isConvertedIcebergDataset);
+        ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergSchemaFields, isConvertedIcebergDataset, context);
         RecordReader inner;
         if (!isConvertedIcebergDataset && DatasetHelper.isIcebergFile(formatSettings)) {
           IcebergParquetReader innerIcebergParquetReader = new IcebergParquetReader(

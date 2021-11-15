@@ -43,17 +43,12 @@ public class LoadDistributionFunctions {
     @Output
     NullableIntHolder out;
     @Workspace
-    int numOfReceivers;
-    @Workspace
     int unpartitionedDataCounter;
-    @Inject
-    com.dremio.exec.store.EndPointListProvider endPointListProvider;
     @Inject
     FunctionErrorContext errCtx;
 
     @Override
     public void setup() {
-      numOfReceivers = endPointListProvider.getDestinations().size();
       unpartitionedDataCounter = 0;
     }
 
@@ -68,11 +63,11 @@ public class LoadDistributionFunctions {
         out.isSet = 1;
         org.apache.iceberg.StructLike partition = dataFile.partition();
         if (partition.size() == 0) {
-          out.value = unpartitionedDataCounter % numOfReceivers;
+          out.value = unpartitionedDataCounter;
           unpartitionedDataCounter++;
         } else {
           unpartitionedDataCounter = 0;
-          out.value = partition.hashCode() % numOfReceivers;
+          out.value = partition.hashCode();
         }
       } catch (Exception e) {
         throw errCtx.error()

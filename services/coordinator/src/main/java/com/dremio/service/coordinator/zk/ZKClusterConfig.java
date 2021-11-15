@@ -43,6 +43,8 @@ public interface ZKClusterConfig {
 
   long getElectionPollingMilliSecs();
 
+  long getElectionDelayForLeaderCallbackMilliSecs();
+
   CoordinatorLostHandle getConnectionLostHandler();
 
   String getClusterId();

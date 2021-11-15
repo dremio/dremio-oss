@@ -34,7 +34,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 /**
  * Reflection model for the public REST API.
  */
-@JsonIgnoreProperties(value={ "entityType" }, allowGetters=true)
+@JsonIgnoreProperties(value={ "entityType" }, allowGetters=true, ignoreUnknown = true)
 public class Reflection {
   private String id;
   private ReflectionType type;

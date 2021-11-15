@@ -154,6 +154,8 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator NLJ_PUSHDOWN = new BooleanValidator("planner.nlj.expression_pushdown", true);
 
+  public static final BooleanValidator NEW_SELF_JOIN_COST = new BooleanValidator("planner.cost.new_self_join_cost", true);
+
   public static final BooleanValidator ENABLE_FILTER_WINDOW_OPTIMIZER = new BooleanValidator("planner.enable_filter_window_optimizer", true);
 
   public static final BooleanValidator REDUCE_ALGEBRAIC_EXPRESSIONS = new BooleanValidator("planner.reduce_algebraic_expressions", false);
@@ -608,6 +610,8 @@ public class PlannerSettings implements Context{
   public long getMaxCnfNodeCount() {
     return options.getOption(MAX_CNF_NODE_COUNT);
   }
+
+  public boolean isNewSelfJoinCostEnabled(){ return options.getOption(NEW_SELF_JOIN_COST); }
 
   public void setMinimumSampleSize(long sampleSize) {
     if (minimumSampleSize == 0 || minimumSampleSize > sampleSize) {

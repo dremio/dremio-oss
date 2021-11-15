@@ -630,6 +630,18 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       if (goal.getState() == ReflectionGoalState.ENABLED) {
         validator.validate(goal);
       }
+
+      ReflectionGoal reflection = currentGoal.get();
+
+      // check if anything has changed - if not, don't bother updating
+      if (
+        reflection.getName().equals(goal.getName()) &&
+          reflection.getArrowCachingEnabled().equals(goal.getArrowCachingEnabled()) &&
+          reflection.getState() == goal.getState() &&
+          ReflectionUtils.areReflectionDetailsEqual(reflection.getDetails(), goal.getDetails())
+      ) {
+        return;
+      }
     } catch (Exception e) {
       throw UserException.validationError().message("Invalid reflection: %s", e.getMessage()).build(logger);
     }

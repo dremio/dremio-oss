@@ -55,6 +55,8 @@ public class AzureOAuthTokenProvider implements AzureAuthTokenProvider {
   }
 
   public String getToken() {
+    //to make sure token is never expired before returning it.
+    checkAndUpdateToken();
     return authResult.getAccessToken();
   }
 

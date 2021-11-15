@@ -28,9 +28,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.exec.ops.OperatorMetricRegistry;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorTypeMetricsMap;
 import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
@@ -100,6 +102,9 @@ public class OperatorWrapper {
     "Total Process Time", "Record Processing Rate" };
 
   public static final String[] SLOW_IO_INFO_COLUMNS = { "FilePath" , "IO Time (ns)", "IO Size", "Offset", "Operation Type"};
+
+  public static final String[] RUNTIMEFILTER_INFO_COLUMNS = {"Probe Target", "Is Partitioned Column",
+    "Is Non Partitioned Column", "Probe Field Name", "(Approx) Number Of Values", "Number of Hashfunctions"};
 
   public void addSummary(TableBuilder tb) {
     try {
@@ -345,7 +350,7 @@ public class OperatorWrapper {
     }
 
     generator.writeFieldName("details");
-    if (foundOps.get(0).getDetails().getSplitInfosList() != null && !foundOps.get(0).getDetails().getSplitInfosList().isEmpty()) {
+    if (CollectionUtils.isNotEmpty(foundOps.get(0).getDetails().getSplitInfosList())) {
       JsonBuilder builder = new JsonBuilder(generator, SPLIT_INFO_COLUMNS);
       for (ExpressionSplitInfo splitInfo : foundOps.get(0).getDetails().getSplitInfosList()) {
         builder.startEntry();
@@ -365,7 +370,20 @@ public class OperatorWrapper {
         builder.endEntry();
       }
       builder.end();
-    } else {
+    } else if (CollectionUtils.isNotEmpty(foundOps.get(0).getDetails().getRuntimefilterDetailsInfosList() )) {
+      JsonBuilder builder = new JsonBuilder(generator, RUNTIMEFILTER_INFO_COLUMNS);
+        for(UserBitShared.RunTimeFilterDetailsInfo runTimeFilterInfo: foundOps.get(0).getDetails().getRuntimefilterDetailsInfosList()) {
+          builder.startEntry();
+          builder.appendString(runTimeFilterInfo.getProbeTarget());
+          builder.appendString(Boolean.toString(runTimeFilterInfo.getIsPartitionedCoulmn()));
+          builder.appendString(Boolean.toString(runTimeFilterInfo.getIsNonPartitionedColumn()));
+          builder.appendString(String.join(",", runTimeFilterInfo.getProbeFieldNamesList()));
+          builder.appendInteger(runTimeFilterInfo.getNumberOfValues());
+          builder.appendInteger(runTimeFilterInfo.getNumberOfHashFunctions());
+          builder.endEntry();
+        }
+      builder.end();
+    }else {
       JsonBuilder builder = new JsonBuilder(generator, SLOW_IO_INFO_COLUMNS);
       for (OperatorProfile op :  foundOps) {
         addSlowIO(builder, op.getDetails().getSlowIoInfosList(), "Data IO");

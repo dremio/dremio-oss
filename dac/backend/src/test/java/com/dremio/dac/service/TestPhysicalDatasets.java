@@ -18,6 +18,7 @@ package com.dremio.dac.service;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static java.lang.String.format;
 import static javax.ws.rs.core.Response.Status.CONFLICT;
+import static org.apache.hadoop.util.Time.now;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -947,11 +948,22 @@ public class TestPhysicalDatasets extends BaseTestServer {
     }
   }
 
+  private void setLastModified(final String filePath, final long currentTime) {
+    File file = new File(filePath);
+    file.setLastModified(currentTime);
+  }
+
   @Test
   public void testParquetPartitionChunkCount() throws Exception {
     ParquetFileConfig fileConfig = new ParquetFileConfig();
     fileConfig.setName("parquet");
     String filePath = getUrlPath("/datasets/parquet_2p_4s");
+    final long currentTime = now();
+    setLastModified(filePath + "/2020-01-01/1_0_0.parquet", currentTime);
+    setLastModified(filePath + "/2020-01-01/1_0_1.parquet", currentTime);
+    setLastModified(filePath + "/2020-01-02/1_0_0.parquet", currentTime);
+    setLastModified(filePath + "/2020-01-02/1_0_1.parquet", currentTime);
+
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
 
     int expectedNumOfPartitionChunks = 2;
@@ -980,6 +992,12 @@ public class TestPhysicalDatasets extends BaseTestServer {
     fileConfig.setExtractHeader(true);
 
     String filePath = getUrlPath("/datasets/text_2p_4s");
+    final long currentTime = now();
+    setLastModified(filePath + "/2020-01-01/1.txt", currentTime);
+    setLastModified(filePath + "/2020-01-01/2.txt", currentTime);
+    setLastModified(filePath + "/2020-01-02/1.txt", currentTime);
+    setLastModified(filePath + "/2020-01-02/2.txt", currentTime);
+
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
 
     int expectedNumOfPartitionChunks = 2;

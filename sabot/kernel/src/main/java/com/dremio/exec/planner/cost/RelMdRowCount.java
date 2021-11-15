@@ -127,7 +127,9 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
   public Double getRowCount(Join rel, RelMetadataQuery mq) {
     if (DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
       Double rowCount = estimateJoinRowCountWithStatistics(rel, mq);
-      return rowCount == null ? estimateRowCount(rel, mq) : rowCount;
+      if (rowCount != null) {
+        return rowCount;
+      }
     }
     return estimateRowCount(rel, mq);
   }
@@ -210,10 +212,62 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
     }
   }
 
-  // DX-3859:  Need to make sure that join row count is calculated in a reasonable manner.  Calcite's default
-  // implementation is leftRowCount * rightRowCount * discountBySelectivity, which is too large (cartesian join).
-  // Since we do not support cartesian join, we should just take the maximum of the two join input row counts.
+  /**
+   * DX-35733: Need to better estimate join row count for self joins, which is usually not a key-
+   * foreign key join, so for self joins we adopt Calcite's default implementation.
+   *
+   * DX-3859:  Need to make sure that join row count is calculated in a reasonable manner. Calcite's
+   * default implementation is leftRowCount * rightRowCount * discountBySelectivity, which is too
+   * large (cartesian join). Since we do not support cartesian join, by default we assume a join is
+   * key-foreign key join. {@link #estimateForeignKeyJoinRowCount(Join, RelMetadataQuery)}
+   */
   public static double estimateRowCount(Join rel, RelMetadataQuery mq) {
+    final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(rel.getCluster().getPlanner());
+    if (isSelfJoin(rel, mq) && plannerSettings!=null && plannerSettings.isNewSelfJoinCostEnabled()) {
+      // Calcite's default implementation
+      return RelMdUtil.getJoinRowCount(mq, rel, rel.getCondition());
+    } else {
+      // Dremio's default implementation
+      return estimateForeignKeyJoinRowCount(rel, mq);
+    }
+  }
+
+  /**
+   * A join is self join if all join keys are originated from the same table.
+   */
+  private static boolean isSelfJoin(Join rel, RelMetadataQuery mq) {
+    // Find left keys and right keys of equi-join condition
+    List<Integer> leftKeys = new ArrayList<>();
+    List<Integer> rightKeys = new ArrayList<>();
+    RelOptUtil.splitJoinCondition(rel.getLeft(), rel.getRight(), rel.getCondition(),
+      leftKeys, rightKeys, new ArrayList<>());
+    if (leftKeys.isEmpty()) {
+      return false;
+    }
+
+    // Check each pair of join key
+    for (int i = 0; i < leftKeys.size(); ++i) {
+      int leftKey = leftKeys.get(i);
+      int rightKey = rightKeys.get(i);
+      RelColumnOrigin leftColumnOrigin = mq.getColumnOrigin(rel.getLeft(), leftKey);
+      RelColumnOrigin rightColumnOrigin = mq.getColumnOrigin(rel.getRight(), rightKey);
+      if (leftColumnOrigin == null || rightColumnOrigin == null) {
+        return false;
+      }
+      List<String> leftTableName = leftColumnOrigin.getOriginTable().getQualifiedName();
+      List<String> rightTableName = rightColumnOrigin.getOriginTable().getQualifiedName();
+      if (!leftTableName.equals(rightTableName)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Estimate join row count for a key-foreign key join, basically just take the maximum of the two
+   * join input row counts.
+   */
+  private static Double estimateForeignKeyJoinRowCount(Join rel, RelMetadataQuery mq) {
     double rightJoinFactor = 1.0;
 
     RexNode condition = rel.getCondition();

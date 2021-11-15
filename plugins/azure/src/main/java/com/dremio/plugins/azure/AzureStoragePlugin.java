@@ -15,9 +15,6 @@
  */
 package com.dremio.plugins.azure;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,10 +37,8 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
@@ -65,7 +60,6 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
   public SourceState getState() {
     String sourceName = getConfig().getPath().toString();
     try {
-      ensureDefaultName();
       AzureStorageFileSystem fs = getSystemUserFS().unwrap(AzureStorageFileSystem.class);
       fs.refreshFileSystems();
       List<ContainerFailure> failures = fs.getSubFailures();
@@ -96,14 +90,6 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
   public MetadataValidity validateMetadata(BytesOutput signature, DatasetHandle datasetHandle, DatasetMetadata metadata,
                                            ValidateMetadataOption... options){
     return MetadataValidity.INVALID;
-  }
-
-  private void ensureDefaultName() throws IOException {
-    String urlSafeName = URLEncoder.encode(getName(), "UTF-8");
-    getFsConf().set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme() + urlSafeName);
-    final FileSystem fs = getSystemUserFS();
-    // do not use fs.getURI() or fs.getConf() directly as they will produce wrong results
-    fs.unwrap(org.apache.hadoop.fs.FileSystem.class).initialize(URI.create(getFsConf().get(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY)), getFsConf());
   }
 
   @Override

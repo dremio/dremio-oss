@@ -26,4 +26,6 @@ interface ZKElectionListener extends ElectionListener {
   void onConnectionLoss();
 
   void onReconnection();
+
+  default void onBeginIsLeader() {};
 }

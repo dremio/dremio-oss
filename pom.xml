@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>19.0.0-202110270341120595-3e3e05e7</version>
+  <version>19.1.0-202111160130570172-0ee00450</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -64,7 +64,7 @@
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
     <plugin.hive2.aws-sdk.version>1.11.761</plugin.hive2.aws-sdk.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
-    <plugin.hive2.hive.version>2.1.1-dremio-202108260416400324-e962402</plugin.hive2.hive.version>
+    <plugin.hive2.hive.version>2.1.1-dremio-202111110700250786-bf21359</plugin.hive2.hive.version>
     <plugin.hive2.datanucleus-api-jdo.version>4.2.1</plugin.hive2.datanucleus-api-jdo.version>
     <plugin.hive2.datanucleus-core.version>4.1.6</plugin.hive2.datanucleus-core.version>
     <plugin.hive2.datanucleus-rdbms.version>4.1.7</plugin.hive2.datanucleus-rdbms.version>

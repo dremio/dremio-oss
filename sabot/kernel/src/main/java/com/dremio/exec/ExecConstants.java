@@ -495,6 +495,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
   BooleanValidator ENABLE_ICEBERG_MIN_MAX = new BooleanValidator("dremio.iceberg.min_max.enabled", true);
   BooleanValidator CTAS_CAN_USE_ICEBERG = new BooleanValidator("dremio.iceberg.ctas.enabled", false);
+  BooleanValidator ENABLE_PARTITION_STATS_USAGE = new BooleanValidator("dremio.use_partition_stats_enabled", true);
 
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
@@ -580,4 +581,7 @@ public interface ExecConstants {
 
   // option used to determine S3AsyncClient should get used or S3SyncWithAsync wrapper, false value to support prev implementation
   BooleanValidator S3_NATIVE_ASYNC_CLIENT = new BooleanValidator("dremio.s3.use_native_async_client", false);
+
+  // option used to fallback on name based mapping during iceberg reads when parquet files do not contain IDs
+  BooleanValidator ENABLE_ICEBERG_FALLBACK_NAME_BASED_READ = new BooleanValidator("dremio.iceberg.fallback_to_name_based_reader", false);
 }

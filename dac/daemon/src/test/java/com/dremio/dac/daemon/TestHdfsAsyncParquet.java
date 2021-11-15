@@ -120,6 +120,13 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
     fs.setPermission(new Path("/parquet/parquet_struct_with_different_case"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
   }
 
+  private static void setupEmptyParquetCaseTest() throws Exception {
+    fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/empty_parquet_test").getAbsolutePath()),
+      new Path("/parquet/"));
+    fs.setPermission(new Path("/parquet/empty_parquet_test"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+  }
+
   @BeforeClass
   public static void init() throws Exception {
     assumeNonMaprProfile();
@@ -131,6 +138,7 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
     setupIntUnionTest();
     setupStructSchemaChangeTest();
     setupStructWithDifferentCaseTest();
+    setupEmptyParquetCaseTest();
     try (Timer.TimedBlock b = Timer.time("TestHdfsAsyncParquet.@BeforeClass")) {
       dremioDaemon = DACDaemon.newDremioDaemon(
         DACConfig
@@ -278,6 +286,24 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
         .build(), 0, 500, allocator)) {
       assertEquals(2, jobData.getReturnedRowCount());
       assertEquals(1, jobData.getColumns().size());
+    }
+  }
+
+  @Test
+  public void testWhenEmptyColumnsAndParquetFilesExist() {
+
+    // DX-39271 - test case
+    // Test has two files
+    // File 1, File 2: contains no record have 3 columns and length of one column is 0
+    // Query should be successful and should return 0 records
+
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(
+          "SELECT * FROM " + SOURCE_NAME+".parquet.empty_parquet_test", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(0, jobData.getReturnedRowCount());
+      assertEquals(3, jobData.getColumns().size());
     }
   }
 }

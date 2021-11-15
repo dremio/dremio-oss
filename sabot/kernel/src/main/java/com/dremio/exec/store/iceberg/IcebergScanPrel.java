@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.ExecConstants.ENABLE_PARTITION_STATS_USAGE;
 import static com.dremio.exec.store.RecordReader.COL_IDS;
 import static com.dremio.exec.store.RecordReader.SPLIT_IDENTITY;
 import static com.dremio.exec.store.RecordReader.SPLIT_INFORMATION;
@@ -54,6 +55,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsReader;
 import org.apache.iceberg.io.InputFile;
 
+import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -256,11 +258,10 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    pw = super.explainTerms(pw);
-    if(filter != null){
-      return pw.item("filters",  filter);
-    }
-    return pw;
+    return super.explainTerms(pw)
+      .itemIf("arrowCachingEnable", arrowCachingEnabled, arrowCachingEnabled)
+      .itemIf("filter", filter, filter != null)
+      .itemIf("pruneCondition", pruneCondition, pruneCondition != null);
   }
 
   private Optional<Long> prune() {
@@ -325,8 +326,14 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
 
   private long getSurvivingRecords() {
     if (survivingRecords == null) {
-      survivingRecords = prune()
-        .orElseGet(tableMetadata::getApproximateRecordCount); // unpartitioned table or filter on non-partition columns
+      boolean enablePartitionStats = context.getPlannerSettings().getOptions().getOption(ENABLE_PARTITION_STATS_USAGE);
+      if (enablePartitionStats) {
+        // use partition stats to enable row count estimation
+        survivingRecords = prune()
+          .orElseGet(tableMetadata::getApproximateRecordCount); // unpartitioned table or filter on non-partition columns
+      } else {
+        survivingRecords = tableMetadata.getApproximateRecordCount();
+      }
     }
     return survivingRecords;
   }
@@ -375,12 +382,13 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   }
 
 
-  private BatchSchema getSchemaWithMinMaxUsedColumns(RexNode cond, List<SchemaPath> outputColumns, BatchSchema schema) {
+  public BatchSchema getSchemaWithMinMaxUsedColumns(RexNode cond, List<SchemaPath> outputColumns, BatchSchema schema) {
     if (cond == null) {
       return schema;
     }
 
-    List<SchemaPath> usedColumns = getUsedIndices.apply(cond).stream().map(projectedColumns::get).collect(Collectors.toList());
+    List<SchemaPath> usedColumns = getUsedIndices.apply(cond).stream()
+      .map(i -> FieldReference.getWithQuotedRef(rowType.getFieldNames().get(i))).collect(Collectors.toList());
     // TODO only add _min, _max columns which are used
     usedColumns.forEach(c -> {
       List<String> nameSegments = c.getNameSegments();
@@ -395,12 +403,13 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     return schema.cloneWithFields(fields);
   }
 
-  private BatchSchema getSchemaWithUsedColumns(RexNode cond, List<SchemaPath> outputColumns, BatchSchema schema) {
+  public BatchSchema getSchemaWithUsedColumns(RexNode cond, List<SchemaPath> outputColumns, BatchSchema schema) {
     if (cond == null) {
       return schema;
     }
 
-    List<SchemaPath> usedColumns = getUsedIndices.apply(cond).stream().map(projectedColumns::get).collect(Collectors.toList());
+    List<SchemaPath> usedColumns = getUsedIndices.apply(cond).stream()
+      .map(i -> FieldReference.getWithQuotedRef(rowType.getFieldNames().get(i))).collect(Collectors.toList());
     usedColumns.forEach(c -> {
       List<String> nameSegments = c.getNameSegments();
       Preconditions.checkArgument(nameSegments.size() == 1);

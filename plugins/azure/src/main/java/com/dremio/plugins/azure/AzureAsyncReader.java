@@ -103,12 +103,6 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements AutoClo
 
   java.util.function.Function<Void, Request> getRequestBuilderFunction(long offset, long len, MetricsLogger metrics) {
     java.util.function.Function<Void, Request> requestBuilderFunction = (Function<Void, Request>) unused -> {
-      metrics.startTimer("update-token");
-      if (authProvider.checkAndUpdateToken()) {
-        metrics.incrementCounter("new-client");
-      }
-
-      metrics.endTimer("update-token");
       long rangeEnd = offset + len - 1L;
       RequestBuilder requestBuilder = AzureAsyncHttpClientUtils.newDefaultRequestBuilder()
               .addHeader("Range", String.format("bytes=%d-%d", offset, rangeEnd))
@@ -117,7 +111,10 @@ public class AzureAsyncReader extends ReusableAsyncByteReader implements AutoClo
         requestBuilder.addHeader("If-Unmodified-Since", version);
       }
       Request req = requestBuilder.build();
+
+      metrics.startTimer("get-authz-header");
       req.getHeaders().add("Authorization", authProvider.getAuthzHeaderValue(req));
+      metrics.endTimer("get-authz-header");
 
       logger.debug("[{}] Req: URL {} {} {}", threadName, req.getUri(), req.getHeaders().get("x-ms-client-request-id"),
               req.getHeaders().get("Range"));

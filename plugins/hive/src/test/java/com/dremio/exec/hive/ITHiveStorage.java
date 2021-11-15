@@ -1419,6 +1419,16 @@ public class ITHiveStorage extends HiveTestBase {
       .go();
   }
 
+  @Test
+  public void testEmptyDoubleFieldORC() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT itm_array[0].price_in_usd as price FROM hive.empty_float_field limit 1")
+      .unOrdered()
+      .baselineColumns("price")
+      .baselineValues(null)
+      .go();
+  }
+
   private List<FileSystemCachedEntity> getCachedEntities(DatasetConfig datasetConfig) throws Exception{
     final HiveReadSignature readSignature = HiveReadSignature.parseFrom(datasetConfig.getReadDefinition().getReadSignature().toByteArray());
     // for now we only support fs based read signatures

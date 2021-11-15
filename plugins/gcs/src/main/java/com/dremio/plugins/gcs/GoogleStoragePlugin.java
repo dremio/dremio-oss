@@ -16,12 +16,7 @@
 package com.dremio.plugins.gcs;
 
 import static com.dremio.io.file.UriSchemes.DREMIO_GCS_SCHEME;
-import static com.dremio.io.file.UriSchemes.SCHEME_SEPARATOR;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +37,6 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.io.file.FileSystem;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
@@ -158,7 +152,6 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
   @Override
   public SourceState getState() {
     try {
-      ensureDefaultName();
       GoogleBucketFileSystem fs = getSystemUserFS().unwrap(GoogleBucketFileSystem.class);
       fs.refreshFileSystems();
       List<ContainerFailure> failures = fs.getSubFailures();
@@ -178,15 +171,6 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
     } catch (Exception e) {
       return SourceState.badState(e.getMessage());
     }
-  }
-
-  private void ensureDefaultName() throws IOException {
-    String urlSafeName = URLEncoder.encode(getName(), "UTF-8");
-    getFsConf().set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, DREMIO_GCS_SCHEME + SCHEME_SEPARATOR + urlSafeName);
-    final FileSystem fs = createFS(SYSTEM_USERNAME);
-    // do not use fs.getURI() or fs.getConf() directly as they will produce wrong results
-    org.apache.hadoop.fs.FileSystem hadoopFs = fs.unwrap(org.apache.hadoop.fs.FileSystem.class);
-    hadoopFs.initialize(URI.create(getFsConf().get(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY)), getFsConf());
   }
 
   @Override

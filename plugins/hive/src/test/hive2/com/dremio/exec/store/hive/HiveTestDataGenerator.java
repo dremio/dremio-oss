@@ -554,6 +554,7 @@ public class HiveTestDataGenerator {
       createParquetTableWithDeeplyNestedColumns(hiveDriver);
       createParquetStructExtraField(hiveDriver);
       createNullORCStructTable(hiveDriver);
+      createEmptyFloatFieldORCTable(hiveDriver);
       createORCPartitionSchemaTestTable(hiveDriver);
 
       // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
@@ -2005,6 +2006,55 @@ public class HiveTestDataGenerator {
       "col1 int, col2 array<struct<f1:int, f2:struct<f_f_1:int, f_f_2:int>>>)" +
       "stored as parquet location '" + structWithExtraFieldFile.getParent() + "'";
     executeQuery(hiveDriver, structExtraFieldTest);
+  }
+
+  private void createEmptyFloatFieldORCTable(final Driver hiveDriver) throws Exception {
+    final File emptyFloatFieldOrc = new File(BaseTestQuery.getTempDir("empty_float_field_orc"));
+    emptyFloatFieldOrc.mkdirs();
+    final URL emptyFloatFieldOrcURL = Resources.getResource("empty_float_field.orc");
+    if (emptyFloatFieldOrcURL == null) {
+      throw new IOException(String.format("Unable to find path %s.", "empty_float_field.orc"));
+    }
+
+    final File emptyFloatFieldOrcFile = new File(emptyFloatFieldOrc, "empty_float_field.orc");
+    emptyFloatFieldOrcFile.deleteOnExit();
+    emptyFloatFieldOrc.deleteOnExit();
+    Files.write(Paths.get(emptyFloatFieldOrcFile.toURI()), Resources.toByteArray(emptyFloatFieldOrcURL));
+
+    executeQuery(hiveDriver,
+            "CREATE EXTERNAL TABLE empty_float_field (" +
+                    "strm_id string, userid string, user_pseudonymous_id string," +
+                    "user_props_array array<struct<key:string,value:struct<string_value:string," +
+                    "int_value:bigint,float_value:double,double_value:double,set_timestamp_micros:bigint>>>," +
+                    "user_first_visited_epoch_nbr bigint, user_lifetm_val_struct struct<revenue:double,currency:string>," +
+                    "event_logged_epoch_nbr bigint,  event_nm string, event_parms_array array<struct<key:string," +
+                    "value:struct<string_value:string,int_value:bigint,float_value:double,double_value:double>>>," +
+                    "event_prev_logged_epoch_nbr bigint, event_crncy_val decimal(9,2), event_bundle_seqtl_id bigint," +
+                    "event_offset_server_epoch_nbr bigint, event_cstm_dima_struct struct<hostname:string>," +
+                    "dev_struct struct<category:string,mobile_brand_name:string,mobile_model_name:string," +
+                    "mobile_marketing_name:string,mobile_os_hardware_model:string,operating_system:string," +
+                    "operating_system_version:string,vendor_id:string,advertising_id:string,language:string," +
+                    "is_limited_ad_tracking:string,time_zone_offset_seconds:bigint,browser:string,browser_version:string," +
+                    "web_info:struct<browser:string,browser_version:string,hostname:string>>," +
+                    "user_geo_struct struct<continent:string,country:string,region:string," +
+                    "city:string,sub_continent:string,metro:string>," +
+                    "appln_info_struct struct<id:string,version:string,install_store:string," +
+                    "firebase_app_id:string,install_source:string>," +
+                    "trfc_src_struct struct<name:string,medium:string,source:string>," +
+                    "pltf_nm string, ecmrcestruct struct<total_item_quantity:bigint,purchase_revenue_in_usd:double," +
+                    "purchase_revenue:double,refund_value_in_usd:double,refund_value:double,shipping_value_in_usd:double," +
+                    "shipping_value:double,tax_value_in_usd:double,tax_value:double,unique_items:bigint,transaction_id:string>," +
+                    "itm_array array<struct<item_id:string,item_name:string,item_brand:string,item_variant:string," +
+                    "item_category:string,item_category2:string,item_category3:string,item_category4:string," +
+                    "item_category5:string,price_in_usd:double,price:double,quantity:bigint,item_revenue_in_usd:double," +
+                    "item_revenue:double,item_refund_in_usd:double,item_refund:double,coupon:string,affiliation:string," +
+                    "location_id:string,item_list_id:string,item_list_name:string,item_list_index:string," +
+                    "promotion_id:string,promotion_name:string,creative_name:string,creative_slot:string>>," +
+                    "privacy_info_struct struct<analytics_storage:string,ads_storage:string,uses_transient_token:string>," +
+                    "src_chnl_cd varchar(24), geo_region_cd string, src_rcv_ts timestamp," +
+                    "src_create_ts timestamp, load_ts timestamp," +
+                    "load_userid string, upd_ts timestamp, upd_userid string" +
+                    ") STORED AS ORC location '" + emptyFloatFieldOrcFile.getParent() + "'");
   }
 
   private void createNullORCStructTable(final Driver hiveDriver) throws Exception {

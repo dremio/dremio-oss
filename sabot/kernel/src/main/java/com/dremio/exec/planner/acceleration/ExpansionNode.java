@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.acceleration;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -25,6 +26,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.RelWriter;
@@ -35,6 +37,7 @@ import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener.SelfFlatteningRel;
 
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -138,6 +141,42 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
       }
     });
     return rel;
+  }
+
+  /**
+   * Count ExpansionNodes at each depth for the given rel node and collect the results in a map.
+   * First count the top level ENs, then the first level nested ENs, and so on. The count is done
+   * on the level of ExpansionNode and not on the RelNode.
+   *
+   * @param relNode          Input rel node
+   * @param nodeCountAtDepth A map to keep track of node count at each depth.
+   *                         Key = Depth, Value = Expansion nodes at that depth
+   * @param depth            Current depth
+   */
+  public static void countExpansionNodes(RelNode relNode, Map<Integer, Integer> nodeCountAtDepth, Pointer<Integer> depth) {
+    if (relNode == null) {
+      return;
+    }
+
+    if (relNode instanceof RelSubset) {
+      RelSubset subset = (RelSubset) relNode;
+      countExpansionNodes(subset.getBest(), nodeCountAtDepth, depth);
+      return;
+    }
+
+    if (relNode instanceof ExpansionNode) {
+      // There is an ExpansionNode at this depth
+      nodeCountAtDepth.put(depth.value, nodeCountAtDepth.getOrDefault(depth.value, 0) + 1);
+      depth.value++;
+    }
+
+    for (RelNode node : relNode.getInputs()) {
+      countExpansionNodes(node, nodeCountAtDepth, depth);
+    }
+
+    if (relNode instanceof ExpansionNode) {
+      depth.value--;
+    }
   }
 
   public static RelNode removeAllButRoot(RelNode tree) {

@@ -121,6 +121,8 @@
 |attr-accept                                                 |1.1.0               |MIT                 |
 |Audit Component                                             |1.1.0               |Apache 2.0          |
 |Audit Component                                             |1.1.0               |Apache 2.0          |
+|Audit Component                                             |1.1.0               |Apache 2.0          |
+|Audit Component                                             |1.1.0               |Apache 2.0          |
 |AutoValue Annotations                                       |1.7.2               |Apache 2.0          |
 |AWS Event Stream                                            |1.0.1               |Apache 2.0          |
 |AWS Java SDK :: Annotations                                 |2.16.104            |Apache 2.0          |
@@ -232,12 +234,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |18.0.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |18.0.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |18.0.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |18.0.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |18.0.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |18.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |19.1.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |19.1.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |19.1.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |19.1.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |19.1.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |19.1.0              |Dremio Free Software License 1.0|
 |dremio-ui-lib                                               |1.0.0               |Unlicense           |
 |easy-peasy                                                  |4.0.1               |MIT                 |
 |EclipseLink                                                 |2.5.2               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
@@ -290,7 +292,6 @@
 |Google Guice Core Library                                   |4.2.2               |Apache 2.0          |
 |Google Guice Extensions Servlet                             |4.2.2               |Apache 2.0          |
 |Google HTTP Client Library for Java                         |1.35.0              |Apache 2.0          |
-|Google Testing and Mocking Framework                        |1.10.x              |BSD 3-clause        |
 |graceful-fs                                                 |4.1.11              |ISC                 |
 |graphlib                                                    |2.1.8               |MIT                 |
 |GRPC ALTs                                                   |1.32.2              |Apache 2.0          |

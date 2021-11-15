@@ -15,7 +15,6 @@
  */
 package com.dremio.plugins.s3.store;
 
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
 import static org.apache.hadoop.fs.s3a.Constants.CREATE_FILE_STATUS_CHECK;
@@ -29,9 +28,6 @@ import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_ALGORITHM;
 import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_KEY;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
 import java.nio.file.AccessMode;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +54,6 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -193,7 +188,6 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   @Override
   public SourceState getState() {
     try {
-      ensureDefaultName();
       S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);
       //This next call is just to validate that the path specified is valid
       fsHealthChecker.healthCheck(getConfig().getPath(), ImmutableSet.of(AccessMode.READ));
@@ -219,15 +213,6 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   private String fileConnectionErrorMessage(Path filePath) {
     return String.format("Could not connect to %s. Check your S3 data source settings and credentials.",
         (filePath.toString().equals("/")) ? "S3 source" : filePath.toString());
-  }
-
-  private void ensureDefaultName() throws IOException {
-    String urlSafeName = URLEncoder.encode(getName(), "UTF-8");
-    getFsConf().set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3://" + urlSafeName);
-    // we create a new fs wrapper since we are calling initialize on it
-    final FileSystem fs = createFS(SYSTEM_USERNAME);
-    // do not use fs.getURI() or fs.getConf() directly as they will produce wrong results
-    fs.unwrap(org.apache.hadoop.fs.FileSystem.class).initialize(URI.create(getFsConf().get(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY)), getFsConf());
   }
 
   @Override

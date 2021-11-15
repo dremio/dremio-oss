@@ -285,6 +285,151 @@ public class TestZKClusterClient extends DremioTest {
     }
   }
 
+  // This is a -ve test. Without a zero delay for ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK, and a simulated delay in
+  // curator's isLeader() callback, the node will lose it's leader status on zk reconnect.
+  @Test
+  public void testElectionDelayLeaderCallbackNegative() throws Exception {
+    final CountDownLatch elected = new CountDownLatch(1);
+    final CountDownLatch loss = new CountDownLatch(1);
+    final CountDownLatch reconnected = new CountDownLatch(1);
+    AtomicBoolean hadConnectionLoss = new AtomicBoolean(false);
+    AtomicBoolean lostLeaderAfterReconnect = new AtomicBoolean(false);
+    AtomicBoolean remainedLeaderAfterReconnect = new AtomicBoolean(false);
+    final CountDownLatch leaderChosenAfterReconnect = new CountDownLatch(1);
+    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("10ms"))
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("100s"))
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK, ConfigValueFactory.fromAnyRef("0ms"));
+    final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
+
+    try(ZKClusterClient client = new ZKClusterClient(
+      config,
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+    ) {
+      client.start();
+      ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
+
+        @Override
+        public void onBeginIsLeader() {
+          try {
+            TimeUnit.MILLISECONDS.sleep(500);
+          } catch (InterruptedException ignore) {}
+        }
+
+        @Override
+        public void onElected() {
+          elected.countDown();
+          if (hadConnectionLoss.get()) {
+            leaderChosenAfterReconnect.countDown();
+            remainedLeaderAfterReconnect.set(true);
+          }
+        }
+
+        @Override
+        public void onCancelled() {
+          if (hadConnectionLoss.get()) {
+            leaderChosenAfterReconnect.countDown();
+            lostLeaderAfterReconnect.set(true);
+          }
+        }
+
+        @Override
+        public void onConnectionLoss() {
+          loss.countDown();
+          hadConnectionLoss.set(true);
+        }
+
+        @Override
+        public void onReconnection() {
+          reconnected.countDown();
+        }
+      });
+
+      assertTrue("No election happened", elected.await(20, TimeUnit.SECONDS));
+
+      // Restart the server
+      zooKeeperServer.restartServer();
+
+      assertTrue("Node was not disconnected", loss.await(20, TimeUnit.SECONDS));
+      assertTrue("Node was not reconnected", reconnected.await(20, TimeUnit.SECONDS));
+      assertTrue("New leader was not chosen after reconnect", leaderChosenAfterReconnect.await(20, TimeUnit.SECONDS));
+      assertEquals("Lost master after re-election", true, lostLeaderAfterReconnect.get());
+      assertEquals("Not leader after re-election", false, remainedLeaderAfterReconnect.get());
+    }
+  }
+
+  @Test
+  public void testElectionDelayLeaderCallback() throws Exception {
+    final CountDownLatch elected = new CountDownLatch(1);
+    final CountDownLatch loss = new CountDownLatch(1);
+    final CountDownLatch reconnected = new CountDownLatch(1);
+    AtomicBoolean hadConnectionLoss = new AtomicBoolean(false);
+    AtomicBoolean lostLeaderAfterReconnect = new AtomicBoolean(false);
+    AtomicBoolean remainedLeaderAfterReconnect = new AtomicBoolean(false);
+    final CountDownLatch leaderChosenAfterReconnect = new CountDownLatch(1);
+    final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("10ms"))
+      .withValue(ClusterCoordinator.Options.ZK_ELECTION_TIMEOUT, ConfigValueFactory.fromAnyRef("100s"));
+      // Tests with the default value for ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK i.e 500ms.
+    final ZKClusterConfig config = new ZKSabotConfig(sabotConfig);
+
+    try(ZKClusterClient client = new ZKClusterClient(
+      config,
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+    ) {
+      client.start();
+      ElectionRegistrationHandle node1 = client.joinElection("test-election", new ZKElectionListener() {
+
+        @Override
+        public void onBeginIsLeader() {
+          try {
+            // To avoid flaky tests, keep this low (about 1/10th of the value of ZK_ELECTION_DELAY_FOR_LEADER_CALLBACK)
+            TimeUnit.MILLISECONDS.sleep(50);
+          } catch (InterruptedException ignore) {}
+        }
+
+        @Override
+        public void onElected() {
+          elected.countDown();
+          if (hadConnectionLoss.get()) {
+            leaderChosenAfterReconnect.countDown();
+            remainedLeaderAfterReconnect.set(true);
+          }
+        }
+
+        @Override
+        public void onCancelled() {
+          if (hadConnectionLoss.get()) {
+            leaderChosenAfterReconnect.countDown();
+            lostLeaderAfterReconnect.set(true);
+          }
+        }
+
+        @Override
+        public void onConnectionLoss() {
+          loss.countDown();
+          hadConnectionLoss.set(true);
+        }
+
+        @Override
+        public void onReconnection() {
+          reconnected.countDown();
+        }
+      });
+
+      assertTrue("No election happened", elected.await(20, TimeUnit.SECONDS));
+
+      // Restart the server
+      zooKeeperServer.restartServer();
+
+      assertTrue("Node was not disconnected", loss.await(20, TimeUnit.SECONDS));
+      assertTrue("Node was not reconnected", reconnected.await(20, TimeUnit.SECONDS));
+      assertTrue("New leader was not chosen after reconnect", leaderChosenAfterReconnect.await(20, TimeUnit.SECONDS));
+      assertEquals("Lost master after re-election", false, lostLeaderAfterReconnect.get());
+      assertEquals("Not leader after re-election", true, remainedLeaderAfterReconnect.get());
+    }
+  }
+
   private ZKClusterClient getZkClientInstance() throws Exception {
     final SabotConfig sabotConfig = DEFAULT_SABOT_CONFIG
       .withValue(ClusterCoordinator.Options.ZK_ELECTION_POLLING, ConfigValueFactory.fromAnyRef("250ms"))
