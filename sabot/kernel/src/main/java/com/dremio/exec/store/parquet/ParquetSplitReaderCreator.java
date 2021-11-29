@@ -136,7 +136,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
     this.splitXAttr = splitXAttr;
     this.path = Path.of(splitXAttr.getPath());
     this.tablePath = tablePath;
-    if (!fs.supportsPath(path)) {
+    if (!"cosn".equalsIgnoreCase(path.toURI().getScheme()) && !fs.supportsPath(path)) {
       throw UserException.invalidMetadataError()
         .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), path))
         .addContext("File", path)

@@ -35,6 +35,14 @@
 
   <dependencies>
     <dependency>
+      <groupId>com.qcloud.cos</groupId>
+      <artifactId>hadoop-cos</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.qcloud</groupId>
+      <artifactId>cos_api-bundle</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-s3</artifactId>
     </dependency>
