@@ -109,7 +109,7 @@
     <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
     <logback.version>1.2.3</logback.version>
     <metrics.version>4.1.19</metrics.version>
-    <mariadb.connector.version>2.3.0</mariadb.connector.version>
+    <mariadb.connector.version>2.5.4</mariadb.connector.version>
     <nessie.version>0.4.0</nessie.version>
     <netty.version>4.1.48.Final</netty.version>
     <netty3.version>3.10.6.Final-nohttp</netty3.version>
