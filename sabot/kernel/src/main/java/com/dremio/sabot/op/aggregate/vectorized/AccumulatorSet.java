@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -285,6 +286,24 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     for(Accumulator a : children){
       a.revertResize();
     }
+  }
+
+  @Override
+  public int getAccumCompactionCount() {
+    int result = 0;
+    for (Accumulator a : children) {
+      result += a.getNumCompactions();
+    }
+    return result;
+  }
+
+  @Override
+  public long getAccumCompactionTime(TimeUnit unit) {
+    long result = 0;
+    for (Accumulator a : children) {
+      result += a.getCompactionTime(unit);
+    }
+    return result;
   }
 
   @Override

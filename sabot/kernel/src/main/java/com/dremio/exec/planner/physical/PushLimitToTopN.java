@@ -33,12 +33,15 @@ public class PushLimitToTopN  extends Prule{
   @Override
   public void onMatch(RelOptRuleCall call) {
     final LimitPrel limit = (LimitPrel) call.rel(0);
+    if (limit.getFetch() == null) {
+      return;
+    }
     final SingleMergeExchangePrel smex = (SingleMergeExchangePrel) call.rel(1);
     final SortPrel sort = (SortPrel) call.rel(2);
 
     // First offset to include into results (inclusive). Null implies it is starting from offset 0
     int offset = limit.getOffset() != null ? Math.max(0, RexLiteral.intValue(limit.getOffset())) : 0;
-    int fetch = limit.getFetch() != null?  Math.max(0, RexLiteral.intValue(limit.getFetch())) : 0;
+    int fetch = Math.max(0, RexLiteral.intValue(limit.getFetch()));
 
     final TopNPrel topN = new TopNPrel(limit.getCluster(), sort.getTraitSet(), sort.getInput(), offset + fetch, sort.getCollation());
     final LimitPrel newLimit = new LimitPrel(limit.getCluster(), limit.getTraitSet(),

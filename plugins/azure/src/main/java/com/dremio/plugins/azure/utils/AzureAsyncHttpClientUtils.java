@@ -19,6 +19,7 @@ package com.dremio.plugins.azure.utils;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.Map;
 import java.util.UUID;
 
 import org.asynchttpclient.RequestBuilder;
@@ -26,7 +27,9 @@ import org.asynchttpclient.util.HttpConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.azure.core.util.CoreUtils;
 import com.azure.core.util.DateTimeRfc1123;
+import com.azure.core.util.UserAgentUtil;
 import com.azure.storage.common.Utility;
 
 /**
@@ -37,10 +40,9 @@ public final class AzureAsyncHttpClientUtils {
 
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncHttpClientUtils.class);
 
-  private static final String USER_AGENT_VAL = String.format("azsdk-java-azure-storage-blob/12.4.0 (%s; %s %s)",
-    System.getProperty("java.version"),
-    System.getProperty("os.name"),
-    System.getProperty("os.version"));
+  private static final Map<String, String> PROPERTIES = CoreUtils.getProperties("META-INF/maven/com.azure/azure-storage-common/pom.properties");
+  private static final String sdkVersion = PROPERTIES.getOrDefault("version", "Unknown");
+  private static final String USER_AGENT_VAL = UserAgentUtil.toUserAgentString(null, "azure-storage-blob", sdkVersion, null);
 
   private AzureAsyncHttpClientUtils() {
     // Not to be instantiated.

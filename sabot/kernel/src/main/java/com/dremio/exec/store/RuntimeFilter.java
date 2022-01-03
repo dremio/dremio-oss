@@ -20,6 +20,7 @@ import static org.apache.arrow.util.Preconditions.checkArgument;
 import static org.apache.arrow.util.Preconditions.checkState;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.ExecProtos;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.exec.util.ValueListFilterBuilder;
@@ -44,11 +46,17 @@ public class RuntimeFilter implements AutoCloseable {
   private CompositeColumnFilter partitionColumnFilter;
   private List<CompositeColumnFilter> nonPartitionColumnFilters;
   private String senderInfo;
+  private List<UserBitShared.RunTimeFilterDetailsInfoInScan> filterDetails;
 
   public RuntimeFilter(CompositeColumnFilter partitionColumnFilter, List<CompositeColumnFilter> nonPartitionColumnFilters, String senderInfo) {
+    this(partitionColumnFilter, nonPartitionColumnFilters, senderInfo, Collections.emptyList());
+  }
+
+  public RuntimeFilter(CompositeColumnFilter partitionColumnFilter, List<CompositeColumnFilter> nonPartitionColumnFilters, String senderInfo, List<UserBitShared.RunTimeFilterDetailsInfoInScan> filterDetails) {
     this.partitionColumnFilter = partitionColumnFilter;
     this.nonPartitionColumnFilters = nonPartitionColumnFilters;
     this.senderInfo = senderInfo;
+    this.filterDetails = filterDetails;
   }
 
   public CompositeColumnFilter getPartitionColumnFilter() {
@@ -63,16 +71,24 @@ public class RuntimeFilter implements AutoCloseable {
     return senderInfo;
   }
 
+  public List<UserBitShared.RunTimeFilterDetailsInfoInScan> getFilterDetails() {
+    return filterDetails;
+  }
+
   public static RuntimeFilter getInstance(final ExecProtos.RuntimeFilter protoFilter,
                                           final ArrowBuf msgBuf,
                                           final String senderInfo,
+                                          final String sourceJoinId,
+                                          final ExecProtos.FragmentHandle fragmentHandle,
                                           final OperatorStats stats) {
     ExecProtos.CompositeColumnFilter partitionColFilterProto = protoFilter.getPartitionColumnFilter();
     CompositeColumnFilter partitionColFilter = null;
     long nextSliceStart = 0L;
+    List<UserBitShared.RunTimeFilterDetailsInfoInScan> filterDetails = new ArrayList<>();
     if (partitionColFilterProto != null && !partitionColFilterProto.getColumnsList().isEmpty()) {
       checkArgument(msgBuf.capacity() >= partitionColFilterProto.getSizeBytes(), "Invalid filter size. " +
               "Buffer capacity is %s, expected filter size %s", msgBuf.capacity(), partitionColFilterProto.getSizeBytes());
+      UserBitShared.RunTimeFilterDetailsInfoInScan.Builder runTimeFilterDetails = UserBitShared.RunTimeFilterDetailsInfoInScan.newBuilder();
       try {
         final BloomFilter bloomFilter = BloomFilter.prepareFrom(msgBuf.slice(nextSliceStart, partitionColFilterProto.getSizeBytes()));
         nextSliceStart += partitionColFilterProto.getSizeBytes();
@@ -81,10 +97,22 @@ public class RuntimeFilter implements AutoCloseable {
         partitionColFilter = new CompositeColumnFilter.Builder().setProtoFields(protoFilter.getPartitionColumnFilter())
                 .setBloomFilter(bloomFilter).build();
         bloomFilter.getDataBuffer().retain();
+
+        runTimeFilterDetails
+          .setMinorFragmentId(fragmentHandle.getMinorFragmentId())
+          .setJoinSource(sourceJoinId)
+          .addAllProbeFieldNames(partitionColFilter.getColumnsList())
+          .setIsPartitionedColumn(true)
+          .setNumberOfValues(bloomFilter.getNumBitsSet())
+          .setNumberOfHashFunctions(bloomFilter.getNumHashFunctions())
+          .setOutputRecordsBeforePruning(stats.getRecordsProcessed());
+
       } catch (Exception e) {
         stats.addLongStat(RUNTIME_COL_FILTER_DROP_COUNT, 1);
+        runTimeFilterDetails.setIsDropped(true);
         logger.warn("Error while processing partition column filter from {} : {}", senderInfo, e.getMessage());
       }
+      filterDetails.add(runTimeFilterDetails.build());
     }
 
     final List<CompositeColumnFilter> nonPartitionColFilters = new ArrayList<>(protoFilter.getNonPartitionColumnFilterCount());
@@ -93,6 +121,7 @@ public class RuntimeFilter implements AutoCloseable {
       final String fieldName = nonPartitionColFilterProto.getColumns(0);
       checkArgument(msgBuf.capacity() >= nextSliceStart + nonPartitionColFilterProto.getSizeBytes(),
               "Invalid filter buffer size for non partition col %s.", fieldName);
+      UserBitShared.RunTimeFilterDetailsInfoInScan.Builder runTimeFilterDetails = UserBitShared.RunTimeFilterDetailsInfoInScan.newBuilder();
       try {
         final ValueListFilter valueListFilter = ValueListFilterBuilder
                 .fromBuffer(msgBuf.slice(nextSliceStart, nonPartitionColFilterProto.getSizeBytes()));
@@ -105,14 +134,26 @@ public class RuntimeFilter implements AutoCloseable {
                 .setProtoFields(nonPartitionColFilterProto).setValueList(valueListFilter).build();
         nonPartitionColFilters.add(nonPartitionColFilter);
         valueListFilter.buf().retain();
+
+        runTimeFilterDetails
+          .setMinorFragmentId(fragmentHandle.getMinorFragmentId())
+          .setJoinSource(sourceJoinId)
+          .addAllProbeFieldNames(nonPartitionColFilter.getColumnsList())
+          .setIsPartitionedColumn(false)
+          .setNumberOfValues(nonPartitionColFilter.getValueList().getValueCount())
+          .setNumberOfHashFunctions(0)
+          .setOutputRecordsBeforePruning(stats.getRecordsProcessed());
+
       } catch (Exception e) {
         stats.addLongStat(RUNTIME_COL_FILTER_DROP_COUNT, 1);
+        runTimeFilterDetails.setIsDropped(true);
         logger.warn("Error while processing non-partition column filter on column {}, from {} : {}",
                 protoFilter.getNonPartitionColumnFilter(i).getColumns(0), senderInfo, e.getMessage());
       }
+      filterDetails.add(runTimeFilterDetails.build());
     }
     checkState(partitionColFilter != null || !nonPartitionColFilters.isEmpty(), "All filters are dropped.");
-    return new RuntimeFilter(partitionColFilter, nonPartitionColFilters, senderInfo);
+    return new RuntimeFilter(partitionColFilter, nonPartitionColFilters, senderInfo, filterDetails);
   }
 
   public static RuntimeFilter getInstanceWithNewNonPartitionColFiltersList(RuntimeFilter filter) {

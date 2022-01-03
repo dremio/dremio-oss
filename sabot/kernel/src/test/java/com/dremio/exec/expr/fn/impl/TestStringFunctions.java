@@ -160,6 +160,21 @@ public class TestStringFunctions extends BaseTestQuery {
         .baselineColumns("res1")
         .baselineValues("a,b,c")
         .go();
+
+    // test with mutlibyte chars
+    testBuilder()
+      .sqlQuery("select split_part('åå†:åå†', ':', 2) res1 from (values(1))")
+      .ordered()
+      .baselineColumns("res1")
+      .baselineValues("åå†")
+      .go();
+
+    testBuilder()
+      .sqlQuery("select split_part('åå†::åå†', ':', 2) res1 from (values(1))")
+      .ordered()
+      .baselineColumns("res1")
+      .baselineValues("")
+      .go();
   }
 
   @Test

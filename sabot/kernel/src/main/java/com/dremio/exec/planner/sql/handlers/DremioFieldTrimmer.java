@@ -90,20 +90,22 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
 
   private final RelBuilder builder;
   private final boolean isRelPlanning;
+  private final boolean trimProjectedColumn;
 
-  public static DremioFieldTrimmer of(RelOptCluster cluster, boolean isRelPlanning) {
+  public static DremioFieldTrimmer of(RelOptCluster cluster, boolean isRelPlanning, boolean trimProjectedColumn) {
     RelBuilder builder = DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(cluster, null);
-    return new DremioFieldTrimmer(builder, isRelPlanning);
+    return new DremioFieldTrimmer(builder, isRelPlanning, trimProjectedColumn);
   }
 
   public static DremioFieldTrimmer of(RelBuilder builder) {
-    return new DremioFieldTrimmer(builder, false);
+    return new DremioFieldTrimmer(builder, false, true);
   }
 
-  private DremioFieldTrimmer(RelBuilder builder, boolean isRelPlanning) {
+  private DremioFieldTrimmer(RelBuilder builder, boolean isRelPlanning, boolean trimProjectedColumn) {
     super(null, builder);
     this.builder = builder;
     this.isRelPlanning = isRelPlanning;
+    this.trimProjectedColumn = trimProjectedColumn;
   }
 
   // Override this method to make CorrelVariable have updated field list after trimming subtree under correlate rel
@@ -291,7 +293,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       ImmutableBitSet fieldsUsed,
       Set<RelDataTypeField> extraFields) {
 
-    if(fieldsUsed.cardinality() == crel.getRowType().getFieldCount()) {
+    if(fieldsUsed.cardinality() == crel.getRowType().getFieldCount() || !trimProjectedColumn) {
       return result(crel, Mappings.createIdentity(crel.getRowType().getFieldCount()));
     }
 
@@ -329,7 +331,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     Set<RelDataTypeField> extraFields) {
 
     // if we've already pushed down projection of nested columns, we don't want to trim anymore
-    if (drel.getProjectedColumns().stream().anyMatch(c -> !c.isSimplePath())) {
+    if (drel.getProjectedColumns().stream().anyMatch(c -> !c.isSimplePath()) || !trimProjectedColumn) {
       return result(drel, Mappings.createIdentity(drel.getRowType().getFieldCount()));
     }
 

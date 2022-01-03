@@ -147,6 +147,8 @@ public interface ExecConstants {
   PositiveLongValidator BATCH_LIST_SIZE_ESTIMATE = new PositiveLongValidator("exec.batch.field.list.size-estimate", Integer.MAX_VALUE, 5);
   PositiveLongValidator BATCH_VARIABLE_FIELD_SIZE_ESTIMATE =
       new PositiveLongValidator("exec.batch.field.variable-width.size-estimate", Integer.MAX_VALUE, 15);
+  PositiveLongValidator VARIABLE_WIDTH_VECTOR_MAX_USAGE_PERCENT =
+    new PositiveLongValidator("exec.variable-width-vector.max-usage-percent", 100, 95);
   PositiveLongValidator OUTPUT_ALLOCATOR_RESERVATION = new PositiveLongValidator("exec.batch.output.alloc.reservation", Integer.MAX_VALUE, 512 * 1024);
 
   String OPERATOR_TARGET_BATCH_BYTES = "dremio.exec.operator_batch_bytes";
@@ -477,8 +479,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_nospill.varchar_ndv", true);
   BooleanValidator ENABLE_NDV_REDUCE_HEAP = new BooleanValidator("exec.operator.ndv_reduce_heap", true);
 
-  /* XXX: Disable due to DX-37194 */
-  BooleanValidator ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_spill.varchar", false);
+  BooleanValidator ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_spill.varchar", true);
 
   BooleanValidator TRIM_ROWGROUPS_FROM_FOOTER = new BooleanValidator("exec.parquet.memory.trim_rowgroups", true);
   BooleanValidator TRIM_COLUMNS_FROM_ROW_GROUP = new BooleanValidator("exec.parquet.memory.trim_columns", true);

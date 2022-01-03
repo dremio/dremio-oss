@@ -39,7 +39,6 @@ public class VectorizedHashAggPartition implements AutoCloseable {
   final AccumulatorSet accumulator;
   final int blockWidth;
   int records;
-  int recordsSpilled;
   ArrowBuf buffer;
   private VectorizedHashAggDiskPartition spillInfo;
   private String identifier;
@@ -63,7 +62,6 @@ public class VectorizedHashAggPartition implements AutoCloseable {
     Preconditions.checkArgument(hashTable != null, "Error: initializing a partition with invalid hash table");
     this.spilled = false;
     this.records = 0;
-    this.recordsSpilled = 0;
     this.hashTable = hashTable;
     this.accumulator = accumulator;
     this.blockWidth = blockWidth;
@@ -193,15 +191,6 @@ public class VectorizedHashAggPartition implements AutoCloseable {
     return records;
   }
 
-
-  void bumpRecordsSpilled(final int records) {
-    recordsSpilled += records;
-  }
-
-  public void resetSpilledRecords() {
-    recordsSpilled = 0;
-  }
-
   /**
    * Set the partition as not spilled.
    */
@@ -210,7 +199,6 @@ public class VectorizedHashAggPartition implements AutoCloseable {
     this.spilled = false;
     this.spillInfo = null;
     this.records = 0;
-    this.recordsSpilled = 0;
   }
 
   /**

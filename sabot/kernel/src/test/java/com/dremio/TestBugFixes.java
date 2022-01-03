@@ -194,5 +194,24 @@ public class TestBugFixes extends BaseTestQuery {
         .baselineColumns("employee_id")
         .baselineValues((long) 2)
         .go();
-}
+  }
+
+  @Test // DX-40352
+  public void testLiteralMathExpression() throws Exception {
+    final String query = "SELECT employee_id, (employee_id * (2 + 2)) \n" +
+      "FROM cp.\"employee.json\" WHERE employee_id < 10";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("employee_id", "EXPR$1")
+      .baselineValues(1L, 4L)
+      .baselineValues(2L, 8L)
+      .baselineValues(4L, 16L)
+      .baselineValues(5L, 20L)
+      .baselineValues(6L, 24L)
+      .baselineValues(7L, 28L)
+      .baselineValues(8L, 32L)
+      .baselineValues(9L, 36L)
+      .go();
+  }
 }

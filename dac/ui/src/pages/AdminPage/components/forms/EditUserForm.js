@@ -111,7 +111,7 @@ export class EditUserForm extends Component {
 
   render() {
     const { fields, passwordHasPadding, isModal, userId, isReadMode, source, isLoading } = this.props;
-    const isFormLoading = isLoading !== false;
+    const isFormLoading = !!isLoading;
     const form = <UserForm
       isReadMode={isReadMode}
       className={isModal ? formBody : null}

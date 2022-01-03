@@ -42,6 +42,7 @@ public class DremioRelMetadataHandlerProvider implements RelMetadataHandlerProvi
           RelMdCost.SOURCE,
           RelMdCollation.SOURCE,
           RelMdSelectivity.SOURCE,
+          RelMdColumnUniqueness.SOURCE,
           // Calcite catch-all
           org.apache.calcite.rel.metadata.DefaultRelMetadataProvider.INSTANCE));
   static final DremioRelMetadataHandlerProvider INSTANCE =

@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -205,7 +206,7 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
     */
     for (Map.Entry<String, Types.NestedField> entry : nameToTypeOld.entrySet()) {
       Types.NestedField newType = nameToTypeNew.get(entry.getKey());
-      if(newType != null && !newType.equals(entry.getValue())) {
+      if(newType != null && isColumnUpdated(newType, entry.getValue())) {
         updatedColumnTypes.add(newType);
       }
     }
@@ -228,6 +229,17 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
     Collections.sort(dropColumns, fieldComparator);
     this.batchSchema = newSchema;
     this.datasetCatalogRequestBuilder.overrideSchema(newSchema);
+  }
+
+  private boolean isColumnUpdated(Types.NestedField newField, Types.NestedField oldField) {
+    if (newField.isOptional() != oldField.isOptional()) {
+      return true;
+    } else if (!newField.name().equals(oldField.name())) {
+      return true;
+    } else if (!Objects.equals(newField.doc(), oldField.doc())) {
+      return true;
+    }
+    return !newField.type().equals(oldField.type());
   }
 
   @Override

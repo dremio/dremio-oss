@@ -86,7 +86,7 @@ class FieldVarCharOutput extends TextOutput {
 
       for (SchemaPath path : columns) {
         pathStr = path.getRootSegment().getPath();
-        index = outputColumns.indexOf(pathStr);
+        index = getIndexOf(outputColumns, pathStr);
         if (index < 0) {
           // found col that is not a part of fieldNames, add it
           // this col might be part of some another scanner
@@ -123,9 +123,18 @@ class FieldVarCharOutput extends TextOutput {
   @Override
   public void startBatch() {
     this.recordCount = 0;
-    this.currentFieldIndex= -1;
+    this.currentFieldIndex = -1;
     this.collect = true;
     this.fieldOpen = false;
+  }
+
+  private int getIndexOf(List<String> outputColumns, String pathStr) {
+    for (int i = 0; i < outputColumns.size(); i++) {
+      if (outputColumns.get(i).equalsIgnoreCase(pathStr)) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   @Override

@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 
@@ -91,5 +93,13 @@ public interface Accumulator extends AutoCloseable {
 
   default boolean hasSpace(final int space, final int batchIndex) {
     return true;
+  }
+
+  default long getCompactionTime(TimeUnit unit) {
+    return 0;
+  }
+
+  default int getNumCompactions() {
+    return 0;
   }
 }

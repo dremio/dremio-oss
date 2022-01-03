@@ -266,6 +266,32 @@ public class JobResultsStore implements Service {
                    "For eg: for jdbc queries, results are not stored on executors.");
       return false;
     }
+    if (dfs.isPdfs()) {
+
+      /**
+       * This function borrows the implementation from PseduoDistributedFileSystem().createRemotePath().
+       * Any change in that function should trigger an equivalent change here.
+       */
+      if (dfs instanceof com.dremio.exec.hadoop.HadoopFileSystem) {
+        final NodeEndpoint nodeEndpoint = nodeEndpoints.iterator().next();
+        final String address = nodeEndpoint.getAddress();
+        boolean hidden = false;
+        if ((address != null) && (!address.isEmpty())) {
+          String basename = jobOutputDir.getName();
+
+          // Check if basename is hidden.
+          if (!basename.isEmpty()) {
+            char firstChar = basename.charAt(0);
+            if (firstChar == '.' || firstChar == '_') {
+              hidden = true;
+            }
+          }
+          org.apache.hadoop.fs.Path canonicalPath = new org.apache.hadoop.fs.Path(String.valueOf(jobOutputDir.getParent()),
+            hidden ? String.format("%s%s@%s", basename.charAt(0), address, basename.substring(1)) : String.format("%s@%s", address, basename));
+          jobOutputDir = Path.of(canonicalPath.toUri());
+        }
+      }
+    }
     return dfs.exists(jobOutputDir);
   }
 

@@ -86,7 +86,7 @@ public class TestFabric extends BaseTestFabric {
     FabricCommandRunner runner = factory.getCommandRunner(getFabric().getAddress(), getFabric().getPort());
     SimpleMessage m = new SimpleMessage(2);
     runner.runCommand(m);
-    DremioFutures.getChecked(m.getFuture(), RpcException.class, 1000, TimeUnit.MILLISECONDS, RpcException::mapException);
+    DremioFutures.getChecked(m.getFuture(), RpcException.class, 10000, TimeUnit.MILLISECONDS, RpcException::mapException);
   }
 
   private class SimpleMessage extends FutureBitCommand<NodeEndpoint, ProxyConnection> {

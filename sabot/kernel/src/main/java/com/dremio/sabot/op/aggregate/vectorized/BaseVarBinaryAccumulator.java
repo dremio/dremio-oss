@@ -19,6 +19,7 @@ import static java.util.Arrays.asList;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -28,7 +29,6 @@ import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.VariableWidthVector;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -55,12 +55,8 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   private final int validityBufferSize;
   private final int dataBufferSize;
   private final int varLenAccumulatorCapacity;
-
-  // serialized field for loading vector with buffers during addBatch()
-  //todo:sdave - think whether do we really need this??
-  private final SerializedField serializedField;
-
   private final BaseVariableWidthVector tempAccumulatorHolder;
+  private final int maxVarWidthVecUsagePercent;
 
   /**
    * @param input
@@ -70,7 +66,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   public BaseVarBinaryAccumulator(final FieldVector input, final FieldVector output,
                                final FieldVector transferVector, final AccumulatorBuilder.AccumulatorType type,
                                final int maxValuesPerBatch, final BufferAllocator computationVectorAllocator,
-                               int varLenAccumulatorCapacity, BaseVariableWidthVector tempAccumulatorHolder) {
+                               int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent, BaseVariableWidthVector tempAccumulatorHolder) {
     /* todo:
      * explore removing output vector. it is probably redundant and we only need
      * input and transfer vectors
@@ -85,24 +81,11 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     this.batches = 0;
     this.computationVectorAllocator = computationVectorAllocator;
     this.varLenAccumulatorCapacity = varLenAccumulatorCapacity;
+    this.maxVarWidthVecUsagePercent = maxVarWidthVecUsagePercent;
+    this.tempAccumulatorHolder = tempAccumulatorHolder;
     // buffer sizes
     this.validityBufferSize = MutableVarcharVector.getValidityBufferSizeFromCount(maxValuesPerBatch);
     this.dataBufferSize = MutableVarcharVector.getDataBufferSizeFromCount(maxValuesPerBatch, varLenAccumulatorCapacity);
-
-    final SerializedField field = TypeHelper.getMetadata(output);
-    final SerializedField.Builder serializedFieldBuilder = field.toBuilder();
-    // top level value count and total buffer size
-    serializedFieldBuilder.setValueCount(maxValuesPerBatch);
-    serializedFieldBuilder.setBufferLength(validityBufferSize + dataBufferSize);
-    serializedFieldBuilder.clearChild();
-    // add validity child
-    serializedFieldBuilder.addChild(field.getChild(0).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(validityBufferSize));
-    // add data child
-    serializedFieldBuilder.addChild(field.getChild(1).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(dataBufferSize));
-    // this serialized field will be used for adding all batches (new accumulator vectors) and loading them
-    this.serializedField = serializedFieldBuilder.build();
-
-    this.tempAccumulatorHolder = tempAccumulatorHolder;
   }
 
   AccumulatorBuilder.AccumulatorType getType() {
@@ -185,7 +168,7 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   private void addBatchHelper(final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
     /* store the new vector and increment batches before allocating memory */
     FieldVector vector = new MutableVarcharVector(input.getField().getName(),
-      computationVectorAllocator, 0.2);
+      computationVectorAllocator, 0.2, maxVarWidthVecUsagePercent);
     accumulators[batches++] = vector;
     resizeAttempted = true;
 
@@ -328,21 +311,11 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
    */
   @Override
   public void output(final int batchIndex, int numRecords) {
-    int capacity = ((VariableWidthVector) transferVector).getByteCapacity();
-    Preconditions.checkArgument(capacity == 0 || capacity >= varLenAccumulatorCapacity,
-      "Error: Invalid transferVector capacity");
-    if (capacity == 0) {
-      /*
-       * XXX: As an overall improvement, why can't transferVector have preallocated
-       * space? In which case, we can simply swap the buffers between accumulator
-       * vector and transfer vector so that allocation is completely avoided.
-       */
-      //use 'maxValuesPerBatch' as the counter, the actual value count is set during output.
-      ((VariableWidthVector) transferVector).allocateNew(varLenAccumulatorCapacity, maxValuesPerBatch);
-      capacity = ((VariableWidthVector) transferVector).getByteCapacity();
-    }
-
+    /* trasferVector is always empty as after output, the buffers are transferred. */
+    final int usedByteCapacity = getUsedByteCapacity(batchIndex);
+    ((VariableWidthVector) transferVector).allocateNew(usedByteCapacity, numRecords);
     transferVector.reset();
+
     final MutableVarcharVector mv = (MutableVarcharVector)accumulators[batchIndex];
     mv.copyToVarWidthVec((BaseVariableWidthVector) transferVector, numRecords);
 
@@ -383,11 +356,12 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     return mv.getSerializedField(recordCount);
   }
 
-  public int getAvailableSpace(final int batchIndex) {
+  private int getUsedByteCapacity(final int batchIndex) {
     final MutableVarcharVector mv = (MutableVarcharVector)accumulators[batchIndex];
-    return mv.getAvailableSpace();
+    return mv.getUsedByteCapacity();
   }
 
+  @Override
   public void releaseBatch(final int batchIdx) {
     Preconditions.checkArgument(batchIdx < batches, "Error: incorrect batch index to release");
     if (batchIdx == 0) {
@@ -398,7 +372,29 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     }
   }
 
+  @Override
   public boolean hasSpace(final int space, int batchIndex) {
-    return getAvailableSpace(batchIndex) >= space;
+    final MutableVarcharVector mv = (MutableVarcharVector)accumulators[batchIndex];
+    return mv.checkHasAvailableSpace(space);
+  }
+
+  @Override
+  public long getCompactionTime(TimeUnit unit) {
+    long result = 0;
+    for (int i = 0; i < batches; ++i) {
+      final MutableVarcharVector mv = (MutableVarcharVector)accumulators[i];
+      result += mv.getCompactionTime(unit);
+    }
+    return result;
+  }
+
+  @Override
+  public int getNumCompactions() {
+    int result = 0;
+    for (int i = 0; i < batches; ++i) {
+      final MutableVarcharVector mv = (MutableVarcharVector) accumulators[i];
+      result += mv.getNumCompactions();
+    }
+    return result;
   }
 }

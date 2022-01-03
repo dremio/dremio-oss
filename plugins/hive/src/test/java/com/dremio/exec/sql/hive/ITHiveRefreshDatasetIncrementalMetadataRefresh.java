@@ -412,6 +412,48 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
   }
 
   @Test
+  public void testIncrementalRefreshSchemaEvolOnPartitionTable() throws Exception {
+    final String tableName = "incrrefresh_v2_test_schema_update_on_partitioned" + getFileFormatLowerCase();
+    try {
+      createTable(tableName, "(col1 INT, col2 STRING) PARTITIONED BY (year INT)");
+      final String insertCmd1 = "INSERT INTO " + tableName + " PARTITION(year=2020) VALUES(1, 'a')";
+      dataGenerator.executeDDL(insertCmd1);
+      runFullRefresh(tableName);
+
+      Table icebergTable = getIcebergTable();
+      final String alterTable = "ALTER TABLE " + tableName + " ADD COLUMNS (col3 string)";
+      dataGenerator.executeDDL(alterTable);
+      runFullRefresh(tableName);
+
+      //Refresh the same iceberg table again
+      icebergTable.refresh();
+
+      //col2 renamed to col3 and schema updated from int -> double and column id also changed
+      Schema expectedSchema = new Schema(Arrays.asList(
+        Types.NestedField.optional(1, "col1", new Types.IntegerType()),
+        Types.NestedField.optional(2, "col2", new Types.StringType()),
+        Types.NestedField.optional(3, "col3", new Types.StringType()),
+        Types.NestedField.optional(4, "year", new Types.IntegerType())));
+
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema, Sets.newHashSet("year"), 1);
+
+      String selectQuery = "SELECT * from " + HIVE + tableName;
+      testBuilder()
+        .sqlQuery(selectQuery)
+        .unOrdered()
+        .baselineColumns("col1", "col2", "col3", "year")
+        .baselineValues(1, "a", null, 2020)
+        .go();
+
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+    }
+    finally {
+      forgetMetadata(tableName);
+      dropTable(tableName);
+    }
+  }
+
+  @Test
   public void testIncrementalRefreshFailPartitionEvolution() throws Exception {
     final String tableName = "incrrefresh_v2_test_fail_partition_" + getFileFormatLowerCase();
     try {

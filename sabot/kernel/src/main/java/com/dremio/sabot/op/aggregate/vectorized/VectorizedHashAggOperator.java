@@ -342,7 +342,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   private final Stopwatch unpivotWatch = Stopwatch.createUnstarted();
   private final Stopwatch spillPartitionWatch = Stopwatch.createUnstarted();
   private final Stopwatch readSpilledBatchWatch = Stopwatch.createUnstarted();
-  private final Stopwatch spliceWatch = Stopwatch.createUnstarted();
 
   private ImmutableList<FieldVector> vectorsToValidate;
   private PivotDef pivot;
@@ -366,7 +365,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   private int outputPartitionIndex;
   private int outputBatchCount;
   private int iterations;
-  private int spliceCount; //total chunks that were spliced
   private int ooms;
   private int oobSends;
   private int oobReceives;
@@ -446,7 +444,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.outputBatchCount = 0;
     /* there is atleast one iteration of processing */
     this.iterations = 1;
-    this.spliceCount = 0;
     this.ooms = 0;
     this.debug = new VectorizedHashAggDebug(traceOnException, (int)options.getOption(VECTORIZED_HASHAGG_DEBUG_MAX_OOMEVENTS));
     this.closed = false;
@@ -624,6 +621,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
                                                                           jointAllocationLimit,
                                                                           decimalV2Enabled,
                                                                           varLenAccumulatorCapacity,
+                                                        (int)context.getOptions().getOption(ExecConstants.VARIABLE_WIDTH_VECTOR_MAX_USAGE_PERCENT),
                                                                           tempAccumulatorHolder);
         /* this step allocates memory for control structure in hashtable and reverts itself if
          * allocation fails so we don't have to rely on rollback closeable
@@ -1498,7 +1496,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     accumulator.accumulate(offsetAddr, partitionRecords, bitsInChunk, chunkOffsetMask);
     accumulateWatch.stop();
     partitionToSpill.resetRecords();
-    partitionToSpill.bumpRecordsSpilled(partitionRecords);
   }
 
   /**
@@ -1532,7 +1529,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       }
       partitionsUsed = partitionsUsed & (partitionsUsed - 1);
       partition.resetRecords();
-      partition.resetSpilledRecords();
     }
     accumulateWatch.stop();
   }
@@ -1784,11 +1780,17 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     int tableSize = 0;
     int tableCapacity = 0;
     int tableRehashCount = 0;
+    int tableSpliceCount = 0;
+    int tableForceAccumCount = 0;
+    int tableAccumCompactionCount = 0;
     long allocatedForFixedBlocks = 0;
     long unusedForFixedBlocks = 0;
     long allocatedForVarBlocks = 0;
     long unusedForVarBlocks = 0;
     long rehashTime = 0;
+    long spliceTimeNs = 0;
+    long forceAccumTimeNs = 0;
+    long accumCompactionTimeNs = 0;
     int minTableSize = Integer.MAX_VALUE;
     int maxTableSize = Integer.MIN_VALUE;
     int minRehashCount = Integer.MAX_VALUE;
@@ -1798,10 +1800,19 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       final LBlockHashTable hashTable = hashAggPartitions[i].hashTable;
       final int size = hashAggPartitions[i].hashTable.size();
       final int rehashCount = hashAggPartitions[i].hashTable.getRehashCount();
+      final int spliceCount = hashAggPartitions[i].hashTable.getSpliceCount();
+      final int forceAccumCount = hashAggPartitions[i].hashTable.getForceAccumCount();
+      final int accumCompactionCount = hashAggPartitions[i].hashTable.getAccumCompactionCount();
       tableCapacity += hashAggPartitions[i].hashTable.capacity();
       rehashTime += hashAggPartitions[i].hashTable.getRehashTime(TimeUnit.NANOSECONDS);
+      spliceTimeNs += hashAggPartitions[i].hashTable.getSpliceTime(TimeUnit.NANOSECONDS);
+      forceAccumTimeNs += hashAggPartitions[i].hashTable.getForceAccumTime(TimeUnit.NANOSECONDS);
+      accumCompactionTimeNs += hashAggPartitions[i].hashTable.getAccumCompactionTime(TimeUnit.NANOSECONDS);
       tableSize += size;
       tableRehashCount += rehashCount;
+      tableSpliceCount += spliceCount;
+      tableForceAccumCount += forceAccumCount;
+      tableAccumCompactionCount += accumCompactionCount;
       if (size < minTableSize) {
         minTableSize = size;
       }
@@ -1833,6 +1844,12 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     statsHolder.maxTotalHashTableCapacity = Math.max(statsHolder.maxTotalHashTableCapacity, tableCapacity);
     statsHolder.hashTableRehashCount = tableRehashCount;
     statsHolder.hashTableRehashTime = rehashTime;
+    statsHolder.hashTableSpliceCount = tableSpliceCount;
+    statsHolder.hashTableSpliceTimeNs = spliceTimeNs;
+    statsHolder.hashTableForceAccumCount = tableForceAccumCount;
+    statsHolder.hashTableForceAccumTimeNs = forceAccumTimeNs;
+    statsHolder.hashTableAccumCompactCount = tableAccumCompactionCount;
+    statsHolder.hashTableAccumCompactTimeNs = accumCompactionTimeNs;
     statsHolder.minHashTableSize = minTableSize;
     statsHolder.maxHashTableSize = maxTableSize;
     statsHolder.minHashTableRehashCount = minRehashCount;
@@ -1873,6 +1890,12 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     stats.setLongStat(Metric.MAX_TOTAL_NUM_BUCKETS, statsHolder.maxTotalHashTableCapacity);
     stats.setLongStat(Metric.NUM_RESIZING, statsHolder.hashTableRehashCount);
     stats.setLongStat(Metric.RESIZING_TIME, statsHolder.hashTableRehashTime);
+    stats.setLongStat(Metric.NUM_SPLICE, statsHolder.hashTableSpliceCount);
+    stats.setLongStat(Metric.SPLICE_TIME_NS, statsHolder.hashTableSpliceTimeNs);
+    stats.setLongStat(Metric.NUM_FORCE_ACCUM, statsHolder.hashTableForceAccumCount);
+    stats.setLongStat(Metric.FORCE_ACCUM_TIME_NS, statsHolder.hashTableForceAccumTimeNs);
+    stats.setLongStat(Metric.NUM_ACCUM_COMPACTS, statsHolder.hashTableAccumCompactCount);
+    stats.setLongStat(Metric.ACCUM_COMPACTS_TIME_NS, statsHolder.hashTableAccumCompactTimeNs);
     stats.setLongStat(Metric.MAX_HASHTABLE_BATCH_SIZE, statsHolder.maxHashTableBatchSize);
     stats.setLongStat(Metric.MIN_HASHTABLE_ENTRIES, statsHolder.minHashTableSize);
     stats.setLongStat(Metric.MAX_HASHTABLE_ENTRIES, statsHolder.maxHashTableSize);
@@ -1900,9 +1923,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     stats.setLongStat(Metric.RECURSION_DEPTH, computeRecursionDepth());
     stats.setLongStat(Metric.TOTAL_SPILLED_DATA_SIZE, partitionSpillHandler.getTotalSpilledDataSize());
     stats.setLongStat(Metric.MAX_SPILLED_DATA_SIZE, partitionSpillHandler.getMaxSpilledDataSize());
-    /* XXX: Get the spliceWatch time and count */
-    stats.setLongStat(Metric.SPLICE_TIME, spliceWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.setLongStat(Metric.SPLICE_COUNT, spliceCount);
 
     stats.setLongStat(Metric.OOB_SENDS, oobSends);
     stats.setLongStat(Metric.OOB_RECEIVES, oobReceives);
@@ -1929,6 +1949,12 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     private int maxTotalHashTableCapacity = 0;
     private int hashTableRehashCount;
     private long hashTableRehashTime;
+    private int hashTableSpliceCount;
+    private long hashTableSpliceTimeNs;
+    private int hashTableForceAccumCount;
+    private long hashTableForceAccumTimeNs;
+    private int hashTableAccumCompactCount;
+    private long hashTableAccumCompactTimeNs;
     private int minHashTableSize;
     private int maxHashTableSize;
     private int minHashTableRehashCount;

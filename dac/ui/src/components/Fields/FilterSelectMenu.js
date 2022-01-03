@@ -20,13 +20,27 @@ import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 import Art from '@app/components/Art';
 import EllipsedText from 'components/EllipsedText';
-import deepEqual from 'deep-equal';
+import { AutoSizer, List } from 'react-virtualized';
+import { memoOne } from 'utils/memoUtils';
 
 import FontIcon from 'components/Icon/FontIcon';
 import Checkbox from 'components/Fields/Checkbox';
 import { SearchField } from 'components/Fields';
 import { SelectView } from './SelectView';
 import './FilterSelectMenu.less';
+
+const FILTER_ITEM_HEIGHT = 32;
+const VIRTUAL_LIST_MAX = 10;
+
+// Limit height of dropdown
+const getPopoverHeight = memoOne((numItems, hasSearch) => {
+  const num = numItems;
+  const { paddingBottom, paddingTop } = styles.popoverContent;
+  const searchHeight = hasSearch ? styles.searchInput.height : 0;
+
+  const itemsHeight = Math.min(num, VIRTUAL_LIST_MAX) * FILTER_ITEM_HEIGHT;
+  return paddingBottom + paddingTop + searchHeight + itemsHeight;
+});
 
 FilterSelectMenuItem.propTypes = {
   item: PropTypes.object.isRequired,
@@ -40,7 +54,6 @@ FilterSelectMenuItem.propTypes = {
   showCheckIcon: PropTypes.bool,
   disabled: PropTypes.bool
 };
-
 
 export function FilterSelectMenuItem({
   item,
@@ -134,59 +147,45 @@ export default class FilterSelectMenu extends PureComponent {
   static defaultProps = { // todo: `la` loc not building correctly here
     items: [],
     selectedValues: Immutable.List(),
-    searchPlaceholder: ('Search'),
+    searchPlaceholder: 'Search',
     showSelectedLabel: true
   };
-
-  constructor(props) {
-    super(props);
-    this.updateValueIsSelected(props);
-  }
 
   state = {
     pattern: ''
   };
 
-  shouldComponentUpdate(nextProps) {
-    const { items, selectedValues } = this.props;
-    if (deepEqual(items, nextProps.items) && deepEqual(selectedValues.toJS(), nextProps.selectedValues.toJS())) {
-      return false;
-    } else {
-      return true;
-    }
-  }
+  getSelectedItems = memoOne((items, selectedValues) => {
+    const selectedMap = this.getSelectedMap(items, selectedValues);
+    return items.filter(item => !!selectedMap[item.id]);
+  });
 
-  componentWillReceiveProps(nextProps) {
-    this.updateValueIsSelected(nextProps);
-  }
-
-  getSelectedItems() {
-    const { items } = this.props;
+  getUnselectedItems = memoOne((items, selectedValues, pattern) => {
+    const selectedMap = this.getSelectedMap(items, selectedValues);
     return items.filter(
-      item => this.valueIsSelected[item.id]
+      item =>
+        !selectedMap[item.id] &&
+        (!pattern ||
+          item.label.toLowerCase().indexOf(pattern.trim().toLowerCase()) === 0)
     );
-  }
+  });
 
-  getUnselectedItems() {
-    const { items } = this.props;
-    const { pattern } = this.state;
-    return items.filter(
-      item => !this.valueIsSelected[item.id]
-        && (!pattern || item.label.toLowerCase().indexOf(pattern.trim().toLowerCase()) === 0)
-    );
-  }
-
-  updateValueIsSelected(props) {
-    this.valueIsSelected = props.items.reduce((prev, item) => {
-      prev[item.id] = props.selectedValues.includes(item.id);
+  getSelectedMap = memoOne((items, selectedValues) => {
+    return items.reduce((prev, item) => {
+      prev[item.id] = selectedValues.includes(item.id);
       return prev;
     }, {});
-  }
+  });
 
-  handleSearchForItem = (value) => {
-    this.setState({
-      pattern: value
-    });
+  getOrderedItems = memoOne((items, selectedValues, pattern) => {
+    return [
+      ...this.getSelectedItems(items, selectedValues),
+      ...this.getUnselectedItems(items, selectedValues, pattern)
+    ];
+  });
+
+  handleSearchForItem = value => {
+    this.setState({ pattern: value });
   };
 
   handleItemChange = (checked, id) => {
@@ -216,72 +215,64 @@ export default class FilterSelectMenu extends PureComponent {
     if (selectViewBeforeOpen && typeof selectViewBeforeOpen === 'function') {
       selectViewBeforeOpen();
     }
-  }
-  renderItems(items) {
-    return items.map((item, index) => {
-      return (<FilterSelectMenuItem
-        key={index}
-        item={item}
-        onChange={this.handleItemChange}
-        checked={this.valueIsSelected[item.id]}
-        name={this.props.name}
-        itemIndex={index}
-        onClick={this.props.onClick}
-        className={this.props.className}
-        checkBoxClass={this.props.checkBoxClass}
-        showCheckIcon={this.props.showCheckIcon}
-        disabled={item.disabled}
-      />);
-    });
-  }
+  };
 
-  renderDivider() {
-    const { selectedValues } = this.props;
+  renderItems = ({ index, key, style }) => {
+    const {
+      items,
+      selectedValues,
+      name,
+      className,
+      checkBoxClass,
+      showCheckIcon,
+      onClick
+    } = this.props;
+
+    if (!items.length) return null;
+
     const { pattern } = this.state;
-    return ((selectedValues.size && this.getUnselectedItems().length) ||
-      (pattern && selectedValues.size > 0)) && <div style={styles.divider} />;
-  }
 
-  renderSearch() {
-    if (this.props.noSearch) {
-      return null;
-    }
-    return this.getUnselectedItems().length || this.state.pattern
-      ? (
-        <SearchField
-          style={styles.searchStyle}
-          searchIconTheme={styles.searchIcon}
-          inputStyle={styles.searchInput}
-          placeholder={this.props.searchPlaceholder}
-          value={this.state.pattern}
-          onChange={this.handleSearchForItem}
+    const orderedItems = this.getOrderedItems(items, selectedValues, pattern);
+    const selectedMap = this.getSelectedMap(items, selectedValues);
+
+    const item = orderedItems[index];
+
+    return (
+      <div style={style} key={key}>
+        <FilterSelectMenuItem
+          key={index}
+          item={item}
+          onChange={this.handleItemChange}
+          checked={selectedMap[item.id]}
+          name={name}
+          itemIndex={index}
+          onClick={onClick}
+          className={className}
+          checkBoxClass={checkBoxClass}
+          showCheckIcon={showCheckIcon}
+          disabled={item.disabled}
         />
-      )
-      : null;
+      </div>
+    );
   }
 
   renderSelectedLabel() { // todo: better loc
-    const { ellipsedTextClass } = this.props;
+    const { ellipsedTextClass, items, selectedValues } = this.props;
     const selectedItems = !this.props.selectedValues.size
       ? `: ${this.props.intl.formatMessage({ id: 'Common.All' })}`
-      : (this.props.alwaysShowLabel ? ': ' : '') + this.getSelectedItems().map(item => item.label).join(', ');
-    return !this.props.preventSelectedLabel &&
-      <EllipsedText
-        className={clsx('filter-select-label', ellipsedTextClass)}
-        style={styles.infoLabel}
-        text={selectedItems}
-      />;
-  }
-
-  renderItemList(selectedToTop) {
-    const { items } = this.props;
-    const currentUnselectedItems = this.getUnselectedItems();
-    return (<div style={styles.popoverContent}>
-      {this.renderSearch()}
-      {selectedToTop ? this.renderItems(this.getSelectedItems()) : null}
-      {currentUnselectedItems.length > 0 ? this.renderDivider() : null}
-      {this.renderItems(selectedToTop ? currentUnselectedItems : items)}
-    </div>);
+      : (this.props.alwaysShowLabel ? ': ' : '') +
+        this.getSelectedItems(items, selectedValues)
+          .map(item => item.label)
+          .join(', ');
+    return (
+      !this.props.preventSelectedLabel && (
+        <EllipsedText
+          className={clsx('filter-select-label', ellipsedTextClass)}
+          style={styles.infoLabel}
+          text={selectedItems}
+        />
+      )
+    );
   }
 
   render() {
@@ -298,18 +289,28 @@ export default class FilterSelectMenu extends PureComponent {
       items,
       selectedValues,
       preventSelectedLabel,
-      alwaysShowLabel
+      alwaysShowLabel,
+      noSearch,
+      searchPlaceholder
     } = this.props;
 
-    if (!items.length) {
-      return null;
-    }
+    const { pattern } = this.state;
+
+    const orderedItems = this.getOrderedItems(items, selectedValues, pattern);
+    const unSelectedItems = this.getUnselectedItems(items, selectedValues);
+    const selectedMap = this.getSelectedMap(items, selectedValues);
+
     const className = clsx('filter-select-menu field', selectClass);
+    const hasSearch = !noSearch && (!!unSelectedItems.length || !!pattern);
+    const pHeight = getPopoverHeight(orderedItems.length, hasSearch);
+
     return (
       <SelectView
         content={
           <Fragment>
-            {(preventSelectedLabel || !selectedValues.size || alwaysShowLabel) && <span>{label}</span>}
+            {(preventSelectedLabel ||
+              !selectedValues.size ||
+              alwaysShowLabel) && <span>{label}</span>}
             {showSelectedLabel ? this.renderSelectedLabel() : label}
           </Fragment>
         }
@@ -323,7 +324,33 @@ export default class FilterSelectMenu extends PureComponent {
         isArtIcon={isArtIcon}
         iconClass={iconClass}
       >
-        {this.renderItemList(this.props.selectedToTop)}
+        <div style={{ ...styles.popoverContent, height: pHeight }}>
+          {hasSearch && (
+            <SearchField
+              style={styles.searchStyle}
+              searchIconTheme={styles.searchIcon}
+              inputStyle={styles.searchInput}
+              placeholder={searchPlaceholder}
+              value={pattern}
+              onChange={this.handleSearchForItem}
+            />
+          )}
+          <div style={styles.virtualContainer}>
+            <AutoSizer>
+              {({ width, height }) => (
+                <List
+                  selectedMap={selectedMap} //Rerender when selection changes
+                  ref={ref => (this.virtualList = ref)}
+                  rowCount={orderedItems.length}
+                  rowHeight={FILTER_ITEM_HEIGHT}
+                  rowRenderer={this.renderItems}
+                  width={width}
+                  height={height}
+                />
+              )}
+            </AutoSizer>
+          </div>
+        </div>
       </SelectView>
     );
   }
@@ -354,8 +381,8 @@ const styles = {
     paddingTop: 8,
     paddingBottom: 8
   },
-  divider: {
-    display: 'flex'
+  virtualContainer: {
+    flex: 1
   },
   arrow: {
     Container: {
@@ -367,6 +394,7 @@ const styles = {
     maxWidth: 130
   },
   searchInput: {
+    height: FILTER_ITEM_HEIGHT,
     padding: '4px 10px'
   },
   searchIcon: {

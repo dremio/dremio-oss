@@ -181,7 +181,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   public RelWriter explainTerms(RelWriter pw) {
     pw = super.explainTerms(pw);
     if(filter != null){
-      return pw.item("filters", filter);
+      pw.item("filters", filter);
     }
     if (arrowCachingEnabled) {
       pw.item("arrowCachingEnabled", true);

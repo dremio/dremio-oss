@@ -493,8 +493,7 @@ public class StringFunctions{
         } else {
           // Count the # of characters. (one char could have 1-4 bytes)
           // unlike the position function don't add 1, we are not translating the positions into SQL user level 1 based indices
-          bufPos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(io.netty.buffer.NettyArrowBuf.unwrapBuffer(str.buffer),
-            str.start, pos, errCtx) + str.start + splitterLen;
+          bufPos = pos + splitterLen;
           // if this is the second to last iteration, store the position again, as the start and end of the
           // string to be returned need to be available
           if (i == index.value - 1) {

@@ -904,6 +904,7 @@ public class TestNativeFunctions extends BaseTestFunction {
   }
 
   @Test
+  @Ignore("DX-39644")
   public void testSplitPart() throws Exception {
     testFunctions(new Object[][]{
       { "split_part(c0, c1, c2)", "abc~@~def~@~ghi", "~@~", 1, "abc"},
@@ -918,6 +919,7 @@ public class TestNativeFunctions extends BaseTestFunction {
   }
 
   @Test(expected = RuntimeException.class)
+  @Ignore("DX-39644")
   public void testSplitPartZeroIndexError() throws Exception {
     try {
       testFunctions(new Object[][] {

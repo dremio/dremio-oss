@@ -40,6 +40,7 @@ import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile.Builder;
 import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
+import com.dremio.exec.proto.UserBitShared.RunTimeFilterDetailsInfoInScan;
 import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.io.file.Path;
@@ -92,6 +93,7 @@ public class OperatorStats {
 
   // misc operator details that are saved in the profile.
   private OperatorProfileDetails profileDetails;
+  private List<RunTimeFilterDetailsInfoInScan> runtimeFilterDetailsInScan = new ArrayList<>();
 
 
   // Need this wrapper so that the caller don't have to handle exception from close().
@@ -375,6 +377,19 @@ public class OperatorStats {
     addDoubleMetrics(builder);
   }
 
+  public long getRecordsProcessed() {
+    if (recordOutput) {
+      return outputRecords;
+    }
+    else {
+      long recordsProcessed = 0;
+      for(int i = 0; i < recordsReceivedByInput.length; i++) {
+        recordsProcessed += recordsReceivedByInput[i];
+      }
+      return recordsProcessed;
+    }
+  }
+
   public void addStreamProfile(OperatorProfile.Builder builder) {
     if(recordOutput) {
       builder.addInputProfile(
@@ -486,6 +501,10 @@ public class OperatorStats {
 
   public OperatorProfileDetails getProfileDetails() {
     return this.profileDetails;
+  }
+
+  public void addRuntimeFilterDetailsInScan(List<RunTimeFilterDetailsInfoInScan> runtimeFilterDetails) {
+    runtimeFilterDetailsInScan.addAll(runtimeFilterDetails);
   }
 
   @Override
@@ -619,6 +638,13 @@ public class OperatorStats {
       profileDetailsBuilder.addAllSlowMetadataIoInfos(ioStatsMetadata.slowIOInfoList);
     }
 
+    setProfileDetails(profileDetailsBuilder.build());
+  }
+
+  public void setScanRuntimeFilterDetailsInProfile() {
+    OperatorProfileDetails.Builder profileDetailsBuilder = getProfileDetails().toBuilder();
+    profileDetailsBuilder.clearRuntimefilterDetailsInfosInScan();
+    profileDetailsBuilder.addAllRuntimefilterDetailsInfosInScan(runtimeFilterDetailsInScan);
     setProfileDetails(profileDetailsBuilder.build());
   }
 

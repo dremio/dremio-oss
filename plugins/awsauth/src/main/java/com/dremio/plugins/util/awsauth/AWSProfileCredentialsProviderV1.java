@@ -32,7 +32,13 @@ public class AWSProfileCredentialsProviderV1 implements AWSCredentialsProvider {
 
   public AWSProfileCredentialsProviderV1(Configuration conf) {
     String awsProfile = conf.get(AWS_PROFILE_PROPERTY_KEY);
+    long refreshIntervalSeconds = conf.getLong("com.dremio.aws.cred.refresh.interval", 300L);
     this.profileCredentialsProvider = new ProfileCredentialsProvider(awsProfile);
+    // AWS SDK Periodically check if the file on disk has been modified, configure this as per need.
+    // Default value is 5 minutes
+    this.profileCredentialsProvider.setRefreshIntervalNanos(refreshIntervalSeconds*1000_000_000);
+    this.profileCredentialsProvider.setRefreshForceIntervalNanos(2*refreshIntervalSeconds*1000_000_000);
+
   }
 
   @Override

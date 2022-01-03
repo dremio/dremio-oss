@@ -82,41 +82,56 @@ describe('FilterSelectMenu', () => {
   describe('getSelectedItems', () => {
     it('should return array of items in selectedValues', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-      expect(wrapper.instance().getSelectedItems()).to.eql([commonProps.items[0], commonProps.items[1]]);
+      expect(wrapper.instance().getSelectedItems(
+        commonProps.items, commonProps.selectedValues
+      )).to.eql([commonProps.items[0], commonProps.items[1]]);
 
       wrapper.setProps({selectedValues: Immutable.List([1])});
-      expect(wrapper.instance().getSelectedItems()).to.eql([commonProps.items[2]]);
+      expect(wrapper.instance().getSelectedItems(
+        commonProps.items, [1]
+      )).to.eql([commonProps.items[2]]);
     });
   });
 
   describe('getUnselectedItems', () => {
     it('should return array of items not in selectedValues', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-      expect(wrapper.instance().getUnselectedItems()).to.eql([commonProps.items[2]]);
+      expect(wrapper.instance().getUnselectedItems(
+        commonProps.items, commonProps.selectedValues, ''
+      )).to.eql([commonProps.items[2]]);
 
       wrapper.setProps({selectedValues: Immutable.List([1])});
-      expect(wrapper.instance().getUnselectedItems()).to.eql([commonProps.items[0], commonProps.items[1]]);
+      expect(wrapper.instance().getUnselectedItems(
+        commonProps.items, [1], ''
+      )).to.eql([commonProps.items[0], commonProps.items[1]]);
     });
 
     it('should filter results based on pattern and case insensitive', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps} selectedValues={Immutable.List()}/>);
       const instance = wrapper.instance();
       wrapper.setState({pattern: 'item2'});
-      let items = instance.getUnselectedItems();
+      let items = instance.getUnselectedItems(
+        commonProps.items, [], 'item2'
+      );
       expect(items).to.eql([commonProps.items[1]]);
 
       wrapper.setState({pattern: 'ITEM2'});
-      items = instance.getUnselectedItems();
+      items = instance.getUnselectedItems(
+        commonProps.items, [], 'ITEM2'
+      );
       expect(items).to.eql([commonProps.items[1]]);
 
+      const newItems = [
+        {label: 'ITEM1', id: 1},
+        {label: 'ITEM2', id: 2}
+      ];
       wrapper.setProps({
-        items: [
-          {label: 'ITEM1', id: 1},
-          {label: 'ITEM2', id: 2}
-        ]
+        items: newItems
       });
       wrapper.setState({pattern: 'item2'});
-      items = instance.getUnselectedItems();
+      items = instance.getUnselectedItems(
+        newItems, [], 'item2'
+      );
       expect(items).to.eql([{label: 'ITEM2', id: 2}]);
     });
   });

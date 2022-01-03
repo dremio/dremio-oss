@@ -302,11 +302,10 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
 
   @Override
   public RelWriter explainTerms(RelWriter pw) {
-    pw = super.explainTerms(pw);
-    if (filter != null) {
-      return pw.item("filters", filter);
-    }
-    return pw;
+    return super.explainTerms(pw)
+      .itemIf("filters", filter, filter != null)
+      .itemIf("arrowCachingEnabled", true, arrowCachingEnabled)
+      .itemIf("partitionFilters", pruneCondition, pruneCondition != null);
   }
 
   public RelNode expandDeltaLakeScan() {

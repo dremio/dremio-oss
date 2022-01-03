@@ -127,6 +127,11 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
       properties.add(new Property(AzureStorageFileSystem.CONTAINER_LIST, containers));
     }
 
+    if(config.rootPath.length() > 1) {
+      String path = config.rootPath;
+      properties.add(new Property(AzureStorageFileSystem.ROOT_PATH, path));
+    }
+
     // Properties are added in order so make sure that any hand provided properties override settings done via specific config
     List<Property> parentProperties = super.getProperties();
     if(parentProperties != null) {

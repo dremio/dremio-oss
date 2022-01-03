@@ -968,12 +968,12 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
 
     VarCharVector v1 = new VarCharVector("varchar-min", allocator);
     final MinAccumulators.VarLenMinAccumulator in5MinAccum =
-      new MinAccumulators.VarLenMinAccumulator(in5, v1, v1, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, tempVectors[0]);
+      new MinAccumulators.VarLenMinAccumulator(in5, v1, v1, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, 95, tempVectors[0]);
     postSpillAccumulatorVectorFields.add(in5.getField());
 
     VarCharVector v2 = new VarCharVector("varchar-max", allocator);
     final MaxAccumulators.VarLenMaxAccumulator in6MaxAccum =
-      new MaxAccumulators.VarLenMaxAccumulator(in6, v2, v2, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, tempVectors[1]);
+      new MaxAccumulators.VarLenMaxAccumulator(in6, v2, v2, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, 95, tempVectors[1]);
     postSpillAccumulatorVectorFields.add(in6.getField());
 
     varlenAccumVectorFields.add(v1);

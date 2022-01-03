@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.rpc;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFuture;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -26,6 +23,9 @@ import com.carrotsearch.hppc.procedures.IntObjectProcedure;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.google.common.base.Preconditions;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
 
 /**
  * Manages the creation of rpc futures for a particular socket <--> socket
@@ -38,29 +38,71 @@ class RequestIdMap {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RequestIdMap.class);
 
   private final AtomicInteger lastCoordinationId = new AtomicInteger();
+  private final AtomicInteger pendingRequests = new AtomicInteger(0);
   private final AtomicBoolean isOpen = new AtomicBoolean(true);
 
-  /** Access to map must be protected. **/
+  /**
+   * Access to map must be protected.
+   **/
   private final IntObjectHashMap<RpcOutcome<?>> map;
 
   private final String connectionName;
 
+  private volatile RpcException cachedException;
+  private volatile boolean lazyNotify;
+
   public RequestIdMap(String connectionName) {
     map = new IntObjectHashMap<>();
     this.connectionName = connectionName;
+    this.lazyNotify = false;
+  }
+
+  void setupLazyNotification() {
+    this.lazyNotify = true;
   }
 
   void channelClosed(Throwable ex) {
     isOpen.set(false);
     if (ex != null) {
-      final IntObjectHashMap<RpcOutcome<?>> clonedMap;
-      synchronized (map) {
-        clonedMap = map.clone();
-        map.clear();
+      final RpcException mappedException = RpcException.mapException(ex);
+      if (lazyNotify) {
+        cachedException = mappedException;
+      } else {
+        doNotify(mappedException, false);
       }
-      final RpcException e = RpcException.mapException(ex);
-      clonedMap.forEach(new SetExceptionProcedure(e));
     }
+  }
+
+  boolean notifyExceptionIfAny(boolean force) {
+    if (cachedException == null) {
+      return true;
+    }
+    if (!force && pendingRequests.get() > 0) {
+      boolean empty;
+      synchronized (map) {
+        empty = map.isEmpty();
+      }
+      if (!empty) {
+        return false;
+      }
+    }
+    doNotify(cachedException, force);
+    return true;
+  }
+
+  private void doNotify(RpcException ex, boolean force) {
+    IntObjectHashMap<RpcOutcome<?>> clonedMap;
+    synchronized (map) {
+      clonedMap = map.clone();
+      map.clear();
+    }
+    if (force) {
+      logger.info("Forcefully notifying closed channel; " +
+        "{} requests still awaiting completion notification; Notifying {} errors",
+        pendingRequests.get(), clonedMap.size());
+    }
+    clonedMap.forEach(new SetExceptionProcedure(ex));
+    cachedException = null;
   }
 
   private class SetExceptionProcedure implements IntObjectProcedure<RpcOutcome<?>> {
@@ -72,9 +114,9 @@ class RequestIdMap {
 
     @Override
     public void apply(int key, RpcOutcome<?> value) {
-      try{
+      try {
         value.setException(exception);
-      }catch(Exception e){
+      } catch (Exception e) {
         logger.warn("Failure while attempting to fail rpc response.", e);
       }
     }
@@ -92,17 +134,18 @@ class RequestIdMap {
    * @throws IllegalArgumentException if attempt to reuse a coordination id when previous coordination id has not been removed.
    */
   public <V> ChannelListenerWithCoordinationId createNewRpcListener(RpcOutcomeListener<V> handler, Class<V> clazz,
-      RemoteConnection connection) {
+                                                                    RemoteConnection connection) {
     final int i = lastCoordinationId.incrementAndGet();
+    pendingRequests.incrementAndGet();
     final RpcListener<V> future = new RpcListener<V>(handler, clazz, i, connection);
     final Object old;
     synchronized (map) {
       Preconditions.checkState(isOpen.get(),
-          "Attempted to send a message when connection is no longer valid. %s", connectionName);
+        "Attempted to send a message when connection is no longer valid. %s", connectionName);
       old = map.put(i, future);
     }
     Preconditions.checkArgument(old == null,
-        "You attempted to reuse a coordination id when the previous coordination id has not been removed.  "
+      "You attempted to reuse a coordination id when the previous coordination id has not been removed.  "
         + "This is likely rpc future callback memory leak.");
     return future;
   }
@@ -123,11 +166,11 @@ class RequestIdMap {
 
     @Override
     public void operationComplete(ChannelFuture future) throws Exception {
-
-      if (!future.isSuccess()) {
+      pendingRequests.decrementAndGet();
+      if (!future.isSuccess() && cachedException == null) {
         removeFromMap(coordinationId);
         if (future.channel().isActive()) {
-          if(future.cause() != null){
+          if (future.cause() != null) {
             setException(future.cause());
           } else {
             setException(new RpcException("Unknown failure when sending message."));
@@ -160,6 +203,11 @@ class RequestIdMap {
       return coordinationId;
     }
 
+    @Override
+    public void opNotStarted() {
+      pendingRequests.decrementAndGet();
+    }
+
   }
 
   private RpcOutcome<?> removeFromMap(int coordinationId) {
@@ -169,7 +217,7 @@ class RequestIdMap {
     }
     if (rpc == null) {
       throw new IllegalStateException(
-          "Attempting to retrieve an rpc that wasn't first stored in the rpc coordination queue.  This would most likely happen if you're opposite endpoint sent multiple messages on the same coordination id.");
+        "Attempting to retrieve an rpc that wasn't first stored in the rpc coordination queue.  This would most likely happen if you're opposite endpoint sent multiple messages on the same coordination id.");
     }
     return rpc;
   }
@@ -182,10 +230,10 @@ class RequestIdMap {
 
     if (outcomeClass != clazz) {
       throw new IllegalStateException(String.format(
-          "RPC Engine had a submission and response configuration mismatch.  The RPC request that you submitted was defined with an expected response type of %s.  However, "
-              + "when the response returned, a call to getResponseDefaultInstance() with Rpc number %d provided an expected class of %s.  This means either your submission uses the wrong type definition"
-              + "or your getResponseDefaultInstance() method responds the wrong instance type ",
-          clazz.getCanonicalName(), rpcType, outcomeClass.getCanonicalName()));
+        "RPC Engine had a submission and response configuration mismatch.  The RPC request that you submitted was defined with an expected response type of %s.  However, "
+          + "when the response returned, a call to getResponseDefaultInstance() with Rpc number %d provided an expected class of %s.  This means either your submission uses the wrong type definition"
+          + "or your getResponseDefaultInstance() method responds the wrong instance type ",
+        clazz.getCanonicalName(), rpcType, outcomeClass.getCanonicalName()));
     }
 
     @SuppressWarnings("unchecked")

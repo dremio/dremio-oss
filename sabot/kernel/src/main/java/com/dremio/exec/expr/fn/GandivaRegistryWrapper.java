@@ -90,6 +90,11 @@ public class GandivaRegistryWrapper {
       return true;
     }
 
+    // DX-39644
+    if (signature.getName().equalsIgnoreCase("split_part")) {
+      return true;
+    }
+
     return false;
   }
 

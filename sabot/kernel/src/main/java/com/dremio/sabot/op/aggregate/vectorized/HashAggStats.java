@@ -71,8 +71,12 @@ public class HashAggStats {
     ALLOCATED_FOR_VARIABLE_KEYS, /* total capacity allocated for variable block vectors */
     UNUSED_FOR_VARIABLE_KEYS, /* unused capacity for variable block vectors */
     MAX_VARIABLE_BLOCK_LENGTH, /* maximum amount of data (pivoted keys) that can be stored in variable block vector */
-    SPLICE_TIME,               /* total time takes for splicing */
-    SPLICE_COUNT,              /* total number of batches spliced */
+    NUM_SPLICE,                /* total number of batches spliced */
+    SPLICE_TIME_NS,            /* total time for all splices */
+    NUM_FORCE_ACCUM,           /* total number of force accumulations due to splicing */
+    FORCE_ACCUM_TIME_NS,       /* total time for all force accumulations */
+    NUM_ACCUM_COMPACTS,        /* Total number of compactions for mutable varchar vector */
+    ACCUM_COMPACTS_TIME_NS,    /* Total time spent on compactions for mutable varchar vector */
 
     // OOB related metrics
     OOB_SENDS, // Number of times operator informed others of spilling
@@ -82,10 +86,8 @@ public class HashAggStats {
     OOB_DROP_UNDER_THRESHOLD, // Number of times OOB dropped spilling notification as it was under the threshold.
     OOB_DROP_NO_VICTIM, // Number of times OOB dropped spilling notification as all allocations were minimal.
     OOB_SPILL, // Spill was done due to oob.
-    OOB_DROP_ALREADY_SPILLING // Number of times operator dropped spilling notification as it was already spilling
-
+    OOB_DROP_ALREADY_SPILLING, // Number of times operator dropped spilling notification as it was already spilling
     ;
-
 
     @Override
     public int metricId() {

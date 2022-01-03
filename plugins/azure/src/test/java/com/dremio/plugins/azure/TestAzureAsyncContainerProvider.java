@@ -215,10 +215,10 @@ public class TestAzureAsyncContainerProvider {
     when(client.executeRequest(any(Request.class))).thenReturn(future);
 
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
-      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true, new String[] {"tempContainer"});
+      client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true, new String[] {"tempContainer"}, null);
 
     thrown.expect(UserException.class);
-    thrown.expectMessage("Failure while validating existence of container tempContainer. Error: Unable to find container tempContainer - [404 null]");
+    thrown.expectMessage("Failure while validating existence of container tempContainer. Error: rootPath null  in container tempContainer is not found - [404 null]");
     containerProvider.verfiyContainersExist();
   }
 
@@ -242,7 +242,7 @@ public class TestAzureAsyncContainerProvider {
       fail("Expecting exception");
     } catch (Retryer.OperationFailedAfterRetriesException e) {
       assertEquals(ContainerNotFoundException.class, e.getCause().getClass());
-      assertEquals("Unable to find container container - [404 The specified filesystem does not exist.]", e.getCause().getMessage());
+      assertEquals("rootPath null  in container container is not found - [404 The specified filesystem does not exist.]", e.getCause().getMessage());
     }
 
     // Ensure no retries attempted

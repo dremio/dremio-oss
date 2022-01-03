@@ -19,6 +19,7 @@ package org.apache.arrow.vector;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -34,6 +35,7 @@ import org.apache.arrow.vector.util.TransferPair;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 
 
 /**
@@ -51,6 +53,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
   private UInt2Vector fwdIndex;
   private int head; //the index at which a new value may be appended
+  private int numCompactions = 0;
+  private Stopwatch compactionTimer = Stopwatch.createUnstarted();
+  static private int DEFAULT_MAX_VECTOR_USAGE_PERCENT = 95;
+  private int maxVarWidthVecUsagePercent;
 
   /**
    * Instantiate a MutableVarcharVector. This doesn't allocate any memory for
@@ -62,7 +68,22 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    *                            is more than the threshold, then compaction gets triggered on next update.
    */
   public MutableVarcharVector(String name, BufferAllocator allocator, double compactionThreshold) {
-    this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator, compactionThreshold);
+    this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator,
+      compactionThreshold, DEFAULT_MAX_VECTOR_USAGE_PERCENT);
+  }
+
+  /**
+   * Instantiate a MutableVarcharVector. This doesn't allocate any memory for
+   * the data in vector.
+   *
+   * @param name                name of the vector
+   * @param allocator           allocator for memory management.
+   * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the buffer. If the ratio
+   *                            is more than the threshold, then compaction gets triggered on next update.
+   */
+  public MutableVarcharVector(String name, BufferAllocator allocator, double compactionThreshold, int maxVarWidthVecUsagePercent) {
+    this(name, FieldType.nullable(MinorType.VARCHAR.getType()), allocator,
+      compactionThreshold, maxVarWidthVecUsagePercent);
   }
 
   /**
@@ -75,11 +96,14 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @param compactionThreshold this value bounds the ratio of garbage data to capacity of the buffer. If the ratio
    *                            is more than the threshold, then compaction gets triggered on next update.
    */
-  public MutableVarcharVector(String name, FieldType fieldType, BufferAllocator allocator, double compactionThreshold) {
+  public MutableVarcharVector(String name, FieldType fieldType, BufferAllocator allocator,
+                              double compactionThreshold, int maxVarWidthVecUsagePercent) {
     super(new Field(name, fieldType, null), allocator);
 
     assert compactionThreshold <= 1.0;
     this.compactionThreshold = compactionThreshold;
+    Preconditions.checkArgument(maxVarWidthVecUsagePercent <= 100);
+    this.maxVarWidthVecUsagePercent = maxVarWidthVecUsagePercent;
     fwdIndex = new UInt2Vector(name, allocator);
   }
 
@@ -108,7 +132,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     return UInt2Vector.getValidityBufferSizeFromCount(count) + VarCharVector.getValidityBufferSizeFromCount(count);
   }
 
-  public static int getIndexDataBufferSizeFromCount(int count) {
+  private static int getIndexDataBufferSizeFromCount(int count) {
     return ((2 /* fwdIndex.TYPE_WIDTH */ * count + 7) / 8) * 8;
   }
 
@@ -140,7 +164,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * @return The offset at which the next valid data may be put in the buffer.
    */
   public final int getCurrentOffset() {
-    return getStartOffset(head);
+    return getByteCapacity() > 0 ? getStartOffset(head) : 0;
   }
 
   /**
@@ -352,12 +376,27 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     throw new UnsupportedOperationException("not supported");
   }
 
-  public int getAvailableSpace() {
-    /*
-     * XXX: How about garbage space? If insert take garbase space into account,
-     * we may reduce total number of splices.
-     */
+  private int getFreeSpace() {
     return getByteCapacity() - getCurrentOffset();
+  }
+
+  public boolean checkHasAvailableSpace(final int space) {
+    final int freeSpace = getFreeSpace();
+
+    /* Check if free space, without compacting, is sufficient. */
+    if (freeSpace >= space) {
+      return true;
+    }
+
+    /* If the total free space is less 5%, avoid force compacting. */
+    if ((freeSpace + garbageSizeInBytes) < space ||
+      (((freeSpace + garbageSizeInBytes) * 1.0D) / getDataBuffer().capacity()) <
+        (((100 - maxVarWidthVecUsagePercent) * 1.0D) / 100)) {
+      return false;
+    }
+
+    /* While inserting, will do force compaction */
+    return true;
   }
 
   /**
@@ -368,8 +407,9 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    *
    * @param index the position at which the set operation is being done.
    */
-  private final void updateGarbageAndCompact(final int index) {
+  private final void updateGarbageAndCompact(final int index, final int newLength) {
     final boolean isUpdate = (fwdIndex.isSafe(index) && !fwdIndex.isNull(index));
+    final boolean compact = newLength > 0 ? (getFreeSpace() < newLength) : false;
 
     if (isUpdate) {
       final int actualIndex = fwdIndex.get(index);
@@ -384,7 +424,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
       fwdIndex.setNull(index);
     }
 
-    if (needsCompaction()) {
+    if (compact || needsCompaction()) {
       compactInternal();
     }
   }
@@ -397,8 +437,19 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     compactInternal();
   }
 
+  public long getCompactionTime(TimeUnit unit) {
+    return compactionTimer.elapsed(unit);
+  }
+
+  public int getNumCompactions() {
+    return numCompactions;
+  }
+
   /* Actual api that does compaction */
   final private void compactInternal() {
+    ++numCompactions;
+    compactionTimer.start();
+
     //maps valid offset to its corresponding index
     final HashMap<Integer, Integer> validOffsetMap = new HashMap<> ();
 
@@ -445,6 +496,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
 
     //only valid data remains in the buffer now.
     garbageSizeInBytes = 0;
+    compactionTimer.stop();
   }
 
   /**
@@ -457,7 +509,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void set(int index, VarCharHolder holder) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    updateGarbageAndCompact(index, holder.end - holder.start);
 
     //update the index
     fwdIndex.set(index, head);
@@ -478,7 +530,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void setSafe(int index, VarCharHolder holder) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    /* No need to force compact as setSafe can grow the buffers */
+    updateGarbageAndCompact(index, 0);
 
     //update the index
     fwdIndex.setSafe(index, head);
@@ -499,7 +552,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void set(int index, NullableVarCharHolder holder) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    updateGarbageAndCompact(index, holder.end - holder.start);
 
     //update the index
     fwdIndex.set(index, head);
@@ -521,7 +574,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void setSafe(int index, NullableVarCharHolder holder) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    /* No need to force compact as setSafe can grow the buffers */
+    updateGarbageAndCompact(index, 0);
 
     //update the index
     fwdIndex.setSafe(index, head);
@@ -567,7 +621,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void set(int index, byte[] value) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    updateGarbageAndCompact(index, value.length);
 
     //update the index
     fwdIndex.set(index, head);
@@ -589,7 +643,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void setSafe(int index, byte[] value) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    /* No need to force compact as setSafe can grow the buffers */
+    updateGarbageAndCompact(index, 0);
 
     //update the index
     fwdIndex.setSafe(index, head);
@@ -612,7 +667,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void set(int index, byte[] value, int start, int length) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    updateGarbageAndCompact(index, length);
 
     //update the index
     fwdIndex.set(index, head);
@@ -636,7 +691,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void setSafe(int index, byte[] value, int start, int length) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    /* No need to force compact as setSafe can grow the buffers */
+    updateGarbageAndCompact(index, 0);
 
     //update the index
     fwdIndex.setSafe(index, head);
@@ -659,7 +715,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void set(int index, ByteBuffer value, int start, int length) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    updateGarbageAndCompact(index, length);
 
     //update the index
     fwdIndex.set(index, head);
@@ -683,7 +739,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void setSafe(int index, ByteBuffer value, int start, int length) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    /* No need to force compact as setSafe can grow the buffers */
+    updateGarbageAndCompact(index, 0);
 
     //update the index
     fwdIndex.setSafe(index, head);
@@ -709,7 +766,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void set(int index, int isSet, int start, int end, ArrowBuf buffer) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    updateGarbageAndCompact(index, end - start);
 
     //update the index
     fwdIndex.set(index, head);
@@ -735,7 +792,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void setSafe(int index, int isSet, int start, int end, ArrowBuf buffer) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    /* No need to force compact as setSafe can grow the buffers */
+    updateGarbageAndCompact(index, 0);
 
     //update the index
     fwdIndex.setSafe(index, head);
@@ -759,7 +817,7 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void set(int index, int start, int length, ArrowBuf buffer) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    updateGarbageAndCompact(index, length);
 
     //update the index
     fwdIndex.set(index, head);
@@ -784,7 +842,8 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   public void setSafe(int index, int start, int length, ArrowBuf buffer) {
     assert index >= 0;
 
-    updateGarbageAndCompact(index);
+    /* No need to force compact as setSafe can grow the buffers */
+    updateGarbageAndCompact(index, 0);
 
     //update the index
     fwdIndex.setSafe(index, head);

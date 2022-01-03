@@ -256,6 +256,15 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
+   * Indicate if boolean expressions should be converted to integer expressions.
+   *
+   * @return
+   */
+  public boolean mapBooleanToBitExpr() {
+    return false;
+  }
+
+  /**
    * Gets the SqlCollation node that should applied to string columns that is specific to this
    * data source.
    *

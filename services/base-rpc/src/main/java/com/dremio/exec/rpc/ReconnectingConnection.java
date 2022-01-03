@@ -60,6 +60,9 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
    */
   private static final long TIME_BETWEEN_ATTEMPT = TimeUnit.SECONDS.toMillis(5);
 
+  private static final int LAZY_ERROR_NOTIFY_RETRIES =
+    Integer.parseInt(System.getProperty("dremio.exec.rpcNotifyRetries", "4"));
+
   private final AtomicReference<CONNECTION_TYPE> connectionHolder = new AtomicReference<CONNECTION_TYPE>();
   private final AtomicBoolean closed = new AtomicBoolean(false);
   private final String host;
@@ -138,12 +141,16 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
       super();
       this.connection = connection;
       this.parent = parent;
+      this.connection.setupLazyNotifyOnClose();
     }
 
     @Override
     public void operationComplete(ChannelFuture future) throws Exception {
-      connectionHolder.compareAndSet(connection, null);
+      final boolean wasSet = connectionHolder.compareAndSet(connection, null);
       parent.operationComplete(future);
+      if (wasSet) {
+        scheduleNotifyHandler(connection, 0);
+      }
     }
 
   }
@@ -434,6 +441,23 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
         }
       }
     }
+  }
+
+  private void scheduleNotifyHandler(CONNECTION_TYPE conn, int retries) {
+    final Runnable notifyHandler = () -> {
+      if (retries > 1) {
+        logger.info("Pending completion notification for connection `{}`, possibly due to backpressure." +
+            " Retry attempt #{}", conn.getName(), retries);
+      }
+      final boolean notified = conn.doLazyNotifyOnClose(retries >= LAZY_ERROR_NOTIFY_RETRIES);
+      if (!notified) { // try again after a backoff
+        scheduleNotifyHandler(conn, retries + 1);
+      }
+    };
+
+    conn.getChannel()
+      .eventLoop()
+      .schedule(notifyHandler, (retries == 0) ? 100L : retries * 200L, TimeUnit.MILLISECONDS);
   }
 
   /**

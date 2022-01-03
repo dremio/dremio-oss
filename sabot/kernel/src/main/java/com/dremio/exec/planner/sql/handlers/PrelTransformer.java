@@ -209,14 +209,18 @@ public class PrelTransformer {
     return typedSqlNode;
   }
 
-  public static RelNode trimFields(final RelNode relNode, boolean shouldLog, boolean isRelPlanning) {
+  public static RelNode trimFields(final RelNode relNode, boolean shouldLog, boolean isRelPlanning, boolean trimProjectedColumn) {
     final Stopwatch w = Stopwatch.createStarted();
-    final RelFieldTrimmer trimmer = DremioFieldTrimmer.of(relNode.getCluster(), isRelPlanning);
+    final RelFieldTrimmer trimmer = DremioFieldTrimmer.of(relNode.getCluster(), isRelPlanning, trimProjectedColumn);
     final RelNode trimmed = trimmer.trim(relNode);
     if(shouldLog) {
       log(PlannerType.HEP, PlannerPhase.FIELD_TRIMMING, trimmed, logger, w);
     }
     return trimmed;
+  }
+
+  public static RelNode trimFields(final RelNode relNode, boolean shouldLog, boolean isRelPlanning) {
+    return trimFields(relNode, shouldLog, isRelPlanning, true);
   }
 
   /**

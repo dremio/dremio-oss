@@ -244,7 +244,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       // scan operator handles the OOB message that it gets from the join operator
       final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
       final ArrowBuf msgBuf = message.getIfSingleBuffer().get();
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, context.getStats());
+      String sourceJoinId = String.format("%02d-%02d", message.getSendingMajorFragmentId(), message.getSendingOperatorId() & 0xFF);
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, sourceJoinId, context.getFragmentHandle(), context.getStats());
       rollbackCloseable.add(filter);
 
       boolean isAlreadyPresent = this.runtimeFilters.stream()
@@ -257,6 +258,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
         this.runtimeFilters.add(filter);
         Optional.ofNullable(currentRecordReader).ifPresent(c -> c.addRuntimeFilter(filter));
         context.getStats().addLongStat(ScanOperator.Metric.NUM_RUNTIME_FILTERS, 1);
+        context.getStats().addRuntimeFilterDetailsInScan(filter.getFilterDetails());
         rollbackCloseable.commit();
       }
     } catch (Exception e) {
@@ -282,5 +284,6 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     currentRecordReader = null;
     //close boost buffer manager here.
     this.context.getStats().setReadIOStats();
+    this.context.getStats().setScanRuntimeFilterDetailsInProfile();;
   }
 }

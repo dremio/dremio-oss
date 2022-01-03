@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>19.1.0-202111160130570172-0ee00450</version>
+  <version>19.3.0-202201011605440679-67815cf6</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -43,7 +43,7 @@
     -->
     <arrow.version>4.0.0-20210722102535-bda216e83f-dremio</arrow.version>
     <avatica.version>1.18.0</avatica.version>
-    <calcite.version>1.16.0-202110140531410732-6a46ce2e</calcite.version>
+    <calcite.version>1.16.0-202112230200020337-98e6aace</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.81</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -71,7 +71,7 @@
     <plugin.hive2.datanucleus-jdo.version>3.2.0-m3</plugin.hive2.datanucleus-jdo.version>
     <plugin.hive2.jdo-api.version>3.0.1</plugin.hive2.jdo-api.version>
     <plugin.hive2.mapr.hadoop.version>2.7.0-mapr-1803</plugin.hive2.mapr.hadoop.version>
-    <plugin.hive2.mapr.hive.version>2.1.1-mapr-1803-202108260419510455-06e6301</plugin.hive2.mapr.hive.version>
+    <plugin.hive2.mapr.hive.version>2.1.1-mapr-1803-202112221639140828-cb8c82b</plugin.hive2.mapr.hive.version>
     <plugin.hive2.mapr.maprfs.version>6.0.1-mapr-client-dremio-20190717</plugin.hive2.mapr.maprfs.version>
     <plugin.hive2.aws.glue.version>1.10.0-202006290831310925-84f4082</plugin.hive2.aws.glue.version>
 
@@ -107,7 +107,7 @@
     <junit.version>4.12</junit.version>
     <lilith.version>8.2.0</lilith.version>
     <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
-    <logback.version>1.2.3</logback.version>
+    <logback.version>1.2.9</logback.version>
     <metrics.version>4.1.19</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
     <nessie.version>0.4.0</nessie.version>

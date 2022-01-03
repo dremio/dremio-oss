@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import java.util.concurrent.TimeUnit;
+
 public interface ResizeListener {
   public static ResizeListener NO_OP = new ResizeListener() {
     public void addBatch() {}
@@ -57,4 +59,12 @@ public interface ResizeListener {
 
   public void accumulate(final long memoryAddr, final int count,
                          final int bitsInChunk, final int chunkOffsetMask);
+
+  default int getAccumCompactionCount() {
+    return 0;
+  }
+
+  default long getAccumCompactionTime(TimeUnit unit) {
+    return 0;
+  }
 }

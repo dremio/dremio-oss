@@ -152,6 +152,7 @@ public class AccumulatorBuilder {
                                               final long jointAllocationLimit,
                                               boolean decimalV2Enabled,
                                               int varLenAccumulatorCapacity,
+                                              int maxVarWidthVecUsagePercent,
                                               BaseVariableWidthVector[] tempAccumulatorHolder) {
     final byte[] accumulatorTypes = materializedAggExpressions.accumulatorTypes;
     final List<FieldVector> inputVectors = materializedAggExpressions.inputVectors;
@@ -181,7 +182,7 @@ public class AccumulatorBuilder {
 
       accums[i] = getAccumulator(accumulatorType, inputVector, outputVector,
                                  transferVector, maxValuesPerBatch, computationVectorAllocator,
-                                 decimalV2Enabled, varLenAccumulatorCapacity, tempVector);
+                                 decimalV2Enabled, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent,tempVector);
       if (accums[i] == null) {
         throw new IllegalStateException("ERROR: invalid accumulator state");
       }
@@ -195,7 +196,7 @@ public class AccumulatorBuilder {
                                             final int maxValuesPerBatch,
                                             final BufferAllocator computationVectorAllocator,
                                             boolean decimalCompleteEnabled,
-                                            int varLenAccumulatorCapacity,
+                                            int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent,
                                             BaseVariableWidthVector tempAccumulatorHolder) {
     if (accumulatorType == AccumulatorType.COUNT1.ordinal()) {
       return new CountOneAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
@@ -282,7 +283,7 @@ public class AccumulatorBuilder {
           case VARCHAR:
           case VARBINARY:
             return new MinAccumulators.VarLenMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
-              computationVectorAllocator, varLenAccumulatorCapacity, tempAccumulatorHolder);
+              computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
         }
         break;
       }
@@ -338,7 +339,7 @@ public class AccumulatorBuilder {
           case VARCHAR:
           case VARBINARY:
             return new MaxAccumulators.VarLenMaxAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
-              computationVectorAllocator, varLenAccumulatorCapacity, tempAccumulatorHolder);
+              computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
         }
         break;
       }

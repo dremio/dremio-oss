@@ -65,6 +65,7 @@
     "linkifyjs": "^2.1.9",
     "lodash": "4.17.19",
     "marked": "^0.7.0",
+    "moize": "^6.1.0",
     "moment": "^2.24.0",
     "mousetrap": "^1.6.1",
     "normalizr": "^2.1.0",

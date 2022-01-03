@@ -154,8 +154,8 @@
 |Byte Buddy                                                  |1.10.19             |Apache 2.0          |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202110140531410732-6a46ce2e|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202110140531410732-6a46ce2e|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202112230200020337-98e6aace|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202112230200020337-98e6aace|Apache 2.0          |
 |CDI APIs                                                    |2.0.2               |Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.8.1               |MIT                 |
@@ -234,12 +234,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |19.1.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |19.1.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |19.1.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |19.1.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |19.1.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |19.1.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |19.3.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |19.3.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |19.3.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |19.3.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |19.3.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |19.3.0              |Dremio Free Software License 1.0|
 |dremio-ui-lib                                               |1.0.0               |Unlicense           |
 |easy-peasy                                                  |4.0.1               |MIT                 |
 |EclipseLink                                                 |2.5.2               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
@@ -266,6 +266,7 @@
 |Expression Language 3.0                                     |3.0.1-b11           |CDDL 1.1            |
 |Expression Language 3.0 API                                 |3.0.0               |CDDL + GPLv2        |
 |fast-deep-equal                                             |3.1.3               |MIT                 |
+|fast-equals                                                 |2.0.3               |MIT                 |
 |fbjs                                                        |0.8.16              |MIT                 |
 |fbjs                                                        |0.8.17              |MIT                 |
 |file-saver                                                  |1.3.3               |MIT                 |
@@ -506,9 +507,9 @@
 |lodash.isplainobject                                        |4.0.6               |MIT                 |
 |lodash.noop                                                 |3.0.1               |MIT                 |
 |Log4j Implemented Over SLF4J                                |1.7.28              |MIT                 |
-|Logback Access Module                                       |1.2.3               |EPL 1.0             |
-|Logback Classic Module                                      |1.2.3               |EPL 1.0             |
-|Logback Core Module                                         |1.2.3               |EPL 1.0             |
+|Logback Access Module                                       |1.2.9               |EPL 1.0             |
+|Logback Classic Module                                      |1.2.9               |EPL 1.0             |
+|Logback Core Module                                         |1.2.9               |EPL 1.0             |
 |logback-classic                                             |8.2.0               |Apache 2.0          |
 |logback-converter-classic                                   |8.2.0               |Apache 2.0          |
 |logback-multiplex-appender-classic                          |8.2.0               |Apache 2.0          |
@@ -541,12 +542,14 @@
 |Metrics Core Library                                        |2.2.0               |Apache 2.0          |
 |Metrics Integration For Jetty 9.3 and Higher                |4.1.19              |Apache 2.0          |
 |Metrics Integration with JMX                                |4.1.19              |Apache 2.0          |
+|micro-memoize                                               |4.0.9               |MIT                 |
 |Microsoft Azure Active Directory Authentication Library (ADAL) for Java|1.6.4               |MIT License         |
 |Microsoft JDBC Driver For SQL Server                        |7.0.0.jre8          |MIT License         |
 |MIME streaming extension                                    |1.9.11              |GPL v2 w/ CPE       |
 |MinLog                                                      |1.3.0               |BSD 3-clause        |
 |ModelMapper                                                 |2.3.0               |Apache 2.0          |
 |ModelMapper Protobuf Extension                              |2.3.0               |Apache 2.0          |
+|moize                                                       |6.1.0               |MIT                 |
 |moment                                                      |2.24.0              |MIT                 |
 |monaco-editor                                               |0.10.0              |MIT                 |
 |MongoDB Java Driver                                         |3.12.0              |Apache 2.0          |
@@ -575,6 +578,7 @@
 |Netty/TomcatNative [BoringSSL - Static]                     |2.0.28.Final        |Apache 2.0          |
 |Netty/Transport                                             |4.1.48.Final        |Apache 2.0          |
 |Netty/Transport/Native/Epoll                                |4.1.48.Final-linux-x86_64|Apache 2.0          |
+|Netty/Transport/Native/Kqueue                               |4.1.48.Final        |Apache 2.0          |
 |Netty/Transport/Native/Unix/Common                          |4.1.48.Final        |Apache 2.0          |
 |Nimbus JOSE+JWT                                             |8.8                 |Apache 2.0          |
 |Nimbus LangTag                                              |1.5                 |Apache 2.0          |

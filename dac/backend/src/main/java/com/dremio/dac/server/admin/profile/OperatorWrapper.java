@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.exec.ops.OperatorMetricRegistry;
@@ -39,6 +40,7 @@ import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
 import com.dremio.exec.proto.UserBitShared.MetricDef;
 import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
+import com.dremio.exec.proto.UserBitShared.RunTimeFilterDetailsInfoInScan;
 import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
@@ -103,8 +105,11 @@ public class OperatorWrapper {
 
   public static final String[] SLOW_IO_INFO_COLUMNS = { "FilePath" , "IO Time (ns)", "IO Size", "Offset", "Operation Type"};
 
-  public static final String[] RUNTIMEFILTER_INFO_COLUMNS = {"Probe Target", "Is Partitioned Column",
+  public static final String[] RUNTIMEFILTER_INFO_COLUMNS_IN_JOIN = {"Probe Target", "Is Partitioned Column",
     "Is Non Partitioned Column", "Probe Field Name", "(Approx) Number Of Values", "Number of Hashfunctions"};
+
+  private static final String[] RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN = {"Minor Fragment Id", "Join Source", "Is Partitioned Column",
+    "Probe Field Name", "(Approx) Number Of Values", "Number of Hashfunctions", "Output Records Before Pruning", "Is Dropped"};
 
   public void addSummary(TableBuilder tb) {
     try {
@@ -235,9 +240,10 @@ public class OperatorWrapper {
     builder.end();
   }
 
-  private void addSlowIO(JsonBuilder builder, List<SlowIOInfo> info, String type) throws IOException {
+  private void addSlowIO(JsonBuilder builder, List<SlowIOInfo> info, String type, int emptyDetailsCount) throws IOException {
     for (SlowIOInfo ioInfo : info) {
       builder.startEntry();
+      fillEmptyDetails(builder, emptyDetailsCount);
       builder.appendString(ioInfo.getFilePath());
       builder.appendString(Long.toString(ioInfo.getIoTime()));
       builder.appendString(Long.toString(ioInfo.getIoSize()));
@@ -245,6 +251,31 @@ public class OperatorWrapper {
       builder.appendString(type);
       builder.endEntry();
     }
+  }
+
+  private void addRuntimeFilterInScanInfo(JsonBuilder builder, List<RunTimeFilterDetailsInfoInScan> info, int emptyDetailsCount) throws IOException {
+    for (RunTimeFilterDetailsInfoInScan runTimeFilterInfo : info) {
+      builder.startEntry();
+      builder.appendInteger(runTimeFilterInfo.getMinorFragmentId());
+      builder.appendString(runTimeFilterInfo.getJoinSource());
+      builder.appendString(Boolean.toString(runTimeFilterInfo.getIsPartitionedColumn()));
+      builder.appendString(String.join(",", runTimeFilterInfo.getProbeFieldNamesList()));
+      builder.appendInteger(runTimeFilterInfo.getNumberOfValues());
+      builder.appendInteger(runTimeFilterInfo.getNumberOfHashFunctions());
+      builder.appendInteger(runTimeFilterInfo.getOutputRecordsBeforePruning());
+      builder.appendString(Boolean.toString(runTimeFilterInfo.getIsDropped()));
+      fillEmptyDetails(builder, emptyDetailsCount);
+      builder.endEntry();
+    }
+  }
+
+  private boolean isRuntimeFilterInScanInfoPresent(List<OperatorProfile> foundOps) {
+    for (OperatorProfile op : foundOps) {
+      if (CollectionUtils.isNotEmpty(op.getDetails().getRuntimefilterDetailsInfosInScanList())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public void addMetrics(JsonGenerator generator) throws IOException {
@@ -371,7 +402,7 @@ public class OperatorWrapper {
       }
       builder.end();
     } else if (CollectionUtils.isNotEmpty(foundOps.get(0).getDetails().getRuntimefilterDetailsInfosList() )) {
-      JsonBuilder builder = new JsonBuilder(generator, RUNTIMEFILTER_INFO_COLUMNS);
+      JsonBuilder builder = new JsonBuilder(generator, RUNTIMEFILTER_INFO_COLUMNS_IN_JOIN);
         for(UserBitShared.RunTimeFilterDetailsInfo runTimeFilterInfo: foundOps.get(0).getDetails().getRuntimefilterDetailsInfosList()) {
           builder.startEntry();
           builder.appendString(runTimeFilterInfo.getProbeTarget());
@@ -383,13 +414,34 @@ public class OperatorWrapper {
           builder.endEntry();
         }
       builder.end();
-    }else {
-      JsonBuilder builder = new JsonBuilder(generator, SLOW_IO_INFO_COLUMNS);
-      for (OperatorProfile op :  foundOps) {
-        addSlowIO(builder, op.getDetails().getSlowIoInfosList(), "Data IO");
-        addSlowIO(builder, op.getDetails().getSlowMetadataIoInfosList(), "Metadata IO");
+    }
+    else if (isRuntimeFilterInScanInfoPresent(foundOps)) {
+      final String SCAN_INFO_COLUMNS[] = ArrayUtils.addAll(RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN, SLOW_IO_INFO_COLUMNS);
+      int columnsCount = SCAN_INFO_COLUMNS.length;
+      JsonBuilder builder = new JsonBuilder(generator, SCAN_INFO_COLUMNS);
+      for (OperatorProfile op : foundOps) {
+        addRuntimeFilterInScanInfo(builder, op.getDetails().getRuntimefilterDetailsInfosInScanList(), columnsCount - RUNTIMEFILTER_INFO_COLUMNS_IN_SCAN.length);
       }
+      addSlowIOToBuilder(builder, foundOps, columnsCount - SLOW_IO_INFO_COLUMNS.length);
       builder.end();
+    }
+    else {
+      JsonBuilder builder = new JsonBuilder(generator, SLOW_IO_INFO_COLUMNS);
+      addSlowIOToBuilder(builder, foundOps, 0);
+      builder.end();
+    }
+  }
+
+  private void addSlowIOToBuilder(JsonBuilder builder, List<OperatorProfile> foundOps, int emptyDetailsCount) throws IOException {
+    for (OperatorProfile op :  foundOps) {
+      addSlowIO(builder, op.getDetails().getSlowIoInfosList(), "Data IO", emptyDetailsCount);
+      addSlowIO(builder, op.getDetails().getSlowMetadataIoInfosList(), "Metadata IO", emptyDetailsCount);
+    }
+  }
+
+  private void fillEmptyDetails(JsonBuilder builder, int count) throws IOException {
+    for (int i = 0; i < count; i++) {
+      builder.appendString("");
     }
   }
 }

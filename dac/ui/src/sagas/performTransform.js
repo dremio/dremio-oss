@@ -124,7 +124,10 @@ export function* handleRunDatasetSql({ isPreview }) {
   const exploreState = yield select(getExploreState);
   const viewId = exploreViewState.get('viewId');
   const currentSql = exploreState.view.currentSql;
-  const queryContext = exploreState.view.queryContext;
+  let queryContext = exploreState.view.queryContext;
+  if (queryContext.size === 0) {
+    queryContext = dataset.get('context');
+  }
 
   if (yield call(proceedWithDataLoad, dataset, queryContext, currentSql)) {
     const performTransformParam = {

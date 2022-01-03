@@ -19,11 +19,16 @@ package com.dremio.plugins.azure;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+import java.util.Map;
+
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.util.HttpConstants;
 import org.junit.Test;
 
+import com.azure.core.util.CoreUtils;
+import com.azure.core.util.UserAgentUtil;
+import com.google.common.base.Preconditions;
 import com.microsoft.azure.storage.core.Base64;
 
 /**
@@ -52,12 +57,15 @@ public class TestAzureSharedKeyAuthTokenProvider {
   }
 
   private Request prepareTestRequest() {
+    final Map<String, String> properties = CoreUtils.getProperties("META-INF/maven/com.azure/azure-storage-common/pom.properties");
+    final String sdkVersion = properties.getOrDefault("version", "Unknown");
+    Preconditions.checkArgument(!"Unknown".equalsIgnoreCase(sdkVersion), "SDK Version cannot be unknown.");
     return new RequestBuilder(HttpConstants.Methods.GET)
       .addHeader("Date", "Tue, 31 Dec 2019 07:18:50 GMT")
       .addHeader("Content-Length", 0)
       .addHeader("x-ms-version", "2019-02-02")
       .addHeader("x-ms-client-request-id", "b2a11e2a-65a7-48ed-a643-229255139452")
-      .addHeader("User-Agent", "azsdk-java-azure-storage-blob/12.1.0 (1.8.0_231; Mac OS X 10.14.5)")
+      .addHeader("User-Agent", UserAgentUtil.toUserAgentString(null, "azure-storage-blob", sdkVersion, null))
       .addHeader("x-ms-range", String.format("bytes=%d-%d", 25, 125))
       .addHeader("If-Unmodified-Since", "Tue, 15 Dec 2019 07:18:50 GMT")
       .setUrl("https://account.blob.core.windows.net/container/directory%2Ffile_00.parquet")

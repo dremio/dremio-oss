@@ -156,6 +156,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
         "You attempted to send while inside the rpc event thread. This isn't allowed because sending will block if the channel is backed up.");
 
     boolean completed = false;
+    ChannelListenerWithCoordinationId futureListener = null;
 
     try {
 
@@ -169,29 +170,25 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
 
       Preconditions.checkNotNull(protobufBody);
       final Stopwatch stopwatch = Stopwatch.createStarted();
-      ChannelListenerWithCoordinationId futureListener = connection.createNewRpcListener(listener, clazz);
+      futureListener = connection.createNewRpcListener(listener, clazz);
       OutboundRpcMessage m = new OutboundRpcMessage(RpcMode.REQUEST, rpcType, futureListener.getCoordinationId(), protobufBody, dataBodies);
       ChannelFuture channelFuture = connection.getChannel().writeAndFlush(m);
       channelFuture.addListener(futureListener);
-      channelFuture.addListener(new GenericFutureListener<Future<? super Void>>() {
-        @Override
-        public void operationComplete(Future<? super Void> future) throws Exception {
-          sendDurations.update(stopwatch.elapsed(TimeUnit.MILLISECONDS));
-        }
-      });
+      channelFuture.addListener(future -> sendDurations.update(stopwatch.elapsed(TimeUnit.MILLISECONDS)));
       completed = true;
     } catch (IllegalStateException e) {
       listener.failed(new RpcException("Failure sending message. " + e.getMessage(), RpcExceptionStatus.CONNECTION_INVALID, null, e));
     } catch (Exception | AssertionError e) {
       listener.failed(new RpcException("Failure sending message.", e));
     } finally {
-
       if (!completed) {
+        if (futureListener != null) {
+          futureListener.opNotStarted();
+        }
         if (dataBodies != null) {
           for (ByteBuf b : dataBodies) {
             b.release();
           }
-
         }
       }
     }

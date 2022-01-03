@@ -142,6 +142,21 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void testQueryWithOnlyOrderByAndOffset() throws Exception {
+    final String sql = "SELECT columns[0] AS Key, columns[1] AS Country, columns[2] as Capital FROM cp.\"csv/nationsWithCapitals.csv\" ORDER BY Country OFFSET 2";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("Key", "Country", "Capital")
+      .baselineValues("6", "Italy", "Rome")
+      .baselineValues("2", "Singapore", "Singapore")
+      .baselineValues("3", "UK", "London")
+      .baselineValues("1", "USA", "Washington DC")
+      .go();
+  }
+
+  @Test
   public void testCovarPop() throws Exception {
     final String sql = "SELECT covar_pop(val, val) as col from cp.\"parquet/dremio_int_max.parquet\"";
 

@@ -13,12 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.exec.planner.logical;
+import moize from 'moize';
 
-/**
- * Marker for aggregate functions to used to indicate that this aggregate
- * is projectable, and can be replaced with projects during logical planning
- */
-public interface ProjectableSqlAggFunction {
-  boolean isUnique();
-}
+export const memoOne = moize({
+  maxSize: 1
+});

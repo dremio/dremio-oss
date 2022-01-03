@@ -533,12 +533,12 @@ public class MaxAccumulators {
   public static class VarLenMaxAccumulator extends BaseVarBinaryAccumulator {
     NullableVarCharHolder holder = new NullableVarCharHolder();
 
-    public VarLenMaxAccumulator(FieldVector input, FieldVector output,
-                                FieldVector transferVector, int maxValuesPerBatch,
-                                BufferAllocator computationVectorAllocator,
-                                int varLenAccumulatorCapacity, BaseVariableWidthVector tempAccumulatorHolder) {
+    public VarLenMaxAccumulator(FieldVector input, FieldVector output, FieldVector transferVector,
+                                int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
+                                int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent,
+                                BaseVariableWidthVector tempAccumulatorHolder) {
       super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.MAX, maxValuesPerBatch,
-        computationVectorAllocator, varLenAccumulatorCapacity, tempAccumulatorHolder);
+        computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
     }
 
     public void accumulate(final long memoryAddr, final int count,

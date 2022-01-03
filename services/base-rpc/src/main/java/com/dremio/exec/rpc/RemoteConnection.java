@@ -181,6 +181,14 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
     requestIdMap.recordRemoteFailure(coordinationId, failure);
   }
 
+  void setupLazyNotifyOnClose() {
+    requestIdMap.setupLazyNotification();
+  }
+
+  boolean doLazyNotifyOnClose(boolean force) {
+    return requestIdMap.notifyExceptionIfAny(force);
+  }
+
   /**
    * Called from the RpcBus's channel close handler to close all remaining
    * resources associated with this connection. Ensures that any pending
@@ -219,7 +227,9 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
       // Preserve evidence that the interruption occurred so that code higher up
       // on the call stack can learn of the
       // interruption and respond to it if it wants to.
-      Thread.currentThread().interrupt();
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 

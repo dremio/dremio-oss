@@ -15,10 +15,13 @@
  */
 package com.dremio.plugins.azure;
 
+import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
+import static com.dremio.common.utils.PathUtils.removeTrailingSlash;
 import static com.dremio.plugins.azure.AzureAuthenticationType.ACCESS_KEY;
 import static com.dremio.plugins.azure.AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -38,6 +41,7 @@ import com.dremio.http.AsyncHttpClientProvider;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.azure.AzureStorageConf.AccountKind;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.google.common.base.Joiner;
 
 /**
  * A container file system implementation for Azure Storage.
@@ -51,6 +55,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
   static final String MODE = "dremio.azure.mode";
   static final String SECURE = "dremio.azure.secure";
   static final String CONTAINER_LIST = "dremio.azure.container_list";
+  static final String ROOT_PATH = "dremio.azure.rootPath";
 
   static final String CREDENTIALS_TYPE = "dremio.azure.credentialsType";
 
@@ -120,9 +125,22 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
       throw new IOException("Unrecognized credential type");
     }
 
-    final String[] containerList = getContainerNames(conf.get(CONTAINER_LIST));
+    final String[] containerList;
+    String rootPath = conf.get(ROOT_PATH);
+    if (rootPath != null) {
+      rootPath = removeLeadingSlash(rootPath);
+      rootPath = removeTrailingSlash(rootPath);
+    }
+    if (rootPath != null && rootPath.length()>0) {
+      containerList = getContainerNameFromRootPath(rootPath).split(" ");
+      rootPath = getPathWithoutContainer(rootPath);
+    } else {
+      containerList = getContainerNames(conf.get(CONTAINER_LIST));
+      rootPath = null;
+    }
+
     if (accountKind == AccountKind.STORAGE_V2) {
-      containerProvider = new AzureAsyncContainerProvider(asyncHttpClient, azureEndpoint, account, authProvider, this, secure, containerList);
+      containerProvider = new AzureAsyncContainerProvider(asyncHttpClient, azureEndpoint, account, authProvider, this, secure, containerList, rootPath);
     } else {
       final String connection = String.format("%s://%s.%s", proto.getEndpointScheme(), account, azureEndpoint);
       switch (credentialsType) {
@@ -155,6 +173,22 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
     }
 
     return values;
+  }
+
+  private String getContainerNameFromRootPath (String path) {
+    final String[] pathComponents = path.split(Path.SEPARATOR);
+    if (pathComponents.length == 0) {
+      return null;
+    }
+    return pathComponents[0];
+  }
+
+  private String getPathWithoutContainer (String path) {
+    String[] pathComponents = path.split(Path.SEPARATOR);
+    if (pathComponents.length == 1) {
+      return null;
+    }
+    return Joiner.on(Path.SEPARATOR).join( Arrays.copyOfRange(pathComponents, 1, pathComponents.length));
   }
 
   @Override

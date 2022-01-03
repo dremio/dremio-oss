@@ -92,8 +92,6 @@ public final class LBlockHashTable implements AutoCloseable {
 
   private int capacity;
   private int maxSize;
-  /* XXX: batches is not any useful. Can be safely removed. */
-  private int batches;
 
   private int currentOrdinal;
   /**
@@ -118,8 +116,12 @@ public final class LBlockHashTable implements AutoCloseable {
   private long maxVariableAddresses[] = new long[0];
 
   private int rehashCount = 0;
+  private int spliceCount = 0;
+  private int forceAccumCount = 0;
   private Stopwatch rehashTimer = Stopwatch.createUnstarted();
   private Stopwatch initTimer = Stopwatch.createUnstarted();
+  private Stopwatch spliceTimer = Stopwatch.createUnstarted();
+  private Stopwatch forceAccumTimer = Stopwatch.createUnstarted();
 
   private ArrowBuf traceBuf;
   private long traceBufNext;
@@ -164,8 +166,8 @@ public final class LBlockHashTable implements AutoCloseable {
     this.maxOrdinalBeforeExpand = 0;
     internalInit(LHashCapacities.capacity(this.config, initialSize, false));
 
-    logger.debug("initialized hashtable, maxSize:{}, capacity:{}, batches:{}, maxVariableBlockLength:{}, maxValuesPerBatch:{}",
-      maxSize, capacity, batches, variableBlockMaxLength, MAX_VALUES_PER_BATCH);
+    logger.debug("initialized hashtable, maxSize:{}, capacity:{}, maxVariableBlockLength:{}, maxValuesPerBatch:{}",
+      maxSize, capacity, variableBlockMaxLength, MAX_VALUES_PER_BATCH);
   }
 
   public int getMaxValuesPerBatch() {
@@ -998,8 +1000,32 @@ public final class LBlockHashTable implements AutoCloseable {
     return rehashTimer.elapsed(unit);
   }
 
+  public long getSpliceTime(TimeUnit unit){
+    return spliceTimer.elapsed(unit);
+  }
+
+  public long getForceAccumTime(TimeUnit unit){
+    return forceAccumTimer.elapsed(unit);
+  }
+
   public int getRehashCount(){
     return rehashCount;
+  }
+
+  public int getSpliceCount() {
+    return spliceCount;
+  }
+
+  public int getForceAccumCount() {
+    return forceAccumCount;
+  }
+
+  public int getAccumCompactionCount() {
+    return listener.getAccumCompactionCount();
+  }
+
+  public long getAccumCompactionTime(TimeUnit unit) {
+    return listener.getAccumCompactionTime(unit);
   }
 
   private void internalInit(int capacity) {
@@ -1009,10 +1035,10 @@ public final class LBlockHashTable implements AutoCloseable {
     /* tentative new state */
     capacity = Math.max(Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH), capacity);
     final int newMaxSize = !LHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
-    final int newBatches = (int) Math.ceil(capacity / (MAX_VALUES_PER_BATCH * 1.0d));
+    final int newCtrlBatches = (int) Math.ceil(capacity / (MAX_VALUES_PER_BATCH * 1.0d));
     /* new memory allocation */
-    final ControlBlock[] newControlBlocks = new ControlBlock[newBatches];
-    final long[] newTableControlAddresses = new long[newBatches];
+    final ControlBlock[] newControlBlocks = new ControlBlock[newCtrlBatches];
+    final long[] newTableControlAddresses = new long[newCtrlBatches];
     try(RollbackCloseable rollbackable = new RollbackCloseable()) {
       /* if we fail while allocating a ControlBlock,
        * RollbackCloseable will take care of releasing memory allocated so far.
@@ -1020,7 +1046,7 @@ public final class LBlockHashTable implements AutoCloseable {
        * state is anyway unchanged since their state is updated only
        * after allocation for all control blocks is successful.
        */
-      for (int i = 0; i < newBatches; i++) {
+      for (int i = 0; i < newCtrlBatches; i++) {
         newControlBlocks[i] = new ControlBlock(allocator, MAX_VALUES_PER_BATCH);
         rollbackable.add(newControlBlocks[i]);
         newTableControlAddresses[i] = newControlBlocks[i].getMemoryAddress();
@@ -1031,7 +1057,6 @@ public final class LBlockHashTable implements AutoCloseable {
       this.controlBlocks = newControlBlocks;
       this.tableControlAddresses = newTableControlAddresses;
       this.capacity = capacity;
-      this.batches = newBatches;
       this.maxSize = newMaxSize;
       rollbackable.commit();
     } catch (Exception e) {
@@ -1111,7 +1136,7 @@ public final class LBlockHashTable implements AutoCloseable {
     }
     PlatformDependent.putInt(traceBufNext + 0 * 4, capacity);
     PlatformDependent.putInt(traceBufNext + 1 * 4, maxSize);
-    PlatformDependent.putInt(traceBufNext + 2 * 4, batches);
+    PlatformDependent.putInt(traceBufNext + 2 * 4, blocks());
     PlatformDependent.putInt(traceBufNext + 3 * 4, currentOrdinal);
     PlatformDependent.putInt(traceBufNext + 4 * 4, rehashCount);
     PlatformDependent.putInt(traceBufNext + 5 * 4, numRecords);
@@ -1127,7 +1152,7 @@ public final class LBlockHashTable implements AutoCloseable {
     }
     PlatformDependent.putInt(traceBufNext + 0 * 4, capacity);
     PlatformDependent.putInt(traceBufNext + 1 * 4, maxSize);
-    PlatformDependent.putInt(traceBufNext + 2 * 4, batches);
+    PlatformDependent.putInt(traceBufNext + 2 * 4, blocks());
     PlatformDependent.putInt(traceBufNext + 3 * 4, currentOrdinal);
     PlatformDependent.putInt(traceBufNext + 4 * 4, rehashCount);
     traceBufNext += 5 * 4;
@@ -1227,7 +1252,6 @@ public final class LBlockHashTable implements AutoCloseable {
     gaps = 0;
     capacity = MAX_VALUES_PER_BATCH;
     maxSize = !LHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
-    batches = 1;
     openVariableAddresses[0] = initVariableAddresses[0];
 
     listener.resetToMinimumSize();
@@ -1672,8 +1696,11 @@ public final class LBlockHashTable implements AutoCloseable {
     final int batchIndex = getBatchIndexForOrdinal(expectedOrdinal);
     /* First accumulate the existing records */
     if (partition.getRecords() > 0) {
+      ++forceAccumCount;
+      forceAccumTimer.start();
       listener.accumulate(partition.getBuffer().memoryAddress(), partition.getRecords(),
         bitsInChunk, chunkOffsetMask);
+      forceAccumTimer.stop();
       partition.resetRecords();
 
       /* If the batch has enough space after accumulation, no need to splice */
@@ -1682,60 +1709,68 @@ public final class LBlockHashTable implements AutoCloseable {
       }
     }
 
-    final int numRecords = this.getRecordsInBatch(batchIndex);
-    Preconditions.checkArgument(numRecords > 1);
+    try {
+      ++spliceCount;
+      spliceTimer.start();
+      final int numRecords = this.getRecordsInBatch(batchIndex);
+      Preconditions.checkArgument(numRecords > 1);
 
-    listener.verifyBatchCount(fixedBlocks.length);
-    Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
-      "Error: detected inconsistent state in hashtable before starting splice");
+      listener.verifyBatchCount(fixedBlocks.length);
+      Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
+        "Error: detected inconsistent state in hashtable before starting splice");
 
-    //1. create a fresh batch, to which the records are going to be copied
-    //(may throw an OOM exception, the caller must handle this)
-    addDataBlocks();
+      //1. create a fresh batch, to which the records are going to be copied
+      //(may throw an OOM exception, the caller must handle this)
+      addDataBlocks();
 
-    listener.verifyBatchCount(fixedBlocks.length);
-    Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
-      "Error: detected inconsistent state in hashtable during splice");
+      listener.verifyBatchCount(fixedBlocks.length);
+      Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
+        "Error: detected inconsistent state in hashtable during splice");
 
-    //2. set the start of target ordinal
-    final int newCurrentOrdinal = blocks() * MAX_VALUES_PER_BATCH;
-    Preconditions.checkArgument(getBatchIndexForOrdinal(newCurrentOrdinal) != batchIndex);
-    Preconditions.checkArgument(currentOrdinal <= newCurrentOrdinal);
+      //2. set the start of target ordinal
+      final int newCurrentOrdinal = blocks() * MAX_VALUES_PER_BATCH;
+      Preconditions.checkArgument(getBatchIndexForOrdinal(newCurrentOrdinal) != batchIndex);
+      Preconditions.checkArgument(currentOrdinal <= newCurrentOrdinal);
 
-    //split this chunk into half by default
-    final int recordsToCopy = numRecords / 2;
-    final int sourceStartIndex = (numRecords - recordsToCopy);
+      //split this chunk into half by default
+      final int recordsToCopy = numRecords / 2;
+      final int sourceStartIndex = (numRecords - recordsToCopy);
 
-    //3. move the keys
-    final int srcStartOrdinal = (batchIndex * MAX_VALUES_PER_BATCH) + sourceStartIndex;
-    final int targetOrdinal = copyKeysToNewBatch(batchIndex, srcStartOrdinal, sourceStartIndex, numRecords, newCurrentOrdinal, seed);
+      //3. move the keys
+      final int srcStartOrdinal = (batchIndex * MAX_VALUES_PER_BATCH) + sourceStartIndex;
+      final int targetOrdinal = copyKeysToNewBatch(batchIndex, srcStartOrdinal,
+        sourceStartIndex, numRecords, newCurrentOrdinal, seed);
 
-    //4 move accumulated records and free space
-    final int dstBatchIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
-    final int total_moved = moveAccumulatedRecords(batchIndex, dstBatchIndex, sourceStartIndex, 0, recordsToCopy);
+      //4 move accumulated records and free space
+      final int dstBatchIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
+      final int total_moved = moveAccumulatedRecords(batchIndex, dstBatchIndex,
+        sourceStartIndex, 0, recordsToCopy);
 
-    //5 fix the usage of fixed & varlen key buffers post copying
-    if (!fixedOnly) {
-      final long srcFixedAddr = tableFixedAddresses[batchIndex] + (sourceStartIndex * pivot.getBlockWidth());
-      final long srcVarOffsetAddr = srcFixedAddr + (pivot.getBlockWidth() - VAR_OFFSET_SIZE);
-      final int offset = PlatformDependent.getInt(srcVarOffsetAddr);
-      //dst buffer gets fixed during copying
-      Preconditions.checkArgument(offset <= variableBlocks[batchIndex].getUnderlying().writerIndex());
-      unusedForVarBlocks += variableBlocks[batchIndex].getUnderlying().writerIndex() - offset;
-      variableBlocks[batchIndex].getUnderlying().writerIndex(offset);
-      openVariableAddresses[batchIndex] = (initVariableAddresses[batchIndex] + offset);
+      //5 fix the usage of fixed & varlen key buffers post copying
+      if (!fixedOnly) {
+        final long srcFixedAddr = tableFixedAddresses[batchIndex] + (sourceStartIndex * pivot.getBlockWidth());
+        final long srcVarOffsetAddr = srcFixedAddr + (pivot.getBlockWidth() - VAR_OFFSET_SIZE);
+        final int offset = PlatformDependent.getInt(srcVarOffsetAddr);
+        //dst buffer gets fixed during copying
+        Preconditions.checkArgument(offset <= variableBlocks[batchIndex].getUnderlying().writerIndex());
+        unusedForVarBlocks += variableBlocks[batchIndex].getUnderlying().writerIndex() - offset;
+        variableBlocks[batchIndex].getUnderlying().writerIndex(offset);
+        openVariableAddresses[batchIndex] = (initVariableAddresses[batchIndex] + offset);
+      }
+
+      fixedBlocks[batchIndex].getUnderlying().writerIndex(sourceStartIndex * pivot.getBlockWidth());
+      unusedForFixedBlocks += recordsToCopy * pivot.getBlockWidth();
+      gaps += recordsToCopy;
+      fixedBlocks[dstBatchIndex].getUnderlying().writerIndex(recordsToCopy * pivot.getBlockWidth());
+
+      //6. fix the ordinal to its new position
+      //logger.debug("spliceop batch: {} old ordinal: {}, new ordinal: {}", batchIndex, currentOrdinal, targetOrdinal);
+      maxOrdinalBeforeExpand = newCurrentOrdinal + ACTUAL_VALUES_PER_BATCH;
+      currentOrdinal = targetOrdinal;
+      return RETRY_RETURN_CODE;
+    } finally {
+      spliceTimer.stop();
     }
-
-    fixedBlocks[batchIndex].getUnderlying().writerIndex(sourceStartIndex * pivot.getBlockWidth());
-    unusedForFixedBlocks += recordsToCopy * pivot.getBlockWidth();
-    gaps += recordsToCopy;
-    fixedBlocks[dstBatchIndex].getUnderlying().writerIndex(recordsToCopy * pivot.getBlockWidth());
-
-    //6. fix the ordinal to its new position
-    //logger.debug("spliceop batch: {} old ordinal: {}, new ordinal: {}", batchIndex, currentOrdinal, targetOrdinal);
-    maxOrdinalBeforeExpand = newCurrentOrdinal + ACTUAL_VALUES_PER_BATCH;
-    currentOrdinal = targetOrdinal;
-    return RETRY_RETURN_CODE;
   }
 
   public final int getBatchIndexForOrdinal(final int ordinal) {

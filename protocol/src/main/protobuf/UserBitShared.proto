@@ -538,6 +538,7 @@ message SlowIOInfo {
   optional int64 io_size = 3;
   optional int64 io_offset = 4;
 }
+
 message RunTimeFilterDetailsInfo {
   optional string probe_target = 1;
   optional bool is_partitioned_coulmn = 2;
@@ -547,12 +548,24 @@ message RunTimeFilterDetailsInfo {
   optional int32  number_of_hash_functions =6;
 }
 
+message RunTimeFilterDetailsInfoInScan {
+  optional int32 minor_fragment_id = 1;
+  optional string join_source = 2;
+  optional bool is_partitioned_column = 3;
+  repeated string probe_field_names = 4;
+  optional int64 number_of_values = 5;
+  optional int32 number_of_hash_functions = 6;
+  optional int64 output_records_before_pruning = 7;
+  optional bool is_dropped = 8;
+}
+
 // Non-metric Operator level details that show up in the profile
 message OperatorProfileDetails {
   repeated ExpressionSplitInfo split_infos = 1;
   repeated SlowIOInfo slow_io_infos = 2;
   repeated SlowIOInfo slow_metadata_io_infos = 3;
   repeated RunTimeFilterDetailsInfo runtimefilter_details_infos = 4;
+  repeated RunTimeFilterDetailsInfoInScan runtimefilter_details_infos_in_scan = 5;
 }
 
 message OperatorProfile {

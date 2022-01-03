@@ -84,19 +84,20 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
   private final Retryer retryer;
   private final String azureEndpoint;
   private ImmutableList<String> whitelistedContainers = ImmutableList.of();
-
+  private final String rootPath;
   AzureAsyncContainerProvider(final AsyncHttpClient asyncHttpClient,
                               final String azureEndpoint,
                               final String account,
                               final AzureAuthTokenProvider authProvider,
                               final AzureStorageFileSystem parent,
-                              boolean isSecure, final String[] containerList) {
+                              boolean isSecure, final String[] containerList, final String rootPath) {
     this.authProvider = authProvider;
     this.azureEndpoint = azureEndpoint;
     this.parent = parent;
     this.account = account;
     this.isSecure = isSecure;
     this.asyncHttpClient = asyncHttpClient;
+    this.rootPath = rootPath;
     this.retryer = new Retryer.Builder()
       .retryIfExceptionOfType(RuntimeException.class)
       .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, BASE_MILLIS_TO_WAIT, MAX_MILLIS_TO_WAIT)
@@ -112,7 +113,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
                               final AzureAuthTokenProvider authProvider,
                               final AzureStorageFileSystem parent,
                               boolean isSecure) {
-    this(asyncHttpClient, azureEndpoint, account, authProvider, parent, isSecure, null);
+    this(asyncHttpClient, azureEndpoint, account, authProvider, parent, isSecure, null, null);
   }
 
   @Override
@@ -140,6 +141,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
       .setUrl(AzureAsyncHttpClientUtils.getBaseEndpointURL(azureEndpoint, account, true) + "/" + containerName)
       .addQueryParam("recursive", "false")
       .addQueryParam("resource", "filesystem")
+      .addQueryParam("directory", (rootPath==null ? "/" :rootPath))
       .addQueryParam("maxresults", "1")
       .addQueryParam("timeout", String.valueOf(requestTimeoutSeconds)).build();
 
@@ -156,6 +158,8 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
       } else if (status == 403) {
         throw new ContainerAccessDeniedException(String.format("Either access to container %s was denied or Container %s does not exist - [%d %s]", containerName,
                 containerName, status, response.getStatusText()));
+      } else if (status == 404) {
+        throw new ContainerNotFoundException(String.format("rootPath %s  in container %s is not found - [%d %s]", rootPath, containerName, status, response.getStatusText()));
       } else {
         throw new ContainerNotFoundException(String.format("Unable to find container %s - [%d %s]", containerName,
                 status, response.getStatusText()));

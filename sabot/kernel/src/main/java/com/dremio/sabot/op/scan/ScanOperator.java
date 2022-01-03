@@ -381,7 +381,8 @@ public class ScanOperator implements ProducerOperator {
       final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
 
       final ArrowBuf msgBuf = message.getIfSingleBuffer().get();
-      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, context.getStats());
+      String sourceJoinId = String.format("%02d-%02d", message.getSendingMajorFragmentId(), message.getSendingOperatorId() & 0xFF);
+      final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, msgBuf, senderInfo, sourceJoinId, context.getFragmentHandle(), context.getStats());
       rollbackCloseable.add(filter);
 
       boolean isAlreadyPresent = this.runtimeFilters.stream()
@@ -394,6 +395,7 @@ public class ScanOperator implements ProducerOperator {
         this.currentReader.addRuntimeFilter(filter);
         this.readers.addRuntimeFilter(filter);
         context.getStats().addLongStat(Metric.NUM_RUNTIME_FILTERS, 1);
+        context.getStats().addRuntimeFilterDetailsInScan(filter.getFilterDetails());
         rollbackCloseable.commit();
       }
     } catch (Exception e) {
@@ -546,6 +548,7 @@ public class ScanOperator implements ProducerOperator {
     AutoCloseables.close(closeables);
     OperatorStats operatorStats = context.getStats();
     operatorStats.setReadIOStats();
+    operatorStats.setScanRuntimeFilterDetailsInProfile();
     onScanDone();
   }
 

@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -52,6 +53,7 @@ import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.util.JobUtil;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
+import com.dremio.service.accelerator.proto.LayoutDescriptor;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.dremio.service.job.JobDetails;
@@ -797,25 +799,42 @@ public class JobInfoDetailsUI {
 
   private void extractReflectionFromReflectionRelationship(AccelerationDetails accelerationDetails) {
     accelerationDetails.getReflectionRelationshipsList().stream().forEach(reflectionRelationship -> {
-      if (reflectionRelationship.getState() == SubstitutionState.CHOSEN) {
-        addReflectionFromAccelerationDetails(reflectionRelationship, Boolean.TRUE, reflectionsUsed);
-      } else {
-        addReflectionFromAccelerationDetails(reflectionRelationship, Boolean.FALSE, reflectionsMatched);
+      if(Objects.nonNull(reflectionRelationship)) {
+        if (reflectionRelationship.getState() == SubstitutionState.CHOSEN) {
+          addReflectionFromAccelerationDetails(reflectionRelationship, Boolean.TRUE, reflectionsUsed);
+        } else {
+          addReflectionFromAccelerationDetails(reflectionRelationship, Boolean.FALSE, reflectionsMatched);
+        }
       }
     });
   }
 
   private void addReflectionFromAccelerationDetails(ReflectionRelationship reflectionRelationship, Boolean isUsed, List<Reflection> reflectionList) {
-    Reflection reflection = new Reflection();
-    reflection.setReflectionID(reflectionRelationship.getReflection().getId().getId());
-    reflection.setReflectionName(reflectionRelationship.getReflection().getName());
-    reflection.setIsStarFlake(reflectionRelationship.getSnowflake());
-    reflection.setIsUsed(isUsed);
-    reflection.setReflectionType(ReflectionType.valueOf(reflectionRelationship.getReflectionType().getNumber()));
-    reflection.setDatasetName(reflectionRelationship.getDataset().getPathList().get(reflectionRelationship.getDataset().getPathList().size() - 1));
-    reflection.setDatasetId(reflectionRelationship.getDataset().getId());
-    reflection.setReflectionDatasetPath(String.join(".", reflectionRelationship.getDataset().getPathList()));
-    reflection.setReflectionCreated(reflectionRelationship.getMaterialization().getRefreshChainStartTime().toString());
-    reflectionList.add(reflection);
+    if (Objects.nonNull(reflectionRelationship)) {
+      Reflection reflection = new Reflection();
+      LayoutDescriptor reflectionFromRelationShip = reflectionRelationship.getReflection();
+      if (Objects.nonNull(reflectionFromRelationShip)) {
+        if (Objects.nonNull(reflectionFromRelationShip.getId())) {
+          reflection.setReflectionID(reflectionFromRelationShip.getId().getId());
+        }
+        reflection.setReflectionName(reflectionFromRelationShip.getName());
+      }
+      reflection.setIsStarFlake(reflectionRelationship.getSnowflake());
+      reflection.setIsUsed(isUsed);
+      if (Objects.nonNull(reflectionRelationship.getReflectionType())) {
+        reflection.setReflectionType(ReflectionType.valueOf(reflectionRelationship.getReflectionType().getNumber()));
+      }
+      if (Objects.nonNull(reflectionRelationship.getDataset())) {
+        if (Objects.nonNull(reflectionRelationship.getDataset().getPathList()) && reflectionRelationship.getDataset().getPathList().size() > 0) {
+          reflection.setDatasetName(reflectionRelationship.getDataset().getPathList().get(reflectionRelationship.getDataset().getPathList().size() - 1));
+          reflection.setReflectionDatasetPath(String.join(".", reflectionRelationship.getDataset().getPathList()));
+        }
+        reflection.setDatasetId(reflectionRelationship.getDataset().getId());
+      }
+      if (Objects.nonNull(reflectionRelationship.getMaterialization()) && Objects.nonNull(reflectionRelationship.getMaterialization().getRefreshChainStartTime())) {
+        reflection.setReflectionCreated(reflectionRelationship.getMaterialization().getRefreshChainStartTime().toString());
+      }
+      reflectionList.add(reflection);
+    }
   }
 }

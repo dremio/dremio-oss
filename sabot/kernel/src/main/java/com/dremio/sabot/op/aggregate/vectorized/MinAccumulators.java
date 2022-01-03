@@ -538,13 +538,12 @@ public class MinAccumulators {
   public static class VarLenMinAccumulator extends BaseVarBinaryAccumulator {
     NullableVarCharHolder holder = new NullableVarCharHolder();
 
-    public VarLenMinAccumulator(FieldVector input, FieldVector output,
-                                FieldVector transferVector, int maxValuesPerBatch,
-                                BufferAllocator computationVectorAllocator,
-                                int varLenAccumulatorCapacity,
+    public VarLenMinAccumulator(FieldVector input, FieldVector output, FieldVector transferVector,
+                                int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
+                                int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent,
                                 BaseVariableWidthVector tempAccumulatorHolder) {
       super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.MIN, maxValuesPerBatch,
-        computationVectorAllocator, varLenAccumulatorCapacity, tempAccumulatorHolder);
+        computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
     }
 
     public void accumulate(final long memoryAddr, final int count,
