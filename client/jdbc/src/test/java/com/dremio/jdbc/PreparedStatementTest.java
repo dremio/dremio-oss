@@ -60,7 +60,7 @@ import com.google.common.collect.ImmutableList;
  * Test for Dremio's implementation of PreparedStatement's methods.
  */
 public class PreparedStatementTest extends JdbcWithServerTestBase {
-  private static final String SYS_VERSION_SQL = "select * from sys.version";
+  private static final String SAMPLE_SQL = "select * from INFORMATION_SCHEMA.CATALOGS";
 
   /** Fuzzy matcher for parameters-not-supported message assertions.  (Based on
    *  current "Prepared-statement dynamic parameters are not supported.") */
@@ -108,7 +108,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
             // DX-4852
             //"cast('99999912399.4567' as decimal(18, 5)) as decimal_field" +
             "cast('99999912399.4567' as double) as double_field" +
-            " FROM sys.version")) {
+            " FROM INFORMATION_SCHEMA.CATALOGS")) {
 
       List<ExpectedColumnResult> exp = ImmutableList.of(
           new ExpectedColumnResult("int_field", INTEGER, columnNullable, 11, 0, 0, true, Integer.class.getName()),
@@ -285,7 +285,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   /** Tests that getQueryTimeout() indicates no timeout set. */
   @Test
   public void testGetQueryTimeoutSaysNoTimeout() throws SQLException {
-    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
       assertThat( statement.getQueryTimeout(), equalTo( 0 ) );
     }
   }
@@ -297,7 +297,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
    *  no-timeout mode. */
   @Test
   public void testSetQueryTimeoutAcceptsNotimeoutRequest() throws SQLException {
-    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
       statement.setQueryTimeout( 0 );
     }
   }
@@ -305,7 +305,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
 
   @Test
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
-    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
       statement.setQueryTimeout( -2 );
     }
     catch ( SQLException e ) {
@@ -321,7 +321,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
    */
   @Test
   public void testValidSetQueryTimeout() throws SQLException {
-    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
       // Setting positive value
       statement.setQueryTimeout(1_000);
       assertThat( statement.getQueryTimeout(), equalTo( 1_000 ) );
@@ -334,7 +334,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   @Test ( expected = SqlTimeoutException.class )
   public void testTriggeredQueryTimeout() throws SQLException {
     String queryId = null;
-    try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
+    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
       // Prevent the server to complete the query to trigger a timeout
       // For prepared statement, two queries are made: one to create the plan and one to
       // execute. We only pause the execution one.

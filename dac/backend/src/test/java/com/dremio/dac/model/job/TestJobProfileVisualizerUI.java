@@ -16,42 +16,22 @@
 package com.dremio.dac.model.job;
 
 import java.util.List;
-import java.util.LongSummaryStatistics;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.util.QueryProfileUtil;
-import com.dremio.service.jobAnalysis.proto.Node;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobAnalysis.proto.PhaseData;
 
 public class TestJobProfileVisualizerUI extends BaseTestServer {
 
   @Test
-  public void testGetNodeDetails() throws Exception {
-    List<PhaseData> testPhaseList;
-    JobProfileVisualizerUI details = new JobProfileVisualizerUI();
-    testPhaseList = details.getPhaseDetail(getTestProfile());
+  public void testGetJobProfileInfo() throws Exception {
+    UserBitShared.QueryProfile profile = getTestProfile();
+    JobProfileVisualizerUI jobProfileVisualizerUI = new JobProfileVisualizerUI(profile);
+    List<PhaseData> phaseDataList = jobProfileVisualizerUI.getJobProfileInfo();
 
-    Assert.assertEquals("00", testPhaseList.get(0).getPhaseId());
-    Assert.assertEquals("SCREEN", testPhaseList.stream().flatMap(c -> c.getOperatorDataList().getOperatorDataList().stream())
-      .collect(Collectors.groupingBy(c -> c.getNodeId(), Collectors.toList())).get("00").get(0).getOperatorName());
-    Assert.assertEquals(7, testPhaseList.stream().flatMap(c -> c.getOperatorDataList().getOperatorDataList().stream())
-      .collect(Collectors.groupingBy(c -> c.getNodeId(), Collectors.toList())).size());
-  }
-
-  @Test
-  public void testBytesProcessedSummary() throws Exception {
-    List<Node> testNodeList;
-    JobProfileVisualizerUI phasedetails = new JobProfileVisualizerUI();
-    QueryProfileUtil details = new QueryProfileUtil(getTestProfile());
-    testNodeList = details.getNodeDetails();
-
-    Map<String, LongSummaryStatistics> byteprocessSummary = phasedetails.bytesProcessedSummary(testNodeList);
-    Assert.assertEquals(7, byteprocessSummary.get("00").getCount());
-    Assert.assertEquals(0, byteprocessSummary.get("00").getMin());
+    Assert.assertEquals("00", phaseDataList.get(0).getPhaseId());
   }
 }

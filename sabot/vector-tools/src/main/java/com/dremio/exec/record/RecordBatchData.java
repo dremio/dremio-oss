@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.record;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -34,6 +35,14 @@ public class RecordBatchData implements AutoCloseable {
   private int recordCount;
   private SelectionVector2 sv2;
   VectorContainer container = new VectorContainer();
+
+  protected RecordBatchData(List<? extends ValueVector> vectors, int recordCount) {
+    this.container = new VectorContainer();
+    this.container.addCollection(new ArrayList<>(vectors));
+    this.container.setAllCount(recordCount);
+    this.container.buildSchema();
+    this.recordCount = container.getRecordCount();
+  }
 
   public RecordBatchData(VectorAccessible batch, BufferAllocator allocator) {
     this(batch, allocator, true);

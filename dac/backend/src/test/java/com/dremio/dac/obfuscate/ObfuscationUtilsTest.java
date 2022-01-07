@@ -36,15 +36,17 @@ public class ObfuscationUtilsTest extends BaseTestServer {
   @Test
   public void obfuscateQueryProfilePositiveTest() throws Exception {
     ObfuscationUtils.setFullObfuscation(true);
-    String query = "SELECT * FROM (VALUES(1234))";
+    String query = "SELECT * FROM (VALUES(1234)) where 'MA' = 'MA' ";
     String observedQuery = obfuscateQueryProfileHelper(new SupportContext("dummy", "dummy"), query);
-    String expectedQuery = "SELECT \"field_0\"\n" + "FROM \"Obfuscated\"";
+    String expectedQuery = "SELECT \"field_0\"\n" +
+      "FROM (VALUES ROW(1234))\n" +
+      "WHERE 'literal_994' = 'literal_994'";
     assertEquals(expectedQuery, observedQuery);
   }
 
   @Test
   public void obfuscateQueryProfileNegativeTest() throws Exception {
-    String query = "SELECT * FROM (VALUES(1234))";
+    String query = "SELECT * FROM (VALUES(1234)) where 'MA' = 'MA' ";
     String observedQuery = obfuscateQueryProfileHelper(null, query);
     String expectedQuery = query;
     assertEquals(expectedQuery, observedQuery);

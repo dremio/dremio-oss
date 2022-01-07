@@ -45,8 +45,8 @@ public class DremioIndexByName extends TypeUtil.CustomOrderSchemaVisitor<Map<Str
 
   @Override
   public Map<String, Integer> struct(Types.StructType struct, Iterable<Map<String, Integer>> fieldResults) {
-    // iterate through the fields to update the index for each one, use size to avoid errorprone failure
-    Lists.newArrayList(fieldResults).size();
+    // iterate through the fields to update the index for each one
+    fieldResults.forEach(r -> {});
     return nameToId;
   }
 

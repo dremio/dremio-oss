@@ -586,7 +586,14 @@ public class DatasetTool {
       applyQueryMetaToDatasetAndSave(jobInfo, queryMetadata, newDataset, query, from);
       return createRunResponse(newDataset, jobId, newDataset.getVersion());
     } catch(UserException e) {
-      throw toInvalidQueryException(e, query.getSql(), context);
+      String failureMessage = e.getOriginalMessage();
+      if (failureMessage.startsWith("ResourceAllocationException")) {
+        throw UserException.dataReadError()
+          .message(failureMessage)
+          .build(logger);
+      } else {
+        throw toInvalidQueryException(e, query.getSql(), context);
+      }
     } catch (JobNotFoundException e) {
       // should never be thrown
       UserException uex = UserException.systemError(e).buildSilently();

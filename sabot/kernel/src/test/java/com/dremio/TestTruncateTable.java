@@ -78,7 +78,7 @@ public class TestTruncateTable extends PlanTestBase {
   @Test
   public void nonIcebergTableShouldThrowError() throws Exception {
     for (String testSchema: SCHEMAS_FOR_TEST) {
-      String ctas = "create table " + testSchema + ".truncTable5 as SELECT * FROM sys.version";
+      String ctas = "create table " + testSchema + ".truncTable5 as SELECT * FROM INFORMATION_SCHEMA.CATALOGS";
       test(ctas);
       String truncSql = "TRUNCATE TABLE " + testSchema + ".truncTable5";
       try (AutoCloseable c = enableIcebergTables()) {
@@ -111,7 +111,7 @@ public class TestTruncateTable extends PlanTestBase {
     for (String testSchema: SCHEMAS_FOR_TEST) {
       String tableName = "truncTable3";
       try (AutoCloseable c = enableIcebergTables()) {
-        String ctas = String.format("create table %s.%s as SELECT * FROM sys.version", testSchema, tableName);
+        String ctas = String.format("create table %s.%s as SELECT * FROM INFORMATION_SCHEMA.CATALOGS", testSchema, tableName);
         test(ctas);
 
         testBuilder()
@@ -145,11 +145,11 @@ public class TestTruncateTable extends PlanTestBase {
     for (String testSchema: SCHEMAS_FOR_TEST) {
       String tableName = "truncTable4";
       try (AutoCloseable c = enableIcebergTables()) {
-        String ctas = String.format("create table %s.%s as SELECT * FROM sys.version", testSchema, tableName);
+        String ctas = String.format("create table %s.%s as SELECT * FROM INFORMATION_SCHEMA.CATALOGS", testSchema, tableName);
         test(ctas);
         Thread.sleep(1001);
 
-        String insertSql = String.format("INSERT INTO %s.%s select * FROM sys.version", testSchema, tableName);
+        String insertSql = String.format("INSERT INTO %s.%s select * FROM INFORMATION_SCHEMA.CATALOGS", testSchema, tableName);
         test(insertSql);
         Thread.sleep(1001);
         test(insertSql);

@@ -45,6 +45,7 @@ import com.dremio.dac.support.SupportService;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.testing.ControlsInjectionUtil;
 import com.dremio.exec.work.foreman.AttemptManager;
@@ -569,6 +570,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
   private void validateFailedJob(JobSummary jobSummary) throws Exception {
     Assert.assertSame(jobSummary.getJobState(), JobState.FAILED);
     Assert.assertNotNull(jobSummary.getFailureInfo());
+    Assert.assertTrue(jobSummary.getEndTime() > jobSummary.getStartTime());
     Assert.assertTrue(jobSummary.getFailureInfo().contains("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
   }
 
@@ -602,6 +604,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
         .build());
 
     validateFailedJob(jobSummary);
+    Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.COMPLETED);
   }
 
   @Test
@@ -651,6 +654,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
           .build());
       if(jobSummary.getJobState() == JobState.FAILED) {
         validateFailedJob(jobSummary);
+        Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
         break;
       }
       Thread.sleep(50);
@@ -730,6 +734,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
           .build());
       if(jobSummary.getJobState() == JobState.FAILED) {
         validateFailedJob(jobSummary);
+        Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
         break;
       }
       Thread.sleep(50);
@@ -743,6 +748,7 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
           .build());
       if(jobSummary.getJobState() == JobState.FAILED) {
         validateFailedJob(jobSummary);
+        Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
         break;
       }
       Thread.sleep(50);

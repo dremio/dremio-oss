@@ -35,6 +35,7 @@ import javax.inject.Provider;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.service.coordinator.ClusterElectionManager;
 import com.dremio.service.coordinator.ClusterServiceSetManager;
 import com.dremio.service.coordinator.TaskLeaderChangeListener;
 import com.dremio.service.coordinator.TaskLeaderElection;
@@ -50,6 +51,7 @@ public class LocalSchedulerService implements SchedulerService {
 
   private final CloseableSchedulerThreadPool executorService;
   private final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider;
+  private final Provider<ClusterElectionManager> clusterElectionManagerProvider;
   private final Provider<CoordinationProtos.NodeEndpoint> currentEndPoint;
   private final boolean assumeTaskLeadership;
 
@@ -64,29 +66,33 @@ public class LocalSchedulerService implements SchedulerService {
    */
   public LocalSchedulerService(int corePoolSize) {
     this(new CloseableSchedulerThreadPool(THREAD_NAME_PREFIX, corePoolSize),
-      null, null, false);
+      null, null, null, false);
   }
 
   public LocalSchedulerService(int corePoolSize, String threadNamePrefix) {
     this(new CloseableSchedulerThreadPool(threadNamePrefix, corePoolSize),
-      null, null, false);
+      null, null, null, false);
   }
 
   public LocalSchedulerService(int corePoolSize,
-                               Provider<ClusterServiceSetManager> clusterElectionManagerProvider,
+                               Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+                               Provider<ClusterElectionManager> clusterElectionManagerProvider,
                                Provider<CoordinationProtos.NodeEndpoint> currentNode,
                                boolean assumeTaskLeadership) {
-    this(new CloseableSchedulerThreadPool(THREAD_NAME_PREFIX, corePoolSize), clusterElectionManagerProvider, currentNode,
+    this(new CloseableSchedulerThreadPool(THREAD_NAME_PREFIX, corePoolSize),
+      clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentNode,
       assumeTaskLeadership);
   }
 
   @VisibleForTesting
   LocalSchedulerService(CloseableSchedulerThreadPool executorService,
                         Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+                        Provider<ClusterElectionManager> clusterElectionManagerProvider,
                         Provider<CoordinationProtos.NodeEndpoint> currentNode,
                         boolean assumeTaskLeadership) {
     this.executorService = executorService;
     this.clusterServiceSetManagerProvider = clusterServiceSetManagerProvider;
+    this.clusterElectionManagerProvider = clusterElectionManagerProvider;
     this.currentEndPoint = currentNode;
     this.assumeTaskLeadership = assumeTaskLeadership;
   }
@@ -391,6 +397,7 @@ public class LocalSchedulerService implements SchedulerService {
         final TaskLeaderElection taskLeaderElection = new TaskLeaderElection(
           taskName,
           clusterServiceSetManagerProvider,
+          clusterElectionManagerProvider,
           scheduledLeadershipRelease,
           currentEndPoint,
           executorService

@@ -81,6 +81,8 @@ public interface ExecConstants {
 
   String LAZYEXPEVAL_ENABLED_KEY = "exec.expression.lazyEval.enabled";
   BooleanValidator LAZYEXPEVAL_ENABLED = new BooleanValidator(LAZYEXPEVAL_ENABLED_KEY, true);
+  String SPLIT_CACHING_ENABLED_KEY = "exec.expression.splits_cache.enabled";
+  BooleanValidator SPLIT_CACHING_ENABLED = new BooleanValidator(SPLIT_CACHING_ENABLED_KEY, true);
 
   String MAX_SPLITS_PER_EXPR_KEY = "exec.expression.split.max_splits_per_expression";
   PositiveLongValidator MAX_SPLITS_PER_EXPRESSION = new PositiveLongValidator(MAX_SPLITS_PER_EXPR_KEY, Long.MAX_VALUE, 10);
@@ -374,6 +376,8 @@ public interface ExecConstants {
 
   String BOOTSTRAP_STORAGE_PLUGINS_FILE = "bootstrap-storage-plugins.json";
   String MAX_LOADING_CACHE_SIZE_CONFIG = "dremio.exec.compile.cache_max_size";
+  String MAX_SPLIT_CACHE_SIZE_CONFIG = "dremio.exec.compile.split_cache_max_size";
+
 
   String ENABLE_WINDOW_FUNCTIONS = "window.enable";
   OptionValidator ENABLE_WINDOW_FUNCTIONS_VALIDATOR = new BooleanValidator(ENABLE_WINDOW_FUNCTIONS, true);
@@ -478,6 +482,7 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_nospill.varchar_ndv", true);
   BooleanValidator ENABLE_NDV_REDUCE_HEAP = new BooleanValidator("exec.operator.ndv_reduce_heap", true);
+  BooleanValidator ENABLE_VECTORIZED_SPILL_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_spill.ndv", false);
 
   BooleanValidator ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_spill.varchar", true);
 
@@ -496,7 +501,10 @@ public interface ExecConstants {
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
   BooleanValidator ENABLE_ICEBERG_MIN_MAX = new BooleanValidator("dremio.iceberg.min_max.enabled", true);
   BooleanValidator CTAS_CAN_USE_ICEBERG = new BooleanValidator("dremio.iceberg.ctas.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION = new BooleanValidator("dremio.iceberg.spec_evol_and_transformation.enabled", false);
   BooleanValidator ENABLE_PARTITION_STATS_USAGE = new BooleanValidator("dremio.use_partition_stats_enabled", true);
+
+  BooleanValidator ENABLE_USE_VERSION_SYNTAX = new TypeValidators.BooleanValidator("dremio.sql.use_version.enabled", false);
 
   // warning threshold for running time of a task
   PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
@@ -538,10 +546,6 @@ public interface ExecConstants {
 
   String ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY = "exec.parquet.enable_vectorized_complex";
   BooleanValidator ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS = new BooleanValidator(ENABLE_PARQUET_VECTORIZED_COMPLEX_READERS_KEY, true);
-
-  // Option to toggle support for mixed data types
-  BooleanValidator MIXED_TYPES_DISABLED = new BooleanValidator("store.disable.mixed_types", true);
-
   BooleanValidator PREFETCH_READER = new BooleanValidator("store.parquet.prefetch_reader", true);
   BooleanValidator READ_COLUMN_INDEXES = new BooleanValidator("store.parquet.read_column_indexes", true);
   // Increasing this will increase the number of splits that are prefetched. Unfortunately, it can also lead to multiple footer reads
@@ -578,11 +582,20 @@ public interface ExecConstants {
   BooleanValidator STORE_ACCURATE_PARTITION_STATS = new BooleanValidator("store.accurate.partition_stats", false);
 
   // Option to enable SysFlight Storage Plugin
-  BooleanValidator ENABLE_SYSFLIGHT_SOURCE = new BooleanValidator("sys.flight.enabled", false);
+  BooleanValidator ENABLE_SYSFLIGHT_SOURCE = new BooleanValidator("sys.flight.enabled", true);
 
   // option used to determine S3AsyncClient should get used or S3SyncWithAsync wrapper, false value to support prev implementation
   BooleanValidator S3_NATIVE_ASYNC_CLIENT = new BooleanValidator("dremio.s3.use_native_async_client", false);
 
+  // option used to enable/disable internal schema
+  BooleanValidator ENABLE_INTERNAL_SCHEMA = new BooleanValidator("dremio.enable_user_managed_schema", false);
+
+  // option used to enable/disable arrow caching for parquet dataset
+  BooleanValidator ENABLE_PARQUET_ARROW_CACHING = new BooleanValidator("dremio.enable_parquet_arrow_caching", false);
+
   // option used to fallback on name based mapping during iceberg reads when parquet files do not contain IDs
   BooleanValidator ENABLE_ICEBERG_FALLBACK_NAME_BASED_READ = new BooleanValidator("dremio.iceberg.fallback_to_name_based_reader", false);
+
+  // option used to enable rle and packed stats using ReaderTimer
+  BooleanValidator ENABLE_PARQUET_PERF_MONITORING = new BooleanValidator("dremio.exec.parquet_enable_perf_monitoring", false);
 }

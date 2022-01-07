@@ -17,7 +17,9 @@ package com.dremio.common.util;
 
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
 import com.google.common.collect.MoreCollectors;
+
 public class DremioCollectors {
   public static <VALUE, KEY> java.util.stream.Collector<VALUE, ?, java.util.Map<KEY, VALUE>> uniqueGrouping(
     Function<VALUE, KEY> function

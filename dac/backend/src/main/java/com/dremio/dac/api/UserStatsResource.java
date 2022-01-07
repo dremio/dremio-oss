@@ -19,6 +19,15 @@ package com.dremio.dac.api;
 import static com.dremio.dac.util.DateUtils.getStartOfLastMonth;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
@@ -36,7 +45,9 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.edition.EditionProvider;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.SearchJobsRequest;
+import com.dremio.service.job.UniqueUserStatsRequest;
 import com.dremio.service.jobs.JobsService;
+import com.google.protobuf.Timestamp;
 
 /**
  * Resource that provides information about user activity.
@@ -50,21 +61,71 @@ public class UserStatsResource {
   private static final Logger logger = LoggerFactory.getLogger(UserStatsResource.class);
   private static final String FILTER = "(st=gt=%d;st=lt=%d)";
 
+  private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+  private static final SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+
   private final JobsService jobsService;
-  private final EditionProvider editionProvider;
+  private final String edition;
 
   @Inject
   public UserStatsResource(JobsService jobsService, EditionProvider editionProvider) {
     this.jobsService = jobsService;
-    this.editionProvider = editionProvider;
+    this.edition = editionProvider.getEdition();
   }
 
   @GET
   public UserStats getActiveUserStats(@QueryParam("start") @DefaultValue("0") long startEpoch ,
-                                      @QueryParam("end") @DefaultValue("0") long endEpoch) {
+                                      @QueryParam("end") @DefaultValue("0") long endEpoch,
+                                      @QueryParam("onlyUniqueUsersByDate") @DefaultValue("false") String onlyUniqueUsersByDate) {
+    if (Boolean.parseBoolean(onlyUniqueUsersByDate)) {
+      return getUniqueUsersByDate(startEpoch, endEpoch) ;
+    }
+    return getActiveUserStats(startEpoch, endEpoch);
+  }
+
+  private Timestamp convert(long epochInMilliSeconds) {
+    return Timestamp.newBuilder()
+      .setSeconds(epochInMilliSeconds / 1000)
+      .setNanos((int)(epochInMilliSeconds % 1000) * 1_000_000)
+      .build();
+  }
+
+  private UserStats getUniqueUsersByDate(long startEpoch, long endEpoch) {
+    List<Map<String, Object>> userStatsByDate = Collections.synchronizedList(new ArrayList<>());
+
     try {
-      final UserStats.Builder activeUserStats = new UserStats.Builder();
-      activeUserStats.setEdition(editionProvider.getEdition());
+      Consumer<Long[]> consumer = (pair) -> {
+        long iterStartDate = pair[0];
+        long iterEndDate = pair[1];
+        logger.debug("StartTime: {}, EndTime:{}", sdf2.format(new Date(iterStartDate)), sdf2.format(new Date(iterEndDate)));
+
+        com.dremio.service.job.UniqueUserStats uniqueUserStats = jobsService.getUniqueUserStats(UniqueUserStatsRequest.newBuilder()
+          .setStartDate(convert(iterStartDate))
+          .setEndDate(convert(iterEndDate))
+          .build());
+
+        long total = uniqueUserStats.getUniqueUsers();
+        if (total > 0) {
+          Map<String, Object> countMap = new HashMap<>();
+          userStatsByDate.add(countMap);
+          countMap.put("date", sdf.format(new java.util.Date(iterStartDate)));
+          countMap.put("total", total);
+        }
+      };
+
+      StatsUtils.executeDateWise(startEpoch, endEpoch, consumer);
+      return UserStats.createUserStats(edition, userStatsByDate, new ArrayList<>(), new ArrayList<>());
+
+    } catch (Exception err) {
+      logger.error("UserStatsResource failed. ", err);
+      throw new InternalServerErrorException(err);
+    }
+  }
+
+  private UserStats getActiveUserStats(long startEpoch, long endEpoch) {
+      try {
+        final UserStats.Builder activeUserStats = new UserStats.Builder();
+      activeUserStats.setEdition(edition);
       final String filter = createJobFilter(startEpoch,endEpoch);
       final SearchJobsRequest request = SearchJobsRequest.newBuilder()
         .setFilterString(filter)

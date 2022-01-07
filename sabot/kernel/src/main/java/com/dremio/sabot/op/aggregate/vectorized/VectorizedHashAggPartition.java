@@ -15,7 +15,8 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-import java.util.HashMap;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
@@ -28,12 +29,15 @@ import org.apache.arrow.vector.types.Types;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
+import com.dremio.sabot.op.common.ht2.ResizeListener;
+import com.dremio.sabot.op.common.ht2.SpaceCheckListener;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 
 import io.netty.util.internal.PlatformDependent;
 
-public class VectorizedHashAggPartition implements AutoCloseable {
+public class VectorizedHashAggPartition implements SpaceCheckListener, AutoCloseable {
   boolean spilled;
   final LBlockHashTable hashTable;
   final AccumulatorSet accumulator;
@@ -42,8 +46,11 @@ public class VectorizedHashAggPartition implements AutoCloseable {
   ArrowBuf buffer;
   private VectorizedHashAggDiskPartition spillInfo;
   private String identifier;
-  private boolean decimalV2Enabled;
-  HashMap<Integer, Integer> batchSpaceUsage = new HashMap<>();
+  private final boolean decimalV2Enabled;
+  private int varFieldLen = 0;
+  private int[] batchSpaceUsage;
+  private final Stopwatch forceAccumTimer = Stopwatch.createUnstarted();
+  private int numForceAccums = 0;
 
   /**
    * Create a partition. Used by {@link VectorizedHashAggOperator} at setup
@@ -58,17 +65,20 @@ public class VectorizedHashAggPartition implements AutoCloseable {
                                     final LBlockHashTable hashTable,
                                     final int blockWidth,
                                     final String identifier,
-                                    final ArrowBuf buffer, boolean decimalV2Enabled) {
+                                    final ArrowBuf buffer,
+                                    boolean decimalV2Enabled) {
     Preconditions.checkArgument(hashTable != null, "Error: initializing a partition with invalid hash table");
     this.spilled = false;
     this.records = 0;
     this.hashTable = hashTable;
+    this.hashTable.registerSpaceCheckListener(this);
     this.accumulator = accumulator;
     this.blockWidth = blockWidth;
     this.spillInfo = null;
     this.identifier = identifier;
     this.buffer = buffer;
     this.decimalV2Enabled = decimalV2Enabled;
+    batchSpaceUsage = new int[0];
     buffer.getReferenceManager().retain(1);
   }
 
@@ -227,27 +237,40 @@ public class VectorizedHashAggPartition implements AutoCloseable {
       final FieldVector deserializedAccumulator = accumulatorVectors[i];
       final byte accumulatorType = accumulatorTypes[i];
       if (accumulatorType == AccumulatorBuilder.AccumulatorType.COUNT1.ordinal()) {
-        /* handle COUNT(1) */
         partitionAccumulators[i] =
           new SumAccumulators.BigIntSumAccumulator((CountOneAccumulator)partitionAccumulator,
                                                    deserializedAccumulator,
                                                    hashTable.getActualValuesPerBatch(),
                                                    computationVectorAllocator);
       } else if(accumulatorType == AccumulatorBuilder.AccumulatorType.COUNT.ordinal()) {
-        /* handle COUNT() */
         partitionAccumulators[i] =
           new SumAccumulators.BigIntSumAccumulator((CountColumnAccumulator)partitionAccumulator,
                                                    deserializedAccumulator,
                                                    hashTable.getActualValuesPerBatch(),
                                                    computationVectorAllocator);
       } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.SUM.ordinal()) {
-        /* handle SUM */
         updateSumAccumulator(deserializedAccumulator, partitionAccumulators,
                              i, computationVectorAllocator);
       } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.SUM0.ordinal()) {
-        /* handle $SUM0 */
         updateSumZeroAccumulator(deserializedAccumulator, partitionAccumulators,
                                  i, computationVectorAllocator);
+
+      } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.HLL.ordinal()) {
+        /*
+         * HLL NDV results are serialized and saved in variable width vector. In order to
+         * merge them across spilled batches, need to unionize them.
+         */
+        partitionAccumulators[i] = new NdvAccumulators.NdvUnionAccumulators(
+          (BaseNdvAccumulator) partitionAccumulator, deserializedAccumulator,
+          hashTable.getActualValuesPerBatch(), computationVectorAllocator);
+        try {
+          /* This never fail */
+          partitionAccumulator.close();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal()) {
+        partitionAccumulators[i].setInput(deserializedAccumulator);
       } else {
         /* handle MIN, MAX */
         Preconditions.checkArgument(
@@ -512,15 +535,73 @@ public class VectorizedHashAggPartition implements AutoCloseable {
     return accumulator;
   }
 
-  public int getBatchUsedSpace(int batchIndex) {
-    return batchSpaceUsage.getOrDefault(batchIndex, 0);
+  private void reallocateBatchUsedSpace() {
+    int[] newBatches = new int[batchSpaceUsage.length + 64];
+    for (int i = 0 ; i < batchSpaceUsage.length; ++i) {
+      newBatches[i] = batchSpaceUsage[i];
+    }
+    batchSpaceUsage = newBatches;
+  }
+
+  private int getBatchUsedSpace(int batchIndex) {
+    if (batchIndex >= batchSpaceUsage.length) {
+      reallocateBatchUsedSpace();
+      Preconditions.checkArgument(batchIndex < batchSpaceUsage.length);
+    }
+    return batchSpaceUsage[batchIndex];
   }
 
   public void addBatchUsedSpace(int batchIndex, int space) {
-    batchSpaceUsage.put(batchIndex, space + getBatchUsedSpace(batchIndex));
+    /* When this function called, batchSpaceUsage already allocated */
+    batchSpaceUsage[batchIndex] += space;
   }
 
   private void resetBatchUsedSpace() {
-    batchSpaceUsage.clear();
+    Arrays.fill(batchSpaceUsage, 0);
+  }
+
+  public void setVarFieldLen(int varFieldLen) {
+    this.varFieldLen = varFieldLen;
+  }
+
+  @Override
+  public boolean resizeListenerHasSpace(ResizeListener resizeListener, final int batchIndex, long seed) {
+    if (varFieldLen == 0) {
+      return true;
+    }
+
+    if (resizeListener.hasSpace(varFieldLen + getBatchUsedSpace(batchIndex), batchIndex)) {
+      return true;
+    }
+    /* Not enough space, so try force accumulate all the saved records and recheck it resizer has enough space. */
+    if (forceAccum(resizeListener) &&
+      resizeListener.hasSpace(varFieldLen + getBatchUsedSpace(batchIndex), batchIndex)) {
+      return true;
+    }
+
+    /* Still not enough space. Splice the batch and return false for hashtable to retry the insert. */
+    hashTable.splice(batchIndex, seed);
+    return false;
+  }
+
+  private boolean forceAccum(ResizeListener resizeListener) {
+    if (getRecords() > 0) {
+      ++numForceAccums;
+      forceAccumTimer.start();
+      resizeListener.accumulate(getBuffer().memoryAddress(), getRecords(),
+        hashTable.getBitsInChunk(), hashTable.getChunkOffsetMask());
+      forceAccumTimer.stop();
+      resetRecords();
+      return true;
+    }
+    return false;
+  }
+
+  public int getForceAccumCount() {
+    return numForceAccums;
+  }
+
+  public long getForceAccumTime(TimeUnit unit){
+    return forceAccumTimer.elapsed(unit);
   }
 }

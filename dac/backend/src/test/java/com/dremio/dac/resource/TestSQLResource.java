@@ -28,6 +28,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 
 import org.apache.calcite.sql.parser.SqlParserUtil;
+import org.apache.calcite.sql.parser.StringAndPos;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -135,19 +136,19 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSpaceFullSchemaCompletion() throws Exception {
     final String partialQuery = "SELECT * from ^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(45, returnedSuggestions.getSuggestions().size());
+    assertEquals(21, returnedSuggestions.getSuggestions().size());
   }
 
   @Test
   public void testSpaceVDSPartialSchemaCompletion() throws Exception {
     final String partialQuery = "SELECT * from t^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     ArrayList<String> expectedTables = Lists.newArrayList();
@@ -155,17 +156,13 @@ public class TestSQLResource extends BaseTestServer {
       asList(
         "INFORMATION_SCHEMA.\"TABLES\"",
         "cp.\"tpch/supplier.parquet\"",
-        "sys.table_statistics",
-        "sys.threads",
-        "sys.timezone_abbrevs",
-        "sys.timezone_names",
         "testSpace.supplier"));
 
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(9, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 8; i++) {
+    assertEquals(5, returnedSuggestions.getSuggestions().size());
+    for (int i = 0; i < 4; i++) {
       SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
       if (suggestion.getType().equals("TABLE")) {
         assertTrue(expectedTables.contains(suggestion.getName()));
@@ -180,7 +177,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void spacePDSPartialSchemaCompletion() throws Exception {
     final String partialQuery = "SELECT * from c^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     ArrayList<String> expectedTables = Lists.newArrayList();
@@ -208,7 +205,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSpaceVDSFullDatasetCompletionNoPeriod() throws Exception {
     final String partialQuery = "SELECT * from testSpace^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -228,7 +225,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testPDSFullDatasetCompletionNoPeriod() throws Exception {
     final String partialQuery = "SELECT * from cp^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -248,7 +245,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSpaceVDSFullDatasetCompletionWPeriod() throws Exception {
     final String partialQuery = "SELECT * from testSpace.^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -263,7 +260,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testPDSFullDatasetCompletionWPeriod() throws Exception {
     final String partialQuery = "SELECT * from cp.^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -278,7 +275,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSpaceVDSPartialDatasetCompletion() throws Exception {
     final String partialQuery = "SELECT * from testSpace.sup^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -293,7 +290,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSpacePDSPartialDatasetCompletion() throws Exception {
     final String partialQuery = "SELECT * from cp.t^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -309,7 +306,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testPartialColumnCompletionWithAlias() throws Exception {
     final String partialQuery = "SELECT t1.s^ from testSpace.supplier t1";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     ArrayList<String> expectedColumns = Lists.newArrayList();
@@ -333,7 +330,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSQLAnalyzeSuggestInfoSchema() throws Exception {
     final String partialQuery = "select * from i^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("@dremio"));
 
     ArrayList<String> expectedTables = Lists.newArrayList();
@@ -362,7 +359,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSuggestFromPartialSchema() throws Exception {
     final String partialQuery = "Select * from m^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     ArrayList<String> expectedTables = Lists.newArrayList();
@@ -370,11 +367,7 @@ public class TestSQLResource extends BaseTestServer {
       asList(
         "mysrc.ds1",
         "mysrc.ds2",
-        "mysrc.ds3",
-        "sys.materializations",
-        "sys.membership",
-        "sys.memory",
-        "\"sys.cache\".mount_points"));
+        "mysrc.ds3"));
 
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
@@ -393,7 +386,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSuggestFromFullSchema() throws Exception {
     final String partialQuery = "Select * from mysrc^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -413,7 +406,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSuggestFromSchemaSeparator() throws Exception {
     final String partialQuery = "Select * from mysrc.^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, new ArrayList<String>());
 
     logAdvisorResponse(returnedSuggestions);
@@ -430,7 +423,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSuggestFromPartialDataset() throws Exception {
     final String partialQuery = "Select * from mysrc.d^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -447,7 +440,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test // Could improve to suggest Dremio specific keywords
   public void testSuggestSelectList() throws Exception {
     final String partialQuery = "Select ^ from mysrc.ds1";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("mysrc"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -461,7 +454,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testSuggestColumn() throws Exception {
     final String partialQuery = "SELECT t.^ FROM testSpace.supplier t";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("cp"));
 
     ArrayList<String> expectedColumns = Lists.newArrayList();
@@ -486,7 +479,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test // Suggestions for partial require update to Calcite
   public void testSuggestColumnPartial() throws Exception {
     final String partialQuery = "SELECT t.s^ FROM testSpace.supplier t";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final SuggestionResponse returnedSuggestions = testSuggestSQL(stringAndPos.sql, stringAndPos.cursor, asList("cp"));
 
     ArrayList<String> expectedColumns = Lists.newArrayList();
@@ -507,7 +500,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test // Range can be improved
   public void testErrorUnrecognizedTable() throws Exception {
     final String partialQuery = "Select * from m^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final ValidationResponse returnedSuggestions = testValidateSQL(stringAndPos.sql, stringAndPos.cursor, asList("@dremio"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -521,7 +514,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test // Error message identical to current. (unrecognized * intead of missing keyword FROM) Can be improved.
   public void testErrorIncompleteFrom() throws Exception {
     final String partialQuery = "Select * fro^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final ValidationResponse returnedSuggestions = testValidateSQL(stringAndPos.sql, stringAndPos.cursor, asList("@dremio"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -535,7 +528,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test // Current error-handling wraps this error in a generic parse error.
   public void testErrorIncompleteSelect() throws Exception {
     final String partialQuery = "Sel^";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final ValidationResponse returnedSuggestions = testValidateSQL(stringAndPos.sql, stringAndPos.cursor, asList("@dremio"));
 
     logAdvisorResponse(returnedSuggestions);
@@ -549,7 +542,7 @@ public class TestSQLResource extends BaseTestServer {
   @Test
   public void testErrorUnrecognizedColumn() throws Exception {
     final String partialQuery = "SELECT testCol^ FROM testSpace.supplier";
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(partialQuery);
     final ValidationResponse returnedSuggestions = testValidateSQL(stringAndPos.sql, stringAndPos.cursor, asList("cp"));
 
     logAdvisorResponse(returnedSuggestions);

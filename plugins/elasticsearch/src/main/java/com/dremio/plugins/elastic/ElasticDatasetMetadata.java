@@ -92,15 +92,15 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
     }
 
     final SchemaMerger merger = new SchemaMerger(datasetHandle.getDatasetPath().toString());
-    MergeResult mergeResult = merger.merge(datasetHandle.getMapping(), oldSchema);
-
+    final boolean forceDoublePrecision = datasetHandle.getPluginConfig().isForceDoublePrecision();
+    final MergeResult mergeResult = merger.merge(datasetHandle.getMapping(), oldSchema, forceDoublePrecision);
     // sample (whether we have seen stuff before or not). We always sample to improve understanding of list fields that may occur.
     BatchSchema sampledSchema =
       getSampledSchema(mergeResult.getSchema(), FieldAnnotation.getAnnotationMap(mergeResult.getAnnotations()));
-    mergeResult = merger.merge(datasetHandle.getMapping(), sampledSchema);
+    final MergeResult mergeSampleSchemaResult = merger.merge(datasetHandle.getMapping(), sampledSchema, forceDoublePrecision);
 
     final ElasticTableXattr.Builder tableAttributesB = ElasticTableXattr.newBuilder()
-      .addAllAnnotation(mergeResult.getAnnotations())
+      .addAllAnnotation(mergeSampleSchemaResult.getAnnotations())
       .setMappingHash(datasetHandle.getMapping().hashCode())
       .setVariationDetected(datasetHandle.getMapping().isVariationDetected())
       .setResource(RESOURCE_JOINER.join(partitionChunkListing.getIndexOrAlias(), partitionChunkListing.getTypeName()));
@@ -116,7 +116,7 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
 
     this.datasetMetadata = DatasetMetadata.of(
       DatasetStats.of(partitionChunkListing.getRowCount(), false, ScanCostFactor.ELASTIC.getFactor()),
-      mergeResult.getSchema(),
+      mergeSampleSchemaResult.getSchema(),
       Collections.emptyList(),
       Collections.emptyList(),
       os -> extended.writeTo(os)
@@ -138,13 +138,13 @@ public class ElasticDatasetMetadata implements DatasetMetadata {
         new OperatorContextImpl(datasetHandle.getContext().getConfig(),
           datasetHandle.getContext().getDremioConfig(),
           sampleAllocator, datasetHandle.getContext().getOptionManager(),
-          SAMPLE_FETCH_SIZE)
+          SAMPLE_FETCH_SIZE, datasetHandle.getContext().getExpressionSplitCache())
     ) {
 
       WorkingBuffer buffer = new WorkingBuffer(operatorContext.getManagedBuffer());
       final int maxCellSize = Math.toIntExact(operatorContext.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
-      final FieldReadDefinition readDefinition = FieldReadDefinition.getTree(schema, annotations, buffer, maxCellSize, elasticVersionBehaviorProvider);
-
+      final boolean forceDoublePrecision = datasetHandle.getPluginConfig().isForceDoublePrecision();
+      final FieldReadDefinition readDefinition = FieldReadDefinition.getTree(schema, annotations, buffer, maxCellSize, elasticVersionBehaviorProvider, forceDoublePrecision);
       try (final ElasticsearchRecordReader reader = new ElasticsearchRecordReader (
         null,
         null,

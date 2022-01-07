@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { IndexRedirect, IndexRoute, Redirect, Route } from 'react-router';
+import { IndexRoute, Redirect, Route } from 'react-router';
 import React from 'react';
 
 import { CheckUserAuthentication, UserIsAuthenticated } from '@app/components/Auth/authWrappers';
@@ -26,20 +26,19 @@ import {
 } from '@app/actions/explore/dataset/data';
 // import Votes from '@inject/pages/AdminPage/subpages/Votes'; // To Be Removed
 import EulaPage from '@inject/pages/EulaPage/EulaPage';
-import PATListPage from '@inject/pages/AccountPage/personalAccessTokens/PATListPage';
 import SSOLandingPage from '@inject/pages/AuthenticationPage/components/SSOLandingPage';
 import { resetModuleState } from '@app/actions/modulesState';
 import { exploreStateKey } from '@app/selectors/explore';
 import { LOGIN_PATH, SIGNUP_PATH, SSO_LANDING_PATH } from '@app/sagas/loginLogout';
 import { lazy } from '@app/components/Lazy';
-import ReflectionJobsPage from '@inject/pages/JobPage/ReflectionJobsPage';
-import { AdminPageRouting } from '@inject/RouteMixin.js';
+import { AccountPageRouting, AdminPageRouting } from '@inject/RouteMixin.js';
 import AuthenticationPage from '@inject/pages/AuthenticationPage/AuthenticationPage';
-import Info from '@inject/pages/AccountPage/subpages/InfoController';
-
 import additionalRoutes from '@inject/additionalRoutes';
+import ReflectionJobsPage from '@inject/pages/JobPage/ReflectionJobsPage';
 import JobPage from '@inject/pages/QVJobPage/QVJobPage';
+import SingleJobPage from '@app/pages/JobDetailsPageNew/JobDetailsPage';
 
+import jobsUtils from './utils/jobsUtils.js';
 import App from './containers/App';
 
 import ReloadPage from './pages/ReloadPage';
@@ -51,12 +50,8 @@ import AllSources from './pages/HomePage/subpages/AllSources/AllSources';
 
 import ExploreModals from './pages/ExplorePage/ExploreModals';
 
-import AccountPage from './pages/AccountPage/AccountPage';
-
 import SignupPage from './pages/SignupPage/SignupPage';
 import ServerStatusPage from './pages/ServerStatusPage/ServerStatusPage';
-
-import AccountModals from './pages/AccountPage/AccountModals';
 
 import JobModals from './pages/JobPage/JobModals';
 
@@ -101,6 +96,29 @@ const getExploreRoute = (routeProps, dispatch) => {
   );
 };
 
+const JobsRouting = () => {
+  if (jobsUtils.isNewJobsPage()) {
+    return (
+      <Route component={Page}>
+        <Route path='/jobs/reflection/:reflectionId' component={ReflectionJobsPage} />
+        <Route path='/jobs' component={JobPage} />
+        <Route path='/job/:jobId' component={SingleJobPage} >
+        </Route>
+      </Route>
+    );
+  } else {
+    return (
+      <>
+        <Redirect from='/job/:jobid' to={'/jobs'} />
+        <Route component={Page}>
+          <Route path='/jobs/reflection/:reflectionId' component={ReflectionJobsPage} />
+          <Route path='/jobs' component={JobPage} />
+        </Route>
+      </>
+    );
+  }
+};
+
 export default dispatch => (
   <Route path='/' component={App}>
     {/* TODO conflict with (/:resources), need to change resources for all components */}
@@ -120,20 +138,9 @@ export default dispatch => (
     {additionalRoutes}
     <Route component={CheckUserAuthentication}>
       <Route component={UserIsAuthenticated(JobModals)}>
-        <Route component={Page}>
-          <Route path='/jobs/reflection/:reflectionId' component={ReflectionJobsPage} />
-          <Route path='/jobs(/:queryId)' component={JobPage} />
-        </Route>
+        {JobsRouting()}
       </Route>
-      <Route component={UserIsAuthenticated(AccountModals)}>
-        <Route component={Page}>
-          <Route path='/account' component={AccountPage} >
-            <IndexRedirect to='/account/info' />
-            <Route path='/account/info' component={Info} />
-            <Route path='/account/personalTokens' component={PATListPage} />
-          </Route>
-        </Route>
-      </Route>
+      {AccountPageRouting()}
       {AdminPageRouting()}
       <Route component={UserIsAuthenticated(HomeModals)}>
         <Route component={Page}>

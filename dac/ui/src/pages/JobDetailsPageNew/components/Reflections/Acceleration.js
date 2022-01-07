@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Art from '@app/components/Art';
+import jobsUtils from '@app/utils/jobsUtils';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
 import Immutable from 'immutable';
+import Art from '@app/components/Art';
 import timeUtils from 'utils/timeUtils';
 
 import './Reflection.less';
@@ -33,7 +34,8 @@ const Reflection = (props) => {
     intl: {
       formatMessage
     },
-    isAcceleration
+    isAcceleration,
+    location
   } = props;
 
   const getReflectionIcon = (isStarFlake, reflectionType, isReflectionUsed) => {
@@ -89,7 +91,7 @@ const Reflection = (props) => {
                 <div className='reflection-content__dataWrapper'>
                   <span className='reflection-content__dataHeader'>
                     <div className='reflection-content__dataLabel'>
-                      {item.get('reflectionName')}
+                      { jobsUtils.getReflectionsLink(item, location) }
                       <span className='reflection-content__dataLabel__algbric'>
                         {
                           item.get('reflectionMatchingType') === 'ALGEBRAIC'
@@ -129,7 +131,7 @@ const Reflection = (props) => {
                 <div className='reflection-content__dataWrapper'>
                   <span className='reflection-content__dataHeader'>
                     <div className='reflection-content__dataLabel'>
-                      {item.get('reflectionName')}
+                      { jobsUtils.getReflectionsLink(item, location) }
                       <span className='reflection-content__dataLabel__algbric'>
                         {
                           item.get('reflectionMatchingType') === 'ALGEBRAIC'
@@ -162,6 +164,7 @@ Reflection.propTypes = {
   reflectionsUsed: PropTypes.instanceOf(Immutable.List),
   reflectionsNotUsed: PropTypes.instanceOf(Immutable.List),
   isAcceleration: PropTypes.bool,
-  reflections: PropTypes.instanceOf(Immutable.List)
+  reflections: PropTypes.instanceOf(Immutable.List),
+  location: PropTypes.object.isRequired
 };
 export default injectIntl(Reflection);

@@ -51,8 +51,8 @@ public class TestAlterTableSetOption extends BaseTestQuery {
   @Test
   public void testOnNonTable() throws Exception {
     // sys table
-    errorMsgTestHelper("ALTER TABLE sys.version set sys.version_id = 34",
-        "Source [sys] doesn't support modifying options");
+    errorMsgTestHelper("ALTER TABLE INFORMATION_SCHEMA.CATALOGS set INFORMATION_SCHEMA.CATALOG_NAME = 34",
+        "Source [INFORMATION_SCHEMA] doesn't support modifying options");
   }
 
 }

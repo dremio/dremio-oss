@@ -39,7 +39,7 @@ public class TestDremioCredentialValidator extends BasicFlightAuthenticationTest
 
   @Before
   @Override
-  public void setup() {
+  public void setup() throws UserLoginException {
     super.setup();
     credentialValidator = new DremioCredentialValidator(getMockUserServiceProvider());
   }

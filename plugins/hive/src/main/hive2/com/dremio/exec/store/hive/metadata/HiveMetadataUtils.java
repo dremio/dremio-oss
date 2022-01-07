@@ -110,6 +110,7 @@ import com.dremio.exec.store.hive.file.HiveFileIO;
 import com.dremio.exec.store.hive.iceberg.IcebergHiveTableIdentifier;
 import com.dremio.exec.store.hive.iceberg.IcebergHiveTableOperations;
 import com.dremio.exec.store.hive.iceberg.IcebergInputFormat;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
 import com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType;
@@ -130,6 +131,8 @@ import com.google.common.collect.Lists;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.google.common.math.LongMath;
+
+import io.protostuff.ByteString;
 
 public class HiveMetadataUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveMetadataUtils.class);
@@ -514,8 +517,11 @@ public class HiveMetadataUtils {
 
     SchemaConverter schemaConverter = new SchemaConverter();
     BatchSchema batchSchema = schemaConverter.fromIceberg(icebergTable.schema());
+    byte[] specs = IcebergSerDe.serializePartitionSpecMap(icebergTable.specs());
+
     IcebergMetadata icebergMetadata = new IcebergMetadata()
-      .setFileType(FileType.ICEBERG);
+            .setFileType(FileType.ICEBERG)
+            .setPartitionSpecs(ByteString.copyFrom(specs));
 
     return TableMetadata.newBuilder()
       .table(table)

@@ -43,7 +43,7 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
   @Test
   public void columnLimitExceededSelectStar() throws Exception {
     String tableName = "columnLimit1";
-    String ctasQuery = "create table " + TEMP_SCHEMA + "." + tableName + " AS select * from sys.version";
+    String ctasQuery = "create table " + TEMP_SCHEMA + "." + tableName + " AS select * from INFORMATION_SCHEMA.CATALOGS";
     try {
       test(ctasQuery);
       fail("query should have failed");
@@ -55,7 +55,7 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
   @Test
   public void columnLimitExceededSelectCols() throws Exception {
     String tableName = "columnLimit2";
-    String ctasQuery = "create table " + TEMP_SCHEMA + "." + tableName + " AS select version, commit_id, commit_message from sys.version";
+    String ctasQuery = "create table " + TEMP_SCHEMA + "." + tableName + " AS select CATALOG_NAME, CATALOG_DESCRIPTION, CATALOG_CONNECT from INFORMATION_SCHEMA.CATALOGS";
     try {
       test(ctasQuery);
       fail("query should have failed");
@@ -66,7 +66,7 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
 
   @Test
   public void columnLimitExceededSelectLessColsShouldPass() throws Exception {
-    String ctasQuery = "create table " + TEMP_SCHEMA + ".columnLimit3 AS select version, commit_id from sys.version";
+    String ctasQuery = "create table " + TEMP_SCHEMA + ".columnLimit3 AS select CATALOG_NAME, CATALOG_DESCRIPTION from INFORMATION_SCHEMA.CATALOGS";
     test(ctasQuery);
   }
 

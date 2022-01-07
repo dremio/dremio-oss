@@ -17,10 +17,11 @@ package com.dremio.service.nessie;
 
 import java.util.function.Supplier;
 
+import org.projectnessie.api.TreeApi;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
+import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.ImmutableOperations;
-import org.projectnessie.services.rest.TreeResource;
 
 import com.dremio.service.nessieapi.Branch;
 import com.dremio.service.nessieapi.CommitMultipleOperationsRequest;
@@ -40,9 +41,9 @@ import io.grpc.stub.StreamObserver;
 class TreeApiService extends TreeApiGrpc.TreeApiImplBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TreeApiService.class);
 
-  private final Supplier<TreeResource> treeResource;
+  private final Supplier<TreeApi> treeResource;
 
-  TreeApiService(Supplier<TreeResource> treeResource) {
+  TreeApiService(Supplier<TreeApi> treeResource) {
     this.treeResource = treeResource;
   }
 
@@ -50,7 +51,7 @@ class TreeApiService extends TreeApiGrpc.TreeApiImplBase {
   public void createReference(CreateReferenceRequest request, StreamObserver<Empty> responseObserver) {
     logger.debug("[gRPC] CreateReference (ref: {})", request.getReference());
     try {
-      treeResource.get().createReference(GrpcNessieConverter.fromGrpc(request.getReference()));
+      treeResource.get().createReference(request.getSourceRefName(), GrpcNessieConverter.fromGrpc(request.getReference()));
       responseObserver.onNext(Empty.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (IllegalArgumentException e) {
@@ -113,12 +114,12 @@ class TreeApiService extends TreeApiGrpc.TreeApiImplBase {
 
     final ImmutableOperations.Builder operationsBuilder = ImmutableOperations.builder();
     request.getOperationsList().forEach(o -> operationsBuilder.addOperations(GrpcNessieConverter.fromGrpc(o)));
+    operationsBuilder.commitMeta(CommitMeta.fromMessage(request.getMessage()));
 
     try {
       treeResource.get().commitMultipleOperations(
           request.getBranchName(),
           request.getExpectedHash(),
-          request.getMessage(),
           operationsBuilder.build());
 
       responseObserver.onNext(Empty.getDefaultInstance());

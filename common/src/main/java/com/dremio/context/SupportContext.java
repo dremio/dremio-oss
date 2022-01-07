@@ -25,6 +25,8 @@ public class SupportContext {
   // but this constant only appears if the SupportContext is set.
   public static final String SUPPORT_USER_ID = "$Dremio-Support-Super-Admin-User$";
 
+  public static final String SUPPORT_USER_NAME = "support@dremio.com";
+
   private final String ticket;
   private final String email;
 
@@ -40,4 +42,14 @@ public class SupportContext {
   public String getEmail() {
     return email;
   }
+
+  /**
+   * Checks if this user belongs to support role
+   */
+  public static boolean isSupportUser() {
+    return RequestContext.current().get(SupportContext.CTX_KEY) != null
+      && RequestContext.current().get(UserContext.CTX_KEY) != null
+      && SupportContext.SUPPORT_USER_ID.equals(RequestContext.current().get(UserContext.CTX_KEY).getUserId());
+  }
+
 }

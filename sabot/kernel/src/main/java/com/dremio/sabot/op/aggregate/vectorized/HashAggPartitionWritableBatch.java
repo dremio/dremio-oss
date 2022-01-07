@@ -22,7 +22,6 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.types.Types;
 
-import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.google.common.base.Preconditions;
@@ -101,7 +100,7 @@ public class HashAggPartitionWritableBatch {
                                        final int maxValuesPerBatch) {
     this.hashTable = hashTable;
     this.accumulators = accumulator.getChildren();
-    checkAccumulators(fixedBlockBuffers.size());
+    checkAccumulatorsBatchSize(fixedBlockBuffers.size());
     this.fixedBlockBuffers = fixedBlockBuffers;
     this.variableBlockBuffers = variableBlockBuffers;
     this.numWritableBuffers = GetNumWritableBuffers();
@@ -113,25 +112,12 @@ public class HashAggPartitionWritableBatch {
   }
 
   /**
-   * Verify the following:
-   *
-   * 1. Each accumulator in the top level NestedAccumulator is of type BaseSingleAccumulator
-   *     or BaseVarBinaryAccumulator.
-   * 2. The number of batches in each BaseSingleAccumulator/BaseVarBinaryAccumulator is equal
-   *    to the number of batches in the hash table.
+   * Verify that the number of batches in each Accumulator is equal to the number of batches in the
+   * hash table.
    */
-  private void checkAccumulators(int batchCount) {
+  private void checkAccumulatorsBatchSize(int batchCount) {
     for (int i = 0; i < accumulators.length; i++) {
-      Preconditions.checkArgument((accumulators[i] instanceof BaseSingleAccumulator) ||
-                                  (accumulators[i] instanceof BaseVarBinaryAccumulator), "ERROR: invalid accumulator type");
-
-      int batchCnt = -1;
-      if (accumulators[i] instanceof BaseSingleAccumulator) {
-        batchCnt = ((BaseSingleAccumulator)accumulators[i]).getBatchCount();
-      } else {
-        batchCnt = ((BaseVarBinaryAccumulator)accumulators[i]).getBatchCount();
-      }
-      Preconditions.checkArgument(batchCnt == batchCount);
+      accumulators[i].verifyBatchCount(batchCount);
     }
   }
 
@@ -174,8 +160,8 @@ public class HashAggPartitionWritableBatch {
    *
    * We can have 1 or more accumulators and they are all encapsulated under NestedAccumulator.
    * Each accumulator with a fixed width vector (INT, BIGINT, FLOAT, FLOAT4, DECIMAL etc) will
-   * have 2 buffers -- validity buffer and data buffer. min/max on a varlen accumulator, there
-   * are 3 buffers -- validity buffer, offset buffer and data buffer.
+   * have 2 buffers -- validity buffer and data buffer. min/max on a varlen accumulator and/or
+   * ndv, there are 3 buffers -- validity buffer, offset buffer and data buffer.
    * Secondly, each type of accumulator will internally have as many accumulators as there
    * are batches of data inserted into the hash table.
    *
@@ -225,23 +211,15 @@ public class HashAggPartitionWritableBatch {
     int k = 2;
     for (int i = 0; i < accumulators.length; i++) {
       final Accumulator accumulator = accumulators[i];
-      final Types.MinorType type = accumulator.getOutput().getMinorType();
-      List<ArrowBuf> accumulatorBuffers = null;
 
-      if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
-        final BaseVarBinaryAccumulator accum = (BaseVarBinaryAccumulator)accumulator;
-        accumulatorBuffers = accum.getBuffers(currentBatchIndex, numRecordsInChunk);
-        Preconditions.checkArgument(accumulatorBuffers.size() == 3, "ERROR: incorrect number of buffers in accumulator vector");
-        metadata.add(accum.getSerializedField(currentBatchIndex, numRecordsInChunk));
-        accumulatorTypes[i] = (byte)accum.getType().ordinal();
-      } else {
-        final BaseSingleAccumulator accum = (BaseSingleAccumulator)accumulator;
-        accum.setValueCount(currentBatchIndex, numRecordsInChunk);
-        accumulatorBuffers = accum.getBuffers(currentBatchIndex);
-        Preconditions.checkArgument(accumulatorBuffers.size() == 2, "ERROR: incorrect number of buffers in accumulator vector");
-        metadata.add(TypeHelper.getMetadata(accum.getAccumulatorVector(currentBatchIndex)));
-        accumulatorTypes[i] = (byte)accum.getType().ordinal();
-      }
+      /*
+       * Variable length accumulators assume getBuffers() followed by getSerializedField().
+       * If the order has changed or any additional changes in between (which is highly unlikely),
+       * adjust the functions in variable length accumulators as well.
+       */
+      List<ArrowBuf> accumulatorBuffers = accumulator.getBuffers(currentBatchIndex, numRecordsInChunk);
+      metadata.add(accumulator.getSerializedField(currentBatchIndex, numRecordsInChunk));
+      accumulatorTypes[i] = (byte) accumulator.getType().ordinal();
 
       for (int j = 0; j < accumulatorBuffers.size(); j++) {
         buffers[k] = accumulatorBuffers.get(j);

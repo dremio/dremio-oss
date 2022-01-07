@@ -50,7 +50,8 @@ class DremioPopoverAdapter extends PureComponent {
     dataQa: PropTypes.string,
     /** Applies to {@see Popper} instance if {@see useLayerForClickAway} = {@see true}*/
     clickAwayMouseEvent: PropTypes.oneOf(supportedMouseEvents),
-    popoverFilters: PropTypes.string
+    popoverFilters: PropTypes.string,
+    classes: PropTypes.object
   };
 
   static defaultProps = {
@@ -80,6 +81,7 @@ class DremioPopoverAdapter extends PureComponent {
       listRightAligned,
       onClose,
       style,
+      classes,
       // popper specific props
       clickAwayMouseEvent,
       popoverFilters
@@ -106,6 +108,9 @@ class DremioPopoverAdapter extends PureComponent {
         onClose={onClose}
         transitionDuration={0}
         PaperProps={{ style: this.getListStyle(), classes: { root: listClass } }}
+        classes={{
+          root: classes && classes.root
+        }}
         {...commonProps}
       >
         {children}
@@ -113,6 +118,9 @@ class DremioPopoverAdapter extends PureComponent {
       <Popper
         className={popperCls}
         placement={listRightAligned ? 'bottom-end' : 'bottom-start'}
+        classes={{
+          root: classes && classes.root
+        }}
         {...commonProps}
       >
         <ClickAwayListener mouseEvent={clickAwayMouseEvent} onClickAway={onClose}>

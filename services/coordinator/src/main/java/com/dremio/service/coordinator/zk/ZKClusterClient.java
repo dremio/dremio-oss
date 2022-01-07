@@ -354,6 +354,11 @@ class ZKClusterClient implements com.dremio.service.Service {
       }
 
       @Override
+      public Object synchronizer() {
+        return leaderLatch;
+      }
+
+      @Override
       public int instanceCount() {
         try {
           return leaderLatch.getParticipants().size();

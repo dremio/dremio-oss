@@ -359,7 +359,7 @@ public class FormatTools {
               context.getConfig(),
               context.getDremioConfig(),
               allocator.newChildAllocator("job-serialize", 0, Long.MAX_VALUE),
-              context.getOptionManager(), batchSize));
+              context.getOptionManager(), batchSize, context.getExpressionSplitCache()));
       final BufferAllocator readerAllocator = opCtxt.getAllocator();
       final VectorContainer container = cls.add(new VectorContainer(readerAllocator));
       final Map<String, ValueVector> fieldVectorMap = new HashMap<>();

@@ -337,9 +337,8 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
                 }
 
                 // Search in variable width columns.
-                findKeyPositionInVarWidthCols(fieldName)
-                        .map(keyReader.keyPositions::add)
-                        .orElseThrow(() -> new IllegalArgumentException("Field name " + fieldName + " not find in pivot."));
+                keyReader.keyPositions.add(
+                  findKeyPositionInVarWidthCols(fieldName).orElseThrow(() -> new IllegalArgumentException("Field name " + fieldName + " not find in pivot.")));
                 keyReader.isVarWidthColPresent = true;
             }
         }

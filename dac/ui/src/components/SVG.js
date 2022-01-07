@@ -44,7 +44,8 @@ export default class SVG extends PureComponent {
       PropTypes.string,
       PropTypes.bool // set to true to take the aria-label
     ]),
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
+    id: PropTypes.any
   }
 
   static defaultProps = {
@@ -52,7 +53,7 @@ export default class SVG extends PureComponent {
   }
 
   render() {
-    let {src, title, dataQa, ...props} = this.props;
+    let {src, title, dataQa, id, ...props} = this.props;
 
     if (!allSVGs[`./${src}`]) {
       return null;
@@ -90,6 +91,6 @@ export default class SVG extends PureComponent {
       title = props['aria-label'];
     }
 
-    return <img src={url} title={title} data-qa={dataQa} {...props} />;
+    return <img src={url} title={title} id={id} data-qa={dataQa} {...props} />;
   }
 }

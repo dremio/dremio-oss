@@ -242,8 +242,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
       String partitionStatsFile = icebergTableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionStatsFile();
       return new IcebergScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL),
         drel.getTable(), icebergTableMetadata.getIcebergTableStoragePlugin(), icebergTableMetadata, drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter(), false, /* TODO enable */
-        drel.getPartitionFilter(), context, partitionStatsFile, true);
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(), drel.getPartitionFilter(), context, partitionStatsFile, true);
     }
 
     @Override

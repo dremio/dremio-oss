@@ -100,12 +100,17 @@ const FlexTable = (props) => {
     { [classes.root]: classes.root }
   );
 
+  const containerClass = clsx(
+    'flexTable__dataContainer',
+    { [classes.container]: classes.container }
+  );
+
   return (
     <div className={root}>
       <div className='flexTable__headerContainer'>
         {renderHeader()}
       </div>
-      <div className='flexTable__dataContainer'>
+      <div className={containerClass}>
         {renderData()}
       </div>
     </div>
@@ -146,6 +151,7 @@ FlexTable.propTypes = {
   },
   classes: PropTypes.shape({
     root: PropTypes.string,
+    container: PropTypes.string,
     headerRow: PropTypes.string,
     dataRow: PropTypes.string,
     headerCell: PropTypes.string,

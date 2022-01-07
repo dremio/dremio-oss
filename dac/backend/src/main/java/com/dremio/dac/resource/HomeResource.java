@@ -255,11 +255,14 @@ public class HomeResource extends BaseResourceWithAllocator {
     InputValidation inputValidation = new InputValidation();
     inputValidation.validate(fileName);
 
+    if(!inputValidation.isValidExtension(extension)) {
+      throw new ForbiddenException("Invalid extension");
+    }
+
     List<String> pathList = PathUtils.toPathComponents(path);
     pathList.add(SqlUtils.quoteIdentifier(fileName.getName()));
 
     final FilePath filePath = FilePath.fromURLPath(homeName, PathUtils.toFSPathString(pathList));
-
     final FileConfig config = new FileConfig();
     try {
       // upload file to staging area

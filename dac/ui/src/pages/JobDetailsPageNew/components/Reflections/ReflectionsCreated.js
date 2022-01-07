@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import Art from '@app/components/Art';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
 import Immutable from 'immutable';
+import jobsUtils from '@app/utils/jobsUtils';
+import Art from '@app/components/Art';
 import timeUtils from 'utils/timeUtils';
 
 import './Reflection.less';
@@ -32,7 +33,14 @@ const getReflectionIcon = (reflectionType) => {
 };
 
 const ReflectionsCreated = (props) => {
-  const { reflections, intl: { formatMessage } } = props;
+  const {
+    reflections,
+    intl: {
+      formatMessage
+    },
+    location
+  } = props;
+
   return (
     <div>
       {reflections.size > 0 && <div className='reflection-header'>
@@ -51,7 +59,7 @@ const ReflectionsCreated = (props) => {
                 }
                 <span className='jobsDetailsReflections__contentWrapper'>
                   <div className='jobsDetailsReflections__contentWrapper__header'>
-                    {item.get('reflectionName')}
+                    { jobsUtils.getReflectionsLink(item, location) }
                   </div>
                   <div className='jobsDetailsReflections__contentWrapper__path'>
                     {item.get('reflectionDatasetPath')}
@@ -73,6 +81,7 @@ const ReflectionsCreated = (props) => {
 ReflectionsCreated.propTypes = {
   intl: PropTypes.object.isRequired,
   isAcceleration: PropTypes.bool,
-  reflections: PropTypes.instanceOf(Immutable.List)
+  reflections: PropTypes.instanceOf(Immutable.List),
+  location: PropTypes.object.isRequired
 };
 export default injectIntl(ReflectionsCreated);

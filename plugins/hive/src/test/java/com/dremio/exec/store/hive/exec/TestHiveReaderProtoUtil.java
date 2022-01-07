@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -196,22 +197,22 @@ public class TestHiveReaderProtoUtil {
       if (originalPartitionXattr.hasInputFormat()) {
         assertTrue(getMessage(original, converted), !convertePartitionXattr.hasInputFormat());
         assertTrue(getMessage(original, converted), convertePartitionXattr.hasInputFormatSubscript());
-        HiveReaderProtoUtil.getPartitionInputFormat(converted, i).get()
-            .equals(originalPartitionXattr.getInputFormat());
+        assertEquals(HiveReaderProtoUtil.getPartitionInputFormat(converted, i).get(),
+            originalPartitionXattr.getInputFormat());
       }
 
       if (originalPartitionXattr.hasStorageHandler()) {
         assertTrue(getMessage(original, converted), !convertePartitionXattr.hasStorageHandler());
         assertTrue(getMessage(original, converted), convertePartitionXattr.hasStorageHandlerSubscript());
-        HiveReaderProtoUtil.getPartitionStorageHandler(converted, i).get()
-            .equals(originalPartitionXattr.getStorageHandler());
+        assertEquals(HiveReaderProtoUtil.getPartitionStorageHandler(converted, i).get(),
+            originalPartitionXattr.getStorageHandler());
       }
 
       if (originalPartitionXattr.hasSerializationLib()) {
         assertTrue(getMessage(original, converted), !convertePartitionXattr.hasSerializationLib());
         assertTrue(getMessage(original, converted), convertePartitionXattr.hasSerializationLibSubscript());
-        HiveReaderProtoUtil.getPartitionSerializationLib(converted, i).get()
-            .equals(originalPartitionXattr.getSerializationLib());
+        assertEquals(HiveReaderProtoUtil.getPartitionSerializationLib(converted, i).get(),
+            originalPartitionXattr.getSerializationLib());
       }
     }
   }

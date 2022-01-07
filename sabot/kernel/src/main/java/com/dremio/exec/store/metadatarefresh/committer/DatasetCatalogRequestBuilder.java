@@ -17,10 +17,12 @@ package com.dremio.exec.store.metadatarefresh.committer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.PartitionSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +30,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.catalog.AddOrUpdateDatasetRequest;
@@ -221,13 +224,15 @@ public class DatasetCatalogRequestBuilder {
             .setBatchSchema(ByteString.copyFrom(batchSchema.serialize()));
   }
 
-  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId, Configuration conf, boolean isPartitioned) {
+  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId, Configuration conf, boolean isPartitioned, Map<Integer, PartitionSpec> partitionSpecMap) {
     Preconditions.checkState(request != null, "Unexpected state");
     Preconditions.checkState(request.getDatasetConfigBuilder().getIcebergMetadataEnabled(), "Unexpected state");
+    byte[] specs = IcebergSerDe.serializePartitionSpecMap(partitionSpecMap);
     DatasetCommonProtobuf.IcebergMetadata.Builder metadataBuilder = DatasetCommonProtobuf.IcebergMetadata.newBuilder()
-      .setMetadataFileLocation(rootPointer)
-      .setTableUuid(tableUuid)
-      .setSnapshotId(snapshotId);
+            .setMetadataFileLocation(rootPointer)
+            .setTableUuid(tableUuid)
+            .setSnapshotId(snapshotId)
+            .setPartitionSpecs(ByteString.copyFrom(specs));
     if (isPartitioned) {
       String partitionStatsFile = IcebergUtils.getPartitionStatsFile(rootPointer, snapshotId, conf);
       if (partitionStatsFile != null) {

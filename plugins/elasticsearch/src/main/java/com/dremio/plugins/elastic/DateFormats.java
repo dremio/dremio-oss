@@ -15,9 +15,9 @@
  */
 package com.dremio.plugins.elastic;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.MonthDay;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.Year;
@@ -1206,19 +1206,26 @@ public final class DateFormats {
 
   public static long parseLongMillis(String value, java.time.format.DateTimeFormatter dateTimeFormatter) {
     long parsedValue = 0L;
-    final TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(value, ZonedDateTime::from, java.time.LocalDateTime::from, OffsetDateTime::from, LocalDate::from, OffsetTime::from, LocalTime::from, Instant::from, YearMonth::from, Year::from);
+    // There are some temporal implementations but not handled in parseBest as such formats could not be used as date/datetime format in elasticsearch. e.g. Period, Era, Month, DayOfWeek.
+    // Some implementations are not mentioned in parseBest as those could be handled through other implementations.Please refer comments for specific cases.
+    final TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(value, ZonedDateTime::from, java.time.LocalDateTime::from, LocalDate::from, OffsetTime::from, LocalTime::from, YearMonth::from, Year::from, MonthDay::from);
     final String temporalAccessorClass = temporalAccessor.getClass().getSimpleName();
     switch (temporalAccessorClass) {
+      // ZonedDateTime case will handle temporal datetime formats like OffsetDateTime, Instant, ChronoZonedDateTime. So no need to handle its seperately in parseBest.
       case "ZonedDateTime": {
         final ZonedDateTime zonedDateTime = ZonedDateTime.parse(value, dateTimeFormatter);
-        parsedValue = zonedDateTime.toEpochSecond() * ElasticsearchConstants.MILLIS_PER_SECOND + zonedDateTime.getNano() / ElasticsearchConstants.NANOS_PER_MILLISECOND_LONG;
+        final ZoneOffset zoneOffset = zonedDateTime.getOffset();
+        parsedValue = zonedDateTime.toEpochSecond() * ElasticsearchConstants.MILLIS_PER_SECOND + zonedDateTime.getNano() / ElasticsearchConstants.NANOS_PER_MILLISECOND_LONG + zoneOffset.getTotalSeconds() * ElasticsearchConstants.MILLIS_PER_SECOND;
         break;
       }
+      // LocalDateTime case will handle temporal datetime formats like ChronoLocalDateTime. So no need to handle its separately in parseBest.
       case "LocalDateTime": {
         final java.time.LocalDateTime localDateTime = java.time.LocalDateTime.parse(value, dateTimeFormatter);
         parsedValue = localDateTime.toEpochSecond(ZoneOffset.UTC) * ElasticsearchConstants.MILLIS_PER_SECOND + localDateTime.getNano() / ElasticsearchConstants.NANOS_PER_MILLISECOND_LONG;
         break;
       }
+      // LocalDate case will handle temporal datetime formats like ChronoLocalDate. So no need to handle its separately in parseBest.
+      // Other temporal formats like JapneseDate/MinguoDate will be handled through this case.
       case "LocalDate": {
         final LocalDate localDate = LocalDate.parse(value, dateTimeFormatter);
         parsedValue = localDate.toEpochDay() * ElasticsearchConstants.MILLIS_PER_DAY;
@@ -1244,12 +1251,30 @@ public final class DateFormats {
         parsedValue = localDate.toEpochDay() * ElasticsearchConstants.MILLIS_PER_DAY;
         break;
       }
+      case "OffsetTime": {
+        final OffsetTime offsetTime = OffsetTime.parse(value, dateTimeFormatter);
+        final ZoneOffset zoneOffset = offsetTime.getOffset();
+        final OffsetDateTime offsetDateTime = LocalDate.of(1970, 01, 01).atTime(offsetTime).withNano(offsetTime.getNano());
+        final long parsedvalueLocalTime = LocalDate.of(1970, 01, 01).atTime(offsetTime).toEpochSecond() * ElasticsearchConstants.MILLIS_PER_SECOND;
+        final long parsedValueWithNano = offsetDateTime.getNano() /  ElasticsearchConstants.NANOS_PER_MILLISECOND_LONG ;
+        final long parsedValueOffset = zoneOffset.getTotalSeconds() * ElasticsearchConstants.MILLIS_PER_SECOND;
+        parsedValue = parsedvalueLocalTime + parsedValueWithNano + parsedValueOffset;
+        break;
+      }
+      // MonthDay case handled to support format without year like "--MM-dd" which may represent birthday/Anniversary.
+      // To align with behaviour of elasticsearch 6, using 2000 as year while selecting data.
+      case "MonthDay": {
+        final MonthDay monthDay = MonthDay.parse(value, dateTimeFormatter);
+        final LocalDate localDate = LocalDate.of(2000, monthDay.getMonth(), monthDay.getDayOfMonth());
+        parsedValue = localDate.toEpochDay() * ElasticsearchConstants.MILLIS_PER_DAY;
+        break;
+      }
     }
     return parsedValue;
   }
 
   public static java.time.LocalDateTime parseLocalDateTime(String value, java.time.format.DateTimeFormatter dateTimeFormatter) {
-    final TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(value, ZonedDateTime::from, java.time.LocalDateTime::from, LocalDate::from,OffsetTime::from, LocalTime::from);
+    final TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(value, ZonedDateTime::from, java.time.LocalDateTime::from, LocalDate::from,OffsetTime::from, LocalTime::from, MonthDay::from);
     final String temporalAccessorClass = temporalAccessor.getClass().getSimpleName();
     switch(temporalAccessorClass){
       case "ZonedDateTime":
@@ -1263,6 +1288,12 @@ public final class DateFormats {
       case "LocalTime":
         final LocalTime localTime = LocalTime.parse(value, dateTimeFormatter);
         return LocalDate.of(1970, 01, 01).atTime((localTime));
+      case "OffsetTime":
+        final OffsetTime offsetTime = OffsetTime.parse(value, dateTimeFormatter);
+        return LocalDate.of(1970, 01, 01).atTime(offsetTime).toLocalDateTime();
+      case "MonthDay":
+        final MonthDay monthDay = MonthDay.parse(value, dateTimeFormatter);
+        return LocalDate.of(2000, monthDay.getMonth(), monthDay.getDayOfMonth()).atTime(0,0,0);
     }
     return java.time.LocalDateTime.parse(value, dateTimeFormatter);
   }

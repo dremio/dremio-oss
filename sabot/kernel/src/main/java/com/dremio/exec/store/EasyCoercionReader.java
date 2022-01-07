@@ -27,7 +27,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -107,10 +106,10 @@ public class EasyCoercionReader extends FilteringFileCoercionReader {
   }
 
   private BatchSchema getFinalSchema(BatchSchema newSchema, BatchSchema outingSchema) {
-    boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
     BatchSchema finalSchema;
     try {
-      finalSchema = outingSchema.merge(newSchema, mixedTypesDisabled);
+      finalSchema = outingSchema.mergeWithUpPromotion(newSchema);
+      finalSchema = finalSchema.removeNullFields();
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       e.addFilePath(this.inner.getFilePath());
       e.addDatasetPath(tableSchemaPath);

@@ -46,7 +46,8 @@ public class DremioCredentialValidator implements BasicCallHeaderAuthenticator.C
    */
   @Override
   public AuthResult validate(String username, String password) {
-    DremioFlightAuthUtils.authenticateCredentials(userServiceProvider, username, password, LOGGER);
-    return () -> username;
+    com.dremio.service.users.AuthResult authResult =
+      DremioFlightAuthUtils.authenticateCredentials(userServiceProvider, username, password, LOGGER);
+    return authResult::getUserName;
   }
 }

@@ -41,26 +41,27 @@ public class ElasticsearchConf {
     AWS_PROFILE,
   }
 
-  private List<Host> hostList;
-  private String username = "";
-  private String password = "";
-  private String awsProfile;
-  private AuthenticationType authenticationType = AuthenticationType.ES_ACCOUNT;
-  private boolean scriptsEnabled = true;
-  private boolean showHiddenIndices = false;
-  private boolean sslEnabled = false;
-  private boolean showIdColumn = false;
-  private int readTimeoutMillis = 60000;
-  private int scrollTimeoutMillis = 300000;
-  private boolean usePainless = true;
-  private boolean useWhitelist = false;
-  private int scrollSize = 4000;
-  private boolean allowPushdownOnNormalizedOrAnalyzedFields = false;
-  private boolean warnOnRowCountMismatch = false;
-  private EncryptionValidationMode encryptionValidationMode = EncryptionValidationMode.CERTIFICATE_AND_HOSTNAME_VALIDATION;
-  private String accessKey = "";
-  private String accessSecret = "";
-  private String regionName = "";
+  private final List<Host> hostList;
+  private final String username;
+  private final String password;
+  private final String awsProfile;
+  private final AuthenticationType authenticationType;
+  private final boolean scriptsEnabled;
+  private final boolean showHiddenIndices;
+  private final boolean sslEnabled;
+  private final boolean showIdColumn;
+  private final int readTimeoutMillis;
+  private final int scrollTimeoutMillis;
+  private final boolean usePainless;
+  private final boolean useWhitelist;
+  private final int scrollSize;
+  private final boolean allowPushdownOnNormalizedOrAnalyzedFields;
+  private final boolean warnOnRowCountMismatch;
+  private final EncryptionValidationMode encryptionValidationMode;
+  private final boolean forceDoublePrecision;
+  private final String accessKey;
+  private final String accessSecret;
+  private final String regionName;
 
   public ElasticsearchConf(
       List<Host> hostList,
@@ -82,7 +83,8 @@ public class ElasticsearchConf {
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
       boolean warnOnRowCountMismatch,
-      EncryptionValidationMode encryptionValidationMode) {
+      EncryptionValidationMode encryptionValidationMode,
+      boolean forceDoublePrecision) {
     this.hostList = hostList;
     this.username = username;
     this.password = password;
@@ -103,6 +105,7 @@ public class ElasticsearchConf {
     this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields;
     this.warnOnRowCountMismatch = warnOnRowCountMismatch;
     this.encryptionValidationMode = encryptionValidationMode;
+    this.forceDoublePrecision = forceDoublePrecision;
   }
 
   public List<Host> getHostList() {
@@ -183,6 +186,10 @@ public class ElasticsearchConf {
 
   public String getScrollTimeoutFormatted() {
     return scrollTimeoutMillis + "ms";
+  }
+
+  public boolean isForceDoublePrecision() {
+    return forceDoublePrecision;
   }
 
   public static ElasticsearchConf createElasticsearchConf(BaseElasticStoragePluginConfig elasticStoragePluginConfig) {

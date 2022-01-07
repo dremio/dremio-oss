@@ -61,6 +61,7 @@ import com.dremio.exec.planner.sql.handlers.direct.SetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowSchemasHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowTablesHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
+import com.dremio.exec.planner.sql.handlers.direct.SqlAlterTableToggleSchemaLearningHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.planner.sql.handlers.direct.TruncateTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.UseSchemaHandler;
@@ -76,6 +77,7 @@ import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumnSetOption;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableSetOption;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableToggleSchemaLearning;
 import com.dremio.exec.planner.sql.parser.SqlAnalyzeTableStatistics;
 import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
@@ -336,6 +338,8 @@ public class CommandCreator {
           return direct.create(new ChangeColumnHandler(catalog, config));
         } else if (sqlNode instanceof SqlAlterTableDropColumn) {
           return direct.create(new DropColumnHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableToggleSchemaLearning) {
+            return direct.create(new SqlAlterTableToggleSchemaLearningHandler(catalog));
         }
 
       case INSERT:
@@ -371,7 +375,7 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlSetApprox) {
           return direct.create(new SetApproxHandler(catalog));
         } else if (sqlNode instanceof SqlCreateEmptyTable) {
-          return direct.create(new CreateEmptyTableHandler(catalog, config));
+          return direct.create(new CreateEmptyTableHandler(catalog, config, context.getSession()));
         } else if (sqlNode instanceof SqlTruncateTable) {
           return direct.create(new TruncateTableHandler(config));
         } else if (sqlNode instanceof SqlAlterClearPlanCache) {

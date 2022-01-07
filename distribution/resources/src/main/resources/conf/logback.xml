@@ -88,8 +88,10 @@
           </timeBasedFileNamingAndTriggeringPolicy>
         </rollingPolicy>
 
-        <encoder>
-          <pattern>%msg%n</pattern>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+          <providers>
+            <arguments />
+          </providers>
         </encoder>
       </appender>
 

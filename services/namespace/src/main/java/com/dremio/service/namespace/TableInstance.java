@@ -31,7 +31,7 @@ public final class TableInstance {
   private final TableSignature sig;
   private final List<Object> params;
 
-  public TableInstance(TableSignature sig, List<Object> params) {
+  public TableInstance(TableSignature sig, List<? extends Object> params) {
     super();
     if (params.size() != sig.params.size()) {
       throw UserException.parseError()

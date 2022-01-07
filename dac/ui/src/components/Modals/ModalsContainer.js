@@ -40,7 +40,12 @@ class ModalsContainer extends PureComponent {
   lastModalHideTimerId = null;
   lastModalKey = null;
   handleHide = () => {
-    const { modal, query, ...otherState } = this.props.location.state || {};
+    const {
+      // Skip modal and query and add retain rest of the properties
+      modal, // eslint-disable-line @typescript-eslint/no-unused-vars
+      query, // eslint-disable-line @typescript-eslint/no-unused-vars
+      ...otherState
+    } = this.props.location.state || {};
     this.context.router.replace({...this.props.location, state: { ...otherState }});
     this.lastModalHideTimerId = setTimeout(() => {
       this.lastModalKey = null;

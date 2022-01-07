@@ -92,10 +92,12 @@ import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.client.builder.AwsAsyncClientBuilder;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.core.client.builder.SdkSyncClientBuilder;
 import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.S3BaseClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -130,7 +132,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
           .build(new CacheLoader<String, CloseableRef<S3Client>>() {
             @Override
             public CloseableRef<S3Client> load(String bucket) {
-              final S3Client syncClient = configClientBuilder(S3Client.builder(), bucket).build();
+              final S3Client syncClient = syncConfigClientBuilder(S3Client.builder(), bucket).build();
               return new CloseableRef<>(syncClient);
             }
           });
@@ -143,19 +145,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
           .build(new CacheLoader<String, CloseableRef<S3AsyncClient>>() {
             @Override
             public CloseableRef<S3AsyncClient> load(String bucket) {
-              software.amazon.awssdk.regions.Region region;
-              if (!isCompatMode()) {
-                // normal s3/govcloud mode.
-                region = getAWSBucketRegion(bucket);
-              } else {
-                region = getAWSRegionFromConfigurationOrDefault(getConf());
-              }
-              S3AsyncClient asyncClient = S3AsyncClient
-                      .builder()
-                      .asyncConfiguration(b -> b.advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, threadPool))
-                      .credentialsProvider(getAsync2Provider(getConf()))
-                      .region(region)
-                      .build();
+              final S3AsyncClient asyncClient = asyncConfigClientBuilder(S3AsyncClient.builder(), bucket).build();
               return new CloseableRef<>(asyncClient);
             }
           });
@@ -578,7 +568,29 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     }
   }
 
-  private <T extends SdkSyncClientBuilder<T,?> & AwsClientBuilder<T,?>> T configClientBuilder(T builder, String bucket) {
+  private <T extends AwsAsyncClientBuilder<T,?> & S3BaseClientBuilder<T,?>> T asyncConfigClientBuilder(T builder, String bucket) {
+
+    builder.asyncConfiguration(b -> b.advancedOption(SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, threadPool))
+      .credentialsProvider(getAsync2Provider(getConf()));
+    if (!isCompatMode()) {
+      // normal s3/govcloud mode.
+      builder.region(getAWSBucketRegion(bucket));
+    } else {
+      builder.region(getAWSRegionFromConfigurationOrDefault(getConf()));
+    }
+
+    Optional<String> endpoint = getEndpoint(getConf());
+    endpoint.ifPresent(e -> {
+      try {
+        builder.endpointOverride(new URI(e));
+      } catch (URISyntaxException use) {
+        throw UserException.sourceInBadState(use).build(logger);
+      }
+    });
+    return builder;
+  }
+
+  private <T extends SdkSyncClientBuilder<T,?> & AwsClientBuilder<T,?>> T syncConfigClientBuilder(T builder, String bucket) {
     final Configuration conf = getConf();
 
     // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed

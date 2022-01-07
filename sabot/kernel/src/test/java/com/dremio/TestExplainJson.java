@@ -22,11 +22,11 @@ public class TestExplainJson extends BaseTestQuery {
 
   @Test
   public void withSpecifier() throws Exception {
-    checkFirstRecordContains("explain json original for select * from sys.options", "json", "LogicalProject");
+    checkFirstRecordContains("explain json original for select * from INFORMATION_SCHEMA.CATALOGS", "json", "LogicalProject");
   }
 
   @Test
   public void withoutSpecifier() throws Exception {
-    checkFirstRecordContains("explain json for select * from sys.options", "json", "LogicalProject");
+    checkFirstRecordContains("explain json for select * from INFORMATION_SCHEMA.CATALOGS", "json", "LogicalProject");
   }
 }

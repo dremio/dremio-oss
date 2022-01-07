@@ -15,12 +15,14 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION;
 import static com.dremio.exec.store.iceberg.IcebergUtils.getValueFromByteBuffer;
 import static com.dremio.exec.store.iceberg.IcebergUtils.isNonAddOnField;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeSplitIdentity;
 import static com.dremio.exec.store.iceberg.IcebergUtils.writeToVector;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,9 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableMetadataParser;
+import org.apache.iceberg.exceptions.RuntimeIOException;
+import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.expressions.ManifestEvaluator;
 import org.apache.iceberg.types.Type;
 
 import com.dremio.common.AutoCloseables;
@@ -72,6 +77,7 @@ public class IcebergManifestListRecordReader implements RecordReader {
   private final OperatorContext context;
   private final List<String> partitionCols;
   private final Map<String, Integer> partColToKeyMap;
+  private final IcebergExtendedProp icebergExtendedProp;
 
   private Schema icebergTableSchema;
   private byte[] icebergDatasetXAttr;
@@ -80,6 +86,8 @@ public class IcebergManifestListRecordReader implements RecordReader {
   private ArrowBuf tmpBuf;
   private boolean emptyTable;
   private final String datasourcePluginUID;
+  private Expression icebergFilterExpression;
+  private Map<Integer, PartitionSpec> partitionSpecMap;
 
   public IcebergManifestListRecordReader(OperatorContext context,
                                          FileSystem fileSystem,
@@ -97,6 +105,22 @@ public class IcebergManifestListRecordReader implements RecordReader {
     this.partColToKeyMap = partitionCols != null ? IntStream.range(0, partitionCols.size())
       .boxed()
       .collect(Collectors.toMap(i -> partitionCols.get(i).toLowerCase(), i -> i)) : null;
+    icebergExtendedProp = config.getIcebergExtendedProp();
+    try {
+      this.icebergFilterExpression = IcebergSerDe.deserializeFromByteArray(icebergExtendedProp.getIcebergExpression());
+    } catch (IOException e) {
+      throw new RuntimeIOException(e, "failed to deserialize Iceberg Expression");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("failed to deserialize Iceberg Expression", e);
+    }
+  }
+
+  private Map<Integer, PartitionSpec> getPartitionSpecMap(IcebergExtendedProp icebergExtendedProp, TableMetadata tableMetadata ) {
+    if (icebergExtendedProp == null ||
+      icebergExtendedProp.getPartitionSpecs() == null) {
+      return tableMetadata.specs().stream().collect(Collectors.toMap(f-> f.specId(), f->f));
+    }
+    return IcebergSerDe.deserializePartitionSpecMap(icebergExtendedProp.getPartitionSpecs().toByteArray());
   }
 
   @Override
@@ -111,7 +135,10 @@ public class IcebergManifestListRecordReader implements RecordReader {
     TableMetadata tableMetadata = TableMetadataParser.read(new DremioFileIO(
             fs, context, dataset, datasourcePluginUID, null, pluginForIceberg.getFsConfCopy()),
             splitAttributes.getPath());
-    checkForPartitionSpecEvolution(tableMetadata); // We don't support partition spec evolution. so throw user exception in case of partition evol.
+    if (!context.getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION)) {
+      checkForPartitionSpecEvolution(tableMetadata);
+    }
+    partitionSpecMap = getPartitionSpecMap(icebergExtendedProp, tableMetadata);
     icebergTableSchema = tableMetadata.schema();
     Snapshot snapshot = tableMetadata.currentSnapshot();
     if (snapshot == null) {
@@ -119,6 +146,7 @@ public class IcebergManifestListRecordReader implements RecordReader {
       return;
     }
     List<ManifestFile> manifestFileList = snapshot.dataManifests();
+    manifestFileList = filterManifestFiles(manifestFileList);
     manifestFileIterator = manifestFileList.iterator();
     icebergDatasetXAttr = IcebergProtobuf.IcebergDatasetXAttr.newBuilder()
       .addAllColumnIds(IcebergUtils.getIcebergColumnNameToIDMap(icebergTableSchema).entrySet().stream()
@@ -190,10 +218,10 @@ public class IcebergManifestListRecordReader implements RecordReader {
 
     switch (suffix) {
       case "min":
-        value = getValueFromByteBuffer(manifestFile.partitions().get(key).lowerBound(), fieldType);
+        value = key < manifestFile.partitions().size() ? getValueFromByteBuffer(manifestFile.partitions().get(key).lowerBound(), fieldType) : null;
         break;
       case "max":
-        value = getValueFromByteBuffer(manifestFile.partitions().get(key).upperBound(), fieldType);
+        value = key < manifestFile.partitions().size() ? getValueFromByteBuffer(manifestFile.partitions().get(key).upperBound(), fieldType) : null;
         break;
       default:
         throw UserException.unsupportedError().message("unexpected suffix for column: " + fieldName).buildSilently();
@@ -226,5 +254,17 @@ public class IcebergManifestListRecordReader implements RecordReader {
   public void close() throws Exception {
     context.getStats().setReadIOStats();
     AutoCloseables.close(tmpBuf);
+  }
+
+  private List<ManifestFile> filterManifestFiles(List<ManifestFile> manifestFileList) {
+    if (icebergFilterExpression == null) {
+      return manifestFileList;
+    }
+    Map<Integer, ManifestEvaluator> evaluatorMap = new HashMap<>();
+    for (Map.Entry<Integer, PartitionSpec> spec : partitionSpecMap.entrySet()) {
+      ManifestEvaluator partitionEval = ManifestEvaluator.forRowFilter(icebergFilterExpression, spec.getValue(), false);
+      evaluatorMap.put(spec.getKey(), partitionEval);
+    }
+    return manifestFileList.stream().filter(file -> evaluatorMap.get(file.partitionSpecId()).eval(file)).collect(Collectors.toList());
   }
 }

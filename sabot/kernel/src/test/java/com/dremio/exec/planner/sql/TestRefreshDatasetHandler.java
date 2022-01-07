@@ -63,7 +63,6 @@ public class TestRefreshDatasetHandler extends PlanTestBase {
     final OptionManager optionManager = getSabotContext().getOptionManager();
     optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "dremio.execution.support_unlimited_splits", true));
     optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "dremio.iceberg.enabled", true));
-    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "store.disable.mixed_types", true));
     optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, "planner.slice_target", 1));
 
     final UserSession session = UserSession.Builder.newBuilder()

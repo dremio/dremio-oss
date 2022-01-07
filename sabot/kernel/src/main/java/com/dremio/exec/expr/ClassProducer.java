@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr;
 
+import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.compile.TemplateClassDefinition;
@@ -28,7 +29,7 @@ public interface ClassProducer {
   LogicalExpression materializeWithBatchSchema(LogicalExpression expr, BatchSchema batchSchema);
   LogicalExpression materialize(LogicalExpression expr, VectorAccessible batch);
   LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch);
-  LogicalExpression materializeAndAllowComplex(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch);
+  Tuple<LogicalExpression, LogicalExpression> materializeAndAllowComplex(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch);
   LogicalExpression addImplicitCast(LogicalExpression fromExpr, CompleteType toType);
   FunctionContext getFunctionContext();
   FunctionLookupContext getFunctionLookupContext();

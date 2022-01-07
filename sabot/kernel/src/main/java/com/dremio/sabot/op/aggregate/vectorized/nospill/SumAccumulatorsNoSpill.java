@@ -21,6 +21,7 @@ import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.exec.util.DecimalUtils;
+import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
 
 import io.netty.util.internal.PlatformDependent;
@@ -191,7 +192,7 @@ public class SumAccumulatorsNoSpill {
       int incomingIndex = 0;
       for (long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        java.math.BigDecimal newVal = DecimalAccumulatorUtilsNoSpill.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
@@ -233,7 +234,7 @@ public class SumAccumulatorsNoSpill {
         if (bitVal == 0) {
           continue;
         }
-        java.math.BigDecimal newVal = DecimalAccumulatorUtilsNoSpill.getBigDecimal(incomingValue
+        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue
           + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;

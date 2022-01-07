@@ -18,6 +18,8 @@ package com.dremio.service.jobs;
 import java.util.List;
 import java.util.function.Function;
 
+import com.dremio.service.job.log.JobState;
+import com.dremio.service.job.log.LoggedQuery;
 import com.dremio.service.job.proto.JobInfo;
 
 /**
@@ -40,15 +42,32 @@ public class JobResultToLogEntryConverter implements Function<Job, LoggedQuery> 
         break;
     }
 
-    return new LoggedQuery(
-      job.getJobId().getId(),
-      contextList == null ? null : contextList.toString(),
-      info.getSql(),
-      info.getStartTime(),
-      info.getFinishTime(),
-      job.getJobAttempt().getState(),
-      outcomeReason,
-      info.getUser()
-    );
+    final LoggedQuery.Builder builder = LoggedQuery.newBuilder();
+    if (job.getJobId() != null) {
+      builder.setQueryId(job.getJobId().getId());
+    }
+    if (info.getStartTime() != null) {
+      builder.setStart(info.getStartTime());
+    }
+    if (info.getSql() != null) {
+      builder.setQueryText(info.getSql());
+    }
+    if (info.getFinishTime() != null) {
+      builder.setFinish(info.getFinishTime());
+    }
+    if (job.getJobAttempt().getState() != null) {
+      builder.setOutcome(JobState.valueOf(job.getJobAttempt().getState().name()));
+    }
+    if (outcomeReason != null) {
+      builder.setOutcomeReason(outcomeReason);
+    }
+    if (info.getUser() != null) {
+      builder.setUsername(info.getUser());
+    }
+    if (contextList != null) {
+      builder.setContext(contextList.toString());
+    }
+
+    return builder.build();
   }
 }

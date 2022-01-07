@@ -111,26 +111,15 @@ class AggregateForm extends Component {
     }
   };
 
-  // ugly hack, we run into timing issues where columns are re-added as we are removing since its atomic removal
-  // this hack is used instead of fields.forEach(() => fields.removeField());
   removeAllFields = (fields) => {
-    const target = fields.length;
-    let count = 0;
 
-    function doit() {
-      const promise = fields.removeField();
-      if (promise && promise.then) {
-        promise.then(() => {
-          count++;
-          if (count < target) {
-            doit();
-          }
-        });
+    const runLoop = async () => {
+      for (let i = 0; i < fields.length; i++) {
+        await fields.removeField(0);
       }
-    }
-    if (target) {
-      doit();
-    }
+    };
+
+    runLoop();
   };
 
   handleClearAllDimensions = () => {

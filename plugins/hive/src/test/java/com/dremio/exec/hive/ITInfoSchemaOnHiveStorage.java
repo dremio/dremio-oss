@@ -201,8 +201,6 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive plugin name with whitespace.db1")
         .baselineValues("hive plugin name with whitespace.default")
         .baselineValues("hive plugin name with whitespace.skipper")
-        .baselineValues("sys")
-        .baselineValues("sys.cache")
         .baselineValues("INFORMATION_SCHEMA")
         .go();
   }

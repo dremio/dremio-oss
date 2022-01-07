@@ -183,8 +183,7 @@ public class IcebergTableWrapper {
     for (Map.Entry<String, Long> entry : datasetColumnValueCounts.entrySet()) {
       builder.addColumnValueCountsBuilder()
         .setColumn(entry.getKey())
-        .setCount(entry.getValue())
-        .build();
+        .setCount(entry.getValue());
     }
 
     icebergDatasetBuilder.setParquetDatasetXAttr(builder.build());

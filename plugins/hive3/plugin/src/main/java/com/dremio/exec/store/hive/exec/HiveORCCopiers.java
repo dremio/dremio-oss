@@ -22,9 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
-import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.BigIntVector;
@@ -48,16 +45,17 @@ import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.ListColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
-import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.MapColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.MultiValuedColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.UnionColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 

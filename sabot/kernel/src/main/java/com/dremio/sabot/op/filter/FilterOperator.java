@@ -22,6 +22,7 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.collections.Tuple;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
@@ -166,11 +167,13 @@ public class FilterOperator implements SingleInputOperator {
   }
 
   private void setupSplitter(VectorAccessible accessible) throws Exception {
-    final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(filterOptions,
+    final Tuple<LogicalExpression, LogicalExpression> codeGenContextExpAndMaterializedExpTuple = context.getClassProducer().materializeAndAllowComplex(filterOptions,
       config.getExpr(), input);
+    final LogicalExpression expr = codeGenContextExpAndMaterializedExpTuple.first;
+    final LogicalExpression originalExp = codeGenContextExpAndMaterializedExpTuple.second;
     splitter = new ExpressionSplitter(context, accessible, filterOptions,
       context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
-    splitter.setupFilter(output, new NamedExpression(expr, new FieldReference("_filter_")), javaCodeGenWatch, gandivaCodeGenWatch);
+    splitter.setupFilter(output, new NamedExpression(expr, new FieldReference("_filter_")), javaCodeGenWatch, gandivaCodeGenWatch, originalExp);
   }
 
   private void doTransfers(){

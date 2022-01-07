@@ -22,6 +22,7 @@ import './Modal.less';
 
 export class AccelerationModal extends Component {
   static propTypes = {
+    canSubmit: PropTypes.bool,
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
     location: PropTypes.object,
@@ -30,7 +31,12 @@ export class AccelerationModal extends Component {
   };
 
   render() {
-    const {isOpen, hide, location} = this.props;
+    const {
+      canSubmit,
+      isOpen,
+      hide,
+      location
+    } = this.props;
     const { datasetId } = location.state || {};
 
     return (
@@ -44,6 +50,7 @@ export class AccelerationModal extends Component {
           onCancel={hide}
           onDone={hide}
           datasetId={datasetId}
+          canSubmit={canSubmit}
         />
       </Modal>
     );

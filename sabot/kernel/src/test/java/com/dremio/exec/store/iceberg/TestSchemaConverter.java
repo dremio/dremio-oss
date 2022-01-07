@@ -294,17 +294,6 @@ public class TestSchemaConverter extends DremioTest {
   }
 
   @Test
-  public void unsupportedIcebergTypes() {
-    Schema schema = new Schema(
-      optional(1, "timestamp_nozone_field", TimestampType.withoutZone())
-    );
-
-    expectedEx.expect(UserException.class);
-    expectedEx.expectMessage("Type conversion error for column timestamp_nozone_field");
-     schemaConverter.fromIceberg(schema);
-  }
-
-  @Test
   public void testUnboundedFieldIdBroker() {
     Schema icebergSchema = new Schema(
       optional(1, "boolean", BooleanType.get()),

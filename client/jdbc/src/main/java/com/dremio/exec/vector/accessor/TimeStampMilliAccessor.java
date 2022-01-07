@@ -15,18 +15,18 @@
  */
 package com.dremio.exec.vector.accessor;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Calendar;
+import java.util.TimeZone;
+
 import org.apache.arrow.vector.TimeStampMilliVector;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.google.common.base.Preconditions;
-
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.Calendar;
-import java.util.TimeZone;
 
 public class TimeStampMilliAccessor extends AbstractSqlAccessor {
 

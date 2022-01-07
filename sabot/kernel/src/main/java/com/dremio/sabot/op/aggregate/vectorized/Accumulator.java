@@ -15,17 +15,19 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
+
+import com.dremio.exec.proto.UserBitShared;
 
 /**
  * Interface for implementing a measure. Maintains an array of workspace and/or
  * output vectors as well as a refrence to the input vector.
  */
 public interface Accumulator extends AutoCloseable {
-
   /**
    * Accumulate the data that is specified at the provided offset vector. The
    * offset vector describes which local mapping each of the <count> records
@@ -40,15 +42,17 @@ public interface Accumulator extends AutoCloseable {
   void accumulate(long offsetAddr, int count, int bitsInChunk, int chunkOffsetMask);
 
   /**
-   * Output the data for the provided batch index to the output vectors.
-   * @param batchIndex
+   * Output the data from multiple batches starting from startBatchIndex.
+   * for each batch, the record count is provided in recordsInBatches array.
+   *
+   * @param startBatchIndex
+   * @param recordsInBatches
    */
-  void output(int batchIndex, int numRecords);
+  void output(int startBatchIndex, int[] recordsInBatches);
 
   /**
-   * return the size of accumulator by looking at
-   * interal vector in the accumulator and the size of
-   * ArrowBufs inside the vectors.
+   * return the size of accumulator by looking at vector in the
+   * accumulator and the size of ArrowBufs inside the vectors.
    *
    * @return size(in bytes)
    */
@@ -81,8 +85,6 @@ public interface Accumulator extends AutoCloseable {
 
   void addBatch(final ArrowBuf dataBuffer, final ArrowBuf validityBuffer);
 
-  void resetToMinimumSize() throws Exception;
-
   void revertResize();
 
   void commitResize();
@@ -91,14 +93,77 @@ public interface Accumulator extends AutoCloseable {
 
   void releaseBatch(final int batchIdx);
 
+  void resetToMinimumSize() throws Exception;
+
+  int getBatchCount();
+
+  AccumulatorBuilder.AccumulatorType getType();
+
+  /**
+   * Check if the accumulator for the given batchIndex has given 'space' space
+   * available. This is valid only for variable length accumulator.
+   *
+   * @param space
+   * @param batchIndex
+   * @return
+   */
+
   default boolean hasSpace(final int space, final int batchIndex) {
     return true;
   }
 
+  /**
+   * Get the backing buffers for the given batchIndex for numRecords which accumulated before.
+   * The buffers will have the valueCount and readerIndex and writerIndex set.
+   *
+   * @param batchIndex
+   * @param numRecords
+   * @return
+   */
+  List<ArrowBuf> getBuffers(int batchIndex, int numRecords);
+
+  /**
+   * Generate a serializedField for given batchIndex with numRecords.
+   *
+   * @param batchIndex
+   * @param numRecords
+   * @return
+   */
+  UserBitShared.SerializedField getSerializedField(int batchIndex, final int numRecords);
+
+  /**
+   * Move numRecords entries starting from srcStartIndex from batch srcBatchIndex to
+   * dstStartIndex in batch dstBatchIndex in the accumulator. This is called during
+   * splice() by HashTable.
+   *
+   * @param srcBatchIndex
+   * @param dstBatchIndex
+   * @param srcStartIndex
+   * @param dstStartIndex
+   * @param numRecords
+   */
+  default void moveValuesAndFreeSpace(final int srcBatchIndex, final int dstBatchIndex,
+                                      final int srcStartIndex, final int dstStartIndex,
+                                      int numRecords) {
+    throw new UnsupportedOperationException("not supported");
+  }
+
+  /**
+   * Total time spend for compactions done in the accumulator. Only BaseVarBinaryAccumulator
+   * backed MutableVarCharVector currently do compactions.
+   *
+   * @return Total time spend on compactions.
+   */
   default long getCompactionTime(TimeUnit unit) {
     return 0;
   }
 
+  /**
+   * Number of compactions done in the accumulator. Only BaseVarBinaryAccumulator
+   * backed MutableVarCharVector currently do compactions.
+   *
+   * @return number of compactions done in the accumulator
+   */
   default int getNumCompactions() {
     return 0;
   }

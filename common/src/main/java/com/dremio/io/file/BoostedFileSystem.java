@@ -15,15 +15,15 @@
  */
 package com.dremio.io.file;
 
-import com.dremio.common.collections.Tuple;
-import com.dremio.io.AsyncByteReader;
-import com.dremio.io.FSInputStream;
-import com.dremio.io.FSOutputStream;
-
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
+
+import com.dremio.common.collections.Tuple;
+import com.dremio.io.AsyncByteReader;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.FSOutputStream;
 
 /**
  * This interface used to boost access to Parquet files

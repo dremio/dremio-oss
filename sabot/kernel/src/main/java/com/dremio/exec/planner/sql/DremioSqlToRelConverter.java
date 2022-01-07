@@ -34,7 +34,6 @@ import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.ops.ViewExpansionContext.ViewExpansionToken;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
@@ -56,7 +55,8 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       SqlValidator validator,
       SqlRexConvertletTable convertletTable,
       Config config) {
-    super(new NoOpExpander(), validator, sqlConverter.getCatalogReader(), sqlConverter.getCluster(), convertletTable, config);
+    super(DremioToRelContext.createQueryContext(sqlConverter), validator,
+        sqlConverter.getCatalogReader(), sqlConverter.getCluster(), convertletTable, config);
     this.sqlConverter = sqlConverter;
   }
 
@@ -66,7 +66,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
   }
 
   public ToRelContext createToRelContext() {
-    return new ExtendedToRelContext(sqlConverter);
+    return DremioToRelContext.createQueryContext(sqlConverter);
   }
 
   @Override
@@ -84,13 +84,12 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
                                             final List<String> context,
                                             final SqlConverter sqlConverter,
                                             final BatchSchema batchSchema) {
-    final DremioCatalogReader catalog;
+    final SqlConverter newConverter;
     if(viewOwner != null) {
-      catalog = sqlConverter.getCatalogReader().withSchemaPathAndUser(viewOwner, context);
+      newConverter = sqlConverter.withSchemaPathAndUser(context, viewOwner);
     } else {
-      catalog = sqlConverter.getCatalogReader().withSchemaPath(context);
+      newConverter = sqlConverter.withSchemaPath(context);
     }
-    final SqlConverter newConverter = new SqlConverter(sqlConverter, catalog);
     final SqlNode parsedNode = newConverter.parse(queryString);
     final SqlNode validatedNode = newConverter.validate(parsedNode);
     if (path != null && sqlConverter.getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
@@ -151,12 +150,4 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
         .collect(Collectors.toList());
     return sqlConverter.getSubstitutionProvider().wrapExpansionNode(path, root, vdsFields, rowType, contextSensitive);
   }
-
-  static class NoOpExpander implements RelOptTable.ViewExpander {
-    @Override
-    public RelRoot expandView(RelDataType rowType, String queryString, List<String> schemaPath, List<String> viewPath) {
-      throw new IllegalStateException("This expander should not be used.");
-    }
-  }
-
 }

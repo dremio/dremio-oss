@@ -114,9 +114,9 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
       boolean warnOnRowCountMismatch,
-      EncryptionValidationMode encryptionValidationMode) {
+      EncryptionValidationMode encryptionValidationMode, boolean forceDoublePrecision) {
     super(scriptsEnabled, showHiddenIndices, showIdColumn, readTimeoutMillis, scrollTimeoutMillis, usePainless,
-      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, warnOnRowCountMismatch, encryptionValidationMode);
+      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, warnOnRowCountMismatch, encryptionValidationMode, forceDoublePrecision);
     this.hostname = hostname;
     this.port = port;
     this.accessKey = accessKey;
@@ -178,7 +178,8 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
       amazonElasticStoragePluginConfig.scrollSize,
       amazonElasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
       amazonElasticStoragePluginConfig.warnOnRowCountMismatch,
-      amazonElasticStoragePluginConfig.encryptionValidationMode);
+      amazonElasticStoragePluginConfig.encryptionValidationMode,
+      false);
     return elasticsearchConf;
   }
 }

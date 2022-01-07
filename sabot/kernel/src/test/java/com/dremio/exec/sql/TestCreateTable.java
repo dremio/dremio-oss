@@ -272,4 +272,18 @@ public class TestCreateTable extends PlanTestBase {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), table1));
     }
   }
+
+  @Test
+  public void createTableWithComplexTypes() throws Exception {
+    final String newTblName = "createTableComplexTypes";
+    try {
+      final String ctasQuery =
+        String.format("create table %s.%s (point STRUCT<x:INT , y: DECIMAL(38,3)>, list LIST<BIGINT>, listoflist LIST<LIST<DECIMAL(34,4)>>, listofstruct LIST<STRUCT<x:BIGINT>>," +
+            "structofstruct STRUCT<x: STRUCT<z: INT>>, structoflist STRUCT<x:LIST<INT>>)",
+          TEMP_SCHEMA, newTblName);
+      test(ctasQuery);
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
+    }
+  }
 }

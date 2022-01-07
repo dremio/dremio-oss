@@ -62,6 +62,9 @@ public class ITTestDateTypesJavaTimeDate extends ElasticBaseTestQuery {
     data.add(new Object[]{"8yyyy-MM-dd"});
     data.add(new Object[]{"uuuu-MM-dd"});
     data.add(new Object[]{"8uuuu-MM-dd"});
+    data.add(new Object[]{"--MM-dd"});
+    data.add(new Object[]{"--dd-MM"});
+    data.add(new Object[]{"dd-MM--"});
     return data;
   }
 

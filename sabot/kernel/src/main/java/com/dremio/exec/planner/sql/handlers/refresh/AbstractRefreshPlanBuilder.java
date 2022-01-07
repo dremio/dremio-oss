@@ -96,6 +96,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
@@ -249,6 +250,8 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     newIcebergMetadata.setMetadataFileLocation(currentRootPointerFileLocation);
     newIcebergMetadata.setSnapshotId(snapshot.snapshotId());
     newIcebergMetadata.setTableUuid(oldIcebergMetadata.getTableUuid());
+    byte[] specs = IcebergSerDe.serializePartitionSpecMap(currentIcebergTable.specs());
+    newIcebergMetadata.setPartitionSpecs(ByteStringUtil.wrap(specs));
     String oldPartitionStatsFile = oldIcebergMetadata.getPartitionStatsFile();
     if (oldPartitionStatsFile != null) {
       String partitionStatsFile = IcebergUtils.getPartitionStatsFile(currentRootPointerFileLocation, snapshot.snapshotId(), metaStoragePlugin.getFsConfCopy());

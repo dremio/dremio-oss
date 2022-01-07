@@ -66,7 +66,7 @@ public class ITHiveOrcIncrementalRefresh extends ITHiveRefreshDatasetIncremental
         .baselineValues("b", 2.0)
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);

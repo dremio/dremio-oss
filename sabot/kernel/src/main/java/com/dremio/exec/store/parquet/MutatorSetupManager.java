@@ -32,7 +32,6 @@ import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -123,10 +122,9 @@ public class MutatorSetupManager {
   }
 
   private BatchSchema getFinalSchema(BatchSchema schemaFromBatchField, BatchSchema schemaFromParquetField) {
-    boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
     BatchSchema finalSchema;
     try {
-      finalSchema = schemaFromBatchField.merge(schemaFromParquetField, mixedTypesDisabled);
+      finalSchema = schemaFromBatchField.mergeWithUpPromotion(schemaFromParquetField);
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       e.addFilePath(filePath);
       e.addDatasetPath(tableSchemaPath);

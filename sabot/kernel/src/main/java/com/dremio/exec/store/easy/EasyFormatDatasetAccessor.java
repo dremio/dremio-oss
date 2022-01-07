@@ -42,7 +42,6 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.PartitionValue.PartitionValueType;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
@@ -195,7 +194,7 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
     final SabotContext context = formatPlugin.getContext();
     try (
         BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-        OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, context.getOptionManager(), 1000);
+        OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, context.getOptionManager(), 1000, context.getExpressionSplitCache());
         SampleMutator mutator = new SampleMutator(sampleAllocator)
     ) {
       final ImplicitFilesystemColumnFinder explorer = new ImplicitFilesystemColumnFinder(context.getOptionManager(), dfs, GroupScan.ALL_COLUMNS);
@@ -223,16 +222,16 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
         reader.allocate(fieldVectorMap);
         reader.next();
         mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
-        return getMergedSchema(oldSchema, operatorContext, mutator, file);
+        return getMergedSchema(oldSchema, mutator, file);
       }
     }
   }
 
-  private BatchSchema getMergedSchema(BatchSchema oldSchema, OperatorContextImpl operatorContext, SampleMutator mutator, FileAttributes file) {
-    boolean mixedTypesDisabled = operatorContext.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
+  private BatchSchema getMergedSchema(BatchSchema oldSchema, SampleMutator mutator, FileAttributes file) {
     try {
-      BatchSchema newSchema = mutator.getContainer().getSchema().handleUnions(mixedTypesDisabled);
-      return oldSchema != null ? oldSchema.merge(newSchema, mixedTypesDisabled) : newSchema;
+      BatchSchema newSchema = mutator.getContainer().getSchema().handleUnions();
+      newSchema = oldSchema != null ? oldSchema.mergeWithUpPromotion(newSchema) : newSchema;
+      return newSchema.removeNullFields();
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       e.addFilePath(file.getPath().toString());
       e.addDatasetPath(tableSchemaPath.getPathComponents());

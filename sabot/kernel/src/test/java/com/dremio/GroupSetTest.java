@@ -294,4 +294,21 @@ public class GroupSetTest extends BaseTestQuery {
       .baselineValues("San Jose", "iPhone", 300L)
       .go();
   }
+
+  @Test
+  public void testGroupingSetWithAggFunctionOnGroupColumn() throws Exception {
+    String query = "select n_regionkey, count(n_regionkey) cnt from cp.\"tpch/nation.parquet\" group by rollup (n_regionkey);";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("n_regionkey", "cnt")
+      .baselineValues(null, 25L)
+      .baselineValues(0, 5L)
+      .baselineValues(1, 5L)
+      .baselineValues(2, 5L)
+      .baselineValues(3, 5L)
+      .baselineValues(4, 5L)
+      .go();
+  }
+
 }

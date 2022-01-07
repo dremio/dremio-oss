@@ -15,6 +15,8 @@
  */
 package com.dremio.jdbc.impl;
 
+import static org.slf4j.LoggerFactory.getLogger;
+
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -23,8 +25,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
-
-import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * Registry of open statements (for a connection), for closing them when a

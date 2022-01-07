@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -27,6 +28,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -40,6 +42,9 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 
 /**
  * Iceberg manifest list reader prel
@@ -54,16 +59,18 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
     private final BatchSchema schema;
     private final List<SchemaPath> projectedColumns;
     private final RelDataType relDataType;
+    private final Expression icebergExpression;
 
     public IcebergManifestListPrel(RelOptCluster cluster, RelTraitSet traitSet, TableMetadata tableMetadata,
                                    BatchSchema schema,
                                    List<SchemaPath> projectedColumns,
-                                   RelDataType relDataType) {
+                                   RelDataType relDataType, Expression icebergExpression) {
         super(cluster, traitSet);
         this.tableMetadata = tableMetadata;
         this.schema = schema;
         this.projectedColumns = projectedColumns;
         this.relDataType = relDataType;
+        this.icebergExpression = icebergExpression;
     }
 
     @Override
@@ -81,12 +88,12 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
         return new IcebergGroupScan(
                 creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
                 tableMetadata,
-                projectedColumns);
+                projectedColumns, icebergExpression);
     }
 
     @Override
     public Prel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-        return new IcebergManifestListPrel(getCluster(), getTraitSet(), tableMetadata, schema, projectedColumns, relDataType);
+        return new IcebergManifestListPrel(getCluster(), getTraitSet(), tableMetadata, schema, projectedColumns, relDataType, icebergExpression);
     }
 
     @Override
@@ -135,8 +142,22 @@ public class IcebergManifestListPrel extends AbstractRelNode  implements LeafPre
         return relDataType;
     }
 
-    @Override
-    public RelWriter explainTerms(RelWriter pw) {
-        return ScanRelBase.explainScanRel(pw, tableMetadata, projectedColumns, 1.0);
-    }
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    pw = ScanRelBase.explainScanRel(pw, tableMetadata, projectedColumns, 1.0);
+
+    /* To avoid NPE in the method chain Optional is used*/
+    Optional<String> metadataLocation = Optional.ofNullable(tableMetadata.getDatasetConfig())
+      .map(DatasetConfig::getPhysicalDataset)
+      .map(PhysicalDataset::getIcebergMetadata)
+      .map(IcebergMetadata::getMetadataFileLocation);
+
+      if (metadataLocation.isPresent()) {
+          pw.item("metadataFileLocation", metadataLocation.get());
+      }
+      if (icebergExpression != null) {
+          pw.item("ManifestList Filter Expression ", icebergExpression.toString());
+      }
+      return pw;
+  }
 }

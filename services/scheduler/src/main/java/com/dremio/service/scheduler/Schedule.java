@@ -139,7 +139,6 @@ public interface Schedule extends Iterable<Instant> {
     }
 
     public Builder releaseOwnershipAfter(long number, TimeUnit timeUnit) {
-      timeUnit.toMillis(number);
       return new Builder(
         start,
         amount,

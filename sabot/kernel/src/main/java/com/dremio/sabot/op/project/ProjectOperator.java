@@ -37,6 +37,7 @@ import org.apache.arrow.vector.util.TransferPair;
 
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.collections.Tuple;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -414,20 +415,23 @@ public class ProjectOperator implements SingleInputOperator {
               .getFields().get(i).getName())) == null) {
         continue;
       }
-      final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(options,
-              namedExpression.getExpr(), incoming);
+
+      final Tuple<LogicalExpression, LogicalExpression> codeGenContextExpAndMaterializedExpTuple = context.getClassProducer().materializeAndAllowComplex(options,
+        namedExpression.getExpr(), incoming);
+      final LogicalExpression expr = codeGenContextExpAndMaterializedExpTuple.first;
       final LogicalExpression originalExpression = ((CodeGenContext) expr).getChild();
+      LogicalExpression originalExprWithNoCodeGenContextInfo = codeGenContextExpAndMaterializedExpTuple.second;
       switch (ProjectOperator.getEvalMode(incoming, originalExpression, transferFieldIds)) {
 
         case COMPLEX: {
-          LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
-          outgoing.addOrGet(originalExpr.getCompleteType().toField(namedExpression.getRef()));
+
+          outgoing.addOrGet(originalExprWithNoCodeGenContextInfo.getCompleteType().toField(namedExpression.getRef()));
           // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
-          ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExpr).getHolder()).setReference(namedExpression.getRef());
+          ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExprWithNoCodeGenContextInfo).getHolder()).setReference(namedExpression.getRef());
           if (context.getOptions().getOption(ExecConstants.LAZYEXPEVAL_ENABLED)) {
-            cg.lazyAddExp(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+            cg.lazyAddExp(originalExprWithNoCodeGenContextInfo, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
           } else {
-            cg.addExpr(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+            cg.addExpr(originalExprWithNoCodeGenContextInfo, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
           }
           if (nonDirectExprs != null) {
             nonDirectExprs.add(namedExpression);
@@ -449,7 +453,7 @@ public class ProjectOperator implements SingleInputOperator {
         }
 
         case EVAL: {
-          splitter.addExpr(outgoing, new NamedExpression(expr, namedExpression.getRef()));
+          splitter.addExpr(outgoing, new NamedExpression(expr, namedExpression.getRef()), originalExprWithNoCodeGenContextInfo);
           if (nonDirectExprs != null) {
             nonDirectExprs.add(namedExpression);
           }

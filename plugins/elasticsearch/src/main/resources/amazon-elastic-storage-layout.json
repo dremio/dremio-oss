@@ -108,6 +108,9 @@
               },
               {
                 "propName": "config.warnOnRowCountMismatch"
+              },
+              {
+                "propName": "config.forceDoublePrecision"
               }
             ]
           },

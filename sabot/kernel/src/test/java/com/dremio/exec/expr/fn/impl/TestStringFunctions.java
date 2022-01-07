@@ -541,7 +541,7 @@ public class TestStringFunctions extends BaseTestQuery {
             "ilike('UNITED_STATE', '%UNITED%') c1, " +
             "ilike('UNITED_KINGDOM', 'united%') c2, " +
             "ilike('KINGDOM \n NOT UNITED', '%united') c3 " +
-            "from sys.version")
+            "from INFORMATION_SCHEMA.CATALOGS")
         .unOrdered()
         .baselineColumns("c1", "c2", "c3")
         .baselineValues(true, true, true)

@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-import javax.inject.Provider;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.joda.time.LocalDateTime;
@@ -26,17 +24,12 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.dac.service.flight.FlightCloseableBindableService;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.CatalogService;
-import com.dremio.plugins.sysflight.SysFlightPluginConf;
 import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
-import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.sysflight.SysFlightProducer;
 import com.dremio.service.sysflight.SystemTableManagerImpl;
 import com.dremio.test.DremioTest;
 import com.google.inject.AbstractModule;
-import com.google.inject.Injector;
 
 /**
  * Tests for SysFlightPlugin.
@@ -62,17 +55,7 @@ public class TestSysFlightPlugin extends BaseTestQuery {
       }
     });
     BaseTestQuery.setupDefaultTestCluster();
-    final Injector injector = getInjector();
-    final Provider<SabotContext> sabotContext = injector.getProvider(SabotContext.class);
-
-    // create the sysFlight source
-    SourceConfig c = new SourceConfig();
-    SysFlightPluginConf conf = new SysFlightPluginConf();
-    c.setType(conf.getType());
-    c.setName("testSysFlight");
-    c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
-    c.setConfig(conf.toBytesString());
-    ((CatalogServiceImpl) sabotContext.get().getCatalogService()).getSystemUserCatalog().createSource(c);
+    TestSysFlightResource.addSysFlightPlugin(nodes[0]);
   }
 
   @Test
@@ -80,12 +63,14 @@ public class TestSysFlightPlugin extends BaseTestQuery {
     LocalDateTime dateTime = new LocalDateTime(1970, 01, 01, 00, 00, 00, 000);
 
     testBuilder()
-      .sqlQuery("select * from testSysFlight.jobs")
+      .sqlQuery("select * from sys.jobs")
       .unOrdered()
-      .baselineColumns("job_id", "status", "query_type", "user_name", "accelerated", "submit", "queue", "start", "finish", "queue_name",
-        "engine", "query_planning_time", "queue_time", "execution_planning_time", "execution_time", "row_count", "error_msg")
-      .baselineValues("1", "RUNNING", "UI_RUN", "user", false, dateTime, dateTime, dateTime, dateTime, "", "", 0L, 0L, 0L, 0L, 0L, "err")
-      .baselineValues("", "", "", "", false, dateTime, dateTime, dateTime, dateTime, "", "", 0L, 0L, 0L, 0L, 0L, "")
+      .baselineColumns("job_id", "status", "query_type", "user_name", "queried_datasets", "scanned_datasets",
+        "submitted_ts", "metadata_retrieval_ts", "planning_start_ts", "query_enqueued_ts", "engine_start_ts",
+        "execution_planning_ts", "execution_start_ts", "final_state_ts", "rows_scanned", "rows_returned",
+        "accelerated", "queue_name", "engine", "error_msg", "query")
+      .baselineValues("1", "RUNNING", "UI_RUN", "user", "", "", 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, false, "", "", "err", "")
+      .baselineValues("", "", "", "", "", "", 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, false, "", "", "", "")
       .build()
       .run();
   }
@@ -93,19 +78,30 @@ public class TestSysFlightPlugin extends BaseTestQuery {
   @Test
   public void testProjection() throws Exception {
     testBuilder()
-      .sqlQuery("select Status, User_Name, Row_Count from testSysFlight.jobs")
+      .sqlQuery("select Status, User_Name, Rows_Scanned from sys.jobs")
       .unOrdered()
-      .baselineColumns( "Status", "User_Name", "Row_Count")
+      .baselineColumns( "Status", "User_Name", "Rows_Scanned")
       .baselineValues("RUNNING", "user", 0L)
       .baselineValues("", "", 0L)
       .build()
       .run();
   }
 
+  // Test scenario: If no column is required to be read from the storage plugin
+  @Test
+  public void testSkipQuery() throws Exception {
+    testBuilder()
+      .sqlQuery("select count(*) from sys.jobs")
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(2L)
+      .go();
+  }
+
   @Test
   public void testFilterPushdownFallBack() throws Exception {
     testBuilder()
-      .sqlQuery("select job_id, status from testSysFlight.jobs where job_id='1'")
+      .sqlQuery("select job_id, status from sys.jobs where job_id='1'")
       .unOrdered()
       .baselineColumns("job_id", "status")
       .baselineValues("1", "RUNNING")
@@ -118,7 +114,7 @@ public class TestSysFlightPlugin extends BaseTestQuery {
     LocalDateTime defaultTime = new LocalDateTime(1970, 01, 01, 00, 00, 00, 000);
 
     testBuilder()
-      .sqlQuery("select * from testSysFlight.materializations")
+      .sqlQuery("select * from sys.materializations")
       .unOrdered()
       .baselineColumns("reflection_id", "materialization_id", "created", "expires", "size_bytes", "series_id",
         "init_refresh_job_id", "series_ordinal", "join_analysis", "state", "failure_msg", "data_partitions", "last_refresh_from_pds")
@@ -130,7 +126,7 @@ public class TestSysFlightPlugin extends BaseTestQuery {
   @Test
   public void testReflectionsTable() throws Exception {
     testBuilder()
-      .sqlQuery("select * from testSysFlight.reflections")
+      .sqlQuery("select * from sys.reflections")
       .unOrdered()
       .baselineColumns("reflection_id", "reflection_name", "type", "status", "dataset_id", "dataset_name", "dataset_type", "sort_columns", "partition_columns",
         "distribution_columns", "dimensions", "measures", "display_columns", "external_reflection", "num_failures", "arrow_cache")
@@ -142,7 +138,7 @@ public class TestSysFlightPlugin extends BaseTestQuery {
   @Test
   public void testReflectionDependenciesTable() throws Exception {
     testBuilder()
-      .sqlQuery("select * from testSysFlight.reflection_dependencies")
+      .sqlQuery("select * from sys.reflection_dependencies")
       .unOrdered()
       .baselineColumns("reflection_id", "dependency_id", "dependency_type", "dependency_path")
       .baselineValues("", "", "", "")

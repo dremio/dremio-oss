@@ -615,6 +615,25 @@ public class TestNativeFunctions extends BaseTestFunction {
   }
 
   @Test
+  public void testInWithQuotes() {
+    long initialThreshold = testContext.getOptions().getOption(ExecConstants.FAST_OR_MIN_THRESHOLD_GANDIVA);
+    try {
+      testContext.getOptions().setOption(OptionValue.createLong(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.FAST_OR_MIN_THRESHOLD_GANDIVA.getOptionName(),
+        5));
+      testFunctions(new Object[][]{
+        {"booleanOr(c0 = '1', c0 = '2', c0 = '3', c0 = '9', c0 = '4', c0 = '5', c0 = '6', c0 = '7', c0 ='10')", 10, true}
+      });
+    } finally {
+      testContext.getOptions().setOption(OptionValue.createLong(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.FAST_OR_MIN_THRESHOLD_GANDIVA.getOptionName(),
+        initialThreshold));
+    }
+  }
+
+  @Test
   public void testInOptimizationWithStringCasts() {
     try {
         testContext.getOptions().setOption(OptionValue.createString(

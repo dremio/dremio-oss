@@ -41,6 +41,7 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
+import com.dremio.exec.catalog.TestOptions;
 import com.dremio.file.FilePath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -61,7 +62,7 @@ public class TestDatasetService extends BaseTestServer {
 
   /**
    * Rule for tests that verify {@link com.dremio.common.exceptions.UserException} type and message. See
-   * {@link UserExceptionMatcher} and e.g. {@link com.dremio.exec.server.TestOptions#checkValidationException}.
+   * {@link UserExceptionMatcher} and e.g. {@link TestOptions#checkValidationException}.
    * Tests that do not use this rule are not affected.
    */
   @Rule

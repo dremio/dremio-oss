@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.inject.Provider;
@@ -39,11 +40,16 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.powermock.api.mockito.PowerMockito;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.config.DremioConfig;
+import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
@@ -54,6 +60,8 @@ import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
@@ -64,6 +72,7 @@ import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.test.AllocatorRule;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
+
 
 /**
  * Tests for {@link BoostBufferManager}
@@ -161,18 +170,29 @@ public class TestBoostBufferManager {
 
   @Test
   public void testBoostBufferManagerWithOneBatch() throws Exception {
-    BoostBufferManager boostBufferManager = new BoostBufferManager(getCtx());
+    BoostBufferManager boostBufferManager = PowerMockito.spy(new
+      BoostBufferManager(mock(FragmentExecutionContext.class),
+      getCtx(),
+      getProps(),
+      getTableFunctionConfig()));
+
+    PowerMockito.doNothing().when(boostBufferManager).createAndFireBoostQuery();
+
     List<SplitAndPartitionInfo> splitAndPartitionInfos = buildSplit(7);
+
 
     List<SchemaPath> columns = ImmutableList.of(SchemaPath.getSimplePath("column1"));
     splitAndPartitionInfos.stream().forEach(x -> {
       try {
-        boostBufferManager.addSplit(x, columns);
+        ParquetProtobuf.ParquetDatasetSplitScanXAttr parquetDatasetSplitScanXAttr = LegacyProtobufSerializer.
+          parseFrom(ParquetProtobuf.ParquetDatasetSplitScanXAttr.PARSER, x.getDatasetSplitInfo().getExtendedProperty());
+        boostBufferManager.addSplit(x, parquetDatasetSplitScanXAttr, columns);
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
     });
 
+    boostBufferManager.setIcebergColumnIds("TestBytes".getBytes());
     boostBufferManager.close();
 
     Path arrowFilePath = boostBufferManager.getArrowFilePath();
@@ -180,18 +200,22 @@ public class TestBoostBufferManager {
 
 
     List<Field> fieldList = Arrays.asList(
-      CompleteType.VARBINARY.toField("splitInfo")
+      CompleteType.VARBINARY.toField(BoostBufferManager.SPLITS_VECTOR),
+      CompleteType.VARBINARY.toField(BoostBufferManager.COL_IDS)
     );
 
     BatchSchema schema = new BatchSchema(fieldList);
 
     try(VectorContainer container = VectorContainer.create(testAllocator, schema);
         ArrowRecordReader reader = new ArrowRecordReader(getCtx(),
-          fs, arrowFilePath, ImmutableList.of(SchemaPath.getSimplePath("splitInfo")));
+          fs, arrowFilePath, ImmutableList.of(SchemaPath.getSimplePath(BoostBufferManager.SPLITS_VECTOR),
+          SchemaPath.getSimplePath(BoostBufferManager.COL_IDS)));
         SampleMutator mutator = new SampleMutator(testAllocator))
     {
-      Field splitInfo = CompleteType.VARBINARY.toField("splitInfo");
+      Field splitInfo = CompleteType.VARBINARY.toField(BoostBufferManager.SPLITS_VECTOR);
+      Field colIds = CompleteType.VARBINARY.toField(BoostBufferManager.COL_IDS);
       mutator.addField(splitInfo, VarBinaryVector.class);
+      mutator.addField(colIds, VarBinaryVector.class);
       mutator.getContainer().buildSchema();
       reader.allocate(mutator.getFieldVectorMap());
       reader.setup(mutator);
@@ -206,8 +230,9 @@ public class TestBoostBufferManager {
 
       assertEquals(totalRecordCount, 7);
       //Only one batch is read so just assert the vectors
-      assertEquals("partition_extended_boostBuffer2", getPartitionExtendedProp((VarBinaryVector) mutator.getVector("splitInfo"),2));
-      assertEquals("partition_extended_boostBuffer5", getPartitionExtendedProp((VarBinaryVector) mutator.getVector("splitInfo"),5));
+      assertEquals("partition_extended_boostBuffer2", getPartitionExtendedProp((VarBinaryVector) mutator.getVector(BoostBufferManager.SPLITS_VECTOR),2));
+      assertEquals("partition_extended_boostBuffer5", getPartitionExtendedProp((VarBinaryVector) mutator.getVector(BoostBufferManager.SPLITS_VECTOR),5));
+      assertEquals("TestBytes", new String(((VarBinaryVector)mutator.getVector(BoostBufferManager.COL_IDS)).get(0)));
     }
     catch (Exception e) {
       e.printStackTrace();
@@ -217,40 +242,51 @@ public class TestBoostBufferManager {
 
   @Test
   public void testBoostBufferManagerWithMultipleBatches() throws Exception {
-    BoostBufferManager boostBufferManager = new BoostBufferManager(getCtx());
+    BoostBufferManager boostBufferManager = PowerMockito.spy(new
+      BoostBufferManager(mock(FragmentExecutionContext.class),
+      getCtx(),
+      getProps(),
+      getTableFunctionConfig()));
+
+    PowerMockito.doNothing().when(boostBufferManager).createAndFireBoostQuery();
 
     //We will write 54 splits with batch size of 10. So we will write 6 batches.
     List<SplitAndPartitionInfo> splitAndPartitionInfos = buildSplit(54);
 
-    List<SchemaPath> columns = ImmutableList.of(SchemaPath.getSimplePath("column1"));
+    List<SchemaPath> columns = ImmutableList.of(SchemaPath.getSimplePath(BoostBufferManager.SPLITS_VECTOR));
     boostBufferManager.setBatchSize(10);
 
     splitAndPartitionInfos.stream().forEach(x -> {
       try {
-        boostBufferManager.addSplit(x, columns);
+        ParquetProtobuf.ParquetDatasetSplitScanXAttr parquetDatasetSplitScanXAttr = LegacyProtobufSerializer.
+          parseFrom(ParquetProtobuf.ParquetDatasetSplitScanXAttr.PARSER, x.getDatasetSplitInfo().getExtendedProperty());
+        boostBufferManager.addSplit(x, parquetDatasetSplitScanXAttr, columns);
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
     });
 
-
+    boostBufferManager.setIcebergColumnIds("TestBytes".getBytes());
     boostBufferManager.close();
     Path arrowFilePath = boostBufferManager.getArrowFilePath();
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
 
-
     List<Field> fieldList = Arrays.asList(
-      CompleteType.VARBINARY.toField("splitInfo")
-    );
+      CompleteType.VARBINARY.toField(BoostBufferManager.SPLITS_VECTOR),
+      CompleteType.VARBINARY.toField(BoostBufferManager.COL_IDS)
+      );
 
     BatchSchema schema = new BatchSchema(fieldList);
 
     try(VectorContainer container = VectorContainer.create(testAllocator, schema);
-        ArrowRecordReader reader = new ArrowRecordReader(getCtx(), fs, arrowFilePath, ImmutableList.of(SchemaPath.getSimplePath("splitInfo")));
+        ArrowRecordReader reader = new ArrowRecordReader(getCtx(), fs, arrowFilePath, ImmutableList.of(SchemaPath.getSimplePath(BoostBufferManager.SPLITS_VECTOR),
+          SchemaPath.getSimplePath(BoostBufferManager.COL_IDS)));
         SampleMutator mutator = new SampleMutator(testAllocator))
     {
-      Field splitInfo = CompleteType.VARBINARY.toField("splitInfo");
+      Field splitInfo = CompleteType.VARBINARY.toField(BoostBufferManager.SPLITS_VECTOR);
+      Field colIds = CompleteType.VARBINARY.toField(BoostBufferManager.COL_IDS);
       mutator.addField(splitInfo, VarBinaryVector.class);
+      mutator.addField(colIds, VarBinaryVector.class);
       mutator.getContainer().buildSchema();
       reader.allocate(mutator.getFieldVectorMap());
       reader.setup(mutator);
@@ -263,11 +299,12 @@ public class TestBoostBufferManager {
         totalRecordCount += currentCount;
         //assert the value of first element in each batch read.
         //Batch size will be ten and we would read 6 batches
-        assertEquals("partition_extended_boostBuffer" + batchesRead * 10, getPartitionExtendedProp((VarBinaryVector) mutator.getVector("splitInfo"),0));
+        assertEquals("partition_extended_boostBuffer" + batchesRead * 10, getPartitionExtendedProp((VarBinaryVector) mutator.getVector(BoostBufferManager.SPLITS_VECTOR),0));
         batchesRead++;
       }
       assertEquals(totalRecordCount, 54);
       assertEquals(batchesRead, 6);
+      assertEquals("TestBytes", new String(((VarBinaryVector)mutator.getVector(BoostBufferManager.COL_IDS)).get(0)));
     }
     catch (Exception e) {
       e.printStackTrace();
@@ -279,6 +316,15 @@ public class TestBoostBufferManager {
     List<SplitAndPartitionInfo> splitAndPartitionInfos = new ArrayList<>();
 
     for (int i = 0; i < num; ++i) {
+      ParquetProtobuf.ParquetDatasetSplitScanXAttr parquetXAttr = ParquetProtobuf.ParquetDatasetSplitScanXAttr.newBuilder()
+        .setPath("dummyPath")
+        .setLength(0)
+        .setStart(0)
+        .setFileLength(125)
+        .setRowGroupIndex(0)
+        .setLastModificationTime(0)
+        .build();
+
       String extendedProp = "partition_extended_boostBuffer" + String.valueOf(i);
       PartitionProtobuf.NormalizedPartitionInfo partitionInfo = PartitionProtobuf.NormalizedPartitionInfo
         .newBuilder()
@@ -292,13 +338,29 @@ public class TestBoostBufferManager {
         PartitionProtobuf.NormalizedDatasetSplitInfo splitInfo = PartitionProtobuf.NormalizedDatasetSplitInfo
           .newBuilder()
           .setPartitionId(String.valueOf(i))
-          .setExtendedProperty(ByteString.copyFrom(splitExtendedProp.getBytes()))
+          .setExtendedProperty(ByteString.copyFrom(parquetXAttr.toByteArray()))
           .build();
 
         splitAndPartitionInfos.add(new SplitAndPartitionInfo(partitionInfo, splitInfo));
     }
 
     return splitAndPartitionInfos;
+  }
+
+  private OpProps getProps() {
+    OpProps props = mock(OpProps.class);
+    when(props.getOperatorId()).thenReturn(123);
+    return props;
+  }
+
+  private TableFunctionConfig getTableFunctionConfig() {
+    TableFunctionContext functionContext = mock(TableFunctionContext.class);
+    BatchSchema fullSchema = new BatchSchema(Collections.EMPTY_LIST);
+    when(functionContext.getFullSchema()).thenReturn(fullSchema);
+    when(functionContext.getColumns()).thenReturn(Collections.EMPTY_LIST);
+    when(functionContext.isArrowCachingEnabled()).thenReturn(true);
+
+    return new TableFunctionConfig(TableFunctionConfig.FunctionType.DATA_FILE_SCAN, false, functionContext);
   }
 
   private String getPartitionExtendedProp(VarBinaryVector vector, int index) throws IOException, ClassNotFoundException {

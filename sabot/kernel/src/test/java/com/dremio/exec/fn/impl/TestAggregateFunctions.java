@@ -53,11 +53,13 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Test
   public void testCountDistinctOnBoolColumn() throws Exception {
     testBuilder()
-        .sqlQuery("select count(distinct \"bool_val\") as cnt from \"sys\".\"options\"")
+        .sqlQuery(
+            "select count(distinct bool_col) as cnt from cp.\"parquet/alltypes_required.parquet\"")
         .ordered()
         .baselineColumns("cnt")
-        .baselineValues(2l)
-        .build().run();
+        .baselineValues(1l)
+        .build()
+        .run();
   }
 
   @Test
@@ -463,7 +465,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
   @Test // DRILL-3781
   // GROUP BY System functions in schema table.
   public void testGroupBySystemFuncSchemaTable() throws Exception {
-    final String query = "select count(*) as cnt from sys.version group by CURRENT_DATE";
+    final String query = "select count(*) as cnt from INFORMATION_SCHEMA.CATALOGS group by CURRENT_DATE";
     final String[] expectedPlan = {"(?s)(StreamAgg|HashAgg)"};
     final String[] excludedPatterns = {};
 

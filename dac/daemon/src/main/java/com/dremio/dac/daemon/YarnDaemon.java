@@ -130,7 +130,7 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     }
 
     livenessService.addHealthMonitor(new YarnContainerHealthMonitor());
-    livenessService.addHealthMonitor(new ClasspathHealthMonitor());
+    livenessService.addHealthMonitor(ClasspathHealthMonitor.newInstance());
 
     DremioConfig dremioConfig = daemon.getDACConfig().getConfig();
     final long watchedPID = Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);

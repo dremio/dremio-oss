@@ -89,6 +89,24 @@ public class IcebergSerDe {
     }
   }
 
+  public static byte[] serializePartitionSpecMap(Map<Integer, PartitionSpec> partitionSpecMap) {
+    try {
+      return serializeToByteArray(partitionSpecMap);
+    } catch (IOException e) {
+      throw new RuntimeIOException(e, "failed to serialize PartitionSpecMap");
+    }
+  }
+
+  public static Map<Integer, PartitionSpec> deserializePartitionSpecMap(byte[] serialized) {
+    try {
+      return deserializeFromByteArray(serialized);
+    } catch (IOException e) {
+      throw new RuntimeIOException(e, "failed to deserialize PartitionSpecMap");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("failed to deserialize PartitionSpecMap", e);
+    }
+  }
+
   public static byte[] serializeToByteArray(Object object) throws IOException {
     try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
       ObjectOutput out = new ObjectOutputStream(bos)) {

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>19.3.0-202201011605440679-67815cf6</version>
+    <version>20.0.0-202201050826310141-8cc7162b</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -408,6 +408,10 @@
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-sdk-testing</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-usersessions</artifactId>
     </dependency>
   </dependencies>
 

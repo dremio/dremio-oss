@@ -65,7 +65,8 @@ public class SysFlightTable implements DatasetHandle, DatasetMetadata, Partition
 
   @Override
   public BatchSchema getRecordSchema() {
-    return new BatchSchema(client.getSchema(FlightDescriptor.path(entityPath.getName())).getSchema().getFields());
+    return new BatchSchema(client.getSchema(
+      FlightDescriptor.path(entityPath.getComponents().subList(1, entityPath.size()))).getSchema().getFields());
   }
 
   @Override

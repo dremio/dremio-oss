@@ -231,10 +231,9 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
   private BatchSchema getSchema(BatchSchema oldSchema, SabotContext context, FileAttributes firstFile, List<Field> fields) {
     BatchSchema newSchema = BatchSchema.newBuilder().addFields(fields).build();
-    boolean mixedTypesDisabled = context.getOptionManager().getOption(ExecConstants.MIXED_TYPES_DISABLED);
     try {
-      newSchema = newSchema.handleUnions(mixedTypesDisabled);
-      return oldSchema != null ? oldSchema.merge(newSchema, mixedTypesDisabled) : newSchema;
+      newSchema = newSchema.handleUnions();
+      return oldSchema != null ? oldSchema.mergeWithUpPromotion(newSchema) : newSchema;
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       e.addFilePath(firstFile.getPath().toString());
       e.addDatasetPath(tableSchemaPath.getPathComponents());
@@ -254,7 +253,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
     try (
         BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-        OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, context.getOptionManager(), 1000);
+        OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), sampleAllocator, context.getOptionManager(), 1000, context.getExpressionSplitCache());
         SampleMutator mutator = new SampleMutator(sampleAllocator)
     ) {
       final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(new Configuration(),
@@ -423,8 +422,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
     for (Map.Entry<SchemaPath, Long> entry : parquetGroupScanUtils.getColumnValueCounts().entrySet()) {
       datasetXAttr.addColumnValueCountsBuilder()
           .setColumn(entry.getKey().getAsUnescapedPath())
-          .setCount(entry.getValue())
-          .build();
+          .setCount(entry.getValue());
     }
 
     extended = datasetXAttr.build();

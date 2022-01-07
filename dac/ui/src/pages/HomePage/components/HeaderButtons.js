@@ -24,9 +24,14 @@ import config from 'dyn-load/utils/config';
 import Art from 'components/Art';
 import { ENTITY_TYPES } from '@app/constants/Constants';
 
-import HeaderButtonsMixin, { isUploadEnabled } from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
+import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
 import { RestrictedArea } from '@app/components/Auth/RestrictedArea';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+
+import {
+  SHOW_ADD_FOLDER,
+  SHOW_ADD_FILE
+} from '@inject/pages/HomePage/components/HeaderButtonConstants';
 
 @injectIntl
 @Radium
@@ -95,7 +100,7 @@ export class HeaderButtons extends Component {
   getHomeButtons() {
     const { location } = this.context;
     const buttons = [];
-    buttons.push(
+    SHOW_ADD_FOLDER && buttons.push(
       {
         qa: 'add-folder',
         iconType: 'Folder',
@@ -103,7 +108,7 @@ export class HeaderButtons extends Component {
         isAdd: true
       }
     );
-    if (config.allowFileUploads && isUploadEnabled()) {
+    if (SHOW_ADD_FILE && config.allowFileUploads) {
       buttons.push(
         {
           qa: 'add-file',

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import jobsUtils from '@app/utils/jobsUtils.js';
 import jobUtils from 'utils/jobsUtils';
 
 // export this for calculate min width of table tr in JobTable.js
@@ -75,8 +76,8 @@ export default function(input) {
     setActiveJob(jobData, isReplaceUrl) {
       const { location } = this.props;
       const router = this.context.router[isReplaceUrl ? 'replace' : 'push'];
-      if (jobData) {
-        router({...location, hash: `#${jobData.get('id')}`});
+      if (jobData && !jobsUtils.isNewJobsPage()) {
+        router({...location, pathname: '/jobs', hash: `#${jobData.get('id')}`});
       } else {
         router({...location, hash: ''});
       }

@@ -77,6 +77,12 @@ DREMIO_PID_DIR=/var/run/dremio
 #DREMIO_GC_LOGS_ENABLED="yes"
 
 #
+# Send GC logs to console and not to log files. The DREMIO_LOG_DIR is ignored if set.
+# Default is set to "no"
+#
+#DREMIO_GC_LOG_TO_CONSOLE="no"
+
+#
 # By default G1GC is used as java garbage collection.
 # This can be overriden by changing this parameter
 #

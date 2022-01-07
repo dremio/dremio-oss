@@ -48,7 +48,8 @@ const SearchableMultiSelect = (props) => {
     options,
     placeholder,
     typeAhead,
-    onSearchChange
+    onSearchChange,
+    disabled
   } = props;
 
   const getMenuClass = (anchor) => makeStyles(() => {
@@ -75,6 +76,7 @@ const SearchableMultiSelect = (props) => {
   const hasError = get(touched, name) && get(errors, name);
   const rootClass = clsx(
     'SearchableMultiSelect',
+    { '--disabled': disabled },
     { [classes.root]: classes.root }
   );
   const valueClass = clsx(
@@ -314,7 +316,8 @@ SearchableMultiSelect.propTypes = {
   typeAhead: PropTypes.bool,
   placeholder: PropTypes.string,
   enableSearch: PropTypes.bool,
-  onSearchChange: PropTypes.func
+  onSearchChange: PropTypes.func,
+  disabled: PropTypes.bool
 };
 
 SearchableMultiSelect.defaultProps = {
@@ -324,7 +327,8 @@ SearchableMultiSelect.defaultProps = {
   label: null,
   name: '',
   typeAhead: true,
-  enableSearch: true
+  enableSearch: true,
+  disabled: false
 };
 
 export default SearchableMultiSelect;

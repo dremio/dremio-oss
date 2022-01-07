@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>19.3.0-202201011605440679-67815cf6</version>
+    <version>20.0.0-202201050826310141-8cc7162b</version>
   </parent>
   <artifactId>dremio-services-jobs</artifactId>
   <name>Services - Jobs</name>
@@ -173,6 +173,10 @@
       <artifactId>dremio-services-jobresults-server</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-arrow-flight</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
@@ -211,6 +215,9 @@
             <configuration>
               <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+              <excludes>
+                <exclude>**/logged-query.proto</exclude>
+              </excludes>
             </configuration>
           </execution>
           <execution>

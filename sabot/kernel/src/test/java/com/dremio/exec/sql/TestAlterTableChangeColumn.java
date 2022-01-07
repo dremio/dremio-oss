@@ -43,14 +43,14 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
       String tableName = "changecol1";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
 
-        String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message varchar", testSchema,
+        String query = String.format("ALTER TABLE %s.%s CHANGE CATALOG_NAME CATALOG_DESCRIPTION varchar", testSchema,
           tableName);
-        errorMsgTestHelper(query, "Column [commit_message] already present in table [" + testSchema + ".changecol1]");
+        errorMsgTestHelper(query, "Column [CATALOG_DESCRIPTION] already present in table [" + testSchema + ".changecol1]");
 
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
@@ -64,12 +64,12 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
       String tableName = "changecol2";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
 
-        String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message2 varchare", testSchema,
+        String query = String.format("ALTER TABLE %s.%s CHANGE CATALOG_NAME commit_message2 varchare", testSchema,
           tableName);
         errorMsgTestHelper(query, "Invalid column type [`varchare`] specified");
 
@@ -85,14 +85,14 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
       String tableName = "changecol3";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
 
-        String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message2 int", testSchema,
+        String query = String.format("ALTER TABLE %s.%s CHANGE CATALOG_NAME commit_message2 int", testSchema,
           tableName);
-        errorMsgTestHelper(query, "Cannot change data type of column [version] from VARCHAR to INTEGER");
+        errorMsgTestHelper(query, "Cannot change data type of column [CATALOG_NAME] from VARCHAR to INTEGER");
 
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));

@@ -211,8 +211,10 @@ public class YarnController {
     }
 
     systemOptions.put("-XX:MaxDirectMemorySize", directMemory + "m");
-    systemOptions.put("-XX:+PrintClassHistogramBeforeFullGC", "");
-    systemOptions.put("-XX:+PrintClassHistogramAfterFullGC", "");
+    if("1.8".equals(System.getProperty("java.specification.version"))){
+      systemOptions.put("-XX:+PrintClassHistogramBeforeFullGC", "");
+      systemOptions.put("-XX:+PrintClassHistogramAfterFullGC", "");
+    }
 
     for (Property prop : propertyList) {
       // don't add if it is env var

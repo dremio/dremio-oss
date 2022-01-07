@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Fragment, PureComponent } from 'react';
+import { Fragment, Component } from 'react';
 import clsx from 'clsx';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
@@ -106,7 +106,7 @@ export function FilterSelectMenuItem({
 }
 
 @injectIntl
-export default class FilterSelectMenu extends PureComponent {
+export default class FilterSelectMenu extends Component {
 
   static propTypes = {
     items: PropTypes.array, // [{label: string, id: string, icon: component}]

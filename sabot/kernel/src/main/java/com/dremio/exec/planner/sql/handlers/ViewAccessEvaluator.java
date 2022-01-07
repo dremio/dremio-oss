@@ -95,7 +95,7 @@ public class ViewAccessEvaluator implements Runnable {
       if (datasetConfig != null) {
         String owner = datasetConfig.getOwner();
         final DremioCatalogReader catalogReaderWithUser = owner == null ? catalogReader :
-          catalogReader.withSchemaPathAndUser(owner, table.getPath().getPathComponents(), false);
+          catalogReader.withSchemaPathAndUser(table.getPath().getPathComponents(), owner, false);
         VirtualDataset vds = datasetConfig.getVirtualDataset();
         if (vds != null && vds.getParentsList() != null) {
           validateViewAccess(
@@ -108,7 +108,7 @@ public class ViewAccessEvaluator implements Runnable {
                   if (!(ex.getCause() instanceof UserNotFoundException)) {
                     throw ex;
                   }
-                  dremioTable = catalogReader.withSchemaPathAndUser(queryUser, table.getPath().getPathComponents(), false)
+                  dremioTable = catalogReader.withSchemaPathAndUser(table.getPath().getPathComponents(), queryUser, false)
                     .getTable(parent.getDatasetPathList());
                 }
                 if (dremioTable != null) {

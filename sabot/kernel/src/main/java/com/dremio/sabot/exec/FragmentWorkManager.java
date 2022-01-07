@@ -337,7 +337,8 @@ public class FragmentWorkManager implements Service, SafeExit {
         bitContext.getCompiler(),
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
         jobResultsClientFactoryProvider,
-        identity);
+        identity,
+        bitContext.getExpressionSplitCache());
 
     executorService = new ExecutorServiceImpl(fragmentExecutors,
             bitContext, builder);

@@ -30,7 +30,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.projectnessie.services.rest.ConfigResource;
+import org.projectnessie.api.ConfigApi;
 
 import com.dremio.service.nessieapi.NessieConfiguration;
 import com.google.protobuf.Empty;
@@ -45,7 +45,7 @@ import io.grpc.stub.StreamObserver;
 @RunWith(MockitoJUnitRunner.class)
 public class TestConfigApiService {
   private ConfigApiService configApiService;
-  @Mock private ConfigResource configResource;
+  @Mock private ConfigApi configResource;
 
   @Before
   public void setup() {

@@ -132,7 +132,7 @@ public class TestPathGeneratingDatafileProcessor extends BaseTestQuery {
 
   private OperatorContext getOperatorContext() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10, sabotContext.getExpressionSplitCache());
   }
 
   private void setupPartitionData() {

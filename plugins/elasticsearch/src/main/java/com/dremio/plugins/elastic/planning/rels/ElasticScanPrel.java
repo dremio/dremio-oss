@@ -18,16 +18,17 @@ package com.dremio.plugins.elastic.planning.rels;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.CustomPrel;
@@ -46,9 +47,6 @@ import com.dremio.exec.record.BatchSchema;
  */
 @Options
 public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
-
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticScanPrel.class);
-
   public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.elastic.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.elastic.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
@@ -61,12 +59,21 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
       RelOptCluster cluster,
       RelTraitSet traitSet,
       ElasticsearchPrel input,
-      ScanBuilder scanBuilder,
-      FunctionLookupContext functionLookupContext) {
+      ScanBuilder scanBuilder) {
     super(cluster, traitSet, scanBuilder.getTable());
     this.input = input;
     this.rowType = input.getRowType();
     this.scanBuilder = scanBuilder;
+  }
+
+  @Override
+  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    if (this.getInputs().equals(inputs) && traitSet == this.getTraitSet()) {
+      return this;
+    }
+
+    assert inputs.isEmpty();
+    return new ElasticScanPrel(getCluster(), traitSet, input, scanBuilder);
   }
 
   @Override
@@ -147,7 +154,7 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
   private class ScanPrelFinder extends BasePrelVisitor<LeafPrel,Void,RuntimeException> {
     @Override
     public LeafPrel visitPrel(Prel prel, Void v) {
-      LeafPrel leafPrel = null;
+      LeafPrel leafPrel;
       for (Prel child : prel) {
         leafPrel = child.accept(this, v);
         if (leafPrel != null) {

@@ -92,6 +92,7 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
+          DirectProvider.wrap(coordinator),
           1000 * 60 * 60L, // 1 hour
           DirectProvider.wrap(nodeEndpoint1),
           Executors.newSingleThreadScheduledExecutor()
@@ -101,6 +102,7 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
+          DirectProvider.wrap(coordinator),
           1000 * 60 * 60L, // 1 hour
           DirectProvider.wrap(nodeEndpoint2),
           Executors.newSingleThreadScheduledExecutor()
@@ -109,6 +111,7 @@ public class TestTaskLeaderElection {
       TaskLeaderElection taskLeaderElection3 =
         new TaskLeaderElection(
           SERVICE_NAME,
+          DirectProvider.wrap(coordinator),
           DirectProvider.wrap(coordinator),
           1000 * 60 * 60L, // 1 hour
           DirectProvider.wrap(nodeEndpoint3),
@@ -205,6 +208,7 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
+          DirectProvider.wrap(coordinator),
           1000 * 5L, // 5 sec.
           DirectProvider.wrap(nodeEndpoint1),
           Executors.newSingleThreadScheduledExecutor()
@@ -213,6 +217,7 @@ public class TestTaskLeaderElection {
       TaskLeaderElection taskLeaderElection2 =
         new TaskLeaderElection(
           SERVICE_NAME,
+          DirectProvider.wrap(coordinator),
           DirectProvider.wrap(coordinator),
           1000 * 5L, // 5 sec.
           DirectProvider.wrap(nodeEndpoint2),
@@ -309,6 +314,7 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
+          DirectProvider.wrap(coordinator),
           1000 * 5L, // 5 sec.
           DirectProvider.wrap(nodeEndpoint1),
           Executors.newSingleThreadScheduledExecutor()
@@ -340,6 +346,7 @@ public class TestTaskLeaderElection {
       TaskLeaderElection taskLeaderElectionService2 =
         new TaskLeaderElection(
           SERVICE_NAME,
+          DirectProvider.wrap(coordinator),
           DirectProvider.wrap(coordinator),
           1000 * 5L, // 5 sec.
           DirectProvider.wrap(nodeEndpoint2),
@@ -425,6 +432,7 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
+          DirectProvider.wrap(coordinator),
           5000L, // 5secs
           DirectProvider.wrap(nodeEndpoint1),
           Executors.newSingleThreadScheduledExecutor(),
@@ -435,6 +443,7 @@ public class TestTaskLeaderElection {
       TaskLeaderElection taskLeaderElectionService2 =
         new TaskLeaderElection(
           SERVICE_NAME,
+          DirectProvider.wrap(coordinator),
           DirectProvider.wrap(coordinator),
           5000L, // 5secs
           DirectProvider.wrap(nodeEndpoint2),

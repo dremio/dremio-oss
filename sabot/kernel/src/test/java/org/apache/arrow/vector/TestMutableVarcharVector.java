@@ -403,7 +403,7 @@ public class TestMutableVarcharVector extends DremioTest {
       v1.allocateNew(m1.getUsedByteCapacity(), startIdx * 2);
 
       //copy records
-      m1.copyToVarWidthVec(v1, startIdx * 3);
+      m1.copyToVarWidthVec(v1, startIdx * 3, 0);
 
       //reset the value count back to actual strings copied
       v1.setValueCount(startIdx);
@@ -465,7 +465,7 @@ public class TestMutableVarcharVector extends DremioTest {
       v2.allocateNew(m1.getUsedByteCapacity(), startIdx * 2);
 
       //copy records
-      m1.copyToVarWidthVec(v2, startIdx * 3);
+      m1.copyToVarWidthVec(v2, startIdx * 3, 0);
 
       //reset the value count back to actual strings copied
       v2.setValueCount(startIdx);

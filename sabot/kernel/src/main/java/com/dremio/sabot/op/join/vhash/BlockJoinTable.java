@@ -32,7 +32,6 @@ import com.dremio.sabot.op.common.ht2.HashComputation;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Pivots;
-import com.dremio.sabot.op.common.ht2.ResizeListener;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.google.common.base.Stopwatch;
 import com.koloboke.collect.hash.HashConfig;
@@ -59,7 +58,7 @@ public class BlockJoinTable implements JoinTable {
   public BlockJoinTable(PivotDef buildPivot, PivotDef probePivot, BufferAllocator allocator, NullComparator nullMask, int minSize, int varFieldAverageSize) {
     super();
     this.table = new LBlockHashTable(HashConfig.getDefault(), buildPivot, allocator, minSize,
-        varFieldAverageSize, false, ResizeListener.NO_OP, MAX_VALUES_PER_BATCH);
+      varFieldAverageSize, false, MAX_VALUES_PER_BATCH);
     this.buildPivot = buildPivot;
     this.probePivot = probePivot;
     this.allocator = allocator;

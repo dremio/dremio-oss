@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -279,8 +278,6 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
           RecordReader wrappedRecordReader = new CoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), innerDeltaParquetReader, fullSchema);
           inner = readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
         } else {
-          boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
-          if (mixedTypesDisabled) {
             SchemaDerivationHelper schemaDerivationHelper = schemaHelperBuilder.noSchemaLearning(fullSchema).build();
             final UpPromotingParquetReader innerParquetReader = new UpPromotingParquetReader(
                     context,
@@ -307,29 +304,6 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                     projectedColumns.getBatchSchemaProjectedColumns(), innerParquetReader, fullSchema,
                     new FileTypeCoercion(fieldsByName), conditions);
             return readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
-          }
-
-          final UnifiedParquetReader innerParquetReader = new UnifiedParquetReader(
-                  context,
-                  readerFactory,
-                  fullSchema,
-                  projectedColumns,
-                  globalDictionaryEncodedColumns,
-                  conditions,
-                  readerFactory.newFilterCreator(context, null, null, context.getAllocator()),
-                  ParquetDictionaryConvertor.DEFAULT,
-                  splitXAttr,
-                  fs,
-                  footer,
-                  globalDictionaries,
-                  schemaHelper,
-                  vectorize,
-                  enableDetailedTracing,
-                  supportsColocatedReads,
-                  inputStreamProvider,
-                  new ArrayList<>());
-          innerParquetReader.setIgnoreSchemaLearning(ignoreSchemaLearning);
-          inner = readerConfig.wrapIfNecessary(context.getAllocator(), innerParquetReader, datasetSplit);
         }
         return inner;
       }finally {

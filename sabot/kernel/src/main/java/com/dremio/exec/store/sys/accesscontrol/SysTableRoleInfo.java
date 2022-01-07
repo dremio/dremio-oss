@@ -21,10 +21,10 @@ import java.util.Objects;
  * Schema for an entry in system table sys.roles.
  */
 public class SysTableRoleInfo {
+  public final String role_id;
   public final String role_name;
-  public final String source;
   public final String role_type;
-  public final String owner_name;
+  public final String owner_id;
   public final String owner_type;
 
   /**
@@ -34,28 +34,28 @@ public class SysTableRoleInfo {
     LOCAL, EXTERNAL
   }
 
-  public SysTableRoleInfo(String role_name, String source, String role_type, String owner_name, String owner_type) {
+  public SysTableRoleInfo(String role_id, String role_name, String role_type, String owner_id, String owner_type) {
+    this.role_id = role_id;
     this.role_name = role_name;
-    this.source = source;
     this.role_type = role_type;
-    this.owner_name = owner_name;
+    this.owner_id = owner_id;
     this.owner_type = owner_type;
+  }
+
+  public String getRole_id() {
+    return role_id;
   }
 
   public String getRole_name() {
     return role_name;
   }
 
-  public String getSource() {
-    return source;
-  }
-
   public String getRole_type() {
     return role_type;
   }
 
-  public String getOwner_name() {
-    return owner_name;
+  public String getOwner_id() {
+    return owner_id;
   }
 
   public String getOwner_type() {
@@ -71,25 +71,25 @@ public class SysTableRoleInfo {
       return false;
     }
     SysTableRoleInfo that = (SysTableRoleInfo) o;
-    return Objects.equals(role_name, that.role_name) &&
-      Objects.equals(source, that.source) &&
+    return Objects.equals(role_id, that.role_id) &&
+      Objects.equals(role_name, that.role_name) &&
       Objects.equals(role_type, that.role_type) &&
-      Objects.equals(owner_name, that.owner_name) &&
+      Objects.equals(owner_id, that.owner_id) &&
       Objects.equals(owner_type, that.owner_type);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(role_name, source, role_type);
+    return Objects.hash(role_name, role_id, role_type);
   }
 
   @Override
   public String toString() {
     return "SysTableRole{" +
-      "role_name='" + role_name + '\'' +
-      ", source='" + source + '\'' +
+      "role_id='" + role_id + '\'' +
+      ", role_name='" + role_name + '\'' +
       ", role_type='" + role_type + '\'' +
-      ", owner_name='" + owner_name + '\'' +
+      ", owner_id='" + owner_id + '\'' +
       ", owner_type='" + owner_type + '\'' +
       '}';
   }

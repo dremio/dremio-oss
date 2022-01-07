@@ -18,6 +18,8 @@ package com.dremio.dac.server;
 import static java.lang.annotation.ElementType.FIELD;
 
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.Validation;
@@ -128,6 +130,13 @@ public class InputValidation {
     constraints.type(TransformGroupBy.class).constraint(new TransformGroupByConstraintDef());
 
     return constraints;
+  }
+
+  public boolean isValidExtension(String extension) {
+    //pattern of length >= 1 for any alphanumeric character
+    final Pattern pattern = Pattern.compile("[a-zA-Z0-9]+");
+    final Matcher matcher = pattern.matcher(extension);
+    return matcher.matches();
   }
 
   /**

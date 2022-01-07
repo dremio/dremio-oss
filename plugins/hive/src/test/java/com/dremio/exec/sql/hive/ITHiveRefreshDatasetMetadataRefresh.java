@@ -131,7 +131,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
       .baselineValues(1, "a")
       .go();
 
-    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
   }
 
   @Test
@@ -161,7 +161,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
       .baselineValues(2, "Jan", 2021)
       .go();
 
-    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
   }
 
   @Test
@@ -196,7 +196,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
             .baselineValues(1)
             .go();
 
-    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+    verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
   }
 
   @Test
@@ -321,11 +321,13 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     }
   }
 
-  static void verifyIcebergExecution(String query) throws Exception {
+  static void verifyIcebergExecution(String query, String icebergMetadataLocation) throws Exception {
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
-
     // Check and make sure that IcebergManifestList is present in the plan
     assertTrue("Unexpected plan\n" + plan, plan.contains("IcebergManifestList"));
+    if (icebergMetadataLocation != null && !icebergMetadataLocation.isEmpty()) {
+      assertTrue("Iceberg metadata location not added", plan.contains("metadataFileLocation=[file://" + icebergMetadataLocation));
+    }
   }
 
   static HiveTestDataGenerator getDataGenerator() {

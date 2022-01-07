@@ -83,6 +83,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.logging.StructuredLogger;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.util.Closeable;
@@ -200,7 +201,10 @@ import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.StoreJobResultRequest;
 import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.UniqueUserStats;
+import com.dremio.service.job.UniqueUserStatsRequest;
 import com.dremio.service.job.VersionedDatasetPath;
+import com.dremio.service.job.log.LoggedQuery;
 import com.dremio.service.job.proto.Acceleration;
 import com.dremio.service.job.proto.ExtraInfo;
 import com.dremio.service.job.proto.JobAttempt;
@@ -232,13 +236,12 @@ import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -257,10 +260,9 @@ import io.protostuff.ByteString;
  */
 public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJobRunner {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobsService.class);
-  private static final Logger QUERY_LOGGER = LoggerFactory.getLogger("query.logger");
-  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(LocalJobsService.class);
+  public static final String QUERY_LOGGER = "query.logger";
 
-  private static final ObjectMapper MAPPER = createMapper();
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(LocalJobsService.class);
 
   private static final int DISABLE_CLEANUP_VALUE = -1;
 
@@ -302,9 +304,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   private final Provider<SchedulerService> schedulerService;
   private final Provider<CommandPool> commandPoolService;
   private final Provider<JobTelemetryClient> jobTelemetryClientProvider;
-  private final java.util.function.Function<? super Job, ? extends LoggedQuery> jobResultToLogEntryConverter;
   private final boolean isMaster;
   private final LocalAbandonedJobsHandler localAbandonedJobsHandler;
+  private final StructuredLogger<Job> jobResultLogger;
 
   private NodeEndpoint identity;
   private LegacyIndexedStore<JobId, JobResult> store;
@@ -317,13 +319,21 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   private QueryObserverFactory queryObserverFactory;
   private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub jobTelemetryServiceStub;
 
-
   private final RemoteJobServiceForwarder forwarder;
 
   private static final List<SearchFieldSorting> DEFAULT_SORTER = ImmutableList.of(
       JobIndexKeys.START_TIME.toSortField(SearchTypes.SortOrder.DESCENDING),
       JobIndexKeys.END_TIME.toSortField(SearchTypes.SortOrder.DESCENDING),
       JobIndexKeys.JOBID.toSortField(SearchTypes.SortOrder.DESCENDING));
+
+  /**
+   * A utility method to create and compose a StructuredLogger with Job
+   * @return
+   */
+  public static StructuredLogger<Job> createJobResultLogger() {
+    return StructuredLogger.get(LoggedQuery.class, QUERY_LOGGER)
+      .compose(new JobResultToLogEntryConverter());
+  }
 
   public LocalJobsService(
       final Provider<LegacyKVStoreProvider> kvStoreProvider,
@@ -341,7 +351,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       final Provider<SchedulerService> schedulerService,
       final Provider<CommandPool> commandPoolService,
       final Provider<JobTelemetryClient> jobTelemetryClientProvider,
-      final java.util.function.Function<? super Job, ? extends LoggedQuery> jobResultToLogEntryConverterProvider,
+      final StructuredLogger<Job> jobResultLogger,
       final boolean isMaster,
       final Provider<ConduitProvider> conduitProvider
   ) {
@@ -350,7 +360,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     this.queryExecutor = checkNotNull(queryExecutor);
     this.jobResultsStoreConfig = checkNotNull(jobResultsStoreConfig);
     this.jobResultsStoreProvider = jobResultsStoreProvider;
-    this.jobResultToLogEntryConverter = jobResultToLogEntryConverterProvider;
+    this.jobResultLogger = jobResultLogger;
     this.runningJobs = new ConcurrentHashMap<>();
     this.foremenTool = foremenTool;
     this.nodeEndpointProvider = nodeEndpointProvider;
@@ -490,9 +500,16 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
         if (shouldAbandon) {
           logger.debug("Failing abandoned job {}", lastAttempt.getInfo().getJobId().getId());
+          final long finishTimestamp = System.currentTimeMillis();
+          List<com.dremio.exec.proto.beans.AttemptEvent> attemptEventList = lastAttempt.getStateListList();
+          if (attemptEventList == null) {
+            attemptEventList = new ArrayList<>();
+          }
+          attemptEventList.add(JobsServiceUtil.createAttemptEvent(AttemptEvent.State.FAILED, finishTimestamp));
           final JobAttempt newLastAttempt = lastAttempt.setState(JobState.FAILED)
+              .setStateListList(attemptEventList)
               .setInfo(lastAttempt.getInfo()
-                  .setFinishTime(System.currentTimeMillis())
+                  .setFinishTime(finishTimestamp)
                   .setFailureInfo("Query failed as Dremio was restarted. Details and profile information " +
                       "for this job may be missing."));
           attempts.remove(numAttempts - 1);
@@ -1019,6 +1036,38 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     return jobStats.build();
   }
 
+  private static final String FILTER = "(st=gt=%d;st=lt=%d)";
+
+  UniqueUserStats getUniqueUserStats(UniqueUserStatsRequest request) {
+    final long startDate = Timestamps.toMillis(request.getStartDate());
+    final long endDate = Timestamps.toMillis(request.getEndDate());
+
+    final String filter = String.format(FILTER, startDate, endDate);
+    final SearchJobsRequest searchJobsRequest = SearchJobsRequest.newBuilder()
+      .setFilterString(filter)
+      .build();
+
+    LegacyFindByCondition condition = createCondition(searchJobsRequest);
+
+    Stopwatch sw = Stopwatch.createStarted();
+
+    Iterable<Entry<JobId, JobResult>> iterable = store.find(condition);
+    long uniqueUsers = StreamSupport.stream(iterable.spliterator(), true)
+      .parallel()
+      .map(x -> x.getValue().getAttemptsList().get(0).getInfo().getUser())
+      .distinct()
+      .count();
+
+    final long timeConsumed = sw.elapsed(java.util.concurrent.TimeUnit.SECONDS);
+    if (timeConsumed > 59) {
+      logger.info("UniqueUserStats time taken in sec: " + timeConsumed);
+    } else {
+      logger.debug("UniqueUserStats time taken in sec: " + timeConsumed);
+    }
+
+    return UniqueUserStats.newBuilder().setUniqueUsers((int)uniqueUsers).build();
+  }
+
   private static SearchQuery getDatasetFilter(String datasetPath, String version, String userName) {
     final ImmutableList.Builder<SearchTypes.SearchQuery> builder =
       ImmutableList.<SearchTypes.SearchQuery>builder()
@@ -1148,8 +1197,15 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   Iterable<ActiveJobSummary> getActiveJobs(LegacyFindByCondition condition) {
     final Iterable<Job> jobs =  toJobs(store.find(condition));
     return FluentIterable.from(jobs)
-      .filter(job -> job.getJobAttempt() != null)
-      .transform(job -> JobsServiceUtil.toActiveJobSummary(job));
+      .filter(job -> job.getJobAttempt() != null && !isTerminal(JobsServiceUtil.jobStatusToAttemptStatus(job.getJobAttempt().getState())))
+      .transform(job -> {
+        try {
+          return JobsServiceUtil.toActiveJobSummary(job);
+        } catch (Exception e) {
+          logger.error("Exception while constructing ActiveJobSummary for job {}", job.getJobId(), e);
+          return null;
+        }
+      });
   }
 
   Iterable<ActiveJobSummary> getActiveJobs(ActiveJobsRequest request) throws EnumSearchValueNotFoundException {
@@ -1483,15 +1539,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
       listeners.close(JobsServiceUtil.toJobSummary(job));
 
-      logQuerySummary(job);
-    }
-  }
-
-  private void logQuerySummary(Job job) {
-    try {
-      QUERY_LOGGER.info(MAPPER.writeValueAsString(jobResultToLogEntryConverter.apply(job)));
-    } catch (Exception e) {
-      logger.error("Failure while recording query information for job {} to query log.", job.getJobId().getId(), e);
+      jobResultLogger.info(String.format("Query: %s; outcome: %s",job.getJobId().getId(),job.getJobAttempt().getState()), job);
     }
   }
 
@@ -1976,10 +2024,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
 
     @Override
     public void beginState(AttemptEvent event) {
-      com.dremio.exec.proto.beans.AttemptEvent attemptEvent = new com.dremio.exec.proto.beans.AttemptEvent();
-      attemptEvent.setState(JobsServiceUtil.convertAttemptStatus(event.getState()));
-      attemptEvent.setStartTime(event.getStartTime());
-
       final JobAttempt jobAttempt = job.getJobAttempt();
       synchronized (jobAttempt) {
         if (!isTerminal(event.getState())) {
@@ -1989,7 +2033,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
         if (jobAttempt.getStateListList() == null) {
           jobAttempt.setStateListList(new ArrayList<>());
         }
-        jobAttempt.getStateListList().add(attemptEvent);
+        jobAttempt.getStateListList().add(JobsServiceUtil.createAttemptEvent(event.getState(), event.getStartTime()));
       }
       storeJob(job);
 
@@ -2374,15 +2418,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
     }
   }
 
-  private static ObjectMapper createMapper() {
-    ObjectMapper objectMapper = new ObjectMapper();
-
-    // skip NULL fields when serializing - for some reason annotation version doesn't work
-    objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-
-    return objectMapper;
-  }
-
   Provider<OptionManager> getOptionManagerProvider() {
     return optionManagerProvider;
   }
@@ -2596,8 +2631,15 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
                 lastAttempt = getJobAttemptIfNotFinalState(jobResult);
                 if (lastAttempt != null) {
                   logger.info("Failing abandoned job {}", lastAttempt.getInfo().getJobId().getId());
+                  final long finishTimestamp = System.currentTimeMillis();
+                  List<com.dremio.exec.proto.beans.AttemptEvent> attemptEventList = lastAttempt.getStateListList();
+                  if (attemptEventList == null) {
+                    attemptEventList = new ArrayList<>();
+                  }
+                  attemptEventList.add(JobsServiceUtil.createAttemptEvent(AttemptEvent.State.FAILED, finishTimestamp));
                   final JobAttempt newLastAttempt = lastAttempt.setState(JobState.FAILED)
-                    .setInfo(lastAttempt.getInfo().setFinishTime(System.currentTimeMillis())
+                    .setStateListList(attemptEventList)
+                    .setInfo(lastAttempt.getInfo().setFinishTime(finishTimestamp)
                     .setFailureInfo("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing."));
                   final List<JobAttempt> attempts = jobResult.getAttemptsList();
                   final int numAttempts = attempts.size();

@@ -29,6 +29,8 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.datasketches.hll.HllSketch;
+import org.apache.datasketches.hll.TgtHllType;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -36,10 +38,11 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
+import com.dremio.exec.expr.fn.hll.StatisticsAggrFunctions;
 import com.dremio.exec.physical.config.HashAggregate;
 import com.dremio.exec.planner.physical.HashAggMemoryEstimator;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -363,7 +366,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   private int hashPartitionMask;
   private final HashTableStatsHolder statsHolder;
   private int outputPartitionIndex;
-  private int outputBatchCount;
+  private int outputBatchIndex;
   private int iterations;
   private int ooms;
   private int oobSends;
@@ -387,6 +390,9 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   public static final int PARTITIONINDEX_HTORDINAL_WIDTH = 8;
   public static final int HTORDINAL_OFFSET = 0;
   public static final int KEYINDEX_OFFSET = 4;
+  public static final int SKETCH_ACCURACY = StatisticsAggrFunctions.HLL_ACCURACY;
+  public static final TgtHllType SKETCH_HLLTYPE = TgtHllType.HLL_8;
+  public static final int SKETCH_SIZE = HllSketch.getMaxUpdatableSerializationBytes(SKETCH_ACCURACY, SKETCH_HLLTYPE);
 
   /* cache widely used hashtable info */
   private int maxVariableBlockLength;
@@ -416,7 +422,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    * The buffer capacity of the varlen accumulator
    */
   private int varLenAccumulatorCapacity;
-  private boolean hasMinMaxOnVarlen = false;
+  private boolean hasVarLenAccumAppend = false;
 
   private int bitsInChunk;
   private int chunkOffsetMask;
@@ -437,11 +443,12 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.minHashTableSizePerPartition = (int)Math.ceil((minHashTableSize * 1.0)/numPartitions);
     this.estimatedVariableWidthKeySize = (int)options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
     this.maxHashTableBatchSize = popConfig.getHashTableBatchSize();
+    this.varLenAccumulatorCapacity = this.estimatedVariableWidthKeySize * this.maxHashTableBatchSize;
     final boolean traceOnException = options.getOption(VECTORIZED_HASHAGG_DEBUG_DETAILED_EXCEPTION);
     this.hashPartitionMask = numPartitions - 1;
     this.statsHolder = new HashTableStatsHolder();
     this.outputPartitionIndex = 0;
-    this.outputBatchCount = 0;
+    this.outputBatchIndex = 0;
     /* there is atleast one iteration of processing */
     this.iterations = 1;
     this.ooms = 0;
@@ -492,10 +499,11 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
                             pivot.getBlockWidth(), minHashTableSize,
                             numPartitions, minHashTableSizePerPartition);
     initStructures();
-    partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, context.getFragmentHandle(),
-                                                                       context.getOptions(), context.getConfig(),
-                                                                       popConfig.getProps().getLocalOperatorId(), partitionToLoadSpilledData,
-                                                                       context.getSpillService(), minimizeSpilledPartitions, context.getStats());
+    partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(
+      hashAggPartitions, context.getFragmentHandle(),
+      context.getOptions(), context.getConfig(),
+      popConfig.getProps().getLocalOperatorId(), partitionToLoadSpilledData,
+      context.getSpillService(), minimizeSpilledPartitions, context.getStats());
     debug.setInfoAfterInit(maxHashTableBatchSize, allocator.getAllocatedMemory(), outgoing.getSchema());
     /* allocator.getAllocatorMemory() at this point represents the minimum reservation
      * (aka preallocation) that operator definitely needs to complete the query.
@@ -522,22 +530,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     debug.setMaxVarBlockLength(this.maxVariableBlockLength); //for debugging purpose
     this.bitsInChunk = hashAggPartitions[0].hashTable.getBitsInChunk();
     this.chunkOffsetMask = hashAggPartitions[0].hashTable.getChunkOffsetMask();
-  }
-
-  private final int getMaxVarBlockLengthForAccumulation(int count) {
-    return (count * estimatedVariableWidthKeySize);
-  }
-
-  private void initVarlenAccumulationRelatedStructures() {
-    final int count = numMinMaxOnVarLenColumns();
-    hasMinMaxOnVarlen = count > 0;
-    varLenAccumulatorCapacity = getMaxVarBlockLengthForAccumulation(maxHashTableBatchSize);
-
-    tempAccumulatorHolder = new BaseVariableWidthVector[count];
-    for (int i = 0 ; i < count; ++i) {
-      tempAccumulatorHolder[i] = new VarCharVector("holder", allocator);
-      tempAccumulatorHolder[i].allocateNew(varLenAccumulatorCapacity, maxHashTableBatchSize);
-    }
   }
 
   /**
@@ -570,17 +562,53 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     final int numPartitions = this.numPartitions;
     this.hashAggPartitions = new VectorizedHashAggPartition[numPartitions];
 
-    initVarlenAccumulationRelatedStructures();
-
     /*
      * STEP 1: Materialize the aggregate expressions once as opposed to repeating it for
      * every partition. We materialize and extract enough information about each accumulator
      * (measure) which can then be used to construct an accumulator for each partition.
      */
     final AccumulatorBuilder.MaterializedAggExpressionsResult materializeAggExpressionsResult =
-      AccumulatorBuilder.getAccumulatorTypesFromExpressions(context.getClassProducer(), popConfig.getAggrExprs(), incoming);
+      AccumulatorBuilder.getAccumulatorTypesFromExpressions(context.getClassProducer(),
+        popConfig.getAggrExprs(), incoming);
+
     final List<Field> outputVectorFields = materializeAggExpressionsResult.outputVectorFields;
-    for (int i = 0; i < materializeAggExpressionsResult.accumulatorTypes.length; ++i) {
+    final byte[] accumulatorTypes = materializeAggExpressionsResult.getAccumulatorTypes();
+
+    /* Adjust maxHashTableBatchSize, if NDV is present */
+    for (int i = 0; i < accumulatorTypes.length; ++i) {
+      if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL.ordinal() ||
+        accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal()) {
+        final int maxOutgoingBatchSize = (int)context.getOptions().getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
+        this.maxHashTableBatchSize = maxOutgoingBatchSize / SKETCH_SIZE;
+        this.varLenAccumulatorCapacity = this.estimatedVariableWidthKeySize * this.maxHashTableBatchSize * 2;
+        break;
+      }
+    }
+
+    /* Now allocate temporary buffers for accumulators which output variable size data */
+    tempAccumulatorHolder = new BaseVariableWidthVector[accumulatorTypes.length];
+    for (int i = 0; i < accumulatorTypes.length; ++i) {
+      final TypeProtos.MinorType type = CompleteType.fromField(outputVectorFields.get(i)).toMinorType();
+      if (type == TypeProtos.MinorType.VARCHAR || type == TypeProtos.MinorType.VARBINARY) {
+        final int accumLen;
+        if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.MIN.ordinal() ||
+          accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.MAX.ordinal()) {
+          tempAccumulatorHolder[i] = new VarCharVector("holder", outputAllocator);
+          hasVarLenAccumAppend = true;
+          accumLen = varLenAccumulatorCapacity;
+        } else {
+          Preconditions.checkArgument(accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL.ordinal() ||
+            accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal());
+          tempAccumulatorHolder[i] = new VarBinaryVector("holder", outputAllocator);
+          accumLen = SKETCH_SIZE * maxHashTableBatchSize;
+        }
+        tempAccumulatorHolder[i].allocateNew(accumLen, maxHashTableBatchSize);
+      } else {
+        tempAccumulatorHolder[i] = null;
+      }
+    }
+
+    for (int i = 0; i < accumulatorTypes.length; ++i) {
       final FieldVector outputVector = TypeHelper.getNewVector(outputVectorFields.get(i), outputAllocator);
       outgoing.add(outputVector);
     }
@@ -610,31 +638,29 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       final ArrowBuf combined = allocator.buffer(numPartitions * PARTITIONINDEX_HTORDINAL_WIDTH * maxHashTableBatchSize);
       rollbackable.add(combined);
 
+      final int maxVarWidthVecUsagePercent = (int)context.getOptions().getOption(ExecConstants.VARIABLE_WIDTH_VECTOR_MAX_USAGE_PERCENT);
       for (int i = 0; i < numPartitions; i++) {
         /* this step doesn't allocate any memory for accumulators */
-        final AccumulatorSet accumulator = AccumulatorBuilder.getAccumulator(allocator,
-                                                                          outputAllocator,
-                                                                          materializeAggExpressionsResult,
-                                                                          outgoing,
-                                                                          maxHashTableBatchSize,
-                                                                          jointAllocationMin,
-                                                                          jointAllocationLimit,
-                                                                          decimalV2Enabled,
-                                                                          varLenAccumulatorCapacity,
-                                                        (int)context.getOptions().getOption(ExecConstants.VARIABLE_WIDTH_VECTOR_MAX_USAGE_PERCENT),
-                                                                          tempAccumulatorHolder);
+        final AccumulatorSet accumulator = AccumulatorBuilder.getAccumulator(
+          allocator, outputAllocator, materializeAggExpressionsResult, outgoing,
+          maxHashTableBatchSize, jointAllocationMin, jointAllocationLimit,
+          decimalV2Enabled, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent,
+          tempAccumulatorHolder);
         /* this step allocates memory for control structure in hashtable and reverts itself if
          * allocation fails so we don't have to rely on rollback closeable
          */
         final LBlockHashTable hashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator,
-          minHashTableSizePerPartition, estimatedVariableWidthKeySize, true, accumulator, maxHashTableBatchSize);
+          minHashTableSizePerPartition, estimatedVariableWidthKeySize, true,
+          maxHashTableBatchSize);
+        hashTable.registerResizeListener(accumulator);
         final String partitionIdentifier = "P" + String.format("%03d", i);
 
         final ArrowBuf buffer = combined.slice(i * PARTITIONINDEX_HTORDINAL_WIDTH * maxHashTableBatchSize,
             PARTITIONINDEX_HTORDINAL_WIDTH * maxHashTableBatchSize);
 
-        final VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition
-          (accumulator, hashTable, pivot.getBlockWidth(), partitionIdentifier, buffer, decimalV2Enabled);
+        final VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition(
+          accumulator, hashTable, pivot.getBlockWidth(), partitionIdentifier,
+          buffer, decimalV2Enabled);
         this.hashAggPartitions[i] = hashAggPartition;
         /* add partition to rollbackable before preallocating because if preallocation
          * fails, we still need to release memory for control structures in hashtable
@@ -658,8 +684,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     setLocalInfoForHashTable();
 
     /* STEP 4: Build extra partition (aka loading or read partition) */
-    final List<Field> postSpillAccumulatorVectorFields = materializeAggExpressionsResult.outputVectorFields;
-    allocateExtraPartition(postSpillAccumulatorVectorFields);
+    allocateExtraPartition(outputVectorFields, accumulatorTypes);
 
     final long memoryAfterExtraPartition = allocator.getAllocatedMemory();
     debug.setPreallocatedMemoryForReadingSpilledData(memoryAfterExtraPartition - memoryAfterCreatingPartitions);
@@ -682,15 +707,16 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    *                                         data from spilled batch.
    * @throws Exception
    */
-  private void allocateExtraPartition(final List<Field> postSpillAccumulatorVectorFields) throws Exception {
+  private void allocateExtraPartition(final List<Field> postSpillAccumulatorVectorFields,
+                                      final byte[] accumulatorTypes) throws Exception {
     Preconditions.checkArgument(partitionToLoadSpilledData == null, "Error: loading partition has already been pre-allocated");
     final int fixedWidthDataRowSize = pivot.getBlockWidth();
     final int fixedBlockSize = fixedWidthDataRowSize * maxHashTableBatchSize;
     final int variableBlockSize = maxVariableBlockLength;
     try {
       partitionToLoadSpilledData = new PartitionToLoadSpilledData(allocator, fixedBlockSize, variableBlockSize,
-        postSpillAccumulatorVectorFields, maxHashTableBatchSize,
-        getMaxVarBlockLengthForAccumulation(maxHashTableBatchSize));
+        postSpillAccumulatorVectorFields, accumulatorTypes, maxHashTableBatchSize,
+        varLenAccumulatorCapacity);
     } catch (OutOfMemoryException e) {
       ooms++;
       throw debug.prepareAndThrowException(e, PREALLOC_FAILURE_LOADING_PARTITION, HashAggErrorType.OOM);
@@ -726,29 +752,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       ooms++;
       throw debug.prepareAndThrowException(e, PREALLOC_FAILURE_AUX_STRUCTURES, HashAggErrorType.OOM);
     }
-  }
-
-  private final int numMinMaxOnVarLenColumns() {
-    int count = 0;
-    final int numAggrExprs = (popConfig.getAggrExprs() != null) ? popConfig.getAggrExprs().size() : 0;
-
-    for (int i = 0; i < numAggrExprs; i++) {
-      final NamedExpression ne = popConfig.getAggrExprs().get(i);
-      final LogicalExpression expr = context.getClassProducer().materialize(ne.getExpr(), incoming);
-
-      if (expr == null) {
-        continue;
-      }
-
-      final CompleteType type = expr.getCompleteType();
-      final String functionName = ((FunctionHolderExpr)expr).getName();
-      if (type.isVariableWidthScalar() &&
-        (functionName.equals("min") || functionName.equals("max"))) {
-        ++count;
-      }
-    }
-    /* XXX: Add a metric that show the number of mix/max accumulators on varchar columns */
-    return count;
   }
 
   /**
@@ -1039,33 +1042,36 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
         final int hashPartitionIndex = ((int) (keyHash >> 32)) & hashPartitionMask;
         final VectorizedHashAggPartition partition = hashAggPartitions[hashPartitionIndex];
         final LBlockHashTable table = partition.hashTable;
-        int varRowLen = 0;
+        int varFieldLen = 0;
 
-        if (hasMinMaxOnVarlen) {
-          final List<Accumulator> varLenAccums = partition.accumulator.getVarlenAccumChildern();
-          Preconditions.checkArgument(varLenAccums.size() > 0);
-
+        if (hasVarLenAccumAppend) {
+          final List<Accumulator> varLenAccums = partition.accumulator.getVarlenAccumChildren();
           for (int i = 0; i < varLenAccums.size(); ++i) {
-            final BaseVarBinaryAccumulator bvb = ((BaseVarBinaryAccumulator)varLenAccums.get(i));
+            if (varLenAccums.get(i) instanceof BaseNdvAccumulator ||
+              varLenAccums.get(i) instanceof  BaseNdvUnionAccumulator) {
+              continue;
+            }
+            final BaseVarBinaryAccumulator bvb = ((BaseVarBinaryAccumulator) varLenAccums.get(i));
             final BaseVariableWidthVector inVec = (BaseVariableWidthVector) bvb.getInput();
             /* Use keyIndex + recordsConsumed to read the input record length */
             final int inputLen = inVec.getValueLength(keyIndex + recordsConsumed);
-            if (varRowLen < inputLen) {
-              varRowLen = inputLen;
+            if (varFieldLen < inputLen) {
+              varFieldLen = inputLen;
             }
           }
         }
+        partition.setVarFieldLen(varFieldLen);
 
         boolean insertSuccessful = false;
         while (!insertSuccessful) {
           try {
             // XXX: directly pass the absolute address of the record in pivot buffer to hash table
             final int ordinal = table.getOrInsertWithAccumSpaceCheck(keyFixedAddr, keyVarAddr, keyVarLen,
-              (int) keyHash, dataWidth, varRowLen, partition, bitsInChunk, chunkOffsetMask, seed);
+              (int) keyHash, dataWidth, seed);
 
             /* Now update the new space usage */
-            if (varRowLen > 0) {
-              partition.addBatchUsedSpace(table.getBatchIndexForOrdinal(ordinal), varRowLen);
+            if (varFieldLen > 0) {
+              partition.addBatchUsedSpace(table.getBatchIndexForOrdinal(ordinal), varFieldLen);
             }
             /* insert successful so store the tuple of <hash table ordinal, incoming key index> */
             /* set the bit to remember the target partitions, this will be used later during accumulation */
@@ -1801,12 +1807,12 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       final int size = hashAggPartitions[i].hashTable.size();
       final int rehashCount = hashAggPartitions[i].hashTable.getRehashCount();
       final int spliceCount = hashAggPartitions[i].hashTable.getSpliceCount();
-      final int forceAccumCount = hashAggPartitions[i].hashTable.getForceAccumCount();
+      final int forceAccumCount = hashAggPartitions[i].getForceAccumCount();
       final int accumCompactionCount = hashAggPartitions[i].hashTable.getAccumCompactionCount();
       tableCapacity += hashAggPartitions[i].hashTable.capacity();
       rehashTime += hashAggPartitions[i].hashTable.getRehashTime(TimeUnit.NANOSECONDS);
       spliceTimeNs += hashAggPartitions[i].hashTable.getSpliceTime(TimeUnit.NANOSECONDS);
-      forceAccumTimeNs += hashAggPartitions[i].hashTable.getForceAccumTime(TimeUnit.NANOSECONDS);
+      forceAccumTimeNs += hashAggPartitions[i].getForceAccumTime(TimeUnit.NANOSECONDS);
       accumCompactionTimeNs += hashAggPartitions[i].hashTable.getAccumCompactionTime(TimeUnit.NANOSECONDS);
       tableSize += size;
       tableRehashCount += rehashCount;
@@ -2333,10 +2339,10 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    */
   private int outputPartitions() throws Exception {
 
-    if(outputPartitionIndex == numPartitions) {
+    if (outputPartitionIndex == numPartitions) {
       postOutputProcessing();
       outputPartitionIndex = 0;
-      outputBatchCount = 0;
+      outputBatchIndex = 0;
       return 0;
     }
 
@@ -2352,30 +2358,38 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       return 0;
     }
 
-    final int recordsInBatch = hashTable.getRecordsInBatch(outputBatchCount);
-    logger.debug("output partition pname: {} batch: {} records: {}",
-      partitionToOutput.getIdentifier(), outputBatchCount, recordsInBatch);
+    int numBatchesToOutput = popConfig.getHashTableBatchSize() / maxHashTableBatchSize;
+    numBatchesToOutput = Math.min(numBatchesToOutput, hashTableBlocks - outputBatchIndex);
 
-    /* unpivot GROUP BY key columns into corresponding vectors in outgoing container */
+    int[] recordsInBatches = new int[numBatchesToOutput];
+    int totalRecords = 0;
+    for (int i = 0; i < numBatchesToOutput; i++) {
+      recordsInBatches[i] = hashTable.getRecordsInBatch(outputBatchIndex + i);
+      totalRecords += recordsInBatches[i];
+    }
+    logger.debug("output partition pname: {} batches: {}:{}  records: {}",
+      partitionToOutput.getIdentifier(), outputBatchIndex, outputBatchIndex + numBatchesToOutput - 1, totalRecords);
+
+    /* unpivot GROUP BY key columns for one or more batches into corresponding vectors in outgoing container */
     unpivotWatch.start();
-    partitionToOutput.hashTable.unpivot(outputBatchCount, recordsInBatch);
+    partitionToOutput.hashTable.unpivot(outputBatchIndex, recordsInBatches);
     unpivotWatch.stop();
 
     /* transfer accumulation vectors to the target vector in transferPair -- output vector in outgoing container */
-    partitionToOutput.accumulator.output(outputBatchCount, recordsInBatch);
+    partitionToOutput.accumulator.output(outputBatchIndex, recordsInBatches);
 
-    outputBatchCount++;
-    if (outputBatchCount == hashTableBlocks) {
+    outputBatchIndex += numBatchesToOutput;
+    if (outputBatchIndex == hashTableBlocks) {
       /* this partition outputted, move onto next partition */
       outputPartitionIndex++;
       /* start from first batch of next partition */
-      outputBatchCount = 0;
+      outputBatchIndex = 0;
       /* downsize the partition */
       partitionToOutput.resetToMinimumSize();
     }
 
     updateStats();
-    return outgoing.setAllCount(recordsInBatch);
+    return outgoing.setAllCount(totalRecords);
   }
 
   /**

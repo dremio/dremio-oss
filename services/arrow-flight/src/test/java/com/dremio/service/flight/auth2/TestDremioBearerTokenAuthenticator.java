@@ -36,6 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.service.flight.BasicFlightAuthenticationTest;
+import com.dremio.service.users.UserLoginException;
 
 /**
  * Unit tests for DremioFlightServerBearerTokenAuthenticator.
@@ -45,7 +46,7 @@ public class TestDremioBearerTokenAuthenticator extends BasicFlightAuthenticatio
 
   @Before
   @Override
-  public void setup() {
+  public void setup() throws UserLoginException {
     super.setup();
     bearerTokenAuthenticator = new DremioBearerTokenAuthenticator(
       getMockUserServiceProvider(),

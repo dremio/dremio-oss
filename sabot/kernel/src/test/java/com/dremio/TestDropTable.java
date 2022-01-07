@@ -229,7 +229,7 @@ public class TestDropTable extends PlanTestBase {
 
   @Test
   public void testDropNonExistentTable() throws Exception {
-    test("CREATE TABLE dfs_test.testDropNonExistentTable as SELECT * FROM sys.version");
+    test("CREATE TABLE dfs_test.testDropNonExistentTable as SELECT * FROM INFORMATION_SCHEMA.CATALOGS");
     testNoResult(REFRESH, "dfs_test.testDropNonExistentTable");
     test("DROP TABLE dfs_test.testDropNonExistentTable");
     errorMsgTestHelper("DROP TABLE dfs_test.testDropNonExistentTable", "VALIDATION ERROR: Table [dfs_test.testDropNonExistentTable] not found");

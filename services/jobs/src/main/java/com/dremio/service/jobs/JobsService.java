@@ -37,6 +37,8 @@ import com.dremio.service.job.ReflectionJobSummaryRequest;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.UniqueUserStats;
+import com.dremio.service.job.UniqueUserStatsRequest;
 import com.dremio.service.job.proto.JobId;
 
 /**
@@ -85,6 +87,14 @@ public interface JobsService extends Service {
    * @return job stats
    */
   JobStats getJobStats(JobStatsRequest request);
+
+  /**
+   * Get the number of unique users for given date range in request
+   *
+   * @param request
+   * @return user stats
+   */
+  UniqueUserStats getUniqueUserStats(UniqueUserStatsRequest request);
 
   /**
    * Search jobs.

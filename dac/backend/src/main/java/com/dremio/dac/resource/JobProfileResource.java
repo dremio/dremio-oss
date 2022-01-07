@@ -68,7 +68,6 @@ public class JobProfileResource {
   public List<PhaseData> getJobProfile(@PathParam("jobId") String jobId,
                                        @QueryParam("attempt") @DefaultValue("0") int attempt) throws JsonProcessingException, ClassNotFoundException {
     final UserBitShared.QueryProfile profile;
-    JobProfileVisualizerUI jobProfileVisualizerUI;
     try {
       final String username = securityContext.getUserPrincipal().getName();
       QueryProfileRequest request = QueryProfileRequest.newBuilder()
@@ -83,7 +82,7 @@ public class JobProfileResource {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", jobId, attempt));
     }
-    jobProfileVisualizerUI = new JobProfileVisualizerUI();
-    return jobProfileVisualizerUI.getPhaseDetail(profile);
+    JobProfileVisualizerUI jobProfileVisualizerUI = new JobProfileVisualizerUI(profile);
+    return jobProfileVisualizerUI.getJobProfileInfo();
   }
 }

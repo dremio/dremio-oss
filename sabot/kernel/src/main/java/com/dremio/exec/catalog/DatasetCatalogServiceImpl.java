@@ -180,6 +180,7 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
         icebergMetadata.setMetadataFileLocation(metadata.getMetadataFileLocation());
         icebergMetadata.setSnapshotId(metadata.getSnapshotId());
         icebergMetadata.setTableUuid(metadata.getTableUuid());
+        icebergMetadata.setPartitionSpecs(ByteStringUtil.wrap(metadata.getPartitionSpecs().toByteArray()));
 
         String partitionStatsFile = metadata.getPartitionStatsFile();
         if (partitionStatsFile != null) {

@@ -26,6 +26,9 @@ import java.util.concurrent.ExecutorService;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.projectnessie.client.api.NessieApiV1;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -37,6 +40,7 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
+import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.maestro.GlobalKeysService;
@@ -79,7 +83,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 public class SabotContext implements AutoCloseable {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SabotContext.class);
+  private static final Logger logger = LoggerFactory.getLogger(SabotContext.class);
 
   private final SabotConfig config;
   private final Set<Role> roles;
@@ -93,6 +97,7 @@ public class SabotContext implements AutoCloseable {
   private final SystemOptionManager systemOptionManager;
   private final Provider<WorkStats> workStatsProvider;
   private final CodeCompiler compiler;
+  private final ExpressionSplitCache expressionSplitCache;
   private final ScanResult classpathScan;
   private final LogicalPlanPersistence lpPersistence;
   private final Provider<MaterializationDescriptorProvider> materializationProvider;
@@ -124,6 +129,7 @@ public class SabotContext implements AutoCloseable {
   private final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider;
   private final Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider;
   private final Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider;
+  private final Provider<NessieApiV1> nessieClientProvider;
   private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory;
   private final Provider<StatisticsListManager> statisticsListManagerProvider;
   private final Provider<SimpleJobRunner> jobsRunnerProvider;
@@ -168,6 +174,7 @@ public class SabotContext implements AutoCloseable {
       Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
       Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
       Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+      Provider<NessieApiV1> nessieClientProvider,
       Provider<StatisticsService> statisticsService,
       Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
       Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -230,6 +237,7 @@ public class SabotContext implements AutoCloseable {
     this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
     this.nessieTreeApiBlockingStubProvider = nessieTreeApiBlockingStubProvider;
     this.nessieContentsApiBlockingStuProvider = nessieContentsApiBlockingStuProvider;
+    this.nessieClientProvider = nessieClientProvider;
     this.statisticsAdministrationFactory = statisticsAdministrationFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
     this.relMetadataQuerySupplier = relMetadataQuerySupplier;
@@ -239,6 +247,7 @@ public class SabotContext implements AutoCloseable {
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
     this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
+    expressionSplitCache = new ExpressionSplitCache(optionManager, config);
   }
 
   private static List<RulesFactory> getRulesFactories(ScanResult scan) {
@@ -293,6 +302,7 @@ public class SabotContext implements AutoCloseable {
     Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
     Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
     Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+    Provider<NessieApiV1> nessieClientProvider,
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -348,6 +358,7 @@ public class SabotContext implements AutoCloseable {
     this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
     this.nessieTreeApiBlockingStubProvider = nessieTreeApiBlockingStubProvider;
     this.nessieContentsApiBlockingStuProvider = nessieContentsApiBlockingStuProvider;
+    this.nessieClientProvider = nessieClientProvider;
     this.statisticsService = statisticsService;
     this.statisticsAdministrationFactory = statisticsAdministrationFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
@@ -358,6 +369,7 @@ public class SabotContext implements AutoCloseable {
     this.credentialsServiceProvider = credentialsServiceProvider;
     this.conduitInProcessChannelProviderProvider = conduitInProcessChannelProviderProvider;
     this.sysFlightChannelProviderProvider = sysFlightChannelProviderProvider;
+    expressionSplitCache = new ExpressionSplitCache(optionManager, config);
   }
 
   private void checkIfCoordinator() {
@@ -442,7 +454,7 @@ public class SabotContext implements AutoCloseable {
   }
 
   public Collection<NodeEndpoint> getCoordinators() {
-    return coord.getServiceSet(ClusterCoordinator.Role.COORDINATOR).getAvailableEndpoints();
+    return coord.getServiceSet(Role.COORDINATOR).getAvailableEndpoints();
   }
 
   public Optional<NodeEndpoint> getMaster() {
@@ -451,7 +463,7 @@ public class SabotContext implements AutoCloseable {
   }
 
   public Collection<NodeEndpoint> getExecutors() {
-    return coord.getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints();
+    return coord.getServiceSet(Role.EXECUTOR).getAvailableEndpoints();
   }
 
   /**
@@ -556,7 +568,7 @@ public class SabotContext implements AutoCloseable {
   }
 
   public UserService getUserService() {
-    Preconditions.checkNotNull(userService, "UserService instance is not set yet.");
+    checkNotNull(userService, "UserService instance is not set yet.");
     return userService;
   }
 
@@ -650,6 +662,10 @@ public class SabotContext implements AutoCloseable {
     return nessieContentsApiBlockingStuProvider.get();
   }
 
+  public Provider<NessieApiV1> getNessieClientProvider() {
+    return nessieClientProvider;
+  }
+
   public Provider<SimpleJobRunner> getJobsRunner() {
     return jobsRunnerProvider;
   }
@@ -672,5 +688,9 @@ public class SabotContext implements AutoCloseable {
 
   public Provider<SysFlightChannelProvider> getSysFlightChannelProviderProvider() {
     return sysFlightChannelProviderProvider;
+  }
+
+  public ExpressionSplitCache getExpressionSplitCache() {
+    return expressionSplitCache;
   }
 }

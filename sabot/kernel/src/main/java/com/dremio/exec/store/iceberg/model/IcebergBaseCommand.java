@@ -305,7 +305,16 @@ public abstract class IcebergBaseCommand implements IcebergCommand {
 
     @Override
     public String getRootPointer() {
-        return getTableOps().current().metadataFileLocation();
+      TableMetadata metadata = getTableOps().current();
+      if (metadata == null) {
+        throw UserException.dataReadError().message("Failed to get iceberg metadata").buildSilently();
+      }
+      return metadata.metadataFileLocation();
+    }
+
+    @Override
+    public Map<Integer, PartitionSpec> getPartitionSpecMap() {
+        return getTableOps().current().specsById();
     }
 
     private TableOperations getTableOps() {

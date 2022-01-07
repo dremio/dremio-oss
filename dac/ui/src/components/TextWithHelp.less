@@ -45,18 +45,35 @@
 
     // Todo: Clean up Tooltip component to use less instead of inline styles and add the color property there instead
     &__tooltipArrow {
+      &.--bottom:after {
+        top: 1px;
+        border-width: 0 4px 5px;
+      }
+      &.--top:after {
+        bottom: 1px;
+        border-width: 5px 4px 0;
+      }
+
       &.--light {
-        border-color: transparent transparent @blue transparent !important;
+        &.--top {
+          border-color: @blue transparent transparent  transparent !important;
+          &:after {
+            border-color: @aqua-spring transparent transparent transparent;
+          }
+        }
+        &.--bottom {
+          border-color: transparent transparent @blue transparent !important;
+          &:after {
+            border-color: transparent transparent @aqua-spring transparent;
+          }
+        }
         &:after {
           content: '';
           position: absolute;
-          top: 1px;
           margin-left: -4px;
           width: 0;
           height: 0;
           border-style: solid;
-          border-width: 0 4px 5px;
-          border-color: transparent transparent @aqua-spring transparent;
         }
       }
     }

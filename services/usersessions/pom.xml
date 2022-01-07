@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.dremio.services</groupId>
+    <artifactId>dremio-services-parent</artifactId>
+    <version>20.0.0-202201050826310141-8cc7162b</version>
+  </parent>
+
+  <artifactId>dremio-services-usersessions</artifactId>
+  <name>Services - UserSessions</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-transientstore</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-options</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+
+
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <configuration>
+          <protoSourceRoot>${basedir}/src/main/protobuf</protoSourceRoot>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

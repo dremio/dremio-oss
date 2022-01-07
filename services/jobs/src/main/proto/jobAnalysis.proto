@@ -32,19 +32,19 @@ message BaseMetrics {
   required int64 peakMemory = 2;
   required int64 processingTime = 3;
   required int64 setupTime = 4;
-  required int64 bytesProcessed = 5;
-  required int64 recordsProcessed = 6;
-  required int64 numThreads = 7;
+  required int64 recordsProcessed = 5;
+  required int64 numThreads = 6;
 }
 
-message Node {
-  required string nodeId = 1;
-  required string phaseId = 2;
-  required string operatorName = 3;
-  required int32  OperatorType = 4;
-  required BaseMetrics baseMetrics = 5;
-  required string mergeNodeName = 6;
-  required SuccessorNodes successorId = 12;
+message ThreadData {
+  required string operatorId = 1;
+  required string operatorName = 2;
+  required int32  OperatorType = 3;
+  required int64 ioWaitTime = 4;
+  required int64 peakMemory = 5;
+  required int64 processingTime = 6;
+  required int64 setupTime = 7;
+  required int64 recordsProcessed = 8;
 }
 
 message MetricValue {
@@ -67,9 +67,22 @@ message PhaseData {
   required int64 processingTime = 2;
   required int64 peakMemory = 3;
   required int64 recordsProcessed = 4;
-  required int64 bytesProcessed = 5;
-  required int64 numThreads = 6;
-  required OperatorDataList operatorDataList = 7;
+  required int64 numThreads = 5;
+  required OperatorDataList operatorDataList = 6;
 }
 
+message GraphNodeDetails {
+  required string nodeName = 1;
+  required SuccessorNodes successorId = 2;
+  required string mergeNodeName = 3;
+}
 
+message PhaseNode {
+  required string nodeId = 1;
+  required string phaseId = 2;
+  required string operatorName = 3;
+  required int32  OperatorType = 4;
+  required BaseMetrics baseMetrics = 5;
+  required string mergeNodeName = 6;
+  required SuccessorNodes successorId = 12;
+}

@@ -112,8 +112,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
   @Test
   public void testInsertIntoSysTable() throws Exception {
     try (AutoCloseable c = enableIcebergTables()) {
-      final String insertQuery = "INSERT INTO sys.version VALUES('A', 'A', 'A', 'A', 'A', 'A')";
-      errorMsgTestHelper(insertQuery, "[sys.version] is a SYSTEM_TABLE");
+      final String insertQuery = "INSERT INTO INFORMATION_SCHEMA.CATALOGS VALUES('A', 'A', 'A')";
+      errorMsgTestHelper(insertQuery, "[INFORMATION_SCHEMA.CATALOGS] is a SYSTEM_TABLE");
     }
   }
 
@@ -121,13 +121,13 @@ public class TestInsertIntoTable extends BaseTestQuery {
     try {
       properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
       try {
-        final String createTableQuery = String.format("CREATE or REPLACE VIEW %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE or REPLACE VIEW %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           schema, tblName);
         test(createTableQuery);
 
         Thread.sleep(1001);
 
-        final String insertQuery = String.format("INSERT INTO %s.%s VALUES('A', 'A', 'A', 'A', 'A', 'A')", schema, tblName);
+        final String insertQuery = String.format("INSERT INTO %s.%s VALUES('A', 'A', 'A')", schema, tblName);
         errorMsgTestHelper(insertQuery, String.format("[%s.%s] is a VIEW", schema, tblName));
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));

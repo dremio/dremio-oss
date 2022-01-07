@@ -56,6 +56,7 @@ import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 
@@ -226,6 +227,8 @@ public class SplitAssignmentTableFunctionTest extends ExecTest {
     when(operatorContext.getOptions()).thenReturn(optionManager);
     when(optionManager.getOption(ExecConstants.ASSIGNMENT_CREATOR_BALANCE_FACTOR)).thenReturn(1.5);
     when(operatorContext.createOutputVectorContainer()).thenReturn(outgoing);
+    OperatorStats operatorStats = mock(OperatorStats.class);
+    when(operatorContext.getStats()).thenReturn(operatorStats);
     TableFunctionConfig tableFunctionConfig = mock(TableFunctionConfig.class);
     BatchSchema outputSchema = BatchSchema.newBuilder()
       .addField(Field.nullable(RecordReader.SPLIT_IDENTITY, CompleteType.STRUCT.getType()))

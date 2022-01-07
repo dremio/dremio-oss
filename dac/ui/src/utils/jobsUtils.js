@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 import moment from 'moment';
+import { Link } from 'react-router';
 
+import config from '@app/utils/config';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import timeUtils from './timeUtils';
 
@@ -183,6 +185,19 @@ export class JobsUtils {
     return createFullUrl ? (window.location.origin + url) : url;
   }
 
+  parseUrlForJobsPageVersion() { // This isn't presently used but was built for the possible issue of having to rediect a url to the old or new jobs page so the user can still view an individual job
+    const parseForOldJobs = window.location.href.split('/job/');
+    const parseForNewJobs = window.location.href.split('#');
+    const isUrlForNewJobsPage = parseForNewJobs.length > parseForOldJobs.length;
+    const result = {
+      pathname: isUrlForNewJobsPage ? `/job/${parseForNewJobs[1]}` : '/jobs',
+      search: isUrlForNewJobsPage ? null : '?filters=%7B"qt"%3A%5B"UI"%2C"EXTERNAL"%5D%7D&order=DESCENDING&sort=st',
+      hash: isUrlForNewJobsPage ? null : `#${parseForOldJobs[1]}`,
+      isUrlForNewJobsPage
+    };
+    return result;
+  }
+
   getReflectionsByRelationship(jobDetails) {
     if (!jobDetails.get('acceleration')) { // failed planning, pre-1.3, etc guard
       return {};
@@ -206,6 +221,26 @@ export class JobsUtils {
 
   formatJobDurationWithMS(duration, isNumberFormat) {
     return timeUtils.durationWithMS(moment.duration(duration, 'ms'), isNumberFormat);
+  }
+
+  isNewJobsPage() {
+    return config && config.showNewJobsPage;
+  }
+
+  getReflectionsLink(item, location) {
+    const showLink = localStorageUtils.isUserAnAdmin() && (item.get('reflectionType') === 'RAW' || item.get('reflectionType') === 'AGGREGATE');
+    return (
+      showLink ?
+        <Link to={{
+          ...location,
+          state: {
+            modal: 'AccelerationModal',
+            datasetId: item.get('datasetId'),
+            layoutId: item.get('reflectionID')
+          }
+        }}>{item.get('reflectionName')}</Link>
+        : item.get('reflectionName')
+    );
   }
 
 }

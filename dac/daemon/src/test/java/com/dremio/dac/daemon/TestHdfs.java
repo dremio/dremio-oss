@@ -30,9 +30,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -85,7 +83,7 @@ public class TestHdfs extends BaseTestMiniDFS {
   private static final String SOURCE_NAME = "dachdfs_test";
   private static final String SOURCE_ID = "12345";
   private static final String SOURCE_DESC = "description";
-  private BufferAllocator allocator;
+  private static BufferAllocator allocator;
 
   @ClassRule
   public static final TemporaryFolder folder = new TemporaryFolder();
@@ -125,6 +123,19 @@ public class TestHdfs extends BaseTestMiniDFS {
       provider.setMapper(JSONUtil.prettyMapper());
       client = ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
     }
+
+    SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class)));
+    final HDFSConf hdfsConfig = new HDFSConf();
+    hdfsConfig.hostname = host;
+    hdfsConfig.port = port;
+    SourceConfig source = new SourceConfig();
+    source.setName(SOURCE_NAME);
+    source.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
+    source.setConnectionConf(hdfsConfig);
+    source.setId(new EntityId(SOURCE_ID));
+    source.setDescription(SOURCE_DESC);
+    allocator = l(BootStrapContext.class).getAllocator().newChildAllocator("child-allocator", 0, Long.MAX_VALUE);
+    ((CatalogServiceImpl)l(CatalogService.class)).getSystemUserCatalog().createSource(source);
   }
 
   @AfterClass
@@ -138,6 +149,8 @@ public class TestHdfs extends BaseTestMiniDFS {
     if (isMaprProfile()) {
       return;
     }
+    TestUtilities.clear(l(CatalogService.class), l(LegacyKVStoreProvider.class), null, null);
+    allocator.close();
 
     try (Timer.TimedBlock b = Timer.time("TestHdfs.@AfterClass")) {
       if (dremioDaemon != null) {
@@ -152,30 +165,6 @@ public class TestHdfs extends BaseTestMiniDFS {
 
   private static <T> T l(Class<T> clazz) {
     return dremioBinder.lookup(clazz);
-  }
-
-  @Before
-  public void setup() throws Exception {
-    {
-      SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class)));
-      final HDFSConf hdfsConfig = new HDFSConf();
-      hdfsConfig.hostname = host;
-      hdfsConfig.port = port;
-      SourceConfig source = new SourceConfig();
-      source.setName(SOURCE_NAME);
-      source.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
-      source.setConnectionConf(hdfsConfig);
-      source.setId(new EntityId(SOURCE_ID));
-      source.setDescription(SOURCE_DESC);
-      allocator = l(BootStrapContext.class).getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
-      ((CatalogServiceImpl)l(CatalogService.class)).getSystemUserCatalog().createSource(source);
-    }
-  }
-
-  @After
-  public void cleanup() throws Exception {
-    TestUtilities.clear(l(CatalogService.class), l(LegacyKVStoreProvider.class), null, null);
-    allocator.close();
   }
 
   @Test

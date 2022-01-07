@@ -105,9 +105,9 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
       boolean warnOnRowCountMismatch,
-      EncryptionValidationMode encryptionValidationMode) {
+      EncryptionValidationMode encryptionValidationMode, boolean forceDoublePrecision) {
     super(scriptsEnabled, showHiddenIndices, showIdColumn, readTimeoutMillis, scrollTimeoutMillis, usePainless,
-      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, warnOnRowCountMismatch, encryptionValidationMode);
+      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, warnOnRowCountMismatch, encryptionValidationMode, forceDoublePrecision);
     this.hostList = hostList;
     this.username = username;
     this.password = password;
@@ -153,7 +153,8 @@ public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<E
       elasticStoragePluginConfig.scrollSize,
       elasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
       elasticStoragePluginConfig.warnOnRowCountMismatch,
-      elasticStoragePluginConfig.encryptionValidationMode);
+      elasticStoragePluginConfig.encryptionValidationMode,
+    elasticStoragePluginConfig.forceDoublePrecision);
     return elasticsearchConf;
   }
 }

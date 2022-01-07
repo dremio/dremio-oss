@@ -57,7 +57,7 @@ public class ServicesIterator implements Iterator<ServiceSetInfo> {
     }
   }
 
-  ServicesIterator(final SabotContext dbContext) {
+  public ServicesIterator(final SabotContext dbContext) {
     Iterator<ServiceSetInfo> srv;
     try {
       srv = StreamSupport.stream(dbContext.getClusterCoordinator()

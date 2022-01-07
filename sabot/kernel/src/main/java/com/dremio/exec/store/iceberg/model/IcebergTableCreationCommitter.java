@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 
 import com.dremio.exec.record.BatchSchema;
@@ -85,5 +86,10 @@ public class IcebergTableCreationCommitter implements IcebergOpCommitter {
   @Override
   public String getRootPointer() {
     return icebergCommand.getRootPointer();
+  }
+
+  @Override
+  public Map<Integer, PartitionSpec> getCurrentSpecMap() {
+    return icebergCommand.getPartitionSpecMap();
   }
 }

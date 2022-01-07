@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.store.iceberg.model;
 
+import java.util.Map;
+
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 
 import com.dremio.exec.record.BatchSchema;
@@ -56,6 +59,12 @@ public interface IcebergOpCommitter {
    * @return current metadata location of the table
    */
   String getRootPointer();
+
+  /**
+   * Gets the current spec map of the table
+   * @return current spec map of the table
+   */
+  Map<Integer, PartitionSpec> getCurrentSpecMap();
 
   default void updateReadSignature(ByteString newReadSignature) {}
 }

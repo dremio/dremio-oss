@@ -119,7 +119,9 @@ public class TestPreallocation extends DremioTest {
       );
 
       try(final AccumulatorSet accumulator = createAccumulator(m1, allocator);
-          final LBlockHashTable hashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH)) {
+          final LBlockHashTable hashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
+            10, true, MAX_VALUES_PER_BATCH)) {
+        hashTable.registerResizeListener(accumulator);
         final Accumulator[] accumulators = accumulator.getChildren();
         assertEquals(2, accumulators.length);
 

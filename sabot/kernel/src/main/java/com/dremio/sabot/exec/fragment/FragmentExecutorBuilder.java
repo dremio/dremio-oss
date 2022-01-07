@@ -37,6 +37,7 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
+import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
@@ -113,6 +114,7 @@ public class FragmentExecutorBuilder {
   private final FunctionImplementationRegistry funcRegistry;
   private final DecimalFunctionImplementationRegistry decimalFuncRegistry;
   private final CodeCompiler compiler;
+  private final ExpressionSplitCache expressionSplitCache;
   private final PhysicalPlanReader planReader;
   private final Set<ClusterCoordinator.Role> roles;
   private final CatalogService sources;
@@ -145,7 +147,8 @@ public class FragmentExecutorBuilder {
     CodeCompiler codeCompiler,
     Set<ClusterCoordinator.Role> roles,
     Provider<JobResultsClientFactory> jobResultsClientFactoryProvider,
-    Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider) {
+    Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
+    ExpressionSplitCache expressionSplitCache) {
     this.clerk = clerk;
     this.fragmentExecutors = fragmentExecutors;
     this.nodeEndpoint = nodeEndpoint;
@@ -156,6 +159,7 @@ public class FragmentExecutorBuilder {
     this.executorService = executorService;
     this.optionManager = optionManager;
     this.dataCreator = dataCreator;
+    this.expressionSplitCache = expressionSplitCache;
     this.namespace = namespace;
     this.planReader = planReader;
     this.opCreator = operatorCreatorRegistry;
@@ -307,7 +311,8 @@ public class FragmentExecutorBuilder {
             major.getAllAssignmentList(),
             cachedReader.getPlanFragmentsIndex().getEndpointsIndex(),
             nodeEndpointProvider,
-            major.getExtFragmentAssignmentsList()
+            major.getExtFragmentAssignmentsList(),
+            expressionSplitCache
           );
 
         final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats,

@@ -32,7 +32,6 @@ import com.dremio.service.jobs.JobsProtoUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 
 /**
  * Initializing values to send as part of API response
@@ -142,7 +141,7 @@ public class PartialJobListingItem {
     this.state = JobsProtoUtil.toStuff(input.getJobState());
     this.startTime = input.getStartTime() != 0 ? input.getStartTime() : 0;
     this.endTime = input.getEndTime() != 0 ? input.getEndTime() : 0;
-    this.isComplete = isComplete(this.state);
+    this.isComplete = JobUtil.isComplete(this.state);
     this.duration = JobUtil.getTotalDuration(input, isComplete);
     this.durationDetails = JobUtil.buildDurationDetails(input.getStateListList());
     this.rowsScanned = input.getInputRecords();
@@ -284,30 +283,5 @@ public class PartialJobListingItem {
 
   public Boolean getOutputLimited() {
     return outputLimited;
-  }
-
-  private boolean isComplete(JobState state) {
-    Preconditions.checkNotNull(state, "JobState must be set");
-
-    switch(state){
-      case CANCELLATION_REQUESTED:
-      case ENQUEUED:
-      case NOT_SUBMITTED:
-      case RUNNING:
-      case STARTING:
-      case PLANNING:
-      case PENDING:
-      case METADATA_RETRIEVAL:
-      case QUEUED:
-      case ENGINE_START:
-      case EXECUTION_PLANNING:
-        return false;
-      case CANCELED:
-      case COMPLETED:
-      case FAILED:
-        return true;
-      default:
-        throw new UnsupportedOperationException();
-    }
   }
 }

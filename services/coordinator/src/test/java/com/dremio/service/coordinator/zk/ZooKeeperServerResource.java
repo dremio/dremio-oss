@@ -32,7 +32,7 @@ final class ZooKeeperServerResource extends ExternalResource {
   @Override
   protected void before() throws Throwable {
     testingServer = new TestingServer(true);
-    zkClient = new CuratorZookeeperClient(testingServer.getConnectString(), 5000, 5000, null, new RetryOneTime(1000));
+    zkClient = new CuratorZookeeperClient(testingServer.getConnectString(), 10000, 10000, null, new RetryOneTime(2000));
     zkClient.start();
     zkClient.blockUntilConnectedOrTimedOut();
   }

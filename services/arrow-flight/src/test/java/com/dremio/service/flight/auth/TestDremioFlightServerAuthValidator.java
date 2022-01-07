@@ -41,7 +41,7 @@ public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticati
 
   @Before
   @Override
-  public void setup() {
+  public void setup() throws UserLoginException {
     super.setup();
     dremioFlightServerAuthValidator = new DremioFlightServerBasicAuthValidator(
       getMockUserServiceProvider(), getMockTokenManagerProvider(), getMockDremioFlightSessionsManager());

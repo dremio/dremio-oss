@@ -106,6 +106,14 @@ public final class RelOptNamespaceTable implements RelOptTable {
     return false;
   }
 
+  @Override
+  public List<ImmutableBitSet> getKeys() {
+    if (table != null) {
+      return table.getStatistic().getKeys();
+    }
+    return ImmutableList.of();
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public <T> T unwrap(Class<T> clazz) {

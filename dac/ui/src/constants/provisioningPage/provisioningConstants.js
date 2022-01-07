@@ -106,6 +106,8 @@ export const ENGINE_FILTER_NAME = {
   size: 'sz'
 };
 
+export const availableFilters = () => Object.values(ENGINE_FILTER_NAME);
+
 const stateOptions = Object.keys(CLUSTER_STATE_ICON).map(key => {
   return {id: key, label: CLUSTER_STATE_ICON[key].text};
 });
@@ -133,7 +135,7 @@ export const ENGINE_COLUMNS_CONFIG = [
   {key: 'memory', label: 'Memory per Executor', width: 130, headerStyle: {marginLeft: -6}},
   {key: 'ip', label: 'IP address', width: 120, headerStyle: {marginLeft: -6}},
   {key: 'nodes', label: 'Online Nodes', width: 100},
-  {key: 'action', label: 'Action', width: 100, disableSort: true}
+  {key: 'action', label: 'Actions', width: 100, disableSort: true}
 ];
 
 export const NODE_COLUMNS_CONFIG = [

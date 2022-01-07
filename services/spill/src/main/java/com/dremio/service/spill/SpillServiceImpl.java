@@ -58,7 +58,7 @@ public class SpillServiceImpl implements SpillService {
   private static final String DREMIO_LOCAL_IMPL_STRING = "fs.dremio-local.impl";
   private static final String DREMIO_LOCAL_SCHEME = "dremio-local";
   private static final String LOCAL_SCHEME = "file";
-  private static final Configuration SPILLING_CONFIG;
+  public static final Configuration SPILLING_CONFIG;
 
   private static final String TEMP_FOLDER_PURPOSE = "spilling";
 

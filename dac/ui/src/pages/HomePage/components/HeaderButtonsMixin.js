@@ -78,5 +78,3 @@ export default function(input) {
     }
   });
 }
-
-export const isUploadEnabled = () => true;

@@ -22,9 +22,6 @@ import java.math.RoundingMode;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
-import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
-
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -61,6 +58,9 @@ import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.Text;
+
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Maps;
 

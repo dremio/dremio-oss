@@ -15,7 +15,11 @@
  */
 package com.dremio.service.sysflight;
 
+import static org.awaitility.Awaitility.await;
+import static org.junit.Assert.assertEquals;
+
 import java.net.ServerSocket;
+import java.time.Duration;
 import java.util.List;
 
 import org.apache.arrow.flight.Criteria;
@@ -86,7 +90,13 @@ public class TestSysFlightProducer extends BaseTestQuery {
 
   @AfterClass
   public static void tearDown() throws Exception {
-    AutoCloseables.close(client, server, producer, allocator);
+    AutoCloseables.close(client);
+
+    await().atMost(Duration.ofSeconds(10))
+      .untilAsserted(() -> assertEquals("Not all child allocators were closed.",
+        0, allocator.getChildAllocators().size()));
+
+    AutoCloseables.close(server, producer, allocator);
   }
 
   @Test

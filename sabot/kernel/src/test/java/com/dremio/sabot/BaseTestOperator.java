@@ -66,6 +66,7 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
+import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
@@ -325,6 +326,7 @@ public class BaseTestOperator extends ExecTest {
     OptionManager options;
     SystemOptionManager systemOptionManager;
     CodeCompiler compiler;
+    ExpressionSplitCache expressionSplitCache;
     ExecutionControls ec;
     FunctionLookupContext functionLookup;
     FunctionLookupContext decimalFunctionLookup;
@@ -351,6 +353,7 @@ public class BaseTestOperator extends ExecTest {
 
         systemOptionManager.start();
         compiler = new CodeCompiler(config, options);
+        expressionSplitCache = new ExpressionSplitCache(options, config);
         ec = new ExecutionControls(options, NodeEndpoint.getDefaultInstance());
         decimalFunctionLookup = new DecimalFunctionImplementationRegistry(config, result, options);
         functionLookup = new FunctionImplementationRegistry(config, result, options);
@@ -364,6 +367,11 @@ public class BaseTestOperator extends ExecTest {
     public void invalidateExpToCompiledClazzCacheInCodeCompiler() {
       Preconditions.checkNotNull(compiler, "Compiler must have been initialized");
       compiler.invalidateExpToCompiledClazzCache();
+    }
+
+    public void invalidateExpToExpSplitsCache() {
+      Preconditions.checkNotNull(expressionSplitCache, "ExpressionSplitCache must be initialized");
+      expressionSplitCache.invalidateCache();
     }
 
     public OptionManager getOptions(){
@@ -420,7 +428,7 @@ public class BaseTestOperator extends ExecTest {
           ImmutableList.of(),
           null,
           endpointsIndex,
-              null);
+              null, expressionSplitCache);
     }
 
     public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {

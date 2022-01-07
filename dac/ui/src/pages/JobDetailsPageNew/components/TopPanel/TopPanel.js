@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, withRouter } from 'react-router';
+import { compose } from 'redux';
 import { injectIntl } from 'react-intl';
 import datasetPathUtils from '@app/utils/resourcePathUtils/dataset';
 import JobsUtils, { JobState } from '@app/utils/jobsUtils';
@@ -42,7 +43,9 @@ export const TopPanel = (props) => {
       formatMessage
     },
     jobId,
-    changePages,
+    breadcrumbRouting,
+    router,
+    location,
     setComponent,
     jobStatus,
     showJobProfile,
@@ -102,6 +105,16 @@ export const TopPanel = (props) => {
     setSelectedTab(tab);
   };
 
+  const changePages = () => {
+    const { state } = location;
+    state && state.history
+      ? breadcrumbRouting()
+      : router.push({
+        ...location,
+        pathname: '/jobs'
+      });
+  };
+
   const attemptDetails = jobDetails && jobDetails.get('attemptDetails');
   const profileUrl = attemptDetails && attemptDetails.getIn([0, 'profileUrl']);
   const isSingleProfile = attemptDetails && attemptDetails.size === 1;
@@ -109,7 +122,7 @@ export const TopPanel = (props) => {
     <div className='topPanel'>
       <div className='topPanel__navigationWrapper'>
         <div className='topPanel__jobDetails'>
-          <div data-qa='jobs-logo' onClick={() => changePages(null)}>
+          <div data-qa='jobs-logo' onClick={changePages}>
             {renderIcon('Jobs.svg', 'topPanel__jobDetails__jobsIcon')}
           </div>
           <div className='gutter-top--half'>
@@ -198,13 +211,17 @@ export const TopPanel = (props) => {
 
 TopPanel.propTypes = {
   intl: PropTypes.object.isRequired,
-  changePages: PropTypes.func,
+  breadcrumbRouting: PropTypes.func,
   jobId: PropTypes.string,
   setComponent: PropTypes.func,
   jobDetails: PropTypes.object,
   showJobProfile: PropTypes.func,
   jobStatus: PropTypes.string,
-  cancelJob: PropTypes.func
+  cancelJob: PropTypes.func,
+  router: PropTypes.object.isRequired,
+  location: PropTypes.object.isRequired
 };
 
-export default injectIntl(TopPanel);
+export default compose(
+  withRouter,
+  injectIntl)(TopPanel);

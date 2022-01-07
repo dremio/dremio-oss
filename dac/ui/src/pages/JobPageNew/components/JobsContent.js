@@ -20,6 +20,7 @@ import Immutable from 'immutable';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
+import DocumentTitle from 'react-document-title';
 import socket from '@inject/utils/socket';
 import { flexColumnContainer } from '@app/uiTheme/less/layout.less';
 import StatefulTableViewer from '@app/components/StatefulTableViewer';
@@ -31,6 +32,7 @@ import { additionalColumnName } from '@inject/pages/JobPageNew/AdditionalJobPage
 // import JobTable from '@app/pages/JobPage/components/JobsTable/JobTable';
 import JobsFilters from '@app/pages/JobPage/components/JobsFilters/JobsFilters';
 import JobStateIcon from '@app/pages/JobPage/components/JobStateIcon';
+import SideNav from '@app/components/SideNav/SideNav';
 import timeUtils from 'utils/timeUtils';
 import jobsUtils from 'utils/jobsUtils';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
@@ -263,36 +265,44 @@ export default class JobsContent extends PureComponent {
       });
     };
     return (
-      <div className={classNames('jobs-content', flexColumnContainer, className)} style={[styles.base, resizeStyle]} ref='content'>
-        <JobsFilters
-          queryState={queryState}
-          onUpdateQueryState={onUpdateQueryState}
-          style={styles.filters}
-          loadItemsForFilter={this.props.loadItemsForFilter}
-          dataWithItemsForFilters={this.props.dataWithItemsForFilters}
-          checkedItems={getCheckedItems}
-          columnFilterSelect={this.filterColumnSelect}
-          columnFilterUnSelect={this.filterColumnUnSelect}
-          updateColumnsState={this.updateColumnsState}
-          isQVJobs
-        />
-        <StatefulTableViewer
-          virtualized
-          rowHeight={40}
-          tableWidth={tableWidth}
-          columns={getColumns}
-          tableData={getTableData()}
-          scrollToIndex={this.getCurrentJobIndex()}
-          viewState={viewState}
-          enableHorizontalScroll
-          onClick={this.props.changePages}
-          resizableColumn
-          loadNextRecords={loadNextJobs}
-          sortRecords={this.sortJobsByColumn}
-          noDataText={intl.formatMessage({ id: 'Job.NoJobs' })}
-          showIconHeaders={{ acceleration: { node: getReflectionIcon } }}
-          disableZebraStripes
-        />
+      <div style={{height: '100%'}}>
+        <DocumentTitle title={intl.formatMessage({ id: 'Job.Jobs' })} />
+        <div className={'jobsPageBody'}>
+          <SideNav />
+          <div className={'jobPageContentDiv'}>
+            <div className={classNames('jobs-content', flexColumnContainer, className)} style={[styles.base, resizeStyle]} ref='content'>
+              <JobsFilters
+                queryState={queryState}
+                onUpdateQueryState={onUpdateQueryState}
+                style={styles.filters}
+                loadItemsForFilter={this.props.loadItemsForFilter}
+                dataWithItemsForFilters={this.props.dataWithItemsForFilters}
+                checkedItems={getCheckedItems}
+                columnFilterSelect={this.filterColumnSelect}
+                columnFilterUnSelect={this.filterColumnUnSelect}
+                updateColumnsState={this.updateColumnsState}
+                isQVJobs
+              />
+              <StatefulTableViewer
+                virtualized
+                rowHeight={40}
+                tableWidth={tableWidth}
+                columns={getColumns}
+                tableData={getTableData()}
+                scrollToIndex={this.getCurrentJobIndex()}
+                viewState={viewState}
+                enableHorizontalScroll
+                onClick={this.props.changePages}
+                resizableColumn
+                loadNextRecords={loadNextJobs}
+                sortRecords={this.sortJobsByColumn}
+                noDataText={intl.formatMessage({ id: 'Job.NoJobs' })}
+                showIconHeaders={{ acceleration: { node: getReflectionIcon } }}
+                disableZebraStripes
+              />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

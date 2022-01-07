@@ -184,7 +184,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private final Provider<CatalogService> catalogService;
   private final Provider<SabotContext> sabotContext;
   private final Provider<ReflectionStatusService> reflectionStatusService;
-  private final Provider<ForemenWorkManager> foremenWorkManagerProvider;
   private final ReflectionSettings reflectionSettings;
   private final ExecutorService executorService;
   private final BufferAllocator allocator;
@@ -241,7 +240,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "acceleration plugin required");
     this.reflectionStatusService = Preconditions.checkNotNull(reflectionStatusService, "reflection status service required");
     this.executorService = Preconditions.checkNotNull(executorService, "executor service required");
-    this.foremenWorkManagerProvider = Preconditions.checkNotNull(foremenWorkManagerProvider,"foremenworkmanager service required");
     this.namespaceService = new Provider<NamespaceService>() {
       @Override
       public NamespaceService get() {
@@ -278,7 +276,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     this.planCacheInvalidationHelper = new Supplier<PlanCacheInvalidationHelper>() {
       @Override
       public PlanCacheInvalidationHelper get() {
-        return new PlanCacheInvalidationHelper(queryContext.get());
+        return new PlanCacheInvalidationHelper(queryContext.get(), foremenWorkManagerProvider.get());
       }
     };
 
@@ -402,6 +400,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       reflectionsToUpdate,
       this::wakeupManager,
       expansionHelper,
+      planCacheInvalidationHelper,
       allocator,
       accelerationPlugin,
       accelerationPlugin.getConfig().getPath(),
@@ -523,8 +522,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     goal.setId(reflectionId);
 
     userStore.save(goal);
-
-    invalidateReflectionAssociatedPlanCache(goal.getDatasetId());
 
     logger.debug("create reflection goal {} (named {})", reflectionId.getId(), goal.getName());
     wakeupManager("reflection goal created");
@@ -795,14 +792,18 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     Optional<ReflectionGoal> goal = getGoal(id);
     if(goal.isPresent() && goal.get().getState() != ReflectionGoalState.DELETED) {
       update(goal.get().setState(ReflectionGoalState.DELETED));
-      invalidateReflectionAssociatedPlanCache(goal.get().getDatasetId());
+      try (PlanCacheInvalidationHelper helper = planCacheInvalidationHelper.get()) {
+        helper.invalidateReflectionAssociatedPlanCache(goal.get().getDatasetId());
+      }
     }
   }
 
   @Override
   public void remove(ReflectionGoal goal) {
     update(goal.setState(ReflectionGoalState.DELETED));
-    invalidateReflectionAssociatedPlanCache(goal.getDatasetId());
+    try (PlanCacheInvalidationHelper helper = planCacheInvalidationHelper.get()) {
+      helper.invalidateReflectionAssociatedPlanCache(goal.getDatasetId());
+    }
   }
 
   @Override
@@ -854,7 +855,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     request.setRequestedAt(Math.max(System.currentTimeMillis(), request.getRequestedAt()));
     requestsStore.save(datasetId, request);
     wakeupManager("refresh request for dataset " + datasetId);
-    invalidateReflectionAssociatedPlanCache(datasetId);
   }
 
   @Override
@@ -1277,11 +1277,13 @@ public class ReflectionServiceImpl extends BaseReflectionService {
    */
   public static class PlanCacheInvalidationHelper implements AutoCloseable {
     private final QueryContext context;
+    private final ForemenWorkManager foremenWorkManager;
     private final boolean isPlanCacheEnabled;
     private final Catalog catalog;
 
-    PlanCacheInvalidationHelper(QueryContext context) {
+    PlanCacheInvalidationHelper(QueryContext context, ForemenWorkManager foremenWorkManager) {
       this.context = Preconditions.checkNotNull(context, "query context required");
+      this.foremenWorkManager = foremenWorkManager;
       isPlanCacheEnabled = context.getPlannerSettings().isPlanCacheEnabled();
       catalog = context.getCatalog();
     }
@@ -1298,15 +1300,12 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     public void close() {
       AutoCloseables.closeNoChecked(context);
     }
-  }
 
-  private void invalidateReflectionAssociatedPlanCache(String datasetId) {
-    try (PlanCacheInvalidationHelper helper = planCacheInvalidationHelper.get()) {
-      PlanCache planCache = foremenWorkManagerProvider.get().getPlanCacheHandle();
-      if (!helper.isPlanCacheEnabled() || planCache == null) {
+    public void invalidateReflectionAssociatedPlanCache(String datasetId) {
+      PlanCache planCache = foremenWorkManager.getPlanCacheHandle();
+      if (!isPlanCacheEnabled() || planCache == null) {
         return;
       }
-      Catalog catalog = helper.getCatalog();
       if (catalog instanceof DelegatingCatalog || catalog instanceof CachingCatalog) {
         Queue<DatasetConfig> configQueue = new LinkedList<>();
         configQueue.add(catalog.getTable(datasetId).getDatasetConfig());
@@ -1319,7 +1318,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
               try {
                 int size = parent.getDatasetPathList().size();
                 if( !(size > 1 && parent.getDatasetPathList().get(size-1).equalsIgnoreCase("external_query"))) {
-                  configQueue.add(namespaceService.get().getDataset(new NamespaceKey(parent.getDatasetPathList())));
+                  configQueue.add(context.getNamespaceService(SYSTEM_USERNAME).getDataset(new NamespaceKey(parent.getDatasetPathList())));
                 }
               } catch (NamespaceException ex) {
                 throw Throwables.propagate(ex);

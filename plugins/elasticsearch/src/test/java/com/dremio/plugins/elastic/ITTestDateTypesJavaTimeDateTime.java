@@ -62,6 +62,10 @@ public class ITTestDateTypesJavaTimeDateTime extends ElasticBaseTestQuery {
     data.add(new Object[]{"8yyyy-MM-dd'T'HH:mm:ss"});
     data.add(new Object[]{"uuuu-MM-dd'T'HH:mm:ss"});
     data.add(new Object[]{"8uuuu-MM-dd'T'HH:mm:ss"});
+    data.add(new Object[]{"yyyy-MM-dd'T'HH:mm:ssX"});
+    data.add(new Object[]{"yyyy-MM-dd'T'HH:mm:ss.SSSX"});
+    data.add(new Object[]{"yyyy-MM-dd'T'HH:mm:ssXX"});
+    data.add(new Object[]{"yyyy-MM-dd'T'HH:mm:ss.SSSXX"});
     return data;
   }
 
@@ -71,6 +75,8 @@ public class ITTestDateTypesJavaTimeDateTime extends ElasticBaseTestQuery {
     assumeFalse(( format.startsWith("8")) && !(enable7vFeatures || enable68vFeatures));
     // Format with "u" as year is applicable for ES 7 only.
     assumeFalse(( format.contains("u")) && !(enable7vFeatures));
+    // Format with "X" as offset is applicable for ES 7 only.
+    assumeFalse(( format.endsWith("X")) && !(enable7vFeatures));
     final LocalDateTime dt1 = LocalDateTime.of(LocalDate.of(2021, 07, 21), LocalTime.of(13, 00, 05));
     final LocalDateTime dt2 = dt1.plusYears(1);
     final String value1 = dt1.atZone(ZoneOffset.UTC).format(dateTimeFormatter);

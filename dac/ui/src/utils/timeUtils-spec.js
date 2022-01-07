@@ -170,7 +170,7 @@ describe('Tests for time utils', () => {
       expect(TimeUtils.isMoreThanYearsFromNow(moment().add(secondsInYear, 's'), 1)).to.be.false;
       expect(TimeUtils.isMoreThanYearsFromNow(moment().add(secondsInYear * 2, 's'), 2)).to.be.false;
       expect(TimeUtils.isMoreThanYearsFromNow(moment().add((secondsInYear + 1000), 's'), 1)).to.be.true;
-      expect(TimeUtils.isMoreThanYearsFromNow(moment().add((secondsInYear * 2 + 1000), 's'), 2)).to.be.true;
+      expect(TimeUtils.isMoreThanYearsFromNow(moment().add((secondsInYear * 2 + (180 * 24 * 60 * 60)), 's'), 2)).to.be.true;
     });
     it('should compare valid timestamp', () => {
       //04/04/2020

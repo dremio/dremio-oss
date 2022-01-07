@@ -33,13 +33,17 @@ import com.dremio.service.job.proto.JobState;
 public class TestJobResultToLogEntryConverter {
 
   @Test
-  public void testOutcomeReasonCancelled() throws Exception {
+  public void testOutcomeReasonCancelled() {
     JobResultToLogEntryConverter converter = new JobResultToLogEntryConverter();
     Job job = mock(Job.class);
     JobAttempt jobAttempt = new JobAttempt();
     JobInfo jobInfo = new JobInfo();
     JobId jobId = new JobId();
     jobId.setId("testId");
+    jobInfo.setSql("Select * from nyc.taxis");
+    jobInfo.setStartTime(System.currentTimeMillis());
+    jobInfo.setFinishTime(System.currentTimeMillis());
+    jobInfo.setUser("dummyUser");
 
     final String cancelReason = "this is the cancel reason";
     JobCancellationInfo jobCancellationInfo = new JobCancellationInfo();
@@ -55,13 +59,17 @@ public class TestJobResultToLogEntryConverter {
   }
 
   @Test
-  public void testOutcomeReasonFailed() throws Exception {
+  public void testOutcomeReasonFailed() {
     JobResultToLogEntryConverter converter = new JobResultToLogEntryConverter();
     Job job = mock(Job.class);
     JobAttempt jobAttempt = new JobAttempt();
     JobInfo jobInfo = new JobInfo();
     JobId jobId = new JobId();
     jobId.setId("testId");
+    jobInfo.setSql("Select * from nyc.taxis");
+    jobInfo.setStartTime(System.currentTimeMillis());
+    jobInfo.setFinishTime(System.currentTimeMillis());
+    jobInfo.setUser("dummyUser");
 
     final String failureReason = "this is the failure reason";
 

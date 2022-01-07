@@ -27,7 +27,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.hive.Hive3PluginOptions;
 import com.dremio.exec.store.metadatarefresh.footerread.Footer;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -95,6 +94,6 @@ public class TestHiveOrcFooterReader extends BaseTestQuery {
 
   private OperatorContext getOpCtx() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10, sabotContext.getExpressionSplitCache());
   }
 }

@@ -150,7 +150,6 @@ public class ElasticsearchCluster implements Closeable {
   private final boolean sslEnabled;
   private final boolean useWhiteList;
   private final long actionRetries;
-
   private ElasticConnectionPool pool;
   private ElasticConnection connection;
   private WebTarget webTarget;
@@ -159,6 +158,12 @@ public class ElasticsearchCluster implements Closeable {
   private Client client;
   private int scrollSize;
   private ElasticVersionBehaviorProvider elasticVersionBehaviorProvider;
+  private boolean forceDoublePrecision;
+
+  public ElasticsearchCluster(int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, long actionRetries, boolean forceDoublePrecision) throws IOException {
+    this(scrollSize, random, scriptsEnabled, showIDColumn, publishHost, sslEnabled, actionRetries);
+    this.forceDoublePrecision = forceDoublePrecision;
+  }
 
   public ElasticsearchCluster(int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, long actionRetries) throws IOException {
     this(scrollSize, random, scriptsEnabled, showIDColumn, publishHost, sslEnabled, actionRetries, null);
@@ -341,7 +346,8 @@ public class ElasticsearchCluster implements Closeable {
         scrollSize,
         allowPushdownAnalyzedOrNormalizedFields, /* allow group by on normalized fields */
         false, /* warn on row count mismatch */
-        EncryptionValidationMode.NO_VALIDATION
+        EncryptionValidationMode.NO_VALIDATION,
+        forceDoublePrecision
       );
       return config;
     } else {
@@ -371,11 +377,13 @@ public class ElasticsearchCluster implements Closeable {
         scrollSize,
         allowPushdownAnalyzedOrNormalizedFields, /* allow group by on normalized fields */
         false, /* warn on row count mismatch */
-        EncryptionValidationMode.NO_VALIDATION
+        EncryptionValidationMode.NO_VALIDATION,
+        forceDoublePrecision
       );
       return config;
     }
   }
+
 
   public BaseElasticStoragePluginConfig config() {
     return config(false);

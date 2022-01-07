@@ -126,7 +126,7 @@ public class DeltaLogCheckpointParquetReader implements DeltaLogReader {
     maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
     estimationFactor = context.getOptionManager().getOption(ExecConstants.DELTALAKE_ROWCOUNT_ESTIMATION_FACTOR);
     try (BufferAllocator allocator = context.getAllocator().newChildAllocator(BUFFER_ALLOCATOR_NAME, 0, Long.MAX_VALUE);
-         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), allocator, context.getOptionManager(), BATCH_SIZE);
+         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), context.getDremioConfig(), allocator, context.getOptionManager(), BATCH_SIZE, context.getExpressionSplitCache());
          SampleMutator mutator = new SampleMutator(allocator)) {
       Collections.sort(fileAttributesList, new Comparator<FileAttributes>() {
         @Override

@@ -33,19 +33,22 @@
 |@welldone-software/why-did-you-render                       |5.0.0               |MIT                 |
 |abortcontroller-polyfill                                    |1.3.0               |MIT                 |
 |Aggregate Designer Algorithm                                |6.0                 |Apache 2.0          |
+|agrona                                                      |1.12.0              |Apache 2.0          |
 |almost-equal                                                |1.1.0               |MIT                 |
 |Amazon Redshift JDBC Driver                                 |2.0.0.6             |Apache 2.0          |
 |Animal Sniffer Annotations                                  |1.18                |MIT                 |
 |Antlr 3.4 Runtime                                           |3.4                 |BSD 3-clause        |
 |AntLR Parser Generator                                      |2.7.7               |Public Domain       |
 |ANTLR StringTemplate                                        |3.2.1               |BSD 3-clause        |
+|Antlr4                                                      |4.8                 |BSD-3-Clause        |
+|Antlr4 Runtime                                              |4.8                 |BSD-3-Clause        |
 |aopalliance version 1.0 repackaged as a module              |2.6.1               |CDDL 1.1            |
 |Apache Avro                                                 |1.9.2               |Apache 2.0          |
 |Apache Calcite Avatica                                      |1.18.0              |Apache 2.0          |
 |Apache Calcite Avatica Metrics                              |1.18.0              |Apache 2.0          |
 |Apache Commons BeanUtils                                    |1.9.4               |Apache 2.0          |
 |Apache Commons Collections                                  |4.4                 |Apache 2.0          |
-|Apache Commons Compress                                     |1.20                |Apache 2.0          |
+|Apache Commons Compress                                     |1.21                |Apache 2.0          |
 |Apache Commons DBCP                                         |2.2.0               |Apache 2.0          |
 |Apache Commons IO                                           |2.4                 |Apache 2.0          |
 |Apache Commons IO                                           |2.5                 |Apache 2.0          |
@@ -110,14 +113,14 @@
 |Apache POI                                                  |4.1.2               |Apache 2.0          |
 |Apache Solr Solrj                                           |5.5.4               |Apache 2.0          |
 |Apache Thrift                                               |0.13.0              |Apache 2.0          |
-|Apache Twill Apache Hadoop YARN library                     |0.14.0              |Apache 2.0          |
-|Apache Twill API                                            |0.14.0              |Apache 2.0          |
-|Apache Twill common library                                 |0.14.0              |Apache 2.0          |
-|Apache Twill core library                                   |0.14.0              |Apache 2.0          |
-|Apache Twill discovery service API                          |0.14.0              |Apache 2.0          |
-|Apache Twill discovery service implementations              |0.14.0              |Apache 2.0          |
-|Apache Twill extensions                                     |0.14.0              |Apache 2.0          |
-|Apache Twill ZooKeeper client library                       |0.14.0              |Apache 2.0          |
+|Apache Twill Apache Hadoop YARN library                     |0.14.0-202111020547020344-41637331|Apache 2.0          |
+|Apache Twill API                                            |0.14.0-202111020547020344-41637331|Apache 2.0          |
+|Apache Twill common library                                 |0.14.0-202111020547020344-41637331|Apache 2.0          |
+|Apache Twill core library                                   |0.14.0-202111020547020344-41637331|Apache 2.0          |
+|Apache Twill discovery service API                          |0.14.0-202111020547020344-41637331|Apache 2.0          |
+|Apache Twill discovery service implementations              |0.14.0-202111020547020344-41637331|Apache 2.0          |
+|Apache Twill extensions                                     |0.14.0-202111020547020344-41637331|Apache 2.0          |
+|Apache Twill ZooKeeper client library                       |0.14.0-202111020547020344-41637331|Apache 2.0          |
 |Apache Yetus Audience Annotations                           |0.5.0               |Apache 2.0          |
 |Apache Yetus Audience Annotations                           |0.7.0               |Apache 2.0          |
 |API Common                                                  |1.8.1               |BSD 3-clause        |
@@ -141,12 +144,11 @@
 |attr-accept                                                 |1.1.0               |MIT                 |
 |Audit Component                                             |1.1.0               |Apache 2.0          |
 |Audit Component                                             |1.1.0               |Apache 2.0          |
-|Audit Component                                             |1.1.0               |Apache 2.0          |
-|Audit Component                                             |1.1.0               |Apache 2.0          |
 |AutoValue Annotations                                       |1.7.2               |Apache 2.0          |
 |AutoValue Annotations                                       |1.7.4               |Apache 2.0          |
 |AWS Event Stream                                            |1.0.1               |Apache 2.0          |
 |AWS Glue Data Catalog Client for Apache Hive Metastore      |1.10.0-202006290831310925-84f4082|Apache 2.0          |
+|AWS Glue Data Catalog Client for Apache Hive Metastore      |1.10.0-202111190435510345-8160822|Apache 2.0          |
 |AWS Java SDK :: Annotations                                 |2.16.104            |Apache 2.0          |
 |AWS Java SDK :: Arns                                        |2.16.104            |Apache 2.0          |
 |AWS Java SDK :: Auth                                        |2.16.104            |Apache 2.0          |
@@ -188,15 +190,21 @@
 |Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs|1.64                |MIT                 |
 |Bouncy Castle Provider                                      |1.64                |MIT                 |
 |bowser                                                      |1.8.0               |MIT                 |
+|bson                                                        |4.3.4               |Apache 2.0          |
 |Byte Buddy                                                  |1.10.19             |Apache 2.0          |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202112230200020337-98e6aace|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202112230200020337-98e6aace|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202112082203210157-0b7b2dd|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202112082203210157-0b7b2dd|Apache 2.0          |
 |CDI APIs                                                    |2.0.2               |Apache 2.0          |
+|cel-core                                                    |0.2.1               |Apache 2.0          |
+|cel-generated-antlr                                         |0.2.1               |Apache 2.0          |
+|cel-generated-pb                                            |0.2.1               |Apache 2.0          |
+|cel-jackson                                                 |0.2.1               |Apache 2.0          |
+|cel-tools                                                   |0.2.1               |Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.5.3               |MIT                 |
-|Checker Qual                                                |2.8.1               |MIT                 |
+|Checker Qual                                                |3.12.0              |MIT                 |
 |cheerio                                                     |1.0.0-rc.2          |MIT                 |
 |classcat                                                    |4.1.0               |MIT                 |
 |ClassMate                                                   |1.3.4               |Apache 2.0          |
@@ -214,7 +222,7 @@
 |Commons CLI                                                 |1.2                 |Apache 2.0          |
 |Commons Codec                                               |1.4                 |Apache 2.0          |
 |Commons Collections                                         |3.2.2               |Apache 2.0          |
-|Commons Compiler                                            |2.7.6               |BSD 3-clause        |
+|Commons Compiler                                            |3.1.6               |BSD 3-clause        |
 |Commons Configuration                                       |1.6                 |Apache 2.0          |
 |Commons Configuration                                       |2.1.1               |Apache 2.0          |
 |Commons Daemon                                              |1.0.13              |Apache 2.0          |
@@ -277,12 +285,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |19.3.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |19.3.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |19.3.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |19.3.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |19.3.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |19.3.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |20.0.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |20.0.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |20.0.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |20.0.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |20.0.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |20.0.0              |Dremio Free Software License 1.0|
 |dremio-ui-lib                                               |1.0.0               |Unlicense           |
 |easy-peasy                                                  |4.0.1               |MIT                 |
 |EclipseLink                                                 |2.5.2               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
@@ -297,7 +305,7 @@
 |enzyme-adapter-react-16                                     |1.9.0               |MIT                 |
 |enzyme-adapter-utils                                        |1.10.0              |MIT                 |
 |errno                                                       |0.1.7               |MIT                 |
-|Error Prone Annotations                                     |2.3.2               |Apache 2.0          |
+|Error Prone Annotations                                     |2.7.1               |Apache 2.0          |
 |error-stack-parser                                          |1.3.6               |Unlicense           |
 |es-abstract                                                 |1.13.0              |MIT                 |
 |es-abstract                                                 |1.9.0               |MIT                 |
@@ -374,7 +382,7 @@
 |Guava ListenableFuture Only                                 |9999.0-empty-to-avoid-conflict-with-guava|Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |13.0.1              |Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |20.0                |Apache 2.0          |
-|Guava: Google Core Libraries for Java                       |28.1-jre            |Apache 2.0          |
+|Guava: Google Core Libraries for Java                       |31.0.1-jre          |Apache 2.0          |
 |gud                                                         |1.0.0               |MIT                 |
 |Hadoop Winutils                                             |3.2.0               |Apache 2.0          |
 |Hadoop YARN Client                                          |2.8.5               |Apache 2.0          |
@@ -404,6 +412,7 @@
 |IAM Service Account Credentials API V1 Rev67 1.25.0         |v1-rev20201022-1.31.0|Apache 2.0          |
 |iconv-lite                                                  |0.4.19              |MIT                 |
 |iconv-lite                                                  |0.6.2               |MIT                 |
+|icu4j                                                       |61.1                |Unicode/ICU License |
 |immer                                                       |7.0.9               |MIT                 |
 |immutable                                                   |3.8.2               |MIT                 |
 |indefinite-observable                                       |2.0.1               |Apache-2.0          |
@@ -445,6 +454,7 @@
 |Jackson-core                                                |2.11.4              |Apache 2.0          |
 |jackson-databind                                            |2.11.4              |Apache 2.0          |
 |Jackson-dataformat-CBOR                                     |2.11.4              |Apache 2.0          |
+|jackson-dataformat-protobuf                                 |2.11.4              |Apache 2.0          |
 |Jackson-dataformat-Smile                                    |2.11.4              |Apache 2.0          |
 |Jackson-dataformat-XML                                      |2.11.4              |Apache 2.0          |
 |Jackson-dataformat-YAML                                     |2.11.4              |Apache 2.0          |
@@ -467,7 +477,7 @@
 |Jakarta RESTful Web Services API                            |2.1.6               |Eclipse Public License 2.0|
 |Jakarta Transaction API                                     |1.3.2               |EPL 2.0 & GPL2 w/ CPE|
 |Jakarta XML Bind API                                        |2.3.2               |EDL 1.0             |
-|Janino                                                      |2.7.6               |BSD 3-clause        |
+|Janino                                                      |3.1.6               |BSD 3-clause        |
 |Java Concurrency in Practice book annotations               |1.0-1               |CC 2.5              |
 |Java implementation of the SemVer Specification             |0.9.0               |MIT License         |
 |Java Native Access                                          |4.5.0               |Apache 2.0          |
@@ -477,6 +487,7 @@
 |JavaBeans Activation Framework (JAF)                        |1.1                 |CDDL 1.0            |
 |JavaMail API                                                |1.6.1               |CDDL 1.1            |
 |Javassist                                                   |3.19.0-GA           |Apache 2.0          |
+|Javax Json                                                  |1.0.4               |Dual license consisting of the CDDL v1.1 and GPL v2|
 |Javax Persistence                                           |2.1.0               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
 |Javax WS RS API                                             |2.0.1               |GPL v2 w/ CPE       |
 |javax.annotation API                                        |1.3.2               |GPL v2 w/ CPE       |
@@ -576,6 +587,7 @@
 |Kotlin Common Standard Library                              |1.4.10              |Apache 2.0          |
 |Kotlin Standard Library                                     |1.4.10              |Apache 2.0          |
 |Kryo                                                        |4.0.1               |BSD 3-clause        |
+|Latency Utils                                               |2.0.3               |CCO                 |
 |leveldbjni-all                                              |1.8                 |BSD 3-clause        |
 |lilith-data-converter                                       |8.2.0               |Apache 2.0          |
 |lilith-data-eventsource                                     |8.2.0               |Apache 2.0          |
@@ -634,6 +646,7 @@
 |Metrics Integration For Jetty 9.3 and Higher                |4.1.19              |Apache 2.0          |
 |Metrics Integration with JMX                                |4.1.19              |Apache 2.0          |
 |micro-memoize                                               |4.0.9               |MIT                 |
+|micrometer-core                                             |1.7.4               |Apache 2.0          |
 |Microsoft Azure Active Directory Authentication Library (ADAL) for Java|1.6.4               |MIT License         |
 |Microsoft Azure Common Module For Storage                   |12.14.1             |MIT License         |
 |Microsoft Azure Java Core Library                           |1.22.0              |MIT License         |
@@ -648,21 +661,30 @@
 |moize                                                       |6.1.0               |MIT                 |
 |moment                                                      |2.24.0              |MIT                 |
 |monaco-editor                                               |0.10.0              |MIT                 |
-|MongoDB Java Driver                                         |3.12.0              |Apache 2.0          |
+|mongodb-driver-core                                         |4.3.4               |Apache 2.0          |
+|mongodb-driver-legacy                                       |4.3.4               |Apache 2.0          |
+|mongodb-driver-sync                                         |4.3.4               |Apache 2.0          |
 |moo                                                         |0.4.3               |BSD-3-Clause        |
 |mousetrap                                                   |1.6.1               |Apache-2.0          |
 |mumath                                                      |3.3.4               |Unlicense           |
 |nanoclone                                                   |0.2.1               |MIT                 |
 |Native Library Loader                                       |2.3.4               |Simplified BSD License|
 |nearley                                                     |2.16.0              |MIT                 |
-|Nessie API                                                  |0.4.0               |Apache 2.0          |
-|Nessie Server Store                                         |0.4.0               |Apache 2.0          |
-|Nessie Services                                             |0.4.0               |Apache 2.0          |
-|Nessie Versioned Memory Store                               |0.4.0               |Apache 2.0          |
-|Nessie Versioned Store SPI                                  |0.4.0               |Apache 2.0          |
+|Nessie API                                                  |0.12.0              |Apache 2.0          |
+|Nessie Server Store                                         |0.12.0              |Apache 2.0          |
+|Nessie Services                                             |0.12.0              |Apache 2.0          |
+|Nessie Versioned Store SPI                                  |0.12.0              |Apache 2.0          |
+|nessie-client                                               |0.12.0              |Apache 2.0          |
+|nessie-rest-services                                        |0.12.0              |Apache 2.0          |
+|nessie-versioned-persist-adapter                            |0.12.0              |Apache 2.0          |
+|nessie-versioned-persist-in-memory                          |0.12.0              |Apache 2.0          |
+|nessie-versioned-persist-non-transactional                  |0.12.0              |Apache 2.0          |
+|nessie-versioned-persist-serialize                          |0.12.0              |Apache 2.0          |
+|nessie-versioned-persist-store                              |0.12.0              |Apache 2.0          |
 |Netty Reactive Streams HTTP Support                         |2.0.5               |Apache 2.0          |
 |Netty Reactive Streams Implementation                       |2.0.0               |Apache 2.0          |
 |Netty Reactive Streams Implementation                       |2.0.5               |Apache 2.0          |
+|netty-transport-native-kqueue                               |4.1.48.Final-osx-x86_64|Apache 2.0          |
 |Netty/Buffer                                                |4.1.48.Final        |Apache 2.0          |
 |Netty/Codec                                                 |4.1.48.Final        |Apache 2.0          |
 |Netty/Codec/DNS                                             |4.1.48.Final        |Apache 2.0          |
@@ -677,7 +699,6 @@
 |Netty/TomcatNative [BoringSSL - Static]                     |2.0.28.Final        |Apache 2.0          |
 |Netty/Transport                                             |4.1.48.Final        |Apache 2.0          |
 |Netty/Transport/Native/Epoll                                |4.1.48.Final-linux-x86_64|Apache 2.0          |
-|Netty/Transport/Native/Kqueue                               |4.1.48.Final        |Apache 2.0          |
 |Netty/Transport/Native/Unix/Common                          |4.1.48.Final        |Apache 2.0          |
 |Nimbus JOSE+JWT                                             |8.8                 |Apache 2.0          |
 |Nimbus LangTag                                              |1.5                 |Apache 2.0          |
@@ -737,6 +758,7 @@
 |OpenTracing utilities                                       |0.33.0              |Apache 2.0          |
 |options                                                     |0.0.6               |MIT                 |
 |Oraclepki                                                   |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
+|Org Abego Treelayout Core                                   |1.0.3               |BSD 3-Clause New or Revised License|
 |Osdt CERT                                                   |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |Osdt Core                                                   |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |OSGi resource locator bundle - used by various API providers that rely on META-INF/services mechanism to locate providers.|1.0.3               |CDDL 1.1            |
@@ -767,8 +789,9 @@
 |Proto Google Common Protos                                  |1.17.0              |Apache 2.0          |
 |Proto Google IAM V1                                         |1.0.5               |Apache 2.0          |
 |Protobuf Jackson                                            |1.2.0               |MIT License         |
-|Protocol Buffer [Util]                                      |3.9.1               |BSD 3-clause        |
-|Protocol Buffer Java API                                    |3.9.1               |BSD 3-clause        |
+|Protocol Buffer [Util]                                      |3.19.0              |BSD 3-clause        |
+|Protocol Buffer Java API                                    |3.19.0              |BSD 3-clause        |
+|protoparser                                                 |4.0.3               |Apache 2.0          |
 |protostuff :: api                                           |1.4.4               |Apache 2.0          |
 |protostuff :: collectionschema                              |1.4.4               |Apache 2.0          |
 |protostuff :: core                                          |1.4.4               |Apache 2.0          |
@@ -783,6 +806,8 @@
 |raf                                                         |3.4.0               |MIT                 |
 |railroad-diagrams                                           |1.0.0               |CC0-1.0             |
 |randexp                                                     |0.4.6               |MIT                 |
+|ranger-hive-plugin                                          |1.1.0               |Apache 2.0          |
+|ranger-plugins-cred                                         |1.1.0               |Apache 2.0          |
 |RE2/J                                                       |1.1                 |The Go license      |
 |react                                                       |16.14.0             |MIT                 |
 |react-base16-styling                                        |0.4.7               |MIT                 |
@@ -871,6 +896,8 @@
 |sourcemapped-stacktrace                                     |1.1.7               |BSD-3-Clause        |
 |SparseBitSet                                                |1.2                 |Apache 2.0          |
 |SpotBugs Annotations                                        |3.1.9               |GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1|
+|ST4                                                         |4.0.4               |BSD License         |
+|ST4                                                         |4.3                 |BSD License         |
 |stackframe                                                  |0.3.1               |Unlicense           |
 |Stax2 API                                                   |3.1.4               |BSD License         |
 |Streaming API for XML                                       |1.0-2               |GPL v2 w/ CPE       |

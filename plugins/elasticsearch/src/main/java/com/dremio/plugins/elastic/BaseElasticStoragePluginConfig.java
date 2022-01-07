@@ -98,6 +98,10 @@ public abstract class BaseElasticStoragePluginConfig<T extends ConnectionConf<T,
   @DisplayMetadata(label = "Validation Mode") // Should be under Encryption section
   public EncryptionValidationMode encryptionValidationMode = EncryptionValidationMode.CERTIFICATE_AND_HOSTNAME_VALIDATION;
 
+  @Tag(19)
+  @DisplayMetadata(label = "Force Double Precision")
+  public boolean forceDoublePrecision = false;
+
   public BaseElasticStoragePluginConfig() {
   }
 
@@ -111,7 +115,8 @@ public abstract class BaseElasticStoragePluginConfig<T extends ConnectionConf<T,
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
       boolean warnOnRowCountMismatch,
-      EncryptionValidationMode encryptionValidationMode) {
+      EncryptionValidationMode encryptionValidationMode,
+      boolean forceDoublePrecision) {
     this.scriptsEnabled = scriptsEnabled;
     this.showHiddenIndices = showHiddenIndices;
     this.showIdColumn = showIdColumn;
@@ -122,5 +127,6 @@ public abstract class BaseElasticStoragePluginConfig<T extends ConnectionConf<T,
     this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields;
     this.warnOnRowCountMismatch = warnOnRowCountMismatch;
     this.encryptionValidationMode = encryptionValidationMode;
+    this.forceDoublePrecision = forceDoublePrecision;
   }
 }

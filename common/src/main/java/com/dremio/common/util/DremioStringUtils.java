@@ -15,7 +15,6 @@
  */
 package com.dremio.common.util;
 
-import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.joda.time.Period;
@@ -103,6 +102,11 @@ public class DremioStringUtils {
       }
     }
     return result.toString();
+  }
+
+  //convert string to PascalCase(camelCase with first letter as capital)
+  public static String convertStringToPascalCase(String str) {
+    return str.substring(0,1).toUpperCase()+str.substring(1).toLowerCase();
   }
 
   /**

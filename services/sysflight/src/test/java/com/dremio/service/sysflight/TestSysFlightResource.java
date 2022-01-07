@@ -58,7 +58,6 @@ public class TestSysFlightResource extends ExternalResource {
                .setStatus("RUNNING")
                .setQueryType("UI_RUN")
                .setUserName("user")
-               .setRowCount(0)
                .setAccelerated(false)
                .setErrorMsg("err")
                .build());

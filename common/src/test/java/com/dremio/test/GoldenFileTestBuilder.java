@@ -157,12 +157,12 @@ public final class GoldenFileTestBuilder<I, O> {
   private static String messageToFix(String fileName) {
     try {
       String actualPath = getGoldenFileActualPath(fileName).toString();
-      String golendPath = "src/test/resources/" + getGoldenFileResource(fileName);
+      String goldenPath = "src/test/resources/" + getGoldenFileResource(fileName);
       return ""
           + "To fix:\n"
-          + "\t`cp " + actualPath+ " " + golendPath + "`\n"
+          + "\t`cp " + actualPath+ " " + goldenPath + "`\n"
           + "To Diff:\n"
-          + "\t`sdiff " + actualPath+ " " + golendPath + "`\n";
+          + "\t`sdiff " + actualPath+ " " + goldenPath + "`\n";
     } catch (IOException exception) {
       return null;
     }

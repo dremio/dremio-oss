@@ -25,7 +25,7 @@ public class TestWithClause extends BaseTestQuery {
 
   @Test
   public void withClause() throws Exception {
-    test("with alpha as (select * from sys.options where type = 'SYSTEM') \n" +
+    test("with alpha as (SELECT * FROM INFORMATION_SCHEMA.CATALOGS where CATALOG_NAME = 'DREMIO') \n" +
         "\n" +
         "select * from alpha");
   }
@@ -33,7 +33,7 @@ public class TestWithClause extends BaseTestQuery {
   @Test
   @Ignore
   public void withClauseWithAliases() throws Exception {
-    test("with alpha (x,y) as (select name, kind from sys.options where type = 'SYSTEM') \n" +
+    test("with alpha (x,y) as (SELECT CATALOG_NAME, CATALOG_DESCRIPTION FROM INFORMATION_SCHEMA.CATALOGS where CATALOG_NAME = 'DREMIO') \n" +
         "\n" +
         "select x, y from alpha");
   }

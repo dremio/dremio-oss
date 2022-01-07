@@ -42,6 +42,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Parquet reader for Iceberg and DeltaLake datasets. This will be an inner reader of a
@@ -201,6 +202,15 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
     }
 
     return currentReader.next();
+  }
+
+  @Override
+  public List<SchemaPath> getColumnsToBoost() {
+    if(currentReader != null) {
+      return currentReader.getColumnsToBoost();
+    }
+
+    return ImmutableList.of();
   }
 
   @Override

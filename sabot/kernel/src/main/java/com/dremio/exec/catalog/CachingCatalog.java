@@ -136,4 +136,14 @@ public class CachingCatalog extends DelegatingCatalog {
   public Catalog resolveCatalog(boolean checkValidity) {
     return new CachingCatalog(delegate.resolveCatalog(checkValidity), tablesByNamespaceKey);
   }
+
+  @Override
+  public Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite) {
+    Catalog newDelegate = delegate.visit(catalogRewrite);
+    if(newDelegate == delegate) {
+      return catalogRewrite.apply(this);
+    } else {
+      return catalogRewrite.apply(new CachingCatalog(newDelegate));
+    }
+  }
 }

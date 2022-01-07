@@ -39,6 +39,8 @@ import com.dremio.service.job.ReflectionJobSummaryRequest;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.StoreJobResultRequest;
+import com.dremio.service.job.UniqueUserStats;
+import com.dremio.service.job.UniqueUserStatsRequest;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Empty;
 
@@ -77,6 +79,11 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   }
 
   @Override
+  public void getUniqueUserStats(UniqueUserStatsRequest request, StreamObserver<UniqueUserStats> responseObserver) {
+    handleUnaryCall(getJobsService()::getUniqueUserStats, request, responseObserver);
+  }
+
+  @Override
   public void getProfile(QueryProfileRequest request, StreamObserver<UserBitShared.QueryProfile> responseObserver) {
     handleUnaryCall(getJobsService()::getProfile, request, responseObserver);
   }
@@ -91,7 +98,11 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
   public void getActiveJobs(com.dremio.service.job.ActiveJobsRequest request,
                             io.grpc.stub.StreamObserver<com.dremio.service.job.ActiveJobSummary> responseObserver) {
     try {
-      getJobsService().getActiveJobs(request).forEach(responseObserver::onNext);
+      getJobsService().getActiveJobs(request).forEach(e -> {
+        if (e != null) {
+          responseObserver.onNext(e);
+        }
+      });
       responseObserver.onCompleted();
     } catch (EnumSearchValueNotFoundException e) {
       LOGGER.info("EnumSearchValueNotFoundException received : returning empty response for query {}", request.getQuery());

@@ -20,15 +20,20 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Date;
+
 import javax.inject.Provider;
 
 import org.apache.arrow.flight.FlightStatusCode;
+import org.apache.commons.lang3.time.DateUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
 
 import com.dremio.service.tokens.TokenDetails;
 import com.dremio.service.tokens.TokenManager;
+import com.dremio.service.users.ImmutableAuthResult;
+import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserService;
 
 /**
@@ -57,8 +62,14 @@ public abstract class BasicFlightAuthenticationTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Before
-  public void setup() {
+  public void setup() throws UserLoginException {
     when(mockUserServiceProvider.get()).thenReturn(mockUserService);
+    when(mockUserService.authenticate(eq(USERNAME), eq(PASSWORD)))
+      .thenReturn(new ImmutableAuthResult.Builder()
+        .setUserName(USERNAME)
+        .setExpiresAt(DateUtils.addHours(new Date(), 1))
+        .build());
+
     when(mockTokenManagerProvider.get()).thenReturn((mockTokenManager));
     when(mockTokenManager.createToken(eq(USERNAME), eq(null))).thenReturn(TOKEN_DETAILS);
     doReturn(MAX_NUMBER_OF_SESSIONS).when(mockDremioFlightSessionsManager).getMaxSessions();

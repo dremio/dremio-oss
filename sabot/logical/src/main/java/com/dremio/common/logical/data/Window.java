@@ -15,21 +15,19 @@
  */
 package com.dremio.common.logical.data;
 
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
+import static com.google.common.base.Preconditions.checkState;
+
+import java.util.Iterator;
+import java.util.List;
+
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.visitors.LogicalVisitor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 
 @JsonTypeName("window")
 public class Window extends SingleInputOperator {

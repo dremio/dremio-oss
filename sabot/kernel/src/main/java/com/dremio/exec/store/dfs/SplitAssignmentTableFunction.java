@@ -232,6 +232,7 @@ public class SplitAssignmentTableFunction extends AbstractTableFunction {
     if (cacheManagerPointer != null) {
       AutoCloseables.close(cacheManagerPointer.value);
     }
+    this.context.getStats().setReadIOStats();
   }
 
   @VisibleForTesting

@@ -245,14 +245,14 @@ public class ProtobufRecordReader {
           ((TimeStampVector) v).setSafe(count.get(), ((Timestamp) (message.getField(field))).getSeconds());
 
         } else {
-          LOGGER.warn("ProtobufRecordReader doesn't handle non-primitive types, {} is of type {}.", field.getName(), field.getJavaType());
+          LOGGER.debug("ProtobufRecordReader doesn't handle non-primitive types, {} is of type {}.", field.getName(), field.getJavaType());
         }
       }
     });
     count.getAndAdd(1);
 
     if(count.get() == recordBatchSize) {
-      LOGGER.info("Sending a RecordBatch to SysFlight stream.");
+      LOGGER.debug("Sending a RecordBatch to SysFlight stream.");
       stream(vectorMap, count.get(), root, allocator, listener, false);
       count.set(0);
     }

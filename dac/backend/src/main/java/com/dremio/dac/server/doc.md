@@ -455,7 +455,7 @@
 
  - POST /settings   
    > `=>` [com.dremio.dac.service.admin.SettingsResource$SettingsRequest](#class-comdremiodacserviceadminsettingsresource$settingsrequest)   
-   > `<=` [com.dremio.dac.service.admin.SettingsResource$SettingsWrapperObject](#class-comdremiodacserviceadminsettingsresource$settingswrapperobject)   
+   > `<=` javax.ws.rs.core.Response   
 
  - DELETE /settings/{id} (path params: id={String})   
    > `<=` javax.ws.rs.core.Response   
@@ -2240,6 +2240,7 @@
       datasetType: "abc",
       reflectionsDefinedList: [
         { /** Reflection **/
+          datasetId: "abc",
           datasetName: "abc",
           isStarFlake: true | false,
           isUsed: true | false,
@@ -2295,6 +2296,7 @@
         datasetType: "abc",
         reflectionsDefinedList: [
           { /** Reflection **/
+            datasetId: "abc",
             datasetName: "abc",
             isStarFlake: true | false,
             isUsed: true | false,
@@ -2335,6 +2337,7 @@
     ...
   ],
   endTime: 1,
+  engine: "abc",
   exceptionsMap: {
     abc: "abc", ...
   },
@@ -2355,12 +2358,16 @@
     type: "UNKNOWN" | "PARSE" | "VALIDATION" | "EXECUTION",
   },
   id: "abc",
-  input: "abc",
+  inputBytes: 1,
+  inputRecords: 1,
+  isComplete: true | false,
   jobStatus: "abc",
   nrReflectionsConsidered: 1,
   nrReflectionsMatched: 1,
   nrReflectionsUsed: 1,
-  output: "abc",
+  outputBytes: 1,
+  outputRecords: 1,
+  plannerEstimatedCost: 1.0,
   queriedDatasets: [
     { /** DataSet **/
       datasetID: "abc",
@@ -2374,6 +2381,7 @@
       datasetType: "abc",
       reflectionsDefinedList: [
         { /** Reflection **/
+          datasetId: "abc",
           datasetName: "abc",
           isStarFlake: true | false,
           isUsed: true | false,
@@ -2397,6 +2405,7 @@
   queryUser: "abc",
   reflections: [
     { /** Reflection **/
+      datasetId: "abc",
       datasetName: "abc",
       isStarFlake: true | false,
       isUsed: true | false,
@@ -2414,6 +2423,7 @@
   ],
   reflectionsMatched: [
     { /** Reflection **/
+      datasetId: "abc",
       datasetName: "abc",
       isStarFlake: true | false,
       isUsed: true | false,
@@ -2431,6 +2441,7 @@
   ],
   reflectionsUsed: [
     { /** Reflection **/
+      datasetId: "abc",
       datasetName: "abc",
       isStarFlake: true | false,
       isUsed: true | false,
@@ -2446,8 +2457,9 @@
     },
     ...
   ],
-  requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+  requestType: "INVALID_REQUEST_TYPE" | "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META" | "UNRECOGNIZED",
   resultsAvailable: true | false,
+  rowsScanned: 1,
   scannedDatasets: [
     {
       datasetID: "abc",
@@ -2930,6 +2942,7 @@
   jobs: [
     {
       accelerated: true | false,
+      datasetVersion: "abc",
       description: "abc",
       duration: 1,
       durationDetails: [
@@ -2946,8 +2959,10 @@
       enqueuedTime: "abc",
       id: "abc",
       input: "abc",
-      isFinalState: true | false,
+      isComplete: true | false,
       output: "abc",
+      outputLimited: true | false,
+      outputRecords: 1,
       plannerEstimatedCost: 1.0,
       queriedDatasets: [
         {
@@ -2962,6 +2977,7 @@
           datasetType: "abc",
           reflectionsDefinedList: [
             {
+              datasetId: "abc",
               datasetName: "abc",
               isStarFlake: true | false,
               isUsed: true | false,
@@ -2982,9 +2998,7 @@
       ],
       queryText: "abc",
       queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
-      queryUser: "abc",
       requestType: "INVALID_REQUEST_TYPE" | "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META" | "UNRECOGNIZED",
-      rowsReturned: 1,
       rowsScanned: 1,
       spilled: true | false,
       starFlakeAccelerated: true | false,
@@ -2992,6 +3006,7 @@
       state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
       subEngine: "abc",
       totalAttempts: 1,
+      user: "abc",
       waitInClient: 1,
       wlmQueue: "abc",
     },
@@ -5071,20 +5086,6 @@ any
 }
 ```
 
-## `class com.dremio.dac.service.admin.SettingsResource$SettingsWrapperObject`
-- Example:
-```
-{
-  settings: [
-    {
-      id: "abc",
-      value: any,
-    },
-    ...
-  ],
-}
-```
-
 ## `class com.dremio.dac.support.SupportResponse`
 - Example:
 ```
@@ -5158,13 +5159,11 @@ any
 - Example:
 ```
 {
-  bytesProcessed: 1,
   numThreads: 1,
   operatorDataList: {
     operatorDataList: [
       {
         baseMetrics: {
-          bytesProcessed: 1,
           ioWaitTime: 1,
           numThreads: 1,
           peakMemory: 1,

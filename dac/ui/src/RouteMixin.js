@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 import { IndexRedirect, Route } from 'react-router';
-import { UserIsAdmin } from '@app/components/Auth/authWrappers';
+import { UserIsAdmin, UserIsAuthenticated } from '@app/components/Auth/authWrappers';
+import AccountModals from '@app/pages/AccountPage/AccountModals';
+import AccountPage from '@app/pages/AccountPage/AccountPage';
 import AdminModals from '@app/pages/AdminPage/AdminModals';
+import Info from '@inject/pages/AccountPage/subpages/InfoController';
 import Page from '@app/components/Page';
+import PATListPage from '@inject/pages/AccountPage/personalAccessTokens/PATListPage';
 import AdminPage from '@app/pages/AdminPage/AdminPage';
 import Acceleration from '@inject/pages/AdminPage/subpages/acceleration/Acceleration';
 import NodeActivity from '@app/pages/AdminPage/subpages/NodeActivity/NodeActivity';
@@ -42,6 +46,18 @@ export const AdminPageRouting = () => (
         <Route path='/admin/support' component={Support} />
         <Route path='/admin/queues' component={Queues} />
         <Route path='/admin/rules' component={QAssignments} />
+      </Route>
+    </Route>
+  </Route>
+);
+
+export const AccountPageRouting = () => (
+  <Route component={UserIsAuthenticated(AccountModals)}>
+    <Route component={Page}>
+      <Route path='/account' component={AccountPage} >
+        <IndexRedirect to='/account/info' />
+        <Route path='/account/info' component={Info} />
+        <Route path='/account/personalTokens' component={PATListPage} />
       </Route>
     </Route>
   </Route>

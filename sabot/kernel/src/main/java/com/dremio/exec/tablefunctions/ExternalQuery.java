@@ -52,7 +52,7 @@ public final class ExternalQuery implements TableMacro {
   }
 
   @Override
-  public TranslatableTable apply(List<Object> arguments) {
+  public TranslatableTable apply(List<? extends Object> arguments) {
     return ExternalQueryTranslatableTable.create(schemaBuilder, rowTypeBuilder, pluginId, (String) arguments.get(0));
   }
 }

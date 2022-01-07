@@ -694,7 +694,7 @@ public class ReflectionUtils {
         areBothListsEqual(details1.getDistributionFieldList(), details2.getDistributionFieldList()) &&
         areBothListsEqual(details1.getMeasureFieldList(), details2.getMeasureFieldList()) &&
         areBothListsEqual(details1.getPartitionFieldList(), details2.getPartitionFieldList()) &&
-        areBothListsEqual(details1.getSortFieldList(), details2.getSortFieldList()) &&
+        areBothListsEqualWithOrder(details1.getSortFieldList(), details2.getSortFieldList()) &&
         details1.getPartitionDistributionStrategy().equals(details2.getPartitionDistributionStrategy())
     ) {
       equal = true;
@@ -709,6 +709,14 @@ public class ReflectionUtils {
       return CollectionUtils.isEmpty(collection1) && CollectionUtils.isEmpty(collection2);
     } else {
       return CollectionUtils.isEqualCollection(collection1, collection2);
+    }
+  }
+
+  private static <T> boolean areBothListsEqualWithOrder(List<T> list1, List<T> list2) {
+    if (list1 == null || list2 == null) {
+      return CollectionUtils.isEmpty(list1) && CollectionUtils.isEmpty(list2);
+    } else {
+      return list1.equals(list2);
     }
   }
 }

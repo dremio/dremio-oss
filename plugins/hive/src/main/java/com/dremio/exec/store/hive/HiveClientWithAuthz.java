@@ -23,7 +23,10 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessControlException;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzContext;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.exceptions.UserException;
@@ -33,7 +36,7 @@ import com.dremio.hive.thrift.TException;
  * HiveMetaStoreClient to create and maintain (reconnection cases) connection to Hive metastore with given user
  * credentials and check authorization privileges if set.
  */
-class HiveClientWithAuthz extends HiveClientImpl {
+public class HiveClientWithAuthz extends HiveClientImpl {
   /**
    * We need the process user HiveClient in order to get delegation token in reconnecting cases.
    */
@@ -126,4 +129,17 @@ class HiveClientWithAuthz extends HiveClientImpl {
     return super.getTable(dbName, tableName, ignoreAuthzErrors);
   }
 
+  @Override
+  public List<HivePrivilegeObject> getRowFilterAndColumnMasking(
+      List<HivePrivilegeObject> inputHiveObjects) throws SemanticException {
+    if(authorizer.isAuthEnabled()) {
+      HiveAuthzContext.Builder contextBuilder = new HiveAuthzContext.Builder();
+      contextBuilder.setUserIpAddress("");
+      contextBuilder.setCommandString("QUERY");
+
+      return authorizer.getAuthorizer().applyRowFilterAndColumnMasking(contextBuilder.build(), inputHiveObjects);
+    } else {
+      return Collections.emptyList();
+    }
+  }
 }

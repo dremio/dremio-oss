@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -261,8 +262,19 @@ public class HashAggMemoryEstimator {
   private int computeAccumulatorSizeForSinglePartition() {
     int validitySize = 0;
     int dataSize = 0;
+    int index = 0;
 
     for (Field field : materializedAggExpressions.getOutputVectorFields()) {
+      int accumType = materializedAggExpressions.getAccumulatorTypes()[index++];
+      /* Irrespecive of the minorType, the memory for HLL is fixed size. */
+      if (accumType == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal() ||
+          accumType == AccumulatorBuilder.AccumulatorType.HLL.ordinal()) {
+        /* Double the size for tmp buffer */
+        dataSize += 2 * (int)optionManager.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
+        validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
+        continue;
+      }
+
       TypeProtos.MinorType minorType = CompleteType.fromField(field).toMinorType();
       switch (minorType) {
         case BIT:

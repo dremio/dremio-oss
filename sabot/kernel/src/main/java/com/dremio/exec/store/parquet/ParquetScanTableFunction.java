@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.store.parquet;
 
+import java.io.IOException;
 import java.util.List;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.record.VectorAccessible;
@@ -27,7 +29,7 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 
 public class ParquetScanTableFunction extends ScanTableFunction {
 
-  private ParquetSplitReaderCreatorIterator splitReaderCreatorIterator;
+  protected ParquetSplitReaderCreatorIterator splitReaderCreatorIterator;
   private RecordReaderIterator recordReaderIterator;
 
   public ParquetScanTableFunction(FragmentExecutionContext fec, OperatorContext context, OpProps props, TableFunctionConfig functionConfig) {
@@ -36,13 +38,14 @@ public class ParquetScanTableFunction extends ScanTableFunction {
 
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
-    splitReaderCreatorIterator = new ParquetSplitReaderCreatorIterator(fec, context, props, functionConfig);
+    setSplitReaderCreatorIterator();
     return super.setup(accessible);
   }
 
   @Override
   protected void setIcebergColumnIds(byte[] extendedProperty) {
     splitReaderCreatorIterator.setIcebergExtendedProperty(extendedProperty);
+    boostBufferManager.setIcebergColumnIds(extendedProperty);
   }
 
   @Override
@@ -60,6 +63,18 @@ public class ParquetScanTableFunction extends ScanTableFunction {
   protected void addSplits(List<SplitAndPartitionInfo> splits) {
     splitReaderCreatorIterator.addSplits(splits);
   }
+
+  @Override
+  protected void addBoostSplits() throws IOException {
+    if (currentRecordReader != null && currentRecordReader.getColumnsToBoost() != null && !currentRecordReader.getColumnsToBoost().isEmpty()) {
+      boostBufferManager.addSplit(getRecordReaderIterator().getCurrentSplitAndPartitionInfo(), getRecordReaderIterator().getCurrentSplitXAttr(), currentRecordReader.getColumnsToBoost());
+    }
+  }
+
+  protected void setSplitReaderCreatorIterator() throws IOException, ExecutionSetupException {
+    splitReaderCreatorIterator = new ParquetSplitReaderCreatorIterator(fec, context, props, functionConfig, false, false);
+  }
+
 
   @Override
   public void close() throws Exception {

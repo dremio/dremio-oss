@@ -32,8 +32,6 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
 
-import com.dremio.common.types.TypeProtos;
-import com.dremio.exec.proto.UserBitShared;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
@@ -858,22 +856,23 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
    * Copies the entries pointed by fwdIndex into the varchar vector.
    * It assumes that the vector has been sized to hold the entries.
    *
-   * @param in BaseVariableWidthVector where data is copied
-   * @param numRecords number of entries to copy
+   * @param outVector target BaseVariableWidthVector where data is copied
+   * @param recordsInBatch number of entries to copy
+   * @param targetStartIndex index at which topy in the target vector
    */
-  public void copyToVarWidthVec(BaseVariableWidthVector in, final int numRecords) {
-    Preconditions.checkArgument(numRecords <= fwdIndex.getValueCapacity());
-    for (int i = 0; i < numRecords; ++i) {
+  public void copyToVarWidthVec(BaseVariableWidthVector outVector, final int recordsInBatch, final int targetStartIndex) {
+    Preconditions.checkArgument(recordsInBatch <= fwdIndex.getValueCapacity());
+    for (int i = 0; i < recordsInBatch; ++i) {
       if (!fwdIndex.isNull(i)) {
         final int actualIndex = fwdIndex.get(i);
         Preconditions.checkArgument(actualIndex >= 0);
         Preconditions.checkArgument(!super.isNull(actualIndex));
         final int startOffset = getStartOffset(actualIndex);
         final int dataLength = getStartOffset(actualIndex + 1) - startOffset;
-        in.set(i, startOffset, dataLength, getDataBuffer());
+        outVector.set(targetStartIndex + i, startOffset, dataLength, getDataBuffer());
       }
     }
-    in.setValueCount(numRecords);
+    outVector.setValueCount(targetStartIndex + recordsInBatch);
   }
 
   public boolean isIndexSafe(int index) {
@@ -918,105 +917,25 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
   }
 
   /**
-   * returns the actual buffer size needed to hold recordCount items from MutableVarchar Vector
-   * includes validity & offset sizes as well.
-   * @param recordCount
-   * @return
-   */
-  public int getActualBufferSize(int recordCount) {
-    int size = 0;
-    Preconditions.checkArgument(recordCount <= fwdIndex.getValueCapacity());
-    for (int i = 0; i < recordCount; ++i) {
-      if (!fwdIndex.isNull(i)) {
-        final int actualIndex = fwdIndex.get(i);
-        Preconditions.checkArgument(actualIndex >= 0);
-        Preconditions.checkArgument(!super.isNull(actualIndex));
-        final int startOffset = getStartOffset(actualIndex);
-        final int dataLength = getStartOffset(actualIndex + 1) - startOffset;
-        size += dataLength;
-      }
-    }
-
-    // validity
-    size += super.getValidityBufferSizeFromCount(recordCount);
-
-    //offset
-    size += (recordCount + 1) * 4;
-
-    return size;
-  }
-
-  /**
-   * Returns a SerializedField that represents an equivalent VarCharVector that has 'recordCount' records
-   * @param recordCount
-   * @return
-   */
-  public UserBitShared.SerializedField getSerializedField(final int recordCount) {
-    final int totalBufSize = this.getActualBufferSize(recordCount);
-    final int validityBufSize = super.getValidityBufferSizeFromCount(recordCount);
-
-    UserBitShared.SerializedField.Builder b = UserBitShared.SerializedField.newBuilder().setNamePart(UserBitShared.NamePart.newBuilder().setName(super.getName()).build())
-      .setValueCount(recordCount)
-      .setBufferLength(totalBufSize);
-
-      b.addChild(this.buildValidityMetadata(recordCount, validityBufSize))
-       .addChild(this.buildOffsetAndDataMetadata(recordCount, totalBufSize, validityBufSize))
-       .setMajorType(com.dremio.common.util.MajorTypeHelper.getMajorTypeForField(super.getField()));
-
-    return b.build();
-  }
-
-  private UserBitShared.SerializedField buildOffsetAndDataMetadata(final int recordCount, final int bufferSize,
-                                                                   final int validitySize) {
-    UserBitShared.SerializedField offsetField = UserBitShared.SerializedField.newBuilder()
-      .setNamePart(UserBitShared.NamePart.newBuilder().setName("$offsets$").build())
-      .setValueCount((recordCount == 0) ? 0 : recordCount + 1)
-      .setBufferLength((recordCount == 0) ? 0 : (recordCount + 1) * 4)
-      .setMajorType(com.dremio.common.types.Types.required(com.dremio.common.types.TypeProtos.MinorType.UINT4))
-      .build();
-
-    UserBitShared.SerializedField.Builder dataBuilder = UserBitShared.SerializedField.newBuilder()
-      .setNamePart(UserBitShared.NamePart.newBuilder().setName("$values$").build())
-      .setValueCount(recordCount)
-      .setBufferLength(bufferSize - validitySize) // This include offset as well.
-      .addChild(offsetField)
-      .setMajorType(com.dremio.common.types.Types.required(com.dremio.common.types.TypeProtos.MinorType.VARCHAR));
-
-    return dataBuilder.build();
-  }
-
-  private UserBitShared.SerializedField buildValidityMetadata(final int recordCount, final int validityBufSize) {
-    UserBitShared.SerializedField.Builder validityBuilder = UserBitShared.SerializedField.newBuilder()
-      .setNamePart(UserBitShared.NamePart.newBuilder().setName("$bits$").build())
-      .setValueCount(recordCount)
-      .setBufferLength(validityBufSize)
-      .setMajorType(com.dremio.common.types.Types.required(TypeProtos.MinorType.BIT));
-
-    return validityBuilder.build();
-  }
-
-  /**
-   * This api copies the records to the target vector. It starts copying from 'startIndex' till the end.
+   * This api copies the records to the target vector. It starts copying from 'startIndex',
+   * of numRecords, usually till the end.
    * It frees up the space after copying the records to destination.
    * @param startIndex index from which the records to be moved
    * @param dstStartIndex start index to which the records are moved to
+   * @param numRecords number of records to copy
    * @param toVector destination
-   * @return
    */
-  public int moveToAndFreeSpace(final int startIndex, int dstStartIndex, final int numRecords, FieldVector toVector) {
-    int dataMoved = 0;
-
+  public void moveValuesAndFreeSpace(final int startIndex, int dstStartIndex, final int numRecords, FieldVector toVector) {
+    Boolean dataMoved = false;
     Preconditions.checkArgument(startIndex + numRecords <= fwdIndex.getValueCapacity());
     for (int count = 0; count < numRecords; ++dstStartIndex, ++count) {
       if (!fwdIndex.isNull(startIndex + count)) {
-        //copy the record
         final int actualIndex = fwdIndex.get(startIndex + count);
         Preconditions.checkArgument(actualIndex >= 0);
         final int startOffset = getStartOffset(actualIndex);
         final int dataLength = getStartOffset(actualIndex + 1) - startOffset;
         ((MutableVarcharVector)toVector).set(dstStartIndex, startOffset, dataLength, getDataBuffer());
-
-        dataMoved += dataLength;
+        dataMoved = true;
 
         //mark it as free now
         super.setNull(actualIndex);
@@ -1025,13 +944,10 @@ public class MutableVarcharVector extends BaseVariableWidthVector {
     }
 
     //force compact to clean up the 'moved' data
-    if (dataMoved > 0) {
+    if (dataMoved) {
       this.forceCompact();
     }
-
-    return dataMoved;
   }
-
 
   /*----------------------------------------------------------------*
    |                                                                |

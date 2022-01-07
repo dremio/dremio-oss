@@ -23,6 +23,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.OpProps;
@@ -31,12 +32,15 @@ import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.SearchProtos.SearchQuery;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.schedule.SimpleCompleteWork;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.base.Function;
 import com.google.common.base.Objects;
+import com.google.common.collect.FluentIterable;
 
 /**
  * Flight group scan.
@@ -48,20 +52,24 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
   private final List<String> datasetPath;
   private final BatchSchema schema;
   private final StoragePluginId pluginId;
+  private final boolean isDistributed;
+  private final int executorCount;
 
   public SysFlightGroupScan(OpProps props,
                             List<String> datasetPath,
                             BatchSchema schema,
                             List<SchemaPath> columns,
                             SearchQuery query,
-                            StoragePluginId pluginId
-                            ) {
+                            StoragePluginId pluginId,
+                            boolean isDistributed,
+                            int executorCount) {
     super(props);
     this.columns = columns;
     this.datasetPath = datasetPath;
     this.schema = schema;
     this.pluginId = pluginId;
-
+    this.isDistributed = isDistributed;
+    this.executorCount = executorCount;
     this.query = query;
   }
 
@@ -73,22 +81,23 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
     return query;
   }
 
-
+  // If distributed, the scan needs to happen on every node.
   @Override
   @JsonIgnore
   public int getMaxParallelizationWidth() {
-    return 1;
+    return isDistributed ? executorCount : 1;
   }
 
+  // If distributed, the scan needs to happen on every node.
   @Override
   @JsonIgnore
   public int getMinParallelizationWidth() {
-    return 1;
+    return isDistributed ? executorCount : 1;
   }
 
   @Override
   public DistributionAffinity getDistributionAffinity() {
-    return DistributionAffinity.NONE;
+    return isDistributed ? DistributionAffinity.HARD : DistributionAffinity.SOFT;
   }
 
   @Override
@@ -115,10 +124,28 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
     return new EntityPath(datasetPath).getName();
   }
 
+  /**
+   * If distributed, the scan needs to happen on every node. Since width is enforced, the number of fragments equals
+   * number of SabotNodes. And here we set, each endpoint as mandatory assignment required to ensure every
+   * SabotNode executes a fragment.
+   * @return the SabotNode endpoint affinities
+   */
   @Override
   public Iterator<SimpleCompleteWork> getSplits(ExecutionNodeMap executionNodes) {
-    return Collections.<SimpleCompleteWork>singletonList(new SimpleCompleteWork(1)).iterator();
+    if (isDistributed) {
+      final List<NodeEndpoint> executors = executionNodes.getExecutors();
+      final double affinityPerNode = 1d / executors.size();
+      return FluentIterable
+        .from(executors).transform(new Function<NodeEndpoint, SimpleCompleteWork>(){
+          @Override
+          public SimpleCompleteWork apply(NodeEndpoint input) {
+            return new SimpleCompleteWork(1, new EndpointAffinity(input, affinityPerNode, true, 1));
+          }}).iterator();
+    } else {
+      return Collections.<SimpleCompleteWork>singletonList(new SimpleCompleteWork(1)).iterator();
+    }
   }
+
 
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) {
@@ -142,7 +169,7 @@ public class SysFlightGroupScan extends AbstractBase implements GroupScan<Simple
 
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-    return new SysFlightGroupScan(props, datasetPath, schema, columns, query, pluginId);
+    return new SysFlightGroupScan(props, datasetPath, schema, columns, query, pluginId, isDistributed, executorCount);
   }
 
 }

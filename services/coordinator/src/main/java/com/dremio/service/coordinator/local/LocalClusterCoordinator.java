@@ -288,6 +288,11 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
         }
 
         @Override
+        public Object synchronizer() {
+          return this;
+        }
+
+        @Override
         public int instanceCount() {
           return waiting.size();
         }

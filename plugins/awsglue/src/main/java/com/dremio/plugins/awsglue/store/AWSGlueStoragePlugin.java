@@ -23,6 +23,7 @@ import java.util.function.Predicate;
 
 import javax.inject.Provider;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.amazonaws.glue.catalog.util.AWSGlueConfig;
 import com.dremio.common.FSConstants;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -58,7 +60,9 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
+import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
+import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
@@ -68,6 +72,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -81,7 +86,7 @@ import com.google.protobuf.ByteString;
  * During instantiation it creates a hive 2 plugin and delegates all calls to it
  */
 public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignature,
-  SupportsListingDatasets, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable {
+  SupportsListingDatasets, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable, SupportsIcebergRootPointer {
 
   private static final Logger logger = LoggerFactory.getLogger(AWSGlueStoragePlugin.class);
   private static final String AWS_GLUE_HIVE_METASTORE_PLACEHOLDER = "DremioGlueHive";
@@ -199,6 +204,16 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   }
 
   @Override
+  public Configuration getFsConfCopy() {
+    return ((SupportsIcebergRootPointer) hiveStoragePlugin).getFsConfCopy();
+  }
+
+  @Override
+  public FormatPlugin getFormatPlugin(FormatPluginConfig formatConfig) {
+    return ((SupportsIcebergRootPointer) hiveStoragePlugin).getFormatPlugin(formatConfig);
+  }
+
+  @Override
   public FileSystem createFS(String filePath, String userName, OperatorContext operatorContext) throws IOException {
     return ((SupportsInternalIcebergTable) hiveStoragePlugin).createFS(filePath, userName, operatorContext);
   }
@@ -211,6 +226,11 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   @Override
   public FileSystem createFSWithoutHDFSCache(String filePath, String userName, OperatorContext operatorContext) throws IOException {
     return ((SupportsInternalIcebergTable) hiveStoragePlugin).createFSWithoutHDFSCache(filePath, userName, operatorContext);
+  }
+
+  @Override
+  public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key, NamespaceService userNamespaceService) {
+    return ((SupportsIcebergRootPointer) hiveStoragePlugin).isIcebergMetadataValid(config, key, userNamespaceService);
   }
 
   @Override

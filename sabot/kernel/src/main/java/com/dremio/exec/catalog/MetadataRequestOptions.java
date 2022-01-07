@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.catalog;
 
+import java.util.Optional;
+
 import org.immutables.value.Value;
 
 import com.dremio.ValidatingGnarlyStyle;
@@ -30,7 +32,15 @@ public abstract class MetadataRequestOptions {
 
   public abstract SchemaConfig getSchemaConfig();
 
-  public abstract MetadataStatsCollector getStatsCollector();
+  @Value.Default
+  public MetadataStatsCollector getStatsCollector() {
+    return new MetadataStatsCollector();
+  };
+
+  @Value.Default
+  public Optional<VersionContext> getVersionContext() {
+    return Optional.empty();
+  }
 
   /**
    * Consider the metadata valid only if it is newer than the given time.
@@ -74,20 +84,7 @@ public abstract class MetadataRequestOptions {
    * @return new builder
    */
   public static ImmutableMetadataRequestOptions.Builder newBuilder() {
-    return new ImmutableMetadataRequestOptions.Builder()
-        .setStatsCollector(new MetadataStatsCollector());
-  }
-
-  /**
-   * Create a new builder.
-   *
-   * @param schemaConfig schema config
-   * @return new builder
-   */
-  public static ImmutableMetadataRequestOptions.Builder newBuilder(SchemaConfig schemaConfig) {
-    return new ImmutableMetadataRequestOptions.Builder()
-        .setSchemaConfig(schemaConfig)
-        .setStatsCollector(new MetadataStatsCollector());
+    return new ImmutableMetadataRequestOptions.Builder();
   }
 
   /**
@@ -97,6 +94,8 @@ public abstract class MetadataRequestOptions {
    * @return metadata request options
    */
   public static MetadataRequestOptions of(SchemaConfig schemaConfig) {
-    return newBuilder(schemaConfig).build();
+    return newBuilder()
+      .setSchemaConfig(schemaConfig)
+      .build();
   }
 }

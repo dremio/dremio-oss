@@ -112,4 +112,11 @@ message IcebergMetadata {
   optional string partition_stats_file = 3; // path to partition stats file for the latest snapshot
   optional string tableUuid = 4; // unique id assigned to the iceberg table
   optional com.dremio.service.namespace.file.proto.FileType file_type = 5;  // file type
+  optional bytes partition_specs = 6;
+}
+
+message UserDefinedSchemaSettings {
+  optional bytes dropped_columns = 1;
+  optional bytes modified_columns = 2;
+  optional bool schema_learning_enabled = 3 [default = true];
 }

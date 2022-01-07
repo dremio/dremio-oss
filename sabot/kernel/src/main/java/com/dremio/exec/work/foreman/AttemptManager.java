@@ -17,6 +17,7 @@ package com.dremio.exec.work.foreman;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Set;
 
 import com.dremio.common.EventProcessor;
 import com.dremio.common.ProcessExit;
@@ -69,6 +70,7 @@ import com.dremio.telemetry.api.metrics.TopMonitor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 
@@ -97,9 +99,16 @@ public class AttemptManager implements Runnable {
 
   private static final TopMonitor LONG_QUERIES = Metrics.newTopReporter(Metrics.join("jobs","long_running"), 25, Duration.ofSeconds(10), ResetType.PERIODIC_DECAY);
   private static final Counter RUN_15M = Metrics.newCounter(Metrics.join("jobs", "active_15m"), ResetType.PERIODIC_15M);
-  private static final Counter RUN_1D = Metrics.newCounter(Metrics.join("jobs", "active_1d"), ResetType.PERIODIC_15M);
+  private static final Counter RUN_1D = Metrics.newCounter(Metrics.join("jobs", "active_1d"), ResetType.PERIODIC_1D);
   private static final Counter FAILED_15M = Metrics.newCounter(Metrics.join("jobs", "failed_15m"), ResetType.PERIODIC_15M);
   private static final Counter FAILED_1D = Metrics.newCounter(Metrics.join("jobs", "failed_1d"), ResetType.PERIODIC_1D);
+  private static final Counter SERVER_ERROR_15M = Metrics.newCounter(Metrics.join("jobs",
+    "server_error_15m"), ResetType.PERIODIC_15M);
+  private static final Set<UserBitShared.DremioPBError.ErrorType> CLIENT_ERRORS =
+    ImmutableSet.of(UserBitShared.DremioPBError.ErrorType.PARSE,
+      UserBitShared.DremioPBError.ErrorType.PERMISSION,
+      UserBitShared.DremioPBError.ErrorType.VALIDATION,
+      UserBitShared.DremioPBError.ErrorType.FUNCTION);
 
   @VisibleForTesting
   public static final String INJECTOR_CONSTRUCTOR_ERROR = "constructor-error";
@@ -548,6 +557,16 @@ public class AttemptManager implements Runnable {
 
       FAILED_15M.increment();
       FAILED_1D.increment();
+      // increment server error only ifs not a known client error
+      if (exception instanceof UserException) {
+        UserBitShared.DremioPBError.ErrorType errorType =
+          ((UserException) exception).getErrorType();
+        if (!CLIENT_ERRORS.contains(errorType)) {
+          SERVER_ERROR_15M.increment();
+        }
+      } else {
+        SERVER_ERROR_15M.increment();
+      }
       resultState = QueryState.FAILED;
       resultException = exception;
     }

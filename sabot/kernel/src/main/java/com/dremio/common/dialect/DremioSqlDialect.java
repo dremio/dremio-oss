@@ -389,6 +389,17 @@ public class DremioSqlDialect extends org.apache.calcite.sql.SqlDialect {
   }
 
   /**
+   * Determine if the supplied Dremio-specific numeric format string can be supported by the RDBMS by mapping it to
+   * the RDBMS specific format string.
+   *
+   * @param numericFormatStr The Dremio numeric format string to check support for.
+   * @return True if the numeric format string can be fully mapped to the RDBMS format string.
+   */
+  public boolean supportsNumericFormatString(String numericFormatStr) {
+    return true;
+  }
+
+  /**
    * Determine if the supplied Dremio-specific regex string can be supported by the RDBMS by mapping it to
    * the RDBMS specific regex string.
    *

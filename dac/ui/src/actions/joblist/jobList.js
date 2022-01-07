@@ -81,7 +81,12 @@ function loadJobDetailsAction(jobId, viewId, attempts, skipStartAction = false) 
     if (!skipStartAction) {
       dispatch({ type: FETCH_JOB_DETAILS_BY_ID_REQUEST, meta });
     }
-    return apiUtils.fetch(`jobs-listing/v1.0/${jobId}/jobDetails?detailLevel=1&attempt=${attempts}`, {}, 2)
+    const params = new URLSearchParams();
+    params.append('detailLevel', 1);
+    if (attempts !== undefined) {
+      params.append('attempt', attempts);
+    }
+    return apiUtils.fetch(`jobs-listing/v1.0/${jobId}/jobDetails?${params.toString()}`, {}, 2)
       .then(response => {
         try {
           return response.json();

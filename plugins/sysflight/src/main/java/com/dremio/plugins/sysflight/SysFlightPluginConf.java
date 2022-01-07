@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.sysflight;
 
+import java.util.Collections;
+
 import javax.inject.Provider;
 
 import com.dremio.exec.catalog.StoragePluginId;
@@ -22,6 +24,7 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.sys.SystemTable;
 
 import io.protostuff.Tag;
 
@@ -36,7 +39,8 @@ public class SysFlightPluginConf extends ConnectionConf<SysFlightPluginConf, Sys
 
   @Override
   public SysFlightStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new SysFlightStoragePlugin(this, context, name, true);
+    return new SysFlightStoragePlugin(this, context, name, true,
+      Collections.singletonList(SystemTable.DEPENDENCIES));
   }
 
   @Override

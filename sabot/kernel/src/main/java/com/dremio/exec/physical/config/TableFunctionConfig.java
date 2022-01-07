@@ -33,7 +33,8 @@ public class TableFunctionConfig {
     SPLIT_GENERATION,
     FOOTER_READER,
     SCHEMA_AGG,
-    SPLIT_ASSIGNMENT
+    SPLIT_ASSIGNMENT,
+    BOOST_TABLE_FUNCTION
   }
   private final FunctionType type;
   private final TableFunctionContext functionContext;

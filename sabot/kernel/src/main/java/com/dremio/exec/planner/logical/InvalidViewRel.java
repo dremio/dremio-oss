@@ -32,7 +32,6 @@ import org.apache.calcite.sql2rel.RelStructuredTypeFlattener.SelfFlatteningRel;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.sql.SqlConverter;
@@ -86,13 +85,12 @@ public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
     List<Exception> suppressed = new ArrayList<>();
     for (ViewTable view : finder.invalidViews) {
       try {
-        DremioCatalogReader catalog;
+        SqlConverter converter;
         if(view.getViewOwner() != null) {
-          catalog = sqlConverter.getCatalogReader().withSchemaPathAndUser(view.getViewOwner(), view.getView().getWorkspaceSchemaPath());
+          converter = sqlConverter.withSchemaPathAndUser(view.getView().getWorkspaceSchemaPath(), view.getViewOwner());
         } else {
-          catalog = sqlConverter.getCatalogReader().withSchemaPath(view.getView().getWorkspaceSchemaPath());
+          converter = sqlConverter.withSchemaPath(view.getView().getWorkspaceSchemaPath());
         }
-        SqlConverter converter = new SqlConverter(sqlConverter, catalog);
         RelDataType rowType = converter.getValidatedRowType(view.getView().getSql());
         View newView = view.getView().withRowType(rowType);
 

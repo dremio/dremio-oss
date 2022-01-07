@@ -44,12 +44,4 @@ public interface ClusterServiceSetManager extends Service {
    * @return An Iterable of service names.
    */
   Iterable<String> getServiceNames() throws Exception;
-
-  /**
-   * Join the election designated by {@code name}
-   *
-   * @param name the name of the election
-   * @return an handle to be closed when leaving the election
-   */
-  ElectionRegistrationHandle joinElection(String name, ElectionListener listener);
 }

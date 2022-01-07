@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import config from 'dyn-load/utils/config';
+import jobsUtils from '@app/utils/jobsUtils.js';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import JobPage from '../JobPage/JobPage';
-import JobPageNew from '../JobPageNew/JobPageNew';
+import JobPageNew from '../JobPageNew/JobListingPage';
 
 const QVJobPage = (props) => {
 
-  const isDremioJobNewUI = config.showNewJobsPage;
+  const isDremioJobNewUI = jobsUtils.isNewJobsPage();
   localStorageUtils.setIsQVJobs(isDremioJobNewUI);
   const ViewJobPage = isDremioJobNewUI ? JobPageNew : JobPage;
   return (

@@ -36,7 +36,6 @@ import com.dremio.service.nessieapi.GetContentsRequest;
 import com.dremio.service.nessieapi.GetReferenceByNameRequest;
 import com.dremio.service.nessieapi.Operation;
 import com.dremio.service.nessieapi.Reference;
-import com.dremio.service.nessieapi.SetContentsRequest;
 import com.google.common.base.Stopwatch;
 
 import io.grpc.Status;
@@ -71,12 +70,12 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
         String metadataLocation = null;
         try {
             Contents contents = client.getContentsApi().getContents(
-                    GetContentsRequest.newBuilder()
-                    .setRef(reference.getBranch().getName())
-                    .setContentsKey(
-                        ContentsKey.newBuilder().addAllElements(
-                            getNessieKey(nessieTableIdentifier.getTableIdentifier())))
-                    .build()
+              GetContentsRequest.newBuilder()
+                .setRef(reference.getBranch().getName())
+                .setContentsKey(
+                  ContentsKey.newBuilder().addAllElements(
+                    getNessieKey(nessieTableIdentifier.getTableIdentifier())))
+                .build()
             );
             if (contents != null && contents.hasIcebergTable()) {
                 metadataLocation = contents.getIcebergTable().getMetadataLocation();
@@ -116,20 +115,21 @@ class IcebergNessieTableOperations extends BaseMetastoreTableOperations {
         boolean threw = true;
         try {
           Stopwatch stopwatchCatalogUpdate = Stopwatch.createStarted();
-            client.getContentsApi().setContents(
-                SetContentsRequest
-                    .newBuilder()
-                    .setBranch(reference.getBranch().getName())
-                    .setHash(reference.getBranch().getHash())
-                    .setMessage("Replaced message")
-                    .setContentsKey(ContentsKey.newBuilder().addAllElements(
-                            getNessieKey(nessieTableIdentifier.getTableIdentifier())))
-                    .setContents(Contents.newBuilder()
-                            .setType(Contents.Type.ICEBERG_TABLE)
-                            .setIcebergTable(Contents.IcebergTable.newBuilder()
-                                    .setMetadataLocation(newMetadataLocation).build()))
-                    .build()
-            );
+          client.getTreeApi().commitMultipleOperations(
+            CommitMultipleOperationsRequest.newBuilder()
+              .setBranchName(reference.getBranch().getName())
+              .setExpectedHash(reference.getBranch().getHash())
+              .setMessage("Replaced message")
+              .addOperations(Operation.newBuilder()
+                .setType(Operation.Type.PUT)
+                .setContentsKey(ContentsKey.newBuilder()
+                  .addAllElements(getNessieKey(nessieTableIdentifier.getTableIdentifier())))
+                .setContents(Contents.newBuilder()
+                  .setType(Contents.Type.ICEBERG_TABLE)
+                  .setIcebergTable(Contents.IcebergTable.newBuilder()
+                    .setMetadataLocation(newMetadataLocation).build())).build())
+              .build());
+
             threw = false;
           long totalCatalogUpdateTime = stopwatchCatalogUpdate.elapsed(TimeUnit.MILLISECONDS);
           if(operatorStats != null) {

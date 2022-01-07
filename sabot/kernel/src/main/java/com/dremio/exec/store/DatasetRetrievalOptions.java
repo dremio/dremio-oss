@@ -71,6 +71,7 @@ public class DatasetRetrievalOptions {
         .setRefreshDataset(false)
         .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
         .setMaxNestedLevel(DEFAULT_MAX_NESTED_LEVEL)
+        .setVersionedDatasetAccessOptions(VersionedDatasetAccessOptions.DEFAULT_VERSIONED_DATASET_ACCESS_OPTIONS)
         .build();
 
     IGNORE_AUTHZ_ERRORS =
@@ -87,6 +88,7 @@ public class DatasetRetrievalOptions {
   private final Optional<Integer> maxMetadataLeafColumns;
   private final Optional<Integer> maxNestedLevel;
   private final Optional<MetadataRefreshQuery> refreshQuery;
+  private final Optional<VersionedDatasetAccessOptions> versionedDatasetAccessOptions;
 
   private DatasetRetrievalOptions fallback;
 
@@ -102,6 +104,7 @@ public class DatasetRetrievalOptions {
     this.maxMetadataLeafColumns = Optional.ofNullable(builder.maxMetadataLeafColumns);
     this.maxNestedLevel = Optional.ofNullable(builder.maxNestedLevel);
     this.refreshQuery = Optional.ofNullable(builder.refreshQuery);
+    this.versionedDatasetAccessOptions = Optional.ofNullable(builder.versionedDatasetAccessOptions);
   }
 
 
@@ -133,6 +136,10 @@ public class DatasetRetrievalOptions {
     return maxNestedLevel.orElseGet(() -> fallback.maxNestedLevel());
   }
 
+  public VersionedDatasetAccessOptions versionedDatasetAccessOptions() {
+    return versionedDatasetAccessOptions.orElseGet(() -> fallback.versionedDatasetAccessOptions());
+  }
+
   public DatasetRetrievalOptions withFallback(DatasetRetrievalOptions fallback) {
     this.fallback = fallback;
     return this;
@@ -147,7 +154,8 @@ public class DatasetRetrievalOptions {
         .setRefreshDataset(refreshDataset.orElse(null))
         .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
         .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL))
-        .setRefreshQuery(refreshQuery.orElse(null));
+        .setRefreshQuery(refreshQuery.orElse(null))
+        .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions.orElse(VersionedDatasetAccessOptions.DEFAULT_VERSIONED_DATASET_ACCESS_OPTIONS));
   }
 
   public Optional<MetadataRefreshQuery> datasetRefreshQuery() {
@@ -166,6 +174,7 @@ public class DatasetRetrievalOptions {
     private List<String> filesList = new ArrayList<>();
     private Map<String, String> partition = new LinkedHashMap<>();
     private MetadataRefreshQuery refreshQuery;
+    private VersionedDatasetAccessOptions versionedDatasetAccessOptions;
 
     private Builder() {
     }
@@ -220,6 +229,11 @@ public class DatasetRetrievalOptions {
       return this;
     }
 
+    public Builder setVersionedDatasetAccessOptions(VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
+      this.versionedDatasetAccessOptions = versionedDatasetAccessOptions;
+      return this;
+    }
+
     public DatasetRetrievalOptions build() {
       if (!filesList.isEmpty()) {
         return new DatasetRetrievalFilesListOptions(this, filesList);
@@ -253,6 +267,8 @@ public class DatasetRetrievalOptions {
         b.setMaxMetadataLeafColumns(((MaxLeafFieldCount) o).getValue());
       } else if(o instanceof MaxNestedFieldLevels) {
         b.setMaxNestedLevel(((MaxNestedFieldLevels) o).getValue());
+      } else if (o instanceof VersionedDatasetAccessOptions) {
+        b.setVersionedDatasetAccessOptions((VersionedDatasetAccessOptions) o);
       }
     }
 
@@ -305,6 +321,7 @@ public class DatasetRetrievalOptions {
     List<GetMetadataOption> options = new ArrayList<>();
     options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
     options.add(new MaxNestedFieldLevels(maxNestedLevel()));
+    options.add(versionedDatasetAccessOptions());
 
     addDatasetOptions(GetMetadataOption.class, datasetConfig, options);
     return options.toArray(new GetMetadataOption[options.size()]);
@@ -314,6 +331,7 @@ public class DatasetRetrievalOptions {
     List<ListPartitionChunkOption> options = new ArrayList<>();
     options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
     options.add(new MaxNestedFieldLevels(maxNestedLevel()));
+    options.add(versionedDatasetAccessOptions());
 
     if (refreshDataset()) {
       options.add(new DirListInputSplitType());

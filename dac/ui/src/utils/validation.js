@@ -21,7 +21,8 @@ import Immutable from 'immutable';
 // todo: loc
 
 export function isEmptyValue(value) {
-  return value === '' || value === undefined || value === null;
+  const isInValidString = typeof value === 'string' && value.trim().length === 0;
+  return isInValidString || value === undefined || value === null;
 }
 
 export function makeLabelFromKey(key) {
@@ -35,14 +36,15 @@ export function isEmptyObject(value) {
   return !value || keys.length === 0 || !keys.some((k) => value[k]);
 }
 
-export function isRequired(key, label) {
+export function isRequired(key, label, errorMsg = '') {
   const finalLabel = label || capitalize(key);
+  const msg = errorMsg || `${finalLabel} is required.`;
   return function(values) {
     const value = result(values, key);
     const isEmptyArr = value && (value instanceof Immutable.List && !value.size);
     if (isEmptyValue(value) || (typeof value === 'number' && isNaN(value)) || isEmptyArr) {
       // use lodash.set in case key has dotted path
-      return set({}, key, `${finalLabel} is required.`);
+      return set({}, key, msg);
     }
   };
 }

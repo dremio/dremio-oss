@@ -15,16 +15,16 @@
  */
 package com.dremio.dac.util;
 
-import static com.dremio.dac.util.JobsConstant.BYTES;
-import static com.dremio.dac.util.JobsConstant.DEFAULT;
-import static com.dremio.dac.util.JobsConstant.DEFAULT_DATASET_TYPE;
-import static com.dremio.dac.util.JobsConstant.EMPTY_DATASET_FIELD;
-import static com.dremio.dac.util.JobsConstant.EXTERNAL_QUERY;
-import static com.dremio.dac.util.JobsConstant.GIGABYTES;
-import static com.dremio.dac.util.JobsConstant.KILOBYTES;
-import static com.dremio.dac.util.JobsConstant.MEGABYTES;
-import static com.dremio.dac.util.JobsConstant.METADATA;
-import static com.dremio.dac.util.JobsConstant.UNAVAILABLE;
+import static com.dremio.service.jobs.JobsConstant.BYTES;
+import static com.dremio.service.jobs.JobsConstant.DEFAULT;
+import static com.dremio.service.jobs.JobsConstant.DEFAULT_DATASET_TYPE;
+import static com.dremio.service.jobs.JobsConstant.EMPTY_DATASET_FIELD;
+import static com.dremio.service.jobs.JobsConstant.EXTERNAL_QUERY;
+import static com.dremio.service.jobs.JobsConstant.GIGABYTES;
+import static com.dremio.service.jobs.JobsConstant.KILOBYTES;
+import static com.dremio.service.jobs.JobsConstant.MEGABYTES;
+import static com.dremio.service.jobs.JobsConstant.METADATA;
+import static com.dremio.service.jobs.JobsConstant.UNAVAILABLE;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,6 +51,7 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.base.Preconditions;
 
 /**
  * Util file for common methods in JobsListing and JobInfoDetails APIs
@@ -239,6 +240,43 @@ public class JobUtil {
       jobCancellationInfo.getMessage());
   }
 
+  public static boolean isTruePath(List<String> datasetPathList) {
+    if(
+      datasetPathList != null
+        && !datasetPathList.equals(DatasetTool.TMP_DATASET_PATH.toPathList())
+        && !datasetPathList.isEmpty()
+        && !datasetPathList.get(0).equals("UNKNOWN")){
+      return true;
+    }
+
+    return false;
+  }
+
+  public static boolean isComplete(JobState state) {
+    Preconditions.checkNotNull(state, "JobState must be set");
+
+    switch(state){
+      case CANCELLATION_REQUESTED:
+      case ENQUEUED:
+      case NOT_SUBMITTED:
+      case RUNNING:
+      case STARTING:
+      case PLANNING:
+      case PENDING:
+      case METADATA_RETRIEVAL:
+      case QUEUED:
+      case ENGINE_START:
+      case EXECUTION_PLANNING:
+        return false;
+      case CANCELED:
+      case COMPLETED:
+      case FAILED:
+        return true;
+      default:
+        throw new UnsupportedOperationException();
+    }
+  }
+
   private static void populateQueriedDataset(List<DataSet> queriedDatasets, String datasetName, String datasetType, String datasetPath, List<String> datasetPathList) {
     queriedDatasets.add(new DataSet());
     queriedDatasets.get(queriedDatasets.size() - 1).setDatasetName(datasetName);
@@ -273,17 +311,5 @@ public class JobUtil {
     } catch (NullPointerException e) {
       return null;
     }
-  }
-
-  public static boolean isTruePath(List<String> datasetPathList) {
-    if(
-      datasetPathList != null
-        && !datasetPathList.equals(DatasetTool.TMP_DATASET_PATH.toPathList())
-        && !datasetPathList.isEmpty()
-        && !datasetPathList.get(0).equals("UNKNOWN")){
-      return true;
-    }
-
-    return false;
   }
 }

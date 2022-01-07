@@ -20,16 +20,18 @@ import org.apache.calcite.plan.RelOptRuleCall;
 
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.store.StoragePlugin;
 
 /**
  * Rule that converts Flight logical to physical scan
  */
 public class SysFlightScanPrule extends RelOptRule {
 
-  public static final RelOptRule INSTANCE = new SysFlightScanPrule();
+  private SysFlightStoragePlugin plugin;
 
-  public SysFlightScanPrule() {
+  public SysFlightScanPrule(StoragePlugin plugin) {
     super(RelOptHelper.any(SysFlightScanDrel.class), "FlightScanPrule");
+    this.plugin = (SysFlightStoragePlugin) plugin;
   }
 
   @Override
@@ -42,7 +44,8 @@ public class SysFlightScanPrule extends RelOptRule {
         logicalScan.getTableMetadata(),
         null,
         logicalScan.getProjectedColumns(),
-        logicalScan.getObservedRowcountAdjustment()
+        logicalScan.getObservedRowcountAdjustment(),
+        plugin
         );
 
     call.transformTo(physicalScan);

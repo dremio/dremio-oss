@@ -125,7 +125,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private boolean isFirstRowGroup;
   private InputStreamProvider inputStreamProviderOfFirstRowGroup;
   private InputStreamProvider lastInputStreamProvider;
-  private final boolean fromRowGroupBasedSplit;
+  private boolean fromRowGroupBasedSplit;
   private SplitsPathRowGroupsMap splitsPathRowGroupsMap;
   private Map<String, Set<Integer>> pathToRowGroupsMap = new HashMap<>();
   private final List<RuntimeFilterEvaluator> runtimeFilterEvaluators = new ArrayList<>();
@@ -208,7 +208,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     }
   }
 
-  public ParquetSplitReaderCreatorIterator(FragmentExecutionContext fragmentExecContext, final OperatorContext context, OpProps props, final TableFunctionConfig config) throws ExecutionSetupException {
+  public ParquetSplitReaderCreatorIterator(FragmentExecutionContext fragmentExecContext, final OperatorContext context, OpProps props, final TableFunctionConfig config, boolean fromRowGroupBasedSplit, boolean produceFromBufferedSplits) throws ExecutionSetupException {
     this.config = null;
     this.inputSplits = null;
     this.tablePath = config.getFunctionContext().getTablePath();
@@ -216,7 +216,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.conditions = scanFilter != null ? ((ParquetScanFilter) scanFilter).getConditions() : null;
     this.columns = config.getFunctionContext().getColumns();
     this.fullSchema = config.getFunctionContext().getFullSchema();
-    this.arrowCachingEnabled = config.getFunctionContext().isArrowCachingEnabled();
+    this.arrowCachingEnabled = config.getFunctionContext().isArrowCachingEnabled() || context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_ARROW_CACHING);
     this.isConvertedIcebergDataset = config.getFunctionContext().isConvertedIcebergDataset();
     this.formatSettings = config.getFunctionContext().getFormatSettings();
     this.context = context;
@@ -269,10 +269,10 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       }
     }
     this.fragmentExecutionContext = fragmentExecContext;
-    this.fromRowGroupBasedSplit = false;
+    this.fromRowGroupBasedSplit = fromRowGroupBasedSplit;
     sortedBlockSplitsIterator = Collections.emptyIterator();
     splitsPathRowGroupsMap = null;
-    this.produceFromBufferedSplits = false; // initially set to false, after no more to consume from upstream this is set to true
+    this.produceFromBufferedSplits = produceFromBufferedSplits; // initially set to false, after no more to consume from upstream this is set to true
     processSplits();
     if (prefetchReader) {
       initSplits(null, numSplitsToPrefetch);

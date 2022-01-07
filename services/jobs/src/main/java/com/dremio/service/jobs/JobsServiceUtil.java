@@ -20,10 +20,15 @@ import static com.dremio.exec.planner.sql.SqlExceptionHelper.END_LINE_CONTEXT;
 import static com.dremio.exec.planner.sql.SqlExceptionHelper.START_COLUMN_CONTEXT;
 import static com.dremio.exec.planner.sql.SqlExceptionHelper.START_LINE_CONTEXT;
 import static com.dremio.service.jobs.JobIndexKeys.JOB_STATE;
+import static com.dremio.service.jobs.JobsConstant.DOT_BACKSLASH;
+import static com.dremio.service.jobs.JobsConstant.QUOTES;
+import static com.dremio.service.jobs.JobsConstant.__ACCELERATOR;
 
 import java.text.MessageFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +36,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +50,7 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent.State;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
@@ -64,13 +72,14 @@ import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
+import com.dremio.service.job.proto.TableDatasetProfile;
+import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Timestamp;
 
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
@@ -245,6 +254,13 @@ public final class JobsServiceUtil {
       default:
         return com.dremio.exec.proto.beans.AttemptEvent.State.INVALID_STATE;
     }
+  }
+
+  static com.dremio.exec.proto.beans.AttemptEvent createAttemptEvent(AttemptEvent.State state, long startTimestamp) {
+    com.dremio.exec.proto.beans.AttemptEvent attemptEvent = new com.dremio.exec.proto.beans.AttemptEvent();
+    attemptEvent.setState(JobsServiceUtil.convertAttemptStatus(state));
+    attemptEvent.setStartTime(startTimestamp);
+    return attemptEvent;
   }
 
   /**
@@ -535,7 +551,7 @@ public final class JobsServiceUtil {
     return jobSummaryBuilder.build();
   }
 
-  static ActiveJobSummary toActiveJobSummary(Job job){
+  static ActiveJobSummary toActiveJobSummary(Job job) {
 
     final JobAttempt firstJobAttempt = job.getAttempts().get(0);
     final JobInfo firstJobAttemptInfo = firstJobAttempt.getInfo();
@@ -547,29 +563,49 @@ public final class JobsServiceUtil {
       .setStatus(JobsProtoUtil.toBuf(lastJobAttempt.getState()).toString())
       .setUserName(firstJobAttemptInfo.getUser())
       .setQueryType(JobsProtoUtil.toBuf(lastJobAttemptInfo.getQueryType()).toString())
-      .setAccelerated(lastJobAttemptInfo.getAcceleration() != null);
+      .setAccelerated(lastJobAttemptInfo.getAcceleration() != null)
+      .setQuery(lastJobAttemptInfo.getSql());
 
     if (firstJobAttemptInfo.getStartTime() != null) {
-      builder.setSubmit(Timestamp.newBuilder().setSeconds(firstJobAttemptInfo.getStartTime()).build());
+      builder.setSubmittedTs(firstJobAttemptInfo.getStartTime());
     }
+
     AttemptsHelper helper = new AttemptsHelper(lastJobAttempt);
-    if (helper.getPlanningTime() != null) {
-      builder.setQueryPlanningTime(helper.getPlanningTime());
+    if (helper.getStateTimeStamp(State.METADATA_RETRIEVAL) != null) {
+      builder.setMetadataRetrievalTs(helper.getStateTimeStamp(State.METADATA_RETRIEVAL));
     }
-    if (helper.getQueuedTimeStamp() != null) {
-      builder.setQueue(Timestamp.newBuilder().setSeconds(helper.getQueuedTimeStamp()).build());
+    if (helper.getStateTimeStamp(State.PLANNING) != null) {
+      builder.setPlanningStartTs(helper.getStateTimeStamp(State.PLANNING));
     }
-    if (helper.getQueuedTime() != null) {
-      builder.setQueueTime(helper.getQueuedTime());
+    if (helper.getStateTimeStamp(State.QUEUED) != null) {
+      builder.setQueryEnqueuedTs(helper.getStateTimeStamp(State.QUEUED));
     }
-    if (helper.getExecutionPlanningTime() != null) {
-      builder.setExecutionPlanningTime(helper.getExecutionPlanningTime());
+    if (helper.getStateTimeStamp(State.ENGINE_START) != null) {
+      builder.setEngineStartTs(helper.getStateTimeStamp(State.ENGINE_START));
     }
-    if (helper.getRunningTimeStamp() != null) {
-      builder.setStart(Timestamp.newBuilder().setSeconds(helper.getRunningTimeStamp()).build());
+    if (helper.getStateTimeStamp(State.EXECUTION_PLANNING) != null) {
+      builder.setExecutionPlanningTs(helper.getStateTimeStamp(State.EXECUTION_PLANNING));
     }
-    if (helper.getRunningTime() != null) {
-      builder.setExecutionTime(helper.getRunningTime());
+    if (helper.getStateTimeStamp(State.RUNNING) != null) {
+      builder.setExecutionStartTs(helper.getStateTimeStamp(State.RUNNING));
+    }
+
+    if (lastJobAttempt.getStats() != null) {
+      if (lastJobAttempt.getStats().getInputRecords() != null) {
+        builder.setRowsScanned(lastJobAttempt.getStats().getInputRecords());
+      }
+
+      if (lastJobAttempt.getStats().getOutputRecords() != null) {
+        builder.setRowsReturned(lastJobAttempt.getStats().getOutputRecords());
+      }
+    }
+
+    if (lastJobAttemptInfo.getParentsList() != null && lastJobAttemptInfo.getDatasetPathList() != null) {
+      builder.setQueriedDatasets(getQueriedDatasets(lastJobAttemptInfo.getParentsList(), lastJobAttemptInfo.getDatasetPathList()));
+    }
+
+    if (lastJobAttempt.getDetails() != null && lastJobAttempt.getDetails().getTableDatasetProfilesList() != null) {
+      builder.setScannedDatasets(getScannedDatasets(lastJobAttempt));
     }
 
     if (lastJobAttemptInfo.getResourceSchedulingInfo() != null) {
@@ -581,7 +617,100 @@ public final class JobsServiceUtil {
       }
     }
 
-  return builder.build();
+    return builder.build();
+  }
+
+  private static String getQueriedDatasets(List<ParentDatasetInfo> parents, List<String> pathList) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("[");
+    if (parents != null && parents.size() > 0) {
+      parents.forEach(
+        parent -> {
+          append(sb, StringUtils.join(parent.getDatasetPathList(), "."));
+        }
+      );
+    } else if (isTruePath(pathList)) {
+      append(sb, StringUtils.join(pathList, "."));
+    }
+    sb.append("]");
+    return sb.toString();
+  }
+
+  private static String getScannedDatasets(JobAttempt jobAttempt) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("[");
+    jobAttempt.getDetails().getTableDatasetProfilesList().stream().forEach(
+      dataset -> {
+        String datasetName = "";
+        List<String> pathList = new ArrayList<>();
+        List<String> paths = getDatasetPath(dataset);
+        paths.forEach(s -> pathList.add(s.replaceAll(QUOTES, "")));
+        if (CollectionUtils.isNotEmpty(pathList)) {
+          boolean isReflection = pathList.get(0).equals(__ACCELERATOR);
+          if (isReflection) {
+            datasetName = StringUtils.join(pathList, ".");
+          } else {
+            datasetName = getScannedDatasetName(jobAttempt.getInfo().getParentsList(), jobAttempt.getInfo().getGrandParentsList(), dataset);
+          }
+
+          append(sb, datasetName);
+        }
+      }
+    );
+    sb.append("]");
+    return sb.toString();
+  }
+
+  private static List<String> getDatasetPath(TableDatasetProfile dataset) {
+    try {
+      int datasetPathSize = dataset.getDatasetProfile().getDatasetPathsList().get(0).getDatasetPathList().size();
+      return Arrays.asList(dataset.getDatasetProfile().getDatasetPathsList().get(0).getDatasetPathList().get(datasetPathSize - 1).split(DOT_BACKSLASH));
+    } catch (Exception e) {
+      return Collections.emptyList();
+    }
+  }
+
+  // To get custom datasetname in case of query on non reflection datasets.
+  private static String getScannedDatasetName(List<ParentDatasetInfo> parentsList,
+    List<ParentDataset> grandParentsList, TableDatasetProfile dataset) {
+    try {
+      String datasetFullPath = StringUtils.join(dataset.getDatasetProfile().getDatasetPathsList().get(0).getDatasetPathList(),".")
+        .replaceAll(QUOTES,"");
+      // Access grandparents list in case of query on VDS
+      if (grandParentsList != null) {
+        for (ParentDataset grandParentDataset : grandParentsList) {
+          String grandParentsPath = StringUtils.join(grandParentDataset.getDatasetPathList(), ".");
+          if (datasetFullPath.equals(grandParentsPath)) {
+            return grandParentDataset.getDatasetPathList().get(grandParentDataset.getDatasetPathList().size() - 1);
+          }
+        }
+      }
+      // Access parents list in case of query on PDS
+      if (parentsList != null) {
+        for (ParentDatasetInfo parentDataset : parentsList) {
+          String parentsPath = StringUtils.join(parentDataset.getDatasetPathList(), ".");
+          if (datasetFullPath.equals(parentsPath)) {
+            return parentDataset.getDatasetPathList().get(parentDataset.getDatasetPathList().size() - 1);
+          }
+        }
+      }
+    } catch (Exception ignore) {}
+
+    return "";
+  }
+
+  static void append(StringBuilder sb, String str) {
+    if (sb.length() > 1) {
+      sb.append(", ");
+    }
+    sb.append(str);
+  }
+
+  static boolean isTruePath(List<String> datasetPathList) {
+    return datasetPathList != null
+      && !datasetPathList.isEmpty()
+      && !datasetPathList.get(0).equals("UNKNOWN")
+      && !(datasetPathList.get(0).equals("tmp") && datasetPathList.get(1).equals("UNTITLED"));
   }
 
   static JobDetails toJobDetails(Job job, boolean provideResultInfo) {
@@ -650,5 +779,45 @@ public final class JobsServiceUtil {
       jobInfo.setMaterializationFor(JobsProtoUtil.toStuff(jobRequest.getMaterializationSettings().getMaterializationSummary()));
     }
     return jobInfo;
+  }
+
+  /**
+   * Returns attempt state, given job status.
+   *
+   * @param state job status
+   * @return attempt state
+   */
+  static AttemptEvent.State jobStatusToAttemptStatus(JobState state) {
+    switch (state) {
+      case METADATA_RETRIEVAL:
+        return AttemptEvent.State.METADATA_RETRIEVAL;
+      case STARTING:
+        return AttemptEvent.State.STARTING;
+      case PLANNING:
+        return AttemptEvent.State.PLANNING;
+      case RUNNING:
+        return AttemptEvent.State.RUNNING;
+      case COMPLETED:
+        return AttemptEvent.State.COMPLETED;
+      case CANCELED:
+        return AttemptEvent.State.CANCELED;
+      case FAILED:
+        return AttemptEvent.State.FAILED;
+      case QUEUED:
+        return AttemptEvent.State.QUEUED;
+      case PENDING:
+        return AttemptEvent.State.PENDING;
+      case ENGINE_START:
+        return AttemptEvent.State.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return AttemptEvent.State.EXECUTION_PLANNING;
+      default:
+        return AttemptEvent.State.INVALID_STATE;
+    }
+  }
+
+  static AttemptEvent.State getLastEventState(JobSummary jobSummary) {
+    int lastIndex = jobSummary.getStateListList().size() -1;
+    return jobSummary.getStateList(lastIndex).getState();
   }
 }

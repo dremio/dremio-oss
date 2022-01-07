@@ -56,7 +56,7 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
 
   @Override
   public void getStream(CallContext callContext, Ticket ticket, ServerStreamListener listener) {
-    LOGGER.info("Got getStream request for ticket: {}", ticket);
+    LOGGER.debug("Got getStream request for ticket: {}", ticket);
     try {
       final SysFlightTicket sysTicket = CoordinatorFlightTicket.parseFrom(ticket.getBytes()).getSyFlightTicket();
       // todo: set username in RequestContext from SysFlightTicket
@@ -72,7 +72,7 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
 
   @Override
   public void listFlights(CallContext callContext, Criteria criteria, StreamListener<FlightInfo> listener) {
-    LOGGER.info("Got listFlights request");
+    LOGGER.debug("Got listFlights request");
     try {
       managerProvider.get().listSchemas(listener);
     } catch (UserException ue) {
@@ -86,9 +86,9 @@ public class SysFlightProducer implements FlightProducer, AutoCloseable {
 
   @Override
   public FlightInfo getFlightInfo(CallContext callContext, FlightDescriptor desc) {
-    LOGGER.info("Got getFlightInfo request for descriptor: {}", desc);
+    LOGGER.debug("Got getFlightInfo request for descriptor: {}", desc);
     try {
-      Schema schema =  managerProvider.get().getSchema(desc.getPath().get(0));
+      Schema schema =  managerProvider.get().getSchema(String.join(".", desc.getPath()));
       return new FlightInfo(schema, desc, new ArrayList<>(), -1, -1);
     } catch (Throwable e) {
       LOGGER.error("Exception while getFlightInfo: ", e);

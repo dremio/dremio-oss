@@ -26,6 +26,7 @@ import java.util.Set;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.projectnessie.client.api.NessieApiV1;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
@@ -112,6 +113,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider;
   private final Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider;
   private final Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider;
+  private final Provider<NessieApiV1> nessieClientProvider;
   private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory;
   private final Provider<StatisticsListManager> statisticsListManagerProvider;
   private final Provider<RelMetadataQuerySupplier> relMetadataQuerySupplier;
@@ -158,6 +160,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
     Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
     Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+    Provider<NessieApiV1> nessieClientProvider,
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -176,8 +179,8 @@ public class ContextService implements Service, Provider<SabotContext> {
       conduitProvider, informationSchemaStub, viewCreatorFactory, spillService, connectionReaderProvider, credentialsService,
       jobResultInfoProvider, optionManagerProvider, systemOptionManagerProvider, engineIdProvider, subEngineIdProvider, optionValidatorProvider,
       allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR), coordinatorModeInfoProvider,
-      nessieTreeApiBlockingStubProvider, nessieContentsApiBlockingStuProvider, statisticsService,
-      statisticsAdministrationServiceFactory, statisticsListManagerProvider,
+      nessieTreeApiBlockingStubProvider, nessieContentsApiBlockingStuProvider, nessieClientProvider,
+      statisticsService, statisticsAdministrationServiceFactory, statisticsListManagerProvider,
       relMetadataQuerySupplier, jobsRunnerProvider, datasetCatalogStub,
       globalCredentailsServiceProvider, credentialsServiceProvider, conduitInProcessChannelProviderProvider, sysFlightChannelProviderProvider);
   }
@@ -215,6 +218,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
     Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
     Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+    Provider<NessieApiV1> nessieClientProvider,
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
     Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -258,6 +262,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
     this.nessieTreeApiBlockingStubProvider = nessieTreeApiBlockingStubProvider;
     this.nessieContentsApiBlockingStuProvider = nessieContentsApiBlockingStuProvider;
+    this.nessieClientProvider = nessieClientProvider;
     this.statisticsService = statisticsService;
     this.statisticsAdministrationServiceFactory = statisticsAdministrationServiceFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
@@ -360,6 +365,7 @@ public class ContextService implements Service, Provider<SabotContext> {
       coordinatorModeInfoProvider,
       nessieTreeApiBlockingStubProvider,
       nessieContentsApiBlockingStuProvider,
+      nessieClientProvider,
       statisticsService,
       statisticsAdministrationServiceFactory,
       statisticsListManagerProvider,

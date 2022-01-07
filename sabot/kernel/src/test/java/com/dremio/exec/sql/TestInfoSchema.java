@@ -142,11 +142,10 @@ public class TestInfoSchema extends BaseTestQuery {
   @Test
   public void showDatabasesLike() throws Exception{
     testBuilder()
-        .sqlQuery("SHOW DATABASES LIKE '%ys%'")
+        .sqlQuery("SHOW DATABASES LIKE '%mat%'")
         .unOrdered()
         .baselineColumns("SCHEMA_NAME")
-        .baselineValues("sys")
-        .baselineValues("sys.cache")
+        .baselineValues("INFORMATION_SCHEMA")
         .go();
   }
 

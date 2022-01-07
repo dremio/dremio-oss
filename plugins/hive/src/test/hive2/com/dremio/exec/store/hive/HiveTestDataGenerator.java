@@ -208,7 +208,7 @@ public class HiveTestDataGenerator {
     }
   }
 
-  private HiveConf newHiveConf() {
+  public HiveConf newHiveConf() {
     HiveConf conf = new HiveConf(SessionState.class);
 
     HiveConf.setVar(conf, ConfVars.METASTOREURIS, "thrift://localhost:" + port);

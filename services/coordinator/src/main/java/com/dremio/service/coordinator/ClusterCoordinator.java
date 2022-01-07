@@ -24,7 +24,7 @@ import com.dremio.exec.proto.CoordinationProtos.Roles;
  * Pluggable interface built to manage cluster coordination. Allows SabotNode or DremioClient to register its capabilities
  * as well as understand other node's existence and capabilities.
  **/
-public abstract class ClusterCoordinator implements ClusterServiceSetManager {
+public abstract class ClusterCoordinator implements ClusterServiceSetManager, ClusterElectionManager {
   /**
    * Cluster coordinator options
    */

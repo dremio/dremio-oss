@@ -59,9 +59,9 @@ public class TestJdbcMetadata extends JdbcTestActionBase {
     this.testAction(new JdbcAction(){
       @Override
       public ResultSet getResult(Connection c) throws SQLException {
-        return c.getMetaData().getSchemas("DREMIO", "%sys%");
+        return c.getMetaData().getSchemas("DREMIO", "%INFO%");
       }
-    }, 2);
+    }, 1);
   }
 
   @Test
@@ -89,7 +89,7 @@ public class TestJdbcMetadata extends JdbcTestActionBase {
     this.testAction(new JdbcAction(){
       @Override
       public ResultSet getResult(Connection c) throws SQLException {
-        return c.getMetaData().getTables("DREMIO", "sys", "opt%", new String[]{"SYSTEM_TABLE", "SYSTEM_VIEW"});
+        return c.getMetaData().getTables("DREMIO", "INFORMATION\\_SCHEMA", "CAT%", new String[]{"SYSTEM_TABLE", "SYSTEM_VIEW"});
       }
     }, 1);
   }
@@ -109,8 +109,8 @@ public class TestJdbcMetadata extends JdbcTestActionBase {
     this.testAction(new JdbcAction(){
       @Override
       public ResultSet getResult(Connection c) throws SQLException {
-        print(c.getMetaData().getColumns("DREMIO", "sys", "opt%", "%ame"));
-        return c.getMetaData().getColumns("DREMIO", "sys", "opt%", "%ame");
+        print(c.getMetaData().getColumns("DREMIO", "INFORMATION\\_SCHEMA", "CAT%", "%AME"));
+        return c.getMetaData().getColumns("DREMIO", "INFORMATION\\_SCHEMA", "CAT%", "%AME");
       }
     }, 1);
   }

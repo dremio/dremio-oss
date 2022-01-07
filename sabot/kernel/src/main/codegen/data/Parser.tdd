@@ -104,7 +104,16 @@
     "QUEUE",
     "ENGINE",
     "PASSWORD",
-    "UNSET"
+    "UNSET",
+    "LEARNING",
+    "BRANCH",
+    "TAG",
+    "APPLICATION",
+    "OAUTH",
+    "PROVIDER",
+    "TOKENS",
+    "STRUCT",
+    "LIST"
   ]
 
   nonReservedKeywords: [
@@ -118,6 +127,7 @@
     "AFTER"
     "AGGREGATE"
     "ALWAYS"
+    "APPLICATION",
     "APPLY"
     "APPROX"
     "APPROXIMATE"
@@ -131,6 +141,7 @@
     "AVOID"
     "BEFORE"
     "BERNOULLI"
+    "BRANCH"
     "BREADTH"
     "C"
     "CACHE"
@@ -247,9 +258,11 @@
     "LAST"
     "LAYOUT"
     "LAZY"
+    "LEARNING"
     "LENGTH"
     "LEVEL"
     "LIBRARY"
+    "LIST"
     "LOCALSORT"
     "LOCATOR"
     "M"
@@ -278,6 +291,7 @@
     "NULLABLE"
     "NULLS"
     "NUMBER"
+    "OAUTH",
     "OBJECT"
     "OCTETS"
     "OPERATE"
@@ -313,6 +327,7 @@
     "PRIVILEGES"
     "PROJECT"
     "PROMOTION"
+    "PROVIDER",
     "PUBLIC"
     "QUARTER"
     "QUERY"
@@ -414,16 +429,19 @@
     "STATUS"
     "STORE"
     "STRIPED"
+    "STRUCT"
     "STRUCTURE"
     "STYLE"
     "SUBCLASS_ORIGIN"
     "SUBSTITUTE"
     "TABLE_NAME"
+    "TAG"
     "TEMPORARY"
     "TIES"
     "TIMESTAMPADD"
     "TIMESTAMPDIFF"
     "TOP_LEVEL_COUNT"
+    "TOKENS",
     "TRANSACTION"
     "TRANSACTIONS_ACTIVE"
     "TRANSACTIONS_COMMITTED"
@@ -460,6 +478,9 @@
     "SqlShowTables()",
     "SqlShowSchemas()",
     "SqlDescribeTable()",
+    "SqlUseBranch()",
+    "SqlUseTag()",
+    "SqlUseCommit()",
     "SqlUseSchema()",
     "SqlCreateOrReplaceView()",
     "SqlDropView()",
@@ -494,6 +515,8 @@
 
   # List of methods for parsing custom data types.
   dataTypeParserMethods: [
+     "RowTypeName()",
+     "ArrayTypeName()"
   ]
 
 
@@ -524,7 +547,8 @@
     "explainjson.ftl",
     "grant.ftl",
     "role.ftl",
-    "user.ftl"
+    "user.ftl",
+    "useVersion.ftl"
   ]
 
   includeCompoundIdentifier: false,

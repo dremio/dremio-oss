@@ -26,6 +26,9 @@ import com.dremio.dac.service.sysflight.SysFlightTablesProvider.JobsTable;
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.MaterializationsTable;
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.ReflectionDependenciesTable;
 import com.dremio.dac.service.sysflight.SysFlightTablesProvider.ReflectionsTable;
+import com.dremio.exec.server.SabotNode;
+import com.dremio.exec.store.CatalogService;
+import com.dremio.plugins.sysflight.SysFlightPluginConf;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceGrpc.ReflectionDescriptionServiceImplBase;
 import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListMaterializationsRequest;
@@ -37,6 +40,7 @@ import com.dremio.service.acceleration.ReflectionDescriptionServiceRPC.ListRefle
 import com.dremio.service.job.ActiveJobSummary;
 import com.dremio.service.job.ActiveJobsRequest;
 import com.dremio.service.job.ChronicleGrpc;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.sysflight.SysFlightDataProvider;
 import com.dremio.service.sysflight.SystemTableManager.TABLES;
 import com.google.common.collect.Maps;
@@ -68,7 +72,6 @@ public class TestSysFlightResource extends ExternalResource {
               .setStatus("RUNNING")
               .setQueryType("UI_RUN")
               .setUserName("user")
-              .setRowCount(0)
               .setAccelerated(false)
               .setErrorMsg("err")
               .build());
@@ -142,5 +145,17 @@ public class TestSysFlightResource extends ExternalResource {
   public void after() {
     channel.shutdownNow();
     server.shutdownNow();
+  }
+
+  static void addSysFlightPlugin(SabotNode node) {
+    // create the sysFlight source
+    SourceConfig c = new SourceConfig();
+    SysFlightPluginConf conf = new SysFlightPluginConf();
+    c.setType(conf.getType());
+    c.setName("sys");
+    c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+    c.setConfig(conf.toBytesString());
+
+    ((CatalogServiceImpl) node.getContext().getCatalogService()).getSystemUserCatalog().createSource(c);
   }
 }

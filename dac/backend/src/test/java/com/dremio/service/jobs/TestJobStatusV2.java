@@ -508,6 +508,7 @@ public class TestJobStatusV2 extends BaseTestServer {
         .build());
 
     validateFailedJob(jobSummary);
+    Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.COMPLETED);
   }
 
   @Test
@@ -556,6 +557,7 @@ public class TestJobStatusV2 extends BaseTestServer {
           .build());
       if(jobSummary.getJobState() == JobState.FAILED) {
         validateFailedJob(jobSummary);
+        Assert.assertEquals(JobsServiceUtil.getLastEventState(jobSummary), AttemptEvent.State.FAILED);
         break;
       }
       Thread.sleep(50);

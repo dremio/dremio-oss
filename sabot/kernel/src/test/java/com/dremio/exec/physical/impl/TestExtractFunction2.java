@@ -27,7 +27,7 @@ public class TestExtractFunction2 extends BaseTestQuery {
         "extract(SECOND FROM time '2:30:21.5') as \"second\", " +
         "extract(MINUTE FROM time '2:30:21.5') as \"minute\", " +
         "extract(HOUR FROM time '2:30:21.5') as \"hour\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -137,7 +137,7 @@ public class TestExtractFunction2 extends BaseTestQuery {
         "extract(MILLENNIUM FROM date '1983-05-18') as \"m3\", " +
         "extract(MILLENNIUM FROM date '990-11-3') as \"m4\", " +
         "extract(MILLENNIUM FROM date '0001-11-3') as \"m5\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -204,7 +204,7 @@ public class TestExtractFunction2 extends BaseTestQuery {
         " extract(MILLENNIUM  FROM timestamp '1983-05-18 10:11:12.100') as \"m3\", " +
         " extract(MILLENNIUM  FROM timestamp '990-11-3 10:11:12.100') as \"m4\", " +
         " extract(MILLENNIUM  FROM timestamp '0001-11-3 10:11:12.100') as \"m5\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -263,7 +263,7 @@ public class TestExtractFunction2 extends BaseTestQuery {
         "  extract(MILLENNIUM  FROM interval '234-7' year(3) to month) as \"m3\"," +
         "  extract(MILLENNIUM  FROM interval '778-7' year(3) to month) as \"m4\"," +
         "  extract(MILLENNIUM  FROM interval '1998-7' year(4) to month) as \"m5\"" +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -300,7 +300,7 @@ public class TestExtractFunction2 extends BaseTestQuery {
         "  extract(MINUTE FROM interval '200 10:20:30.123' day(3) to second) as \"minute\", " +
         "  extract(HOUR FROM interval '200 10:20:30.123' day(3) to second) as \"hour\", " +
         "  extract(DAY FROM interval '200 10:20:30.123' day(3) to second) as \"day\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)

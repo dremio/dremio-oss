@@ -19,11 +19,13 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -42,6 +44,8 @@ import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.edition.EditionProvider;
+import com.dremio.service.job.JobStats;
+import com.dremio.service.job.JobStatsRequest;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.jobs.JobsService;
@@ -66,8 +70,11 @@ public class DailyJobStatsResource {
   private static final String DREMIO_EDITION_FORMAT = "dremio-%s-%s";
   private static final int STAT_DURATION = 10; //stats are for 10 days by default
 
+  private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+  private static final SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+
   private final JobsService jobsService;
-  private final EditionProvider editionProvider;
+  private final String edition;
 
   @Inject
   public DailyJobStatsResource(
@@ -75,14 +82,54 @@ public class DailyJobStatsResource {
     EditionProvider editionProvider
   ) {
     this.jobsService = jobsService;
-    this.editionProvider = editionProvider;
+    this.edition = editionProvider.getEdition();
   }
 
   @GET
   @RolesAllowed({"admin", "user"})
   public DailyJobStats getStats(@QueryParam("start") @DefaultValue("0") long startEpoch ,
-                              @QueryParam("end") @DefaultValue("0") long endEpoch) {
+                              @QueryParam("end") @DefaultValue("0") long endEpoch,
+                              @QueryParam("onlyDateWiseTotals") @DefaultValue("false") String onlyDateWiseTotals) {
+    if (Boolean.parseBoolean(onlyDateWiseTotals)) {
+      return createStatsWithonlyDateWiseTotals(startEpoch, endEpoch);
+    }
     return createStats(startEpoch, endEpoch);
+  }
+
+  private DailyJobStatsResource.DailyJobStats createStatsWithonlyDateWiseTotals(long startEpoch, long endEpoch) {
+    List<Map<String, Object>> result = Collections.synchronizedList(new ArrayList<>());
+
+    try {
+      Consumer<Long[]> consumer = (pair) -> {
+        long iterStartDate = pair[0];
+        long iterEndDate = pair[1];
+        logger.debug("StartTime: {}, EndTime:{}", sdf2.format(new Date(iterStartDate)), sdf2.format(new Date(iterEndDate)));
+
+        JobStatsRequest jobStatsRequest = JobStatsRequest.newBuilder()
+          .setStartDate(StatsUtils.convert(iterStartDate))
+          .setEndDate(StatsUtils.convert(iterEndDate))
+          .build();
+        JobStats jobStats = jobsService.getJobStats(jobStatsRequest);
+
+        long total = jobStats.getCountsList().stream().mapToInt(x -> x.getCount()).sum();
+        if (total > 0) {
+          Map<String, Object> countMap = new HashMap<>();
+          result.add(countMap);
+          countMap.put("date", sdf.format(new java.util.Date(iterStartDate)));
+          countMap.put("total", total);
+        }
+      };
+
+      StatsUtils.executeDateWise(startEpoch, endEpoch, consumer);
+
+      DailyJobStats dailyJobStats = new DailyJobStats(result);
+      dailyJobStats.setEdition(edition);
+      return dailyJobStats;
+
+    } catch (Exception err) {
+      logger.error("DailyJobStats failed.", err);
+      throw new InternalServerErrorException(err);
+    }
   }
 
   private DailyJobStatsResource.DailyJobStats createStats(long startEpoch, long endEpoch) {
@@ -130,7 +177,7 @@ public class DailyJobStatsResource {
     }
 
     final DailyJobStats dailyJobStats = new DailyJobStats(new ArrayList<>(results.values()));
-    dailyJobStats.setEdition(editionProvider.getEdition());
+    dailyJobStats.setEdition(edition);
 
     return dailyJobStats;
   }

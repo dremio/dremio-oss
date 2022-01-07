@@ -186,6 +186,7 @@ public class FooterReadTableFunction extends AbstractTableFunction {
         mTime = mtimeVector.get(currentRow);
         fileSchema = footer.getSchema();
 
+        fileSchema = fileSchema.removeNullFields();
         maxSchemaWidth = Math.max(maxSchemaWidth, fileSchema.getFieldCount());
         if(footer instanceof ParquetFooter) {
           ParquetFooter parquetFooter = (ParquetFooter) footer;

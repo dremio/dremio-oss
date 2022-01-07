@@ -29,6 +29,7 @@ import java.util.Random;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
+import org.junit.Before;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.BooleanOperator;
@@ -76,6 +77,11 @@ import com.google.common.collect.Lists;
 public class BaseExpressionSplitterTest extends BaseTestFunction {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseExpressionSplitterTest.class);
 
+  @Before
+  public void cleanExpToExpSplitCache() {
+    testContext.invalidateExpToExpSplitsCache();
+  }
+
   /**
    * Split the query and match the splits against expected splits.
    *
@@ -118,7 +124,7 @@ public class BaseExpressionSplitterTest extends BaseTestFunction {
       expr = ExpressionTreeMaterializer.materialize(expr, vectorContainer.getSchema(), errorCollector,
         testContext.getFunctionLookupContext(), false);
     }
-
+    LogicalExpression originalExp = expr;
     // annotate with Gandiva
     expr = expr.accept(annotator, null);
 
@@ -139,7 +145,7 @@ public class BaseExpressionSplitterTest extends BaseTestFunction {
       NamedExpression namedExpression = new NamedExpression(expr, new FieldReference("out"));
       // split the expression and set the splits up for execution
       dataOut = context.createOutputVectorContainer();
-      splitter.addExpr(dataOut, namedExpression);
+      splitter.addExpr(dataOut, namedExpression, originalExp);
       vectorContainer = splitter.setupProjector(dataOut, javaCodeGenWatch, gandivaCodeGenWatch);
 
       // ExprToString is used to convert an expression to a string for comparison

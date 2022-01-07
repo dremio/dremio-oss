@@ -32,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.Table;
+import org.apache.calcite.schema.TemporalTable;
 import org.apache.calcite.sql.SqlAccessType;
 import org.apache.calcite.sql.validate.SqlModality;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
@@ -111,6 +112,14 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
   }
 
   @Override
+  public List<ImmutableBitSet> getKeys() {
+    if (table != null) {
+      return table.getStatistic().getKeys();
+    }
+    return ImmutableList.of();
+  }
+
+  @Override
   public <T> T unwrap(Class<T> paramClass) {
     if(paramClass == DremioPrepareTable.class) {
       return paramClass.cast(this);
@@ -146,6 +155,11 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
   @Override
   public boolean supportsModality(SqlModality paramSqlModality) {
     return SqlModality.RELATION == paramSqlModality;
+  }
+
+  @Override
+  public boolean isTemporal() {
+    return table instanceof TemporalTable;
   }
 
   @Override

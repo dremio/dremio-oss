@@ -70,6 +70,8 @@ import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.users.SystemUser;
+import com.dremio.telemetry.api.metrics.Counter;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -99,6 +101,10 @@ class SourceMetadataManager implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceMetadataManager.class);
   private static final long WAKEUP_FREQUENCY_MS = 1000*60;
   private static final long SCHEDULER_GRANULARITY_MS = 1 * 1000;
+  private static final Counter FAILED_15M = Metrics.newCounter(Metrics.join("metadata_refresh",
+    "failed_15m"), Metrics.ResetType.PERIODIC_15M);
+  private static final Counter SUCCESS_15M = Metrics.newCounter(Metrics.join("metadata_refresh",
+    "success_15m"), Metrics.ResetType.PERIODIC_15M);
 
   // Stores the time (in milliseconds, obtained from System.currentTimeMillis()) at which a dataset was locally updated
   private final Cache<NamespaceKey, Long> localUpdateTime =
@@ -561,9 +567,11 @@ class SourceMetadataManager implements AutoCloseable {
 
           // save post timer close.
           saveRefreshData();
+          SUCCESS_15M.increment();
         } catch (Exception e) {
           // Exception while updating the metadata. Ignore, and try again later
           logger.warn("Source '{}' failed to execute refresh for plugin due to an exception.", sourceKey, e);
+          FAILED_15M.increment();
         }
 
       } finally {

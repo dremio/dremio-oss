@@ -270,7 +270,7 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
   private static final ImmutableList<PartitionChunk> PARTITION_CHUNKS =
       ImmutableList.of(PartitionChunk.of(DatasetSplit.of(SIZE_IN_BYTES, RECORD_COUNT)));
 
-  private final EntityPath entityPath;
+  private EntityPath entityPath;
   private final boolean distributed;
   private final Class<?> pojoClass;
 
@@ -298,6 +298,10 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
   @Override
   public EntityPath getDatasetPath() {
     return entityPath;
+  }
+
+  public void setDatasetPath(EntityPath entityPath) {
+    this.entityPath = entityPath;
   }
 
   @Override

@@ -178,23 +178,23 @@ public class FragmentWrapper {
   /* Pre 2.0.2 : no splits in "Blocked"  */
   public static final String[] FRAGMENT_COLUMNS_NO_BLOCKED_SPLITS = {"Thread ID", "Host Name", "Start", "End",
     "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
-    "Blocked", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
+    "Blocked", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
 
   // same as above but with extra debug columns: "Diff w OPs"
   public static final String[] FRAGMENT_COLUMNS_DEBUG_NO_BLOCKED_SPLITS = {"Thread ID", "Host Name", "Start", "End",
     "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
-    "Blocked", "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
+    "Blocked", "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
 
   public static final String[] FRAGMENT_COLUMNS = {"Thread ID", "Host Name", "Start", "End",
     "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
     "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
-    "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
+    "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
 
   // same as above but with extra debug columns: "Diff w OPs"
   public static final String[] FRAGMENT_COLUMNS_DEBUG = {"Thread ID", "Host Name", "Start", "End",
     "Wall-clock time", "First-run", "Setup", "Runtime", "Finish", "Waiting",
     "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
-    "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
+    "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "Peak Incoming Memory", "State"};
 
   public static final String[] PHASE_METRICS_COLUMNS = {"Host Name", "Peak Memory", "Num Threads", "Total Max Records",
     "Total Process Time", "Record Processing Rate"};
@@ -321,6 +321,7 @@ public class FragmentWrapper {
       builder.appendTime(minor.getLastProgress()); // Last Progress
 
       builder.appendBytes(minor.getMaxMemoryUsed()); // Peak Memory
+      builder.appendBytes(minor.getMaxIncomingMemoryUsed()); // Peak memory for incoming buffers
       builder.appendString(minor.getState().name()); // State
 
       builder.endEntry();

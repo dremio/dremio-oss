@@ -59,6 +59,8 @@ public class SqlGrantOnProjectEntities extends SqlCall implements SimpleDirectHa
     MANAGE_GRANTS,
     CREATE_CLOUD,
     CREATE_PROJECT,
+    CREATE_OAUTH_APPLICATION,
+    CREATE_EXTERNAL_TOKENS_PROVIDER,
     ALL
   }
 
@@ -70,7 +72,10 @@ public class SqlGrantOnProjectEntities extends SqlCall implements SimpleDirectHa
   public enum GrantType {
     ORG,
     CLOUD,
-    ENGINE;
+    ENGINE,
+    IDENTITY_PROVIDER,
+    OAUTH_APPLICATION,
+    EXTERNAL_TOKENS_PROVIDER
   }
 
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("GRANT", SqlKind.OTHER) {

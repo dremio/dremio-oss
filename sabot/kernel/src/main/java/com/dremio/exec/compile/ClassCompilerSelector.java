@@ -41,7 +41,7 @@ public class ClassCompilerSelector {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassCompilerSelector.class);
 
   public enum CompilerPolicy {
-    DEFAULT, JDK, JANINO;
+    DEFAULT, JDK, JANINO
   }
 
   public static final String JAVA_COMPILER_OPTION = "exec.java_compiler";
@@ -79,7 +79,6 @@ public class ClassCompilerSelector {
 
   private final OptionManager sessionOptions;
 
-
   public ClassCompilerSelector(SabotConfig config, OptionManager sessionOptions) {
     this.sessionOptions = sessionOptions;
 
@@ -110,15 +109,6 @@ public class ClassCompilerSelector {
       classCompiler = janinoClassCompiler;
     }
 
-    ClassBytes[] bc = classCompiler.getClassByteCode(className, sourceCode, debug);
-    /*
-     * final String baseDir = System.getProperty("java.io.tmpdir") + File.separator + classCompiler.getClass().getSimpleName();
-     * File classFile = new File(baseDir + className.clazz);
-     * classFile.getParentFile().mkdirs();
-     * BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(classFile));
-     * out.write(bc[0]);
-     * out.close();
-     */
-    return bc;
+    return classCompiler.getClassByteCode(className, sourceCode, debug);
   }
 }

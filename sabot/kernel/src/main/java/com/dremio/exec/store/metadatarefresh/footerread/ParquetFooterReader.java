@@ -169,7 +169,7 @@ public class ParquetFooterReader implements FooterReader {
       logger.error("Parquet contains more columns than the limit. Number of columns {}, Max columns permitted {}", fields.size(), maxLeafCols);
       throw new ColumnCountTooLargeException(maxLeafCols);
     }
-    return new BatchSchema(fields).handleUnions(true);
+    return new BatchSchema(fields).handleUnions();
   }
 
   private BatchSchema getBatchSchemaFromReader(final FileSystem fs, final String path, long fileSize, MutableParquetMetadata mutableParquetMetadata) throws IOException {

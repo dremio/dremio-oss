@@ -15,6 +15,7 @@
  */
 import { useState, useEffect } from 'react';
 import { connect } from 'react-redux';
+import { withRouter } from 'react-router';
 import { compose } from 'redux';
 import { injectIntl } from 'react-intl';
 import DocumentTitle from 'react-document-title';
@@ -24,10 +25,12 @@ import uuid from 'uuid';
 import { loadJobDetails, JOB_DETAILS_VIEW_ID } from 'actions/joblist/jobList';
 import { showJobProfile, cancelJobAndShowNotification } from 'actions/jobs/jobs';
 import { updateViewState } from 'actions/resources';
+import { downloadFile } from 'sagas/downloadFile';
 import { getViewState } from 'selectors/resources';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import jobsUtils from '@app/utils/jobsUtils';
+import SideNav from '@app/components/SideNav/SideNav';
 import socket from '@inject/utils/socket';
 
 import TopPanel from './components/TopPanel/TopPanel';
@@ -46,8 +49,10 @@ const JobDetailsPage = (props) => {
     intl: {
       formatMessage
     },
+    router,
+    location,
     jobId,
-    downloadFile,
+    downloadJobFile,
     viewState,
     getJobDetails,
     showJobIdProfile,
@@ -95,16 +100,24 @@ const JobDetailsPage = (props) => {
     }
   }, [isListeningForProgress]);
 
+  const breadcrumbRouting = () => {
+    const { state: { history } } = location;
+    router.push({
+      ...history
+    });
+  };
+
   const renderContent = (contentPage) => {
     switch (contentPage) {
     case 'Overview':
       return <OverView
         sql={jobDetails.get('queryText')}
         jobDetails={jobDetails}
-        downloadJobFile={downloadFile}
+        downloadJobFile={downloadJobFile}
         isContrast = {isContrast}
         onClick = {setIsContrast}
         status={jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')}
+        location={location}
       />;
     case 'SQL':
       return <SQL
@@ -122,32 +135,39 @@ const JobDetailsPage = (props) => {
   };
 
   return (
-    <ViewStateWrapper hideChildrenWhenFailed={false} viewState={viewState}>
-      {
-        jobDetails.get('id') &&  <div className='jobDetails'>
-          <DocumentTitle title={formatMessage({ id: 'Job.JobDetails' })} />
-          <div className='jobDetails__topPanel'>
-            <TopPanel
-              jobId={jobDetails.get('id')}
-              changePages={props.changePages}
-              setComponent={setCurrentTab}
-              jobStatus={ jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')}
-              jobDetails={jobDetails}
-              showJobProfile={showJobIdProfile}
-              cancelJob={cancelJob}
-            />
-          </div>
-          <div className='gutter-left--double full-height'>
-            {renderContent(currentTab)}
-          </div>
+    <div style={{height: '100%'}}>
+      <DocumentTitle title={formatMessage({ id: 'Job.Jobs' })} />
+      <div className={'jobsPageBody'}>
+        <SideNav />
+        <div className={'jobPageContentDiv'}>
+          <ViewStateWrapper hideChildrenWhenFailed={false} viewState={viewState}>
+            {
+              jobDetails.get('id') &&  <div className='jobDetails'>
+                <DocumentTitle title={formatMessage({ id: 'Job.JobDetails' })} />
+                <div className='jobDetails__topPanel'>
+                  <TopPanel
+                    jobId={jobDetails.get('id')}
+                    breadcrumbRouting={breadcrumbRouting}
+                    setComponent={setCurrentTab}
+                    jobStatus={ jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')}
+                    jobDetails={jobDetails}
+                    showJobProfile={showJobIdProfile}
+                    cancelJob={cancelJob}
+                  />
+                </div>
+                <div className='gutter-left--double full-height'>
+                  {renderContent(currentTab)}
+                </div>
+              </div>
+            }
+          </ViewStateWrapper>
         </div>
-      }
-    </ViewStateWrapper>
+      </div>
+    </div>
   );
 };
 
 JobDetailsPage.propTypes = {
-  changePages: PropTypes.func,
   intl: PropTypes.object.isRequired,
   downloadFile: PropTypes.func,
   viewState: PropTypes.instanceOf(Immutable.Map),
@@ -156,30 +176,44 @@ JobDetailsPage.propTypes = {
   showJobIdProfile: PropTypes.func,
   totalAttempts: PropTypes.number,
   getViewStateDetails: PropTypes.func,
+  downloadJobFile: PropTypes.func,
   cancelJob: PropTypes.func,
-  jobDetailsFromStore: PropTypes.object
+  jobDetailsFromStore: PropTypes.object,
+  router: PropTypes.object.isRequired,
+  location: PropTypes.object.isRequired
 };
 
 
 function mapStateToProps(state, ownProps) {
+  const {
+    routeParams: {
+      jobId
+    } = {}
+  } = ownProps;
+
   const jobsList = state.jobs.jobs.get('jobList').toArray();
   const currentJob = jobsList.find((job) => {
-    return job.get('id') === ownProps.jobId;
+    return job.get('id') === jobId;
   });
+  const totalAttempts = currentJob ? currentJob.get('totalAttempts') : undefined;
   return {
+    jobId,
+    totalAttempts,
     jobDetailsFromStore: currentJob,
     viewState: getViewState(state, JOB_DETAILS_VIEW_ID)
   };
 }
 
-const mapDispatchToProps = dispatch => ({
-  getJobDetails: (jobId, viewId, totalAttempts, skipStartAction) => dispatch(loadJobDetails(jobId, viewId, totalAttempts, skipStartAction)),
-  showJobIdProfile: (profileUrl) => dispatch(showJobProfile(profileUrl)),
-  getViewStateDetails:(viewId, errObj) => dispatch(updateViewState(viewId, errObj)),
-  cancelJob: (jobId) => dispatch(cancelJobAndShowNotification(jobId))
-});
+const mapDispatchToProps = {
+  getJobDetails: loadJobDetails,
+  showJobIdProfile: showJobProfile,
+  getViewStateDetails: updateViewState,
+  cancelJob: cancelJobAndShowNotification,
+  downloadJobFile: downloadFile
+};
 
 export default compose(
+  withRouter,
   connect(mapStateToProps, mapDispatchToProps),
   injectIntl
 )(JobDetailsPage);

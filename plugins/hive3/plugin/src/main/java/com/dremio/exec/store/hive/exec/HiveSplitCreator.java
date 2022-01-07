@@ -20,9 +20,6 @@ import static org.apache.hadoop.hive.ql.io.IOConstants.AVRO;
 import static org.apache.hadoop.hive.ql.io.IOConstants.ORC;
 import static org.apache.hadoop.hive.ql.io.IOConstants.PARQUET;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.google.protobuf.ByteString;
 import java.util.Collections;
 
 import org.apache.hadoop.fs.Path;
@@ -30,14 +27,17 @@ import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.hive.metadata.HiveMetadataUtils;
 import com.dremio.exec.store.hive.metadata.ParquetInputFormat;
 import com.dremio.hive.proto.HiveReaderProto;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**

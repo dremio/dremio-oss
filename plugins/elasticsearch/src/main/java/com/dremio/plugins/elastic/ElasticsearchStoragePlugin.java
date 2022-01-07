@@ -253,7 +253,8 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     DatasetConfig newConfig = DATASET_CONFIG_SERIALIZER.deserialize(DATASET_CONFIG_SERIALIZER.serialize(oldConfig));
 
     BatchSchema preMergedSchema = oldSchema.merge(newSchema);
-    SchemaMerger.MergeResult result = merger.merge(mapping, preMergedSchema);
+    final boolean forceDoublePrecision = config.isForceDoublePrecision();
+    SchemaMerger.MergeResult result = merger.merge(mapping, preMergedSchema, forceDoublePrecision);
 
     try {
       // update the annotations.

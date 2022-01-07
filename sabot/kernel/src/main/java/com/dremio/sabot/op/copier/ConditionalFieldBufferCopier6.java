@@ -26,6 +26,8 @@ import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.types.TypeProtos;
+import com.dremio.sabot.op.common.ht2.Copier;
 import com.dremio.sabot.op.common.ht2.Reallocators;
 import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
 import com.google.common.base.Preconditions;
@@ -48,26 +50,57 @@ public class ConditionalFieldBufferCopier6 {
 
   private ConditionalFieldBufferCopier6(){};
 
-  static class FourByteCopier extends FieldBufferCopier {
-    private static final int SIZE = 4;
-    private final FieldVector[] source;
-    private final FieldVector target;
-    private final FixedWidthVector targetAlt;
-    private final long[] srcAddrs;
+  static abstract class FixedWidthCopier extends FieldBufferCopier {
+    protected final FieldVector[] source;
+    protected final FieldVector target;
+    protected final FixedWidthVector targetAlt;
+    protected final long[] srcAddrs;
 
-    public FourByteCopier(FieldVector[] source, FieldVector target) {
+    public FixedWidthCopier(FieldVector[] source, FieldVector target) {
       this.source = source;
       this.target = target;
       this.targetAlt = (FixedWidthVector) target;
       this.srcAddrs = addresses(VALUE_BUFFER_ORDINAL, source);
     }
 
+    abstract void seekAndCopy(long offsetAddr, int count, int seekTo);
+
     @Override
     public void copy(long offsetAddr, int count) {
       targetAlt.allocateNew(count);
+      seekAndCopy(offsetAddr, count, 0);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      int curTargetIndex = cursor.getTargetIndex();
+      resizeIfNeeded(targetAlt, curTargetIndex + count);
+      seekAndCopy(offsetAddr, count, curTargetIndex);
+      cursor.setTargetIndex(curTargetIndex + count);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
+    }
+
+    public void allocate(int records){
+      targetAlt.allocateNew(records);
+    }
+  }
+
+  static class FourByteCopier extends FixedWidthCopier {
+    private static final int SIZE = 4;
+
+    public FourByteCopier(FieldVector[] source, FieldVector target) {
+      super(source, target);
+    }
+
+    @Override
+    void seekAndCopy(long offsetAddr, int count, int seekTo) {
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
-      long dstAddr = target.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         if(batchIndex != SKIP){
@@ -77,38 +110,20 @@ public class ConditionalFieldBufferCopier6 {
         }
       }
     }
-
-    @Override
-    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
-      throw new UnsupportedOperationException("set null not supported");
-    }
-
-    public void allocate(int records){
-      targetAlt.allocateNew(records);
-    }
   }
 
-  static class EightByteCopier extends FieldBufferCopier {
-
+  static class EightByteCopier extends FixedWidthCopier {
     private static final int SIZE = 8;
-    private final FieldVector[] source;
-    private final FieldVector target;
-    private final FixedWidthVector targetAlt;
-    private final long[] srcAddrs;
 
     public EightByteCopier(FieldVector[] source, FieldVector target) {
-      this.source = source;
-      this.target = target;
-      this.targetAlt = (FixedWidthVector) target;
-      this.srcAddrs = addresses(VALUE_BUFFER_ORDINAL, source);
+      super(source, target);
     }
 
     @Override
-    public void copy(long offsetAddr, int count) {
-      targetAlt.allocateNew(count);
+    void seekAndCopy(long offsetAddr, int count, int seekTo) {
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
-      long dstAddr = target.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         if(batchIndex != SKIP){
@@ -118,37 +133,21 @@ public class ConditionalFieldBufferCopier6 {
         }
       }
     }
-
-    @Override
-    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
-      throw new UnsupportedOperationException("set null not supported");
-    }
-
-    public void allocate(int records){
-      targetAlt.allocateNew(records);
-    }
   }
 
-  static class SixteenByteCopier extends FieldBufferCopier {
+  static class SixteenByteCopier extends FixedWidthCopier {
     private static final int SIZE = 16;
-    private final FieldVector[] source;
-    private final FieldVector target;
-    private final FixedWidthVector targetAlt;
-    private final long[] srcAddrs;
 
     public SixteenByteCopier(FieldVector[] source, FieldVector target) {
-      this.source = source;
-      this.target = target;
-      this.targetAlt = (FixedWidthVector) target;
-      this.srcAddrs = addresses(VALUE_BUFFER_ORDINAL, source);
+      super(source, target);
     }
 
     @Override
-    public void copy(long offsetAddr, int count) {
+    void seekAndCopy(long offsetAddr, int count, int seekTo) {
       targetAlt.allocateNew(count);
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
-      long dstAddr = target.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         if(batchIndex != SKIP){
@@ -159,19 +158,9 @@ public class ConditionalFieldBufferCopier6 {
         }
       }
     }
-
-    @Override
-    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
-      throw new UnsupportedOperationException("set null not supported");
-    }
-
-    public void allocate(int records){
-      targetAlt.allocateNew(records);
-    }
   }
 
   static class VariableCopier extends FieldBufferCopier {
-    private static final int AVG_VAR_WIDTH = 15;
     private final FieldVector[] source;
     private final FieldVector target;
     private final VariableWidthVector targetAlt;
@@ -188,47 +177,55 @@ public class ConditionalFieldBufferCopier6 {
       this.srcDataAddr = addresses(2, source);
     }
 
-    @Override
-    public void copy(long offsetAddr, int count) {
+    private void seekAndCopy(long srcAddr, int count, int seekTo) {
+      int targetIndex = seekTo;
+      int targetDataIndex = 0;
+      if (targetIndex != 0) {
+        long dstOffsetAddr = target.getOffsetBufferAddress() + targetIndex * 4;
+        targetDataIndex = PlatformDependent.getInt(dstOffsetAddr);
+      }
+
       final Reallocator realloc = this.realloc;
 
-      final long maxOffsetAddr = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
+      final long maxSrcAddr = srcAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcOffsetAddrs = this.srcOffsetAddrs;
       final long[] srcDataAddr = this.srcDataAddr;
 
-      targetAlt.allocateNew(AVG_VAR_WIDTH * count, count);
-      long dstOffsetAddr = target.getOffsetBufferAddress() + 4;
-      long initDataAddr = realloc.addr();
-      long curDataAddr = realloc.addr();
+      long dstOffsetAddr = target.getOffsetBufferAddress() + (targetIndex + 1) * 4;
+      long curDataAddr = realloc.addr() + targetDataIndex;
       long maxDataAddr = realloc.max();
-      int lastOffset = 0;
 
-      for(; offsetAddr < maxOffsetAddr; offsetAddr += BUILD_RECORD_LINK_SIZE, dstOffsetAddr += 4){
-        final int batchIndex = PlatformDependent.getInt(offsetAddr);
+      for(; srcAddr < maxSrcAddr; srcAddr += BUILD_RECORD_LINK_SIZE, dstOffsetAddr += 4){
+        final int batchIndex = PlatformDependent.getInt(srcAddr);
         if(batchIndex == SKIP){
-          PlatformDependent.putInt(dstOffsetAddr, lastOffset);
+          PlatformDependent.putInt(dstOffsetAddr, targetDataIndex);
         } else {
-          final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr + 4));
+          final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(srcAddr + 4));
 
           final long startAndEnd = PlatformDependent.getLong(srcOffsetAddrs[batchIndex] + batchOffset * 4);
           final int firstOffset = (int) startAndEnd;
           final int secondOffset = (int) (startAndEnd >> 32);
           final int len = secondOffset - firstOffset;
           if(curDataAddr + len > maxDataAddr){
-            initDataAddr = realloc.ensure(lastOffset + len);
-            curDataAddr = initDataAddr + lastOffset;
+            curDataAddr = realloc.ensure(targetDataIndex + len) + targetDataIndex;
             maxDataAddr = realloc.max();
           }
 
-          lastOffset += len;
-          PlatformDependent.putInt(dstOffsetAddr, lastOffset);
-          com.dremio.sabot.op.common.ht2.Copier.copy(srcDataAddr[batchIndex] + firstOffset, curDataAddr, len);
+          targetDataIndex += len;
+          PlatformDependent.putInt(dstOffsetAddr, targetDataIndex);
+          Copier.copy(srcDataAddr[batchIndex] + firstOffset, curDataAddr, len);
           curDataAddr += len;
         }
 
       }
 
-      realloc.setCount(count);
+      realloc.setCount(targetIndex + count);
+    }
+
+    @Override
+    public void copy(long srcAddr, int count) {
+      targetAlt.allocateNew(AVG_VAR_WIDTH * count, count);
+      seekAndCopy(srcAddr, count, 0);
     }
 
     @Override
@@ -236,8 +233,18 @@ public class ConditionalFieldBufferCopier6 {
       throw new UnsupportedOperationException("set null not supported");
     }
 
+    @Override
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      int targetIndex = cursor.getTargetIndex();
+      while (targetAlt.getValueCapacity() < targetIndex + count) {
+        targetAlt.reAlloc();
+      }
+      seekAndCopy(offsetAddr, count, targetIndex);
+      cursor.setTargetIndex(targetIndex + count);
+    }
+
     public void allocate(int records){
-      targetAlt.allocateNew(records * 15, records);
+      targetAlt.allocateNew(records * AVG_VAR_WIDTH, records);
     }
   }
 
@@ -259,11 +266,7 @@ public class ConditionalFieldBufferCopier6 {
       this.srcAddrs = addresses(bufferOrdinal, source);
     }
 
-    @Override
-    public void copy(long offsetAddr, int count) {
-      if(allocateAsFixed){
-        targetAlt.allocateNew(count);
-      }
+    private void seekAndCopy(long offsetAddr, int count, int seekTo) {
       final long[] srcAddr = this.srcAddrs;
       final long dstAddr;
       switch (bufferOrdinal) {
@@ -278,7 +281,7 @@ public class ConditionalFieldBufferCopier6 {
       }
 
       final long maxAddr = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
-      int targetIndex = 0;
+      int targetIndex = seekTo;
       for(; offsetAddr < maxAddr; offsetAddr += BUILD_RECORD_LINK_SIZE, targetIndex++){
         final int batchIndex = PlatformDependent.getInt(offsetAddr);
         if(batchIndex != SKIP){
@@ -289,6 +292,26 @@ public class ConditionalFieldBufferCopier6 {
           PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
         }
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count) {
+      if (allocateAsFixed){
+        targetAlt.allocateNew(count);
+      }
+      seekAndCopy(offsetAddr, count, 0);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      int curTargetIndex = cursor.getTargetIndex();
+      if (allocateAsFixed) {
+        while (targetAlt.getValueCapacity() < curTargetIndex + count) {
+          targetAlt.reAlloc();
+        }
+      }
+      seekAndCopy(offsetAddr, count, curTargetIndex);
+      cursor.setTargetIndex(curTargetIndex +  count);
     }
 
     @Override
@@ -315,19 +338,34 @@ public class ConditionalFieldBufferCopier6 {
       this.dst = dst;
     }
 
-    @Override
-    public void copy(long offsetAddr, int count) {
-      dst.allocateNew();
+    private void seekAndCopy(long offsetAddr, int count, int seekTo) {
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
-      int target = 0;
+      int target = seekTo;
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE) {
         final int batchIndex = PlatformDependent.getInt(addr);
         if(batchIndex != SKIP){
           final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
           transfer[batchIndex].copyValueSafe(batchOffset, target);
-          target++;
         }
+        target++;
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count) {
+      dst.allocateNew();
+      seekAndCopy(offsetAddr, count, 0);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      if (cursor.getTargetIndex() == 0) {
+        dst.allocateNew();
+      }
+
+      int curTargetIndex = cursor.getTargetIndex();
+      seekAndCopy(offsetAddr, count, curTargetIndex);
+      cursor.setTargetIndex(curTargetIndex +  count);
     }
 
     @Override
@@ -401,7 +439,6 @@ public class ConditionalFieldBufferCopier6 {
     return copiers.build();
   }
 
-
   public static long[] addresses(int offset, FieldVector... vectors){
     final long[] addresses = new long[vectors.length];
     int i;
@@ -430,5 +467,111 @@ public class ConditionalFieldBufferCopier6 {
     }
 
     return addresses;
+  }
+
+  /**
+   * Used in HashJoin for a partition which has an empty build side table (and hence, no matches). In this
+   * case, the copier should effectively set null values in the target, and update cursor.
+   */
+  static class NoOpEmptySourceCopier extends FieldBufferCopier {
+    FieldVector target;
+
+    NoOpEmptySourceCopier(FieldVector target) {
+      this.target = target;
+    }
+
+    @Override
+    public void allocate(int records) {
+      target.allocateNew();
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count) {
+      target.allocateNew();
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      if (cursor.getTargetIndex() == 0) {
+        target.allocateNew();
+      }
+      int targetSize = count + cursor.getTargetIndex();
+      cursor.setTargetIndex(targetSize);
+    }
+  }
+
+  /**
+   * Used in HashJoin for a partition which has an empty build side table (and hence, no matches). In this
+   * case, the copier should update the offsets buffer and the cursor.
+   */
+  static class VariableEmptySourceCopier extends FieldBufferCopier {
+    private final FieldVector target;
+    private final VariableWidthVector targetAlt;
+    private final Reallocator realloc;
+
+    VariableEmptySourceCopier(FieldVector target) {
+      this.target = target;
+      this.targetAlt = (VariableWidthVector) target;
+      this.realloc = Reallocators.getReallocator(target);
+    }
+
+    @Override
+    public void allocate(int records) {
+      targetAlt.allocateNew(records * AVG_VAR_WIDTH, records);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count) {
+      targetAlt.allocateNew(count * AVG_VAR_WIDTH, count);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      int targetIndex = cursor.getTargetIndex();
+      int targetDataIndex;
+
+      if (targetIndex == 0) {
+        allocate(count);
+        targetDataIndex = 0;
+      } else {
+        while (targetAlt.getValueCapacity() < targetIndex + count) {
+          targetAlt.reAlloc();
+        }
+        long dstOffsetAddr = target.getOffsetBufferAddress() + targetIndex * 4;
+        targetDataIndex = PlatformDependent.getInt(dstOffsetAddr);
+      }
+
+      long dstOffsetAddr = target.getOffsetBufferAddress() + (targetIndex + 1) * 4;
+      for (int index = 0; index < count; index++, dstOffsetAddr += 4){
+        PlatformDependent.putInt(dstOffsetAddr, targetDataIndex);
+      }
+
+      realloc.setCount(targetIndex + count);
+      cursor.setTargetIndex(targetIndex + count);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
+    }
+  }
+
+  public static ImmutableList<FieldBufferCopier> getEmptySourceFourByteCopiers(List<FieldVector> outputs){
+    ImmutableList.Builder<FieldBufferCopier> copiers = ImmutableList.builder();
+
+    for (final FieldVector target : outputs) {
+      TypeProtos.MinorType minorType = CompleteType.fromField(target.getField()).toMinorType();
+      if (minorType == TypeProtos.MinorType.VARCHAR || minorType == TypeProtos.MinorType.VARBINARY) {
+        copiers.add(new VariableEmptySourceCopier(target));
+      } else {
+        copiers.add(new NoOpEmptySourceCopier(target));
+      }
+    }
+    return copiers.build();
   }
 }

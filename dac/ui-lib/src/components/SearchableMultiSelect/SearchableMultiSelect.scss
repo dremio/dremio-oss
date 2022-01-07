@@ -16,7 +16,9 @@
 @import '../../styles/constants/index.scss';
 .SearchableMultiSelect {
   padding: 4px 0px;
-
+  &.--disabled{
+    pointer-events: none;
+  }
   &__value {
     @include input-size();
     height: unset !important;

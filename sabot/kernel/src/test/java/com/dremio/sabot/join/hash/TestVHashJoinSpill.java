@@ -23,7 +23,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.common.logical.data.JoinCondition;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.HashJoinPOP;
+import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.join.BaseTestJoin;
@@ -31,15 +33,18 @@ import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.spill.VectorizedSpillingHashJoinOperator;
 
 public class TestVHashJoinSpill extends BaseTestJoin {
+  private final OptionManager options = testContext.getOptions();
 
   @Before
   public void before() {
-    testContext.getOptions().setOption(OptionValue.createBoolean(OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
+    options.setOption(OptionValue.createBoolean(OptionType.SYSTEM, HashJoinOperator.ENABLE_SPILL.getOptionName(), true));
+    options.setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.TARGET_BATCH_RECORDS_MAX.getOptionName(), 65535));
   }
 
   @After
   public void after() {
-    testContext.getOptions().setOption(HashJoinOperator.ENABLE_SPILL.getDefault());
+    options.setOption(HashJoinOperator.ENABLE_SPILL.getDefault());
+    options.setOption(ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault());
   }
 
   @Override

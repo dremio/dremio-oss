@@ -22,8 +22,10 @@ describe('TopPanel', () => {
   beforeEach(() => {
     minimalProps = {
       changePages: sinon.spy(),
-      jobId: '',
+      jobId: '456',
       jobStatus:'',
+      router: {},
+      location: {},
       jobDetails: Immutable.fromJS({
         attemptDetails: [{
           profileUrl: ''
@@ -40,10 +42,10 @@ describe('TopPanel', () => {
   it('should render jobid', () => {
     const props = {
       ...minimalProps,
-      jobId: '456'
+      jobId: '293'
     };
     const wrapper = shallow(<TopPanel {...props} />);
     const element = wrapper.find('[data-qa="top-panel-jobId"]');
-    expect(element.text()).to.equal('456');
+    expect(element.text()).to.equal('293');
   });
 });

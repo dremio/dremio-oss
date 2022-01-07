@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.server;
 
+import java.net.URI;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,8 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.zookeeper.Environment;
+import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.client.http.HttpClientBuilder;
 
 import com.dremio.common.GuiceServiceModule;
 import com.dremio.common.StackTrace;
@@ -144,6 +147,7 @@ import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.maestroservice.MaestroClientFactory;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.nessie.NessieApiV1Unsupported;
 import com.dremio.service.nessie.NessieService;
 import com.dremio.service.nessieapi.ContentsApiGrpc;
 import com.dremio.service.nessieapi.TreeApiGrpc;
@@ -699,6 +703,7 @@ public class SabotNode implements AutoCloseable {
             Provider<OptionValidatorListing> optionValidatorListingProvider,
             Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
             Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
+            Provider<NessieApiV1> nessieClientProvider,
             Provider<StatisticsService> statisticsService,
             Provider<StatisticsAdministrationService.Factory> statisticsAdministrationServiceFactory,
             Provider<StatisticsListManager> statisticsListManagerProvider,
@@ -743,6 +748,7 @@ public class SabotNode implements AutoCloseable {
               () -> new SoftwareCoordinatorModeInfo(),
               nessieTreeApiBlockingStubProvider,
               nessieContentsApiBlockingStuProvider,
+              nessieClientProvider,
               statisticsService,
               statisticsAdministrationServiceFactory,
               statisticsListManagerProvider,
@@ -998,6 +1004,15 @@ public class SabotNode implements AutoCloseable {
     @Provides
     ContentsApiGrpc.ContentsApiBlockingStub getNessieContentsApiBlockingStub(ConduitProvider conduitProvider) {
       return ContentsApiGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster());
+    }
+
+    @Provides
+    NessieApiV1 getNessieClientInstance() {
+      String endpoint = config.getString(DremioConfig.NESSIE_SERVICE_REMOTE_URI);
+      if (endpoint == null || endpoint.isEmpty()) {
+        return new NessieApiV1Unsupported();
+      }
+      return HttpClientBuilder.builder().withUri(URI.create(endpoint)).build(NessieApiV1.class);
     }
 
     @Provides

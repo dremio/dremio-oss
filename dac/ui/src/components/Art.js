@@ -33,12 +33,13 @@ export default class Art extends PureComponent {
     title: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.bool // set to true to take the aria-label
-    ])
+    ]),
+    id: PropTypes.any
 
   }
 
   render() {
-    let {src, alt, title, ...props} = this.props;
+    let {src, alt, title, id, ...props} = this.props;
 
     const bitmapURL = allBitmaps[`./${src}`];
     if (title === true) {
@@ -46,7 +47,7 @@ export default class Art extends PureComponent {
     }
 
     if (!bitmapURL) {
-      return <SVG src={src} aria-label={alt} title={title} dataQa={src} {...props} />;
+      return <SVG src={src} aria-label={alt} title={title} dataQa={src} id={id} {...props} />;
     }
 
     return <img src={bitmapURL} alt={alt} title={title} {...props} />;

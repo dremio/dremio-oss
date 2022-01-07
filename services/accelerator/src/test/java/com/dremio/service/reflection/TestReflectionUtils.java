@@ -49,10 +49,14 @@ public class TestReflectionUtils {
     detail2.setSortFieldList(Arrays.asList(new ReflectionField("test")));
     Assert.assertTrue(ReflectionUtils.areReflectionDetailsEqual(detail1, detail2));
 
-    // order should not matter
+    // order matter for sortFieldList
+    detail1.setSortFieldList(Arrays.asList(new ReflectionField("test1"), new ReflectionField("test2")));
+    detail2.setSortFieldList(Arrays.asList(new ReflectionField("test1"), new ReflectionField("test2")));
+    Assert.assertTrue(ReflectionUtils.areReflectionDetailsEqual(detail1, detail2));
+
     detail1.setSortFieldList(Arrays.asList(new ReflectionField("test1"), new ReflectionField("test2")));
     detail2.setSortFieldList(Arrays.asList(new ReflectionField("test2"), new ReflectionField("test1")));
-    Assert.assertTrue(ReflectionUtils.areReflectionDetailsEqual(detail1, detail2));
+    Assert.assertFalse(ReflectionUtils.areReflectionDetailsEqual(detail1, detail2));
 
     detail1.setSortFieldList(Arrays.asList(new ReflectionField("test")));
     detail2.setSortFieldList(Collections.<ReflectionField>emptyList());

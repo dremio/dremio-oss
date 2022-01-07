@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
-import java.math.BigDecimal;
-
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.BaseVariableWidthVector;
@@ -25,7 +23,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.datasketches.hll.HllSketch;
 import org.apache.datasketches.hll.Union;
 
-import com.dremio.exec.util.DecimalUtils;
+import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
 
 import io.netty.util.internal.PlatformDependent;
@@ -119,7 +117,6 @@ public class NdvAccumulatorsNoSpill {
   }
 
   public static class FloatNdvAccumulatorNoSpill extends BaseNdvAccumulatorNoSpill {
-    private static final long INIT = 0x7f7fffff7f7fffffl;
     private static final int WIDTH = 4;
 
     public FloatNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
@@ -194,8 +191,6 @@ public class NdvAccumulatorsNoSpill {
   }
 
   public static class DoubleNdvAccumulatorNoSpill extends BaseNdvAccumulatorNoSpill {
-
-    private static final long INIT = Double.doubleToLongBits(Double.MAX_VALUE);
     private static final int WIDTH = 8;
 
     public DoubleNdvAccumulatorNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
@@ -257,7 +252,7 @@ public class NdvAccumulatorsNoSpill {
           continue;
         }
 
-        java.math.BigDecimal newVal = DecimalAccumulatorUtilsNoSpill.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
 
         //get the proper chunk from the ordinal
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
@@ -272,8 +267,6 @@ public class NdvAccumulatorsNoSpill {
   }
 
   public static class DecimalNdvAccumulatorNoSpillV2 extends BaseNdvAccumulatorNoSpill {
-
-    private static final BigDecimal INIT = DecimalUtils.MAX_DECIMAL;
     private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
     private static final int WIDTH_INPUT = 16;      // decimal inputs
 
@@ -314,7 +307,6 @@ public class NdvAccumulatorsNoSpill {
   }
 
   public static class BitNdvAccumulatorNoSpill extends BaseNdvAccumulatorNoSpill {
-    private static final long INIT = -1l;           // == 0xffffffffffffffff
     private static final int WIDTH_LONG = 8;        // operations done on long boundaries
     private static final int BITS_PER_LONG_SHIFT = 6;  // (1<<6) bits per long
     private static final int BITS_PER_LONG = (1<<BITS_PER_LONG_SHIFT);
@@ -362,9 +354,9 @@ public class NdvAccumulatorsNoSpill {
 
           final HllAccumHolder ah = this.accumulators[chunkIndex];
           final HllSketch sketch = ah.getAccumSketch(chunkOffset);
+          /* XXX: Ramesh: This doesn't look correct. How about inputVal? */
           sketch.update(inputBitVal);
         }
-
       }
     }
   }
@@ -407,7 +399,7 @@ public class NdvAccumulatorsNoSpill {
   }
 
 
-  public static class NdvUnionAccumulatorsNoSpill extends BaseNdvUnionAccumulatorNoSpill{
+  public static class NdvUnionAccumulatorsNoSpill extends BaseNdvUnionAccumulatorNoSpill {
 
     public NdvUnionAccumulatorsNoSpill(FieldVector input, FieldVector output, BufferManager bufferManager, boolean reduceNdvHeap) {
       super(input, output, bufferManager, reduceNdvHeap);

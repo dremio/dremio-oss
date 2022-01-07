@@ -26,6 +26,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.IntStream;
 
@@ -34,12 +35,18 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.util.TestTools;
 import com.google.common.io.Resources;
 
 public class TestDeltaScan extends BaseTestQuery {
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(80, TimeUnit.SECONDS);
 
   FileSystem fs;
   static String testRootPath = "/tmp/deltalake/";

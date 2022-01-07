@@ -27,7 +27,7 @@ import org.apache.calcite.schema.Statistics;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
-import com.dremio.exec.planner.sql.ExtendedToRelContext;
+import com.dremio.exec.planner.sql.DremioToRelContext;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
@@ -114,7 +114,7 @@ public class ViewTable implements DremioTable {
 
   @Override
   public RelNode toRel(ToRelContext context, RelOptTable relOptTable) {
-    return ((ExtendedToRelContext) context).expandView(this).rel;
+    return ((DremioToRelContext.DremioQueryToRelContext) context).expandView(this).rel;
   }
 
   @Override

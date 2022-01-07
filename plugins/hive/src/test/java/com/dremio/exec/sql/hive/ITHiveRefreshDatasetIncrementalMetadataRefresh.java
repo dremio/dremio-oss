@@ -70,11 +70,11 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
   private static final String REFRESH_NOT_DONE = "Table '%s' read signature reviewed but source stated metadata is unchanged, no refresh occurred.";
 
   private static FileSystem fs;
-  private static String finalIcebergMetadataLocation;
+  protected static String finalIcebergMetadataLocation;
   private static AutoCloseable enableUnlimitedSplitsSupportFlags;
 
   @Rule
-  public final TestRule TIMEOUT = TestTools.getTimeoutRule(180, TimeUnit.SECONDS);
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(250, TimeUnit.SECONDS);
 
   @BeforeClass
   public static void generateHiveWithoutData() throws Exception {
@@ -163,7 +163,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(1, "a")
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);
@@ -209,7 +209,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(1, "Feb", 2020)
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);
@@ -277,7 +277,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(1, "Feb", 2020)
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);
@@ -317,7 +317,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(2, "Jan", 2021)
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);
@@ -403,7 +403,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(1, "a", null)
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);
@@ -445,7 +445,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(1, "a", null, 2020)
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);
@@ -520,7 +520,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(1, "Jan", 2020)
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);
@@ -788,7 +788,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         .baselineValues(1, "a b cdef", "o pqr k")
         .go();
 
-      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery);
+      verifyIcebergExecution(EXPLAIN_PLAN + selectQuery, finalIcebergMetadataLocation);
     }
     finally {
       forgetMetadata(tableName);

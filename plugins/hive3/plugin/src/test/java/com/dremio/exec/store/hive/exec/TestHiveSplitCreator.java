@@ -23,11 +23,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.options.OptionManager;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorContextImpl;
 import java.io.IOException;
 
 import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
@@ -35,11 +30,15 @@ import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.junit.Test;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.metadata.ParquetInputFormat;
 import com.dremio.hive.proto.HiveReaderProto;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;

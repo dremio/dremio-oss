@@ -15,8 +15,14 @@
  */
 package com.dremio.exec.expr;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.gandiva.exceptions.GandivaException;
@@ -24,16 +30,22 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CaseExpression;
+import com.dremio.common.expression.CastExpression;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
+import com.dremio.common.expression.InExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.expression.SupportedEngines.Engine;
 import com.dremio.common.expression.TypedNullConstant;
+import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
@@ -76,6 +88,7 @@ public class ExpressionSplitter implements AutoCloseable {
   // Prefix for the names of the intermediate nodes that are now tree-roots
   final String outputFieldPrefix;
   private final long maxSplitsPerExpression;
+
   int outputFieldCounter = 0;
 
   int numExprsInGandiva = 0;
@@ -108,6 +121,8 @@ public class ExpressionSplitter implements AutoCloseable {
   // When there are many splits, the preferred engine must do at least this much work per split
   final double avgWorkThresholdForSplit;
 
+  private final ExpressionSplitCache expressionSplitCache;
+
   public ExpressionSplitter(OperatorContext context, VectorAccessible incoming,
                             ExpressionEvaluationOptions options, boolean isDecimalV2Enabled) {
     this(context, incoming, options, new GandivaPushdownSieve(isDecimalV2Enabled, options),
@@ -130,6 +145,7 @@ public class ExpressionSplitter implements AutoCloseable {
     this.splitExpressions = Lists.newArrayList();
     this.currentExprSplits = Lists.newArrayList();
     this.incoming = incoming;
+    this.expressionSplitCache = context.getExpressionSplitCache();
 
     if (vectorContainer == null) {
       // Add all ValueVectors from incoming to vector
@@ -182,6 +198,41 @@ public class ExpressionSplitter implements AutoCloseable {
 
   public int getNumSplitsInBoth() {
     return splitExpressions.size() - (numExprsInGandiva + numExprsInJava);
+  }
+
+  public ExpressionSplitCache.ExpressionSplitsHolder splitExpressionAndReturnTheSplits(NamedExpression namedExpression, LogicalExpression originalExpr) throws Exception {
+    ExpressionSplit finalSplit = splitExpression(new NamedExpression(namedExpression.getExpr(), namedExpression
+      .getRef()));
+
+    List<ExpressionSplit> splitsForExpression = currentExprSplits;
+    if (currentExprSplits.size() > maxSplitsPerExpression && checkExcessiveSplits) {
+      if (!isPreferredCodeGenDoingEnoughWork(currentExprSplits)) {
+        logger.debug("Flipping preferred execution engine for {}", namedExpression.getExpr());
+        // preferred code gen is not doing enough work
+        final Tuple<LogicalExpression, LogicalExpression> codeGenContextExpAndMaterializedExpTuple = context.getClassProducer()
+          .materializeAndAllowComplex(options.flipPreferredCodeGen(), originalExpr, incoming);
+        final LogicalExpression exprWithChangedCodeGen = codeGenContextExpAndMaterializedExpTuple.first;
+        ExpressionSplit flippedSplit = flipCodeGenSplitter.splitExpression(new NamedExpression
+          (exprWithChangedCodeGen, namedExpression.getRef()));
+        if (isFlippedCodeGenBetter(flipCodeGenSplitter.currentExprSplits, currentExprSplits)) {
+          splitsForExpression = flipCodeGenSplitter.currentExprSplits;
+          finalSplit = flippedSplit;
+        }
+      }
+    }
+    ExpressionSplitCache.ExpressionSplitsHolder expressionSplitsHolder = new ExpressionSplitCache.ExpressionSplitsHolder(new CachableExpressionSplit(finalSplit), getCachableExpSplitsFromExpSplits(splitsForExpression));
+    flipCodeGenSplitter.currentExprSplits.clear();
+    this.currentExprSplits.clear();
+    return expressionSplitsHolder;
+  }
+
+  private List<CachableExpressionSplit> getCachableExpSplitsFromExpSplits(List<ExpressionSplit> expressionSplits) {
+    List<CachableExpressionSplit> cachableExpressionSplits = new ArrayList<>();
+    for(ExpressionSplit expressionSplit: expressionSplits) {
+      CachableExpressionSplit cachableExpressionSplit = new CachableExpressionSplit(expressionSplit);
+      cachableExpressionSplits.add(cachableExpressionSplit);
+    }
+    return Collections.unmodifiableList(cachableExpressionSplits);
   }
 
   // Splits the given expression
@@ -311,8 +362,8 @@ public class ExpressionSplitter implements AutoCloseable {
   }
 
   // Add one expression to be split
-  public ValueVector addExpr(VectorContainer outgoing, NamedExpression namedExpression) throws Exception {
-    ExpressionSplit split = addToSplitter(incoming, namedExpression);
+  public ValueVector addExpr(VectorContainer outgoing, NamedExpression namedExpression, LogicalExpression originalExp) throws Exception {
+    ExpressionSplit split = addToSplitter(incoming, namedExpression, originalExp);
     LogicalExpression expr = split.getNamedExpression().getExpr();
     Field outputField = expr.getCompleteType().toField(namedExpression.getRef());
     return outgoing.addOrGet(outputField);
@@ -347,8 +398,34 @@ public class ExpressionSplitter implements AutoCloseable {
     return flippedSplits.size() < preferredSplits.size();
   }
 
-  private ExpressionSplit addToSplitter(VectorAccessible incoming, NamedExpression namedExpression) throws Exception {
+  private ExpressionSplit addToSplitter(VectorAccessible incoming, NamedExpression namedExpression, LogicalExpression originalExp) throws Exception {
     logger.debug("Splitting expression {}", namedExpression.getExpr());
+    if (!context.getOptions().getOption(ExecConstants.SPLIT_CACHING_ENABLED)) {
+      expressionSplitCache.invalidateCache();
+      return addToSplitterWhenCacheIsDisabled(incoming, namedExpression, originalExp);
+    }
+    ExpressionSplitCache.ExpressionSplitsHolder expressionSplitsHolder = expressionSplitCache.
+      getSplitsFromCache(new ExpAndCodeGenEngineHolder(namedExpression, options.getCodeGenOption(), this, originalExp));
+
+    List<CachableExpressionSplit> splitsFromTheCache = new ArrayList<>();
+    splitsFromTheCache.addAll(expressionSplitsHolder.getExpressionSplits());
+    currentExprSplits.clear();
+    Map<String, ExpressionSplit> nameToExpSplit = new HashMap<>();
+    Map<TypedFieldId, ValueVectorReadExpression> previousFieldToNewValueVectorReadExp = new HashMap<>();
+    currentExprSplits.addAll(createExpressionSplitsFromCachedExpSplits(splitsFromTheCache, nameToExpSplit, previousFieldToNewValueVectorReadExp, namedExpression));
+    populateTransfersIn(currentExprSplits, nameToExpSplit);
+    setCorrectNameForDependencies(currentExprSplits, nameToExpSplit);
+    ExpressionSplit split = nameToExpSplit.get(expressionSplitsHolder.getFinalExpressionSplit().getOutputName());
+
+    setCorrectTypedFieldInNamedExps(currentExprSplits, new TypedFieldIdCorrectionVisitor(previousFieldToNewValueVectorReadExp));
+    printDebugInfoForSplits(namedExpression.getExpr(), split, currentExprSplits);
+    splitExpressions.addAll(currentExprSplits);
+    this.currentExprSplits.clear();
+    flipCodeGenSplitter.currentExprSplits.clear();
+    return split;
+  }
+
+  private ExpressionSplit addToSplitterWhenCacheIsDisabled(VectorAccessible incoming, NamedExpression namedExpression, LogicalExpression originalExpr) throws Exception {
     ExpressionSplit split = splitExpression(new NamedExpression(namedExpression.getExpr(), namedExpression
       .getRef()));
     List<ExpressionSplit> splitsForExpression = currentExprSplits;
@@ -356,10 +433,9 @@ public class ExpressionSplitter implements AutoCloseable {
       if (!isPreferredCodeGenDoingEnoughWork(currentExprSplits)) {
         logger.debug("Flipping preferred execution engine for {}", namedExpression.getExpr());
         // preferred code gen is not doing enough work
-        LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext
-          (namedExpression.getExpr());
-        final LogicalExpression exprWithChangedCodeGen = context.getClassProducer()
+        final Tuple<LogicalExpression, LogicalExpression> codeGenContextExpAndMaterializedExpTuple = context.getClassProducer()
           .materializeAndAllowComplex(options.flipPreferredCodeGen(), originalExpr, incoming);
+        final LogicalExpression exprWithChangedCodeGen = codeGenContextExpAndMaterializedExpTuple.first;
         ExpressionSplit flippedSplit = flipCodeGenSplitter.splitExpression(new NamedExpression
           (exprWithChangedCodeGen, namedExpression.getRef()));
         if (isFlippedCodeGenBetter(flipCodeGenSplitter.currentExprSplits, currentExprSplits)) {
@@ -373,6 +449,73 @@ public class ExpressionSplitter implements AutoCloseable {
     flipCodeGenSplitter.currentExprSplits.clear();
     this.currentExprSplits.clear();
     return split;
+  }
+
+  private void setCorrectTypedFieldInNamedExps(List<ExpressionSplit> expressionSplits, TypedFieldIdCorrectionVisitor typedFieldIdVisitor) {
+    for (ExpressionSplit expressionSplit : expressionSplits) {
+      NamedExpression exp = new NamedExpression(expressionSplit.getNamedExpression().getExpr().accept(typedFieldIdVisitor, null), expressionSplit.getNamedExpression().getRef());
+      expressionSplit.setNamedExpression(exp);
+    }
+  }
+
+  private List<ExpressionSplit> createExpressionSplitsFromCachedExpSplits(List<CachableExpressionSplit> cachableExpressionSplits, Map<String, ExpressionSplit> nameToSplits, Map<TypedFieldId, ValueVectorReadExpression> previousToNewTypeFieldIdMap, NamedExpression namedExpression) {
+    List<ExpressionSplit> expressionSplits = new ArrayList<>();
+    ExpressionSplit expressionSplit;
+    for (CachableExpressionSplit cachableExpressionSplit : cachableExpressionSplits) {
+      if (cachableExpressionSplit.isOriginalExpression()) {
+        expressionSplit = new ExpressionSplit(cachableExpressionSplit, null, cachableExpressionSplit.getCachedSplitNamedExpression(), null, null);
+        NamedExpression newExpr = new NamedExpression(cachableExpressionSplit.getCachedSplitNamedExpression().getExpr(), namedExpression.getRef());
+        expressionSplit.setNamedExpression(newExpr);
+        expressionSplits.add(expressionSplit);
+        nameToSplits.put(cachableExpressionSplit.getOutputName(), expressionSplit);
+        continue;
+      }
+      String exprName = getOutputNameForCachedSplits();
+      SchemaPath path = SchemaPath.getSimplePath(exprName);
+      FieldReference ref = new FieldReference(path);
+      Field outputField = cachableExpressionSplit.getCachedSplitNamedExpression().getExpr().getCompleteType().toField(ref);
+      NamedExpression newExpr = new NamedExpression(cachableExpressionSplit.getCachedSplitNamedExpression().getExpr(), ref);
+      vectorContainer.addOrGet(outputField);
+      TypedFieldId correctFieldId = vectorContainer.getValueVectorId(ref);
+      ValueVectorReadExpression read = new ValueVectorReadExpression(correctFieldId);
+      CodeGenContext readContext = new CodeGenContext(read);
+      readContext.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+      readContext.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+      final ValueVector vvIn = vectorContainer.getValueAccessorById(correctFieldId.getIntermediateClass(), correctFieldId.getFieldIds()).getValueVector();
+      expressionSplit = new ExpressionSplit(cachableExpressionSplit, vvIn, newExpr, correctFieldId, readContext);
+      expressionSplits.add(expressionSplit);
+      if (nameToSplits != null) {
+        nameToSplits.put(cachableExpressionSplit.getOutputName(), expressionSplit);
+      }
+      TypedFieldId previousFieldId = cachableExpressionSplit.getTypedFieldIdCachedVersion();
+      if (!correctFieldId.equals(previousFieldId)) {
+        previousToNewTypeFieldIdMap.put(previousFieldId, read);
+      }
+    }
+    vectorContainer.buildSchema(BatchSchema.SelectionVectorMode.NONE);
+    return expressionSplits;
+  }
+
+
+  private void setCorrectNameForDependencies(List<ExpressionSplit> expressionSplits, Map<String, ExpressionSplit> oldNameToExpSplit) {
+    for (ExpressionSplit split : expressionSplits) {
+      Set<String> dependencies = new HashSet<>();
+      for (String dependency : split.getDependsOnSplitsInCachedVersion()) {
+        dependencies.add(oldNameToExpSplit.get(dependency).getOutputName());
+      }
+      split.setDependsOnSplits(dependencies);
+    }
+  }
+
+  private void populateTransfersIn(List<ExpressionSplit> expressionSplits, Map<String, ExpressionSplit> nameToSplit) {
+    for (ExpressionSplit split : expressionSplits) {
+      List<ExpressionSplit> transfersIn = new ArrayList<>();
+      for (String dependsOnSplitName : split.getDependsOnSplitsInCachedVersion()) {
+        ExpressionSplit dependsOnSplit = nameToSplit.get(dependsOnSplitName);
+        transfersIn.add(dependsOnSplit);
+      }
+      split.setTransfersIn(transfersIn);
+    }
   }
 
   private void verifySplitsInGandiva() throws Exception {
@@ -403,8 +546,8 @@ public class ExpressionSplitter implements AutoCloseable {
   // create and setup the pipeline for filter operation
   public void setupFilter(VectorContainer outgoing, NamedExpression namedExpression,
                           Stopwatch javaCodeGenWatch,
-                          Stopwatch gandivaCodeGenWatch) throws Exception {
-    addToSplitter(incoming, namedExpression);
+                          Stopwatch gandivaCodeGenWatch, LogicalExpression originalExp) throws Exception {
+    addToSplitter(incoming, namedExpression, originalExp);
     verifySplitsInGandiva();
     createPipeline();
     filterSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
@@ -446,9 +589,17 @@ public class ExpressionSplitter implements AutoCloseable {
     }
   }
 
+
   @Override
   public void close() throws Exception {
     AutoCloseables.close(execPipeline, splitExpressions);
+  }
+
+  private String getOutputNameForCachedSplits() {
+    String tempStr;
+    tempStr = this.outputFieldPrefix + this.outputFieldCounter;
+    this.outputFieldCounter++;
+    return tempStr;
   }
 
   // Generate unique name for the split
@@ -659,4 +810,102 @@ public class ExpressionSplitter implements AutoCloseable {
         .build())
       .collect(Collectors.toList());
   }
+
+  public void setOutputFieldCounter(int outputFieldCounter) {
+    this.outputFieldCounter = outputFieldCounter;
+  }
+
+  public int getOutputFieldCounter() {
+    return outputFieldCounter;
+  }
+
+  class TypedFieldIdCorrectionVisitor extends AbstractExprVisitor<LogicalExpression, Void, RuntimeException> {
+
+    private final Map<TypedFieldId, ValueVectorReadExpression> previousFieldIdToNewValueVectorReadExpMap;
+
+    TypedFieldIdCorrectionVisitor(Map<TypedFieldId, ValueVectorReadExpression> previousFieldIdToNewValueVectorReadExpMap) {
+      this.previousFieldIdToNewValueVectorReadExpMap = previousFieldIdToNewValueVectorReadExpMap;
+    }
+
+    @Override
+    public LogicalExpression visitInExpression(InExpression inExpression, Void value) throws RuntimeException {
+      List<LogicalExpression> newConstants = new ArrayList<>();
+      for (LogicalExpression constant : inExpression.getConstants()) {
+        newConstants.add(constant.accept(this, value));
+      }
+      LogicalExpression eval = inExpression.getEval().accept(this, value);
+      return new InExpression(eval, newConstants);
+    }
+
+    @Override
+    public LogicalExpression visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
+      List<LogicalExpression> newArgs = Lists.newArrayList();
+      for (LogicalExpression arg : holder.args) {
+        newArgs.add(arg.accept(this, value));
+      }
+      return holder.copy(newArgs);
+    }
+
+    @Override
+    public LogicalExpression visitIfExpression(IfExpression ifExpression, Void value) throws RuntimeException {
+      IfExpression.IfCondition condition = ifExpression.ifCondition;
+      LogicalExpression conditionExpression = condition.condition.accept(this, value);
+      LogicalExpression thenExpression = condition.expression.accept(this, value);
+      LogicalExpression elseExpression = ifExpression.elseExpression.accept(this, value);
+      IfExpression.IfCondition newCondition = new IfExpression.IfCondition(conditionExpression,
+        thenExpression);
+      return IfExpression.newBuilder().setIfCondition(newCondition).setElse(elseExpression).build();
+    }
+
+    @Override
+    public LogicalExpression visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
+      List<CaseExpression.CaseConditionNode> caseConditions = new ArrayList<>();
+      for (CaseExpression.CaseConditionNode conditionNode : caseExpression.caseConditions) {
+        caseConditions.add(new CaseExpression.CaseConditionNode(
+          conditionNode.whenExpr.accept(this, value),
+          conditionNode.thenExpr.accept(this, value)));
+      }
+      LogicalExpression elseExpr = caseExpression.elseExpr.accept(this, value);
+      return CaseExpression.newBuilder().setCaseConditions(caseConditions).setElseExpr(elseExpr).build();
+    }
+
+    @Override
+    public LogicalExpression visitBooleanOperator(BooleanOperator operator, Void value) throws RuntimeException {
+      List<LogicalExpression> newArgs = Lists.newArrayList();
+      for (LogicalExpression arg : operator.args) {
+        newArgs.add(arg.accept(this, value));
+      }
+      LogicalExpression result = new BooleanOperator(operator.getName(), newArgs);
+      return result;
+    }
+
+
+    @Override
+    public LogicalExpression visitUnknown(LogicalExpression e, Void value) throws RuntimeException {
+      if (e instanceof ValueVectorReadExpression) {
+        return visitValueVectorReadExp((ValueVectorReadExpression) e, value);
+      }
+      return e;
+    }
+
+    public LogicalExpression visitValueVectorReadExp(ValueVectorReadExpression exp, Void value) {
+      if (previousFieldIdToNewValueVectorReadExpMap.containsKey(exp.getFieldId())) {
+        return previousFieldIdToNewValueVectorReadExpMap.get(exp.getFieldId());
+      }
+      return exp;
+    }
+
+    @Override
+    public LogicalExpression visitCastExpression(CastExpression e, Void value) throws RuntimeException {
+      LogicalExpression inputExp = e.getInput().accept(this, value);
+      return new CastExpression(inputExp, e.retrieveMajorType());
+    }
+
+    @Override
+    public LogicalExpression visitConvertExpression(ConvertExpression e, Void value) throws RuntimeException {
+      LogicalExpression inputExp = e.getInput().accept(this, value);
+      return new ConvertExpression(e.getConvertFunction(), e.getEncodingType(), inputExp);
+    }
+  }
+
 }

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '~@app/components/colors.less';
+@import '~@app/uiTheme/less/color-schema.less';
 
 :global {
   .userNavigation {
     &__container {
-      background-color: @aqua-spring;
+      background-color: @PRIMARY_100;
       min-width: 272px;
     }
 
@@ -28,11 +28,12 @@
 
     &__title {
       display: flex;
+      flex-direction: row;
       align-items: center;
       padding: 0 16px;
-      background-color: @polar;
+      background-color: @PRIMARY_200;
       height: 54px;
-      margin-bottom: 10px;
+      margin-bottom: 20px;
       font-weight: 500;
       font-size: 18px;
     }
@@ -40,20 +41,20 @@
     &__item, &__header, &__headerLink, &__navigation {
       display: flex;
       align-items: center;
-      padding: 10px 8px;
+      padding: 7px 8px;
       margin: 2px 16px 0 54px;
       border-radius: 4px;
       text-decoration: none;
-      color: @black;
+      color: @BLACK;
       font-weight: 300;
 
       &:hover {
-        background-color: @iceberg;
+        background-color: @PRIMARY_300;
       }
 
       &.--selected {
-        background-color: @elm !important; // Important is needed here to ignore the :hover's background
-        color: @white;
+        background-color: @PRIMARY_900 !important; // Important is needed here to ignore the :hover's background
+        color: @WHITE;
       }
     }
 
@@ -68,14 +69,14 @@
     &__headerLink {
       margin: 2px 16px 0 16px;
       &:hover {
-        background-color: @iceberg;
+        background-color: @PRIMARY_300;
       }
     }
 
     &__navigation {
       margin: 0 16px;
       span {
-        color: @blue;
+        color: @PRIMARY_800;
       }
 
       &:hover {
@@ -84,9 +85,22 @@
     }
 
     &__icon {
+      margin: 0 8px 0 0;
+      height: 24px;
+      width: 24px;
+      &.--unselected {
+        filter: invert(48%) sepia(8%) saturate(774%) hue-rotate(174deg) brightness(94%) contrast(80%);
+      }
+    }
+
+    
+    &__title-icon {
       margin: 0 8px;
       height: 24px;
       width: 24px;
     }
+  }
+  #selected {
+    filter: invert(91%) sepia(10%) saturate(944%) hue-rotate(146deg) brightness(97%) contrast(85%);
   }
 }

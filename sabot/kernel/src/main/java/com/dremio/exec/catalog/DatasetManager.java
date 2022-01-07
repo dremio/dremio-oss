@@ -18,13 +18,15 @@ package com.dremio.exec.catalog;
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 
 import java.security.AccessControlException;
-import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
@@ -63,13 +65,10 @@ import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.EntityId;
-import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -83,7 +82,7 @@ import com.google.common.collect.Iterables;
  */
 class DatasetManager {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DatasetManager.class);
+  private static final Logger logger = LoggerFactory.getLogger(DatasetManager.class);
 
   private final PluginRetriever plugins;
   private final NamespaceService userNamespaceService;
@@ -143,47 +142,36 @@ class DatasetManager {
      */
     final LegacyFindByCondition condition = new LegacyFindByCondition();
     condition.setCondition(SearchQueryUtils.newTermQuery(NamespaceIndexKeys.UNQUOTED_LC_PATH, key.toUnescapedString().toLowerCase()));
-    List<DatasetConfig> possibleMatches = FluentIterable.from(userNamespaceService.find(condition)).filter(new Predicate<Entry<NamespaceKey, NameSpaceContainer>>() {
-      @Override
-      public boolean apply(Entry<NamespaceKey, NameSpaceContainer> entry) {
-        return entry.getKey().getLeaf().equalsIgnoreCase(key.getLeaf());
-      }}).transform(new Function<Entry<NamespaceKey, NameSpaceContainer>, DatasetConfig>(){
-        @Override
-        public DatasetConfig apply(Entry<NamespaceKey, NameSpaceContainer> input) {
-          return input.getValue().getDataset();
-        }}).toSortedList(new Comparator<DatasetConfig>(){
-          @Override
-          public int compare(DatasetConfig o1, DatasetConfig o2) {
-            List<String> p1 = o1.getFullPathList();
-            List<String> p2 = o2.getFullPathList();
+    // do a case insensitive order first.
+    // do a case sensitive order second.
+    return StreamSupport.stream(userNamespaceService.find(condition).spliterator(), false)
+      .filter(entry -> entry.getKey().getLeaf().equalsIgnoreCase(key.getLeaf()))
+      .map(input -> input.getValue().getDataset())
+      .min((o1, o2) -> {
+        List<String> p1 = o1.getFullPathList();
+        List<String> p2 = o2.getFullPathList();
 
-            final int size = Math.max(p1.size(), p2.size());
+        final int size = Math.max(p1.size(), p2.size());
 
-            for(int i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++) {
 
-              // do a case insensitive order first.
-              int cmp = p1.get(i).toLowerCase().compareTo(p2.get(i).toLowerCase());
-              if(cmp != 0) {
-                return cmp;
-              }
+          // do a case insensitive order first.
+          int cmp = p1.get(i).toLowerCase().compareTo(p2.get(i).toLowerCase());
+          if (cmp != 0) {
+            return cmp;
+          }
 
-              // do a case sensitive order second.
-              cmp = p1.get(i).compareTo(p2.get(i));
-              if(cmp != 0) {
-                return cmp;
-              }
+          // do a case sensitive order second.
+          cmp = p1.get(i).compareTo(p2.get(i));
+          if (cmp != 0) {
+            return cmp;
+          }
 
-            }
+        }
 
-            Preconditions.checkArgument(p1.size() == p2.size(), "Two keys were indexed the same but had different lengths. %s, %s", p1, p2);
-            return 0;
-          }});
-
-    if(possibleMatches.isEmpty()) {
-      return null;
-    }
-
-    return possibleMatches.get(0);
+        Preconditions.checkArgument(p1.size() == p2.size(), "Two keys were indexed the same but had different lengths. %s, %s", p1, p2);
+        return 0;
+      }).orElse(null);
   }
 
   private DatasetConfig getConfig(final String datasetId) {
@@ -196,12 +184,26 @@ class DatasetManager {
       boolean ignoreColumnCount
       ){
 
-    final ManagedStoragePlugin plugin;
-
     final DatasetConfig config = getConfig(key);
     if(config != null) {
       // canonicalize the path.
       key = new NamespaceKey(config.getFullPathList());
+    }
+    final ManagedStoragePlugin plugin;
+    if (CatalogUtil.isVersionedDDPEntity(key)) {
+      String pluginKey = getPluginNameFromDDPPrefixedKey(key);
+      plugin = plugins.getPlugin(pluginKey, false);
+      VersionedDatasetAdapter versionedDatasetAdapter = null;
+
+      versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
+        .setVersionedTableKey(key.toString())
+        .setVersionContext(options.getVersionContext())
+        .setStoragePlugin(plugin)
+        .setOptionManager(optionManager)
+        .build();
+
+      final String accessUserName = options.getSchemaConfig().getUserName();
+      return versionedDatasetAdapter.getTable(accessUserName);
     }
 
     plugin = plugins.getPlugin(key.getRoot(), false);
@@ -225,6 +227,12 @@ class DatasetManager {
     }
 
     return createTableFromVirtualDataset(config, options);
+  }
+
+  private String getPluginNameFromDDPPrefixedKey(NamespaceKey key) {
+    String[] arrOfKeyComponents = key.toString().split("\\.", 3);
+    Preconditions.checkState(arrOfKeyComponents.length > 1);
+    return arrOfKeyComponents[1];
   }
 
   public DremioTable getTable(

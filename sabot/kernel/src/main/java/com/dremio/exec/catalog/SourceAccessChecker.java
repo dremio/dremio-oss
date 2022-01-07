@@ -431,4 +431,10 @@ class SourceAccessChecker implements Catalog {
   public Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table) {
     return delegate.getColumnExtendedProperties(table);
   }
+
+  @Override
+  public Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite) {
+    Catalog newDelegate = delegate.visit(catalogRewrite);
+    return catalogRewrite.apply(new SourceAccessChecker(options, newDelegate));
+  }
 }

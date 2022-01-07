@@ -63,24 +63,66 @@ public class TestPageListMultimap extends ExecTest {
 
     list.moveToRead();
 
-    List<CarryAlongId> pos0 = pos(0);
+    List<CarryAlongId> pos0 = find(0);
     assertEquals(3, pos0.size());
     assertEquals(new CarryAlongId(1,1), pos0.get(2));
     assertEquals(new CarryAlongId(1,3), pos0.get(1));
     assertEquals(new CarryAlongId(1,5), pos0.get(0));
 
-    List<CarryAlongId> pos1 = pos(1);
+    List<CarryAlongId> pos1 = find(1);
     assertEquals(2, pos1.size());
     assertEquals(new CarryAlongId(1,2), pos1.get(1));
     assertEquals(new CarryAlongId(1,4), pos1.get(0));
 
     // the full list should be returned in insert order.
-    List<KeyAndCarryAlongId> fullList = list.getKeyAndCarryAlongIdStream().collect(Collectors.toList());
-    assertEquals(new KeyAndCarryAlongId(0, new CarryAlongId(1, 1)), fullList.get(0));
-    assertEquals(new KeyAndCarryAlongId(1, new CarryAlongId(1, 2)), fullList.get(1));
-    assertEquals(new KeyAndCarryAlongId(0, new CarryAlongId(1, 3)), fullList.get(2));
-    assertEquals(new KeyAndCarryAlongId(1, new CarryAlongId(1, 4)), fullList.get(3));
-    assertEquals(new KeyAndCarryAlongId(0, new CarryAlongId(1, 5)), fullList.get(4));
+    List<KeyAndCarryAlongId> fullList = list.findAll().collect(Collectors.toList());
+    assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 1)), fullList.get(0));
+    assertEquals(new KeyAndCarryAlongId(1, getCarryAlongId(1, 2)), fullList.get(1));
+    assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 3)), fullList.get(2));
+    assertEquals(new KeyAndCarryAlongId(1, getCarryAlongId(1, 4)), fullList.get(3));
+    assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 5)), fullList.get(4));
+  }
+
+  @Test
+  public void basicListWithMarkVisited() {
+    list = list.withTrackVisited();
+
+    // remember, list items are in reverse order.
+    list.insert(0, getCarryAlongId(1, 1));
+    list.insert(1, getCarryAlongId(1, 2));
+    list.insert(2, getCarryAlongId(1, 3));
+    list.insert(0, getCarryAlongId(1, 4));
+    list.insert(1, getCarryAlongId(1, 5));
+    list.insert(0, getCarryAlongId(1, 6));
+    list.insert(2, getCarryAlongId(1, 7));
+
+    list.moveToRead();
+
+    List<CarryAlongId> pos0 = find(0);
+    assertEquals(3, pos0.size());
+    assertEquals(new CarryAlongId(1,1), pos0.get(2));
+    assertEquals(new CarryAlongId(1,4), pos0.get(1));
+    assertEquals(new CarryAlongId(1,6), pos0.get(0));
+
+    List<CarryAlongId> pos1 = find(1);
+    assertEquals(2, pos1.size());
+    assertEquals(new CarryAlongId(1,2), pos1.get(1));
+    assertEquals(new CarryAlongId(1,5), pos1.get(0));
+
+    // the full list should be returned in insert order.
+    List<KeyAndCarryAlongId> fullList = list.findAll().collect(Collectors.toList());
+    assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 1)), fullList.get(0));
+    assertEquals(new KeyAndCarryAlongId(1, getCarryAlongId(1, 2)), fullList.get(1));
+    assertEquals(new KeyAndCarryAlongId(2, getCarryAlongId(1, 3)), fullList.get(2));
+    assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 4)), fullList.get(3));
+    assertEquals(new KeyAndCarryAlongId(1, getCarryAlongId(1, 5)), fullList.get(4));
+    assertEquals(new KeyAndCarryAlongId(0, getCarryAlongId(1, 6)), fullList.get(5));
+    assertEquals(new KeyAndCarryAlongId(2, getCarryAlongId(1, 7)), fullList.get(6));
+
+    // the unvisited list should be returned in insert order.
+    List<KeyAndCarryAlongId> unvisitedList = list.findUnvisited().collect(Collectors.toList());
+    assertEquals(new KeyAndCarryAlongId(2, getCarryAlongId(1, 3)), unvisitedList.get(0));
+    assertEquals(new KeyAndCarryAlongId(2, getCarryAlongId(1, 7)), unvisitedList.get(1));
   }
 
   @Test
@@ -113,14 +155,14 @@ public class TestPageListMultimap extends ExecTest {
 
         CarryAlongId carryAlongId = new CarryAlongId(batchId, recordIndex);
         objMap.put(key, carryAlongId);
-        expectedFullList.add(new KeyAndCarryAlongId(key, carryAlongId));
+        expectedFullList.add(new KeyAndCarryAlongId(key, carryAlongId.getId()));
       }
 
-      list.insertCollection(keysBuffer, maxKey, batchId, 0, recordsInBatch);
+      list.insertCollection(keysBuffer.memoryAddress(), maxKey, batchId, recordsInBatch);
       elements += recordsInBatch;
       batchId++;
     }
-    assertEquals(expectedFullList, list.getKeyAndCarryAlongIdStream().collect(Collectors.toList()));
+    assertEquals(expectedFullList, list.findAll().collect(Collectors.toList()));
 
     list.moveToRead();
 
@@ -130,7 +172,7 @@ public class TestPageListMultimap extends ExecTest {
     // now verify results.
     for(Integer i : objMap.keySet()) {
       List<CarryAlongId> objList = Lists.reverse(objMap.get(i));
-      List<CarryAlongId> pageList = pos(i);
+      List<CarryAlongId> pageList = find(i);
       assertEquals(objList, pageList);
     }
   }
@@ -143,12 +185,12 @@ public class TestPageListMultimap extends ExecTest {
     list.insert(1, getCarryAlongId(Integer.MAX_VALUE, 65535));
     list.moveToRead();
 
-    List<CarryAlongId> pos0 = pos(0);
+    List<CarryAlongId> pos0 = find(0);
     assertEquals(2, pos0.size());
     assertEquals(new CarryAlongId(1,65534), pos0.get(1));
     assertEquals(new CarryAlongId(1,65535), pos0.get(0));
 
-    List<CarryAlongId> pos1 = pos(1);
+    List<CarryAlongId> pos1 = find(1);
     assertEquals(2, pos1.size());
     assertEquals(new CarryAlongId(Integer.MAX_VALUE,65534), pos1.get(1));
     assertEquals(new CarryAlongId(Integer.MAX_VALUE,65535), pos1.get(0));
@@ -161,19 +203,13 @@ public class TestPageListMultimap extends ExecTest {
   }
 
   @Test
-  public void largeKeyNeg() {
-    thrownException.expect(IllegalArgumentException.class);
-    list.insert(Integer.MAX_VALUE, getCarryAlongId(1, 0));
-  }
-
-  @Test
   public void minusKeyNeg() {
     thrownException.expect(IllegalArgumentException.class);
     list.insert(-1, getCarryAlongId(1, 0));
   }
 
-  private List<CarryAlongId> pos(int key) {
-    return list.getStreamForKey(key).mapToObj(CarryAlongId::new).collect(Collectors.toList());
+  private List<CarryAlongId> find(int key) {
+    return list.find(key).mapToObj(CarryAlongId::new).collect(Collectors.toList());
   }
 
 }

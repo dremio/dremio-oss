@@ -196,7 +196,12 @@ public class ValueExpressions {
 
   }
 
-  protected static abstract class ValueExpression<V> extends LogicalExpressionBase {
+  /**
+   *   This class represents all ConstantExpressions
+    */
+  public static abstract class ConstantExpression extends LogicalExpressionBase{};
+
+  protected static abstract class ValueExpression<V> extends ConstantExpression {
     public final V value;
 
     @SuppressWarnings("rawtypes")
@@ -254,7 +259,7 @@ public class ValueExpressions {
     }
   }
 
-  public static class FloatExpression extends LogicalExpressionBase {
+  public static class FloatExpression extends ConstantExpression {
     private final float f;
 
     public FloatExpression(float f) {
@@ -290,7 +295,7 @@ public class ValueExpressions {
     }
   }
 
-  public static class IntExpression extends LogicalExpressionBase {
+  public static class IntExpression extends ConstantExpression {
 
     private final int i;
 
@@ -334,7 +339,7 @@ public class ValueExpressions {
 
   }
 
-  public static class DecimalExpression extends LogicalExpressionBase {
+  public static class DecimalExpression extends ConstantExpression {
 
     private final BigDecimal decimal;
     private final int precision;
@@ -399,7 +404,7 @@ public class ValueExpressions {
     }
   }
 
-  public static class DoubleExpression extends LogicalExpressionBase {
+  public static class DoubleExpression extends ConstantExpression {
     private final double d;
 
     public DoubleExpression(double d) {
@@ -435,7 +440,7 @@ public class ValueExpressions {
     }
   }
 
-  public static class LongExpression extends LogicalExpressionBase {
+  public static class LongExpression extends ConstantExpression {
 
     private final long l;
 
@@ -473,7 +478,7 @@ public class ValueExpressions {
   }
 
 
-  public static class DateExpression extends LogicalExpressionBase {
+  public static class DateExpression extends ConstantExpression {
 
     private final long dateInMillis;
 
@@ -513,7 +518,7 @@ public class ValueExpressions {
   }
 
 
-  public static class TimeExpression extends LogicalExpressionBase {
+  public static class TimeExpression extends ConstantExpression {
 
     private final int timeInMillis;
 
@@ -550,7 +555,7 @@ public class ValueExpressions {
     }
   }
 
-  public static class TimeStampExpression extends LogicalExpressionBase {
+  public static class TimeStampExpression extends ConstantExpression {
 
     private final long timeInMillis;
 
@@ -588,7 +593,7 @@ public class ValueExpressions {
 
   }
 
-  public static class IntervalYearExpression extends LogicalExpressionBase {
+  public static class IntervalYearExpression extends ConstantExpression {
 
     private final int months;
 
@@ -626,7 +631,7 @@ public class ValueExpressions {
 
   }
 
-  public static class IntervalDayExpression extends LogicalExpressionBase {
+  public static class IntervalDayExpression extends ConstantExpression {
 
     private static final long MILLIS_IN_DAY = 1000 * 60 * 60 * 24;
 

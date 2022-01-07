@@ -172,7 +172,6 @@ public class TestBackGroundProfileWriter {
     Optional<CompletableFuture<Void>> futurePostBacklog = backgroundProfileWriter
       .tryWriteAsync(queryIdExtra, profile);
     assertTrue(futurePostBacklog.isPresent());
-    futurePostBacklog.get();
     profileStore.close();
   }
 

@@ -16,11 +16,6 @@
 package com.dremio.service.nessie;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -33,17 +28,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.projectnessie.error.NessieConflictException;
+import org.projectnessie.api.ContentsApi;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Contents;
-import org.projectnessie.model.IcebergTable;
 import org.projectnessie.model.ImmutableIcebergTable;
-import org.projectnessie.services.rest.ContentsResource;
 
 import com.dremio.service.nessieapi.ContentsKey;
 import com.dremio.service.nessieapi.GetContentsRequest;
-import com.dremio.service.nessieapi.SetContentsRequest;
-import com.google.common.collect.Lists;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -55,7 +46,12 @@ import io.grpc.stub.StreamObserver;
 @RunWith(MockitoJUnitRunner.class)
 public class TestContentsApiService {
   private ContentsApiService contentsApiService;
-  @Mock private ContentsResource contentsResource;
+  @Mock private ContentsApi contentsResource;
+
+  private static final String BRANCH = "foo";
+  private static final String HASH = "bar";
+  private static final String METADATA_LOCATION = "here";
+  private static final String ID_GENERATOR = "X";
 
   @Before
   public void setup() {
@@ -69,10 +65,12 @@ public class TestContentsApiService {
     final GetContentsRequest request = GetContentsRequest
         .newBuilder()
         .setContentsKey(contentsKey)
-        .setRef("foo")
+        .setRef(BRANCH)
+        .setHashOnRef(HASH)
         .build();
-    final Contents contents = ImmutableIcebergTable.builder().metadataLocation("here").build();
-    when(contentsResource.getContents(nessieContentsKey, "foo")).thenReturn(contents);
+    final Contents contents = ImmutableIcebergTable.builder()
+      .metadataLocation(METADATA_LOCATION).idGenerators(ID_GENERATOR).build();
+    when(contentsResource.getContents(nessieContentsKey, BRANCH, HASH)).thenReturn(contents);
 
     StreamObserver responseObserver = mock(StreamObserver.class);
     contentsApiService.getContents(request, responseObserver);
@@ -84,7 +82,7 @@ public class TestContentsApiService {
 
     final com.dremio.service.nessieapi.Contents actualContents = contentsCaptor.getValue();
     assertEquals(com.dremio.service.nessieapi.Contents.Type.ICEBERG_TABLE, actualContents.getType());
-    assertEquals("here", actualContents.getIcebergTable().getMetadataLocation());
+    assertEquals(METADATA_LOCATION, actualContents.getIcebergTable().getMetadataLocation());
 
     inOrder.verify(responseObserver).onCompleted();
   }
@@ -96,9 +94,11 @@ public class TestContentsApiService {
     final GetContentsRequest request = GetContentsRequest
       .newBuilder()
       .setContentsKey(contentsKey)
-      .setRef("foo")
+      .setRef(BRANCH)
+      .setHashOnRef(HASH)
       .build();
-    when(contentsResource.getContents(nessieContentsKey, "foo")).thenThrow(new NessieNotFoundException("Not found"));
+    when(contentsResource.getContents(nessieContentsKey, BRANCH, HASH))
+      .thenThrow(new NessieNotFoundException("Not found"));
 
     final StreamObserver responseObserver = mock(StreamObserver.class);
     contentsApiService.getContents(request, responseObserver);
@@ -117,9 +117,10 @@ public class TestContentsApiService {
     final GetContentsRequest request = GetContentsRequest
       .newBuilder()
       .setContentsKey(contentsKey)
-      .setRef("foo")
+      .setRef(BRANCH)
+      .setHashOnRef(HASH)
       .build();
-    when(contentsResource.getContents(nessieContentsKey, "foo")).thenThrow(new RuntimeException("Not found"));
+    when(contentsResource.getContents(nessieContentsKey, BRANCH, HASH)).thenThrow(new RuntimeException("Not found"));
 
     final StreamObserver responseObserver = mock(StreamObserver.class);
     contentsApiService.getContents(request, responseObserver);
@@ -128,96 +129,6 @@ public class TestContentsApiService {
     verify(responseObserver).onError(errorCaptor.capture());
 
     final StatusRuntimeException status = (StatusRuntimeException) errorCaptor.getValue();
-    assertEquals(Status.UNKNOWN.getCode(), status.getStatus().getCode());
-  }
-
-  @Test
-  public void setContents() throws Exception {
-    final SetContentsRequest request = SetContentsRequest
-        .newBuilder()
-        .setBranch("foo")
-        .setHash("0011223344556677")
-        .setMessage("bar")
-        .setContentsKey(ContentsKey.newBuilder().addElements("a").addElements("b"))
-        .setContents(com.dremio.service.nessieapi.Contents
-            .newBuilder()
-            .setType(com.dremio.service.nessieapi.Contents.Type.ICEBERG_TABLE)
-        .setIcebergTable(com.dremio.service.nessieapi.Contents.IcebergTable.newBuilder().setMetadataLocation("here")))
-        .build();
-
-    StreamObserver responseObserver = mock(StreamObserver.class);
-    contentsApiService.setContents(request, responseObserver);
-
-    final ArgumentCaptor<org.projectnessie.model.ContentsKey> contentsKeyCaptor =
-        ArgumentCaptor.forClass(org.projectnessie.model.ContentsKey.class);
-    final ArgumentCaptor<Contents> contentsCaptor = ArgumentCaptor.forClass(Contents.class);
-    verify(contentsResource).setContents(
-        contentsKeyCaptor.capture(),
-        eq("foo"),
-        eq("0011223344556677"),
-        eq("bar"),
-        contentsCaptor.capture()
-    );
-
-    final org.projectnessie.model.ContentsKey actualContentsKey = contentsKeyCaptor.getValue();
-    assertEquals(Lists.newArrayList("a", "b"), actualContentsKey.getElements());
-
-    assertTrue(contentsCaptor.getValue() instanceof IcebergTable);
-    final IcebergTable icebergTable = (IcebergTable) contentsCaptor.getValue();
-    assertEquals("here", icebergTable.getMetadataLocation());
-  }
-
-  @Test
-  public void setContentsConflict() throws Exception {
-    final SetContentsRequest request = SetContentsRequest
-      .newBuilder()
-      .setBranch("foo")
-      .setHash("0011223344556677")
-      .setMessage("bar")
-      .setContentsKey(ContentsKey.newBuilder().addElements("a").addElements("b"))
-      .setContents(com.dremio.service.nessieapi.Contents
-        .newBuilder()
-        .setType(com.dremio.service.nessieapi.Contents.Type.ICEBERG_TABLE)
-        .setIcebergTable(com.dremio.service.nessieapi.Contents.IcebergTable.newBuilder().setMetadataLocation("here")))
-      .build();
-
-    doThrow(new NessieConflictException("foo")).when(contentsResource).setContents(
-      any(org.projectnessie.model.ContentsKey.class), anyString(), anyString(), anyString(), any(Contents.class));
-
-    final StreamObserver streamObserver = mock(StreamObserver.class);
-    contentsApiService.setContents(request, streamObserver);
-
-    final ArgumentCaptor<Throwable> errorCaptor = ArgumentCaptor.forClass(Throwable.class);
-    verify(streamObserver).onError(errorCaptor.capture());
-
-    StatusRuntimeException status = (StatusRuntimeException) errorCaptor.getValue();
-    assertEquals(Status.ABORTED.getCode(), status.getStatus().getCode());
-  }
-
-  @Test
-  public void setContentsUnexpectedException() throws Exception {
-    final SetContentsRequest request = SetContentsRequest
-      .newBuilder()
-      .setBranch("foo")
-      .setHash("0011223344556677")
-      .setMessage("bar")
-      .setContentsKey(ContentsKey.newBuilder().addElements("a").addElements("b"))
-      .setContents(com.dremio.service.nessieapi.Contents
-        .newBuilder()
-        .setType(com.dremio.service.nessieapi.Contents.Type.ICEBERG_TABLE)
-        .setIcebergTable(com.dremio.service.nessieapi.Contents.IcebergTable.newBuilder().setMetadataLocation("here")))
-      .build();
-
-    doThrow(new RuntimeException("foo")).when(contentsResource).setContents(
-      any(org.projectnessie.model.ContentsKey.class), anyString(), anyString(), anyString(), any(Contents.class));
-
-    final StreamObserver streamObserver = mock(StreamObserver.class);
-    contentsApiService.setContents(request, streamObserver);
-
-    final ArgumentCaptor<Throwable> errorCaptor = ArgumentCaptor.forClass(Throwable.class);
-    verify(streamObserver).onError(errorCaptor.capture());
-
-    StatusRuntimeException status = (StatusRuntimeException) errorCaptor.getValue();
     assertEquals(Status.UNKNOWN.getCode(), status.getStatus().getCode());
   }
 }

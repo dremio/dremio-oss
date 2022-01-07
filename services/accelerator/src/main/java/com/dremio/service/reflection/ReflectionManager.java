@@ -80,6 +80,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.ReflectionServiceImpl.DescriptorCache;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
+import com.dremio.service.reflection.ReflectionServiceImpl.PlanCacheInvalidationHelper;
 import com.dremio.service.reflection.materialization.AccelerationStoragePlugin;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
@@ -147,6 +148,7 @@ public class ReflectionManager implements Runnable {
   private final Set<ReflectionId> reflectionsToUpdate;
   private final WakeUpCallback wakeUpCallback;
   private final Supplier<ExpansionHelper> expansionHelper;
+  private final Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper;
   private final BufferAllocator allocator;
   private final ReflectionGoalChecker reflectionGoalChecker;
   private final RefreshStartHandler refreshStartHandler;
@@ -163,7 +165,7 @@ public class ReflectionManager implements Runnable {
                     ExternalReflectionStore externalReflectionStore, MaterializationStore materializationStore,
                     DependencyManager dependencyManager, DescriptorCache descriptorCache,
                     Set<ReflectionId> reflectionsToUpdate, WakeUpCallback wakeUpCallback,
-                    Supplier<ExpansionHelper> expansionHelper, BufferAllocator allocator, FileSystemPlugin accelerationPlugin,
+                    Supplier<ExpansionHelper> expansionHelper, Supplier<PlanCacheInvalidationHelper> planCacheInvalidationHelper, BufferAllocator allocator, FileSystemPlugin accelerationPlugin,
                     Path accelerationBasePath, ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler,
                     CatalogService catalogService) {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
@@ -179,6 +181,7 @@ public class ReflectionManager implements Runnable {
     this.reflectionsToUpdate = Preconditions.checkNotNull(reflectionsToUpdate, "reflections to update required");
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
+    this.planCacheInvalidationHelper = Preconditions.checkNotNull(planCacheInvalidationHelper, "planCacheInvalidatorHelper required");
     this.allocator = Preconditions.checkNotNull(allocator, "allocator required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalogService required");
     this.accelerationPlugin = (AccelerationStoragePlugin) Preconditions.checkNotNull(accelerationPlugin);
@@ -844,6 +847,9 @@ public class ReflectionManager implements Runnable {
 
     materializationStore.save(materialization);
     reflectionStore.save(entry);
+    try (PlanCacheInvalidationHelper helper = planCacheInvalidationHelper.get()) {
+      helper.invalidateReflectionAssociatedPlanCache(entry.getDatasetId());
+    }
   }
 
   private boolean compactIfNecessary(ReflectionEntry entry, Materialization materialization, List<Refresh> refreshes) {

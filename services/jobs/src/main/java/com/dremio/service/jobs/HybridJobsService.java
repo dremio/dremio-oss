@@ -57,6 +57,8 @@ import com.dremio.service.job.ReflectionJobSummaryRequest;
 import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.UniqueUserStats;
+import com.dremio.service.job.UniqueUserStatsRequest;
 import com.dremio.service.job.proto.JobId;
 
 import io.grpc.Status;
@@ -179,6 +181,16 @@ public class HybridJobsService implements JobsService {
   public JobStats getJobStats(JobStatsRequest request) {
     try {
       return getChronicleBlockingStub().getJobStats(request);
+    } catch (StatusRuntimeException e) {
+      GrpcExceptionUtil.throwIfUserException(e);
+      throw e;
+    }
+  }
+
+  @Override
+  public UniqueUserStats getUniqueUserStats(UniqueUserStatsRequest request) {
+    try {
+      return getChronicleBlockingStub().getUniqueUserStats(request);
     } catch (StatusRuntimeException e) {
       GrpcExceptionUtil.throwIfUserException(e);
       throw e;

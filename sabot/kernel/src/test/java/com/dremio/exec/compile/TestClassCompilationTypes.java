@@ -31,7 +31,7 @@ public class TestClassCompilationTypes extends ExecTest{
       long n0 = System.nanoTime();
       r += janino();
       long n1 = System.nanoTime();
-      //r += jdk();
+      r += jdk();
       long n2 = System.nanoTime();
       long janinoT = (n1 - n0)/1000;
       long jdkT = (n2 - n1)/1000;

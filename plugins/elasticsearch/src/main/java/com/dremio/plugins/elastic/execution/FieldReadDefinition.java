@@ -187,7 +187,7 @@ public class FieldReadDefinition {
     final Map<SchemaPath, FieldAnnotation> annotationMap,
     final WorkingBuffer buffer,
     final int maxCellSize,
-    final ElasticVersionBehaviorProvider elasticVersionBehaviorProvider) {
+    final ElasticVersionBehaviorProvider elasticVersionBehaviorProvider, boolean forceDoublePrecision) {
 
     // for all hidden fields, create a list for each parent of the children where we should create field read definition that mark data as hidden.
     ImmutableListMultimap.Builder<SchemaPath, String> hiddenFieldsB = ImmutableListMultimap.builder();
@@ -208,7 +208,7 @@ public class FieldReadDefinition {
     return createFieldReadDefinition(null, null, null, 0, false, false, new WriteHolders.InvalidWriteHolder(),
       FluentIterable.from(schema.getFields())
 
-        .transform(input -> getDefinition(null, input, maxCellSize, annotationMap, hiddenFields, buffer, false, elasticVersionBehaviorProvider))
+        .transform(input -> getDefinition(null, input, maxCellSize, annotationMap, hiddenFields, buffer, false, elasticVersionBehaviorProvider, forceDoublePrecision))
 
         // add hidden fields.
         .append(getHiddenFields(topLevelHiddenFields))
@@ -226,7 +226,7 @@ public class FieldReadDefinition {
 
   private static FieldReadDefinition getDefinition(final SchemaPath parent, final Field field, int maxCellSize,
                                                    final Map<SchemaPath, FieldAnnotation> annotations, final Multimap<SchemaPath, String> hiddenFields,
-                                                   final WorkingBuffer buffer, boolean incomingIsGeoShape, ElasticVersionBehaviorProvider esVersion){
+                                                   final WorkingBuffer buffer, boolean incomingIsGeoShape, ElasticVersionBehaviorProvider esVersion, boolean forceDoublePrecision){
 
     CompleteType type = CompleteType.fromField(field);
     final boolean isList = type.isList();
@@ -238,15 +238,19 @@ public class FieldReadDefinition {
     FieldAnnotation annotation = annotations.get(path);
     final boolean isGeoShape = incomingIsGeoShape || (annotation == null ? false : annotation.isGeoShape());
     final List<String> formats = annotation == null ? ImmutableList.<String>of() : annotation.getDateFormats();
+    if(type.isFloat() && forceDoublePrecision) {
+      type = CompleteType.DOUBLE;
+    }
     final WriteHolder holder = getWriteHolder(field.getName(), isList, type.toMinorType(), formats, path, buffer, isGeoShape, esVersion);
     if(isGeoShape && type.isUnion() && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(field.getName())) {
       return createFieldReadDefinition(path, field.getName(), type, maxCellSize, true, isGeoShape, holder, ImmutableMap.<String, FieldReadDefinition>of());
     }
 
+
     return createFieldReadDefinition(path, field.getName(), type, maxCellSize, isList, isGeoShape, holder, FluentIterable.from(type.getChildren()).transform(new Function<Field, FieldReadDefinition>() {
       @Override
       public FieldReadDefinition apply(Field input) {
-        return getDefinition(path, input, maxCellSize, annotations, hiddenFields, buffer, isGeoShape, esVersion);
+        return getDefinition(path, input, maxCellSize, annotations, hiddenFields, buffer, isGeoShape, esVersion, forceDoublePrecision);
       }
     }).append(getHiddenFields(hiddenFields.get(path)))
       .uniqueIndex(new Function<FieldReadDefinition, String>() {

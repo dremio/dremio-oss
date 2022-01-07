@@ -29,8 +29,8 @@ import org.apache.calcite.avatica.ColumnMetaData;
 import org.apache.calcite.avatica.ColumnMetaData.AvaticaType;
 import org.apache.calcite.avatica.ColumnMetaData.Rep;
 
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.Types;
 import com.dremio.exec.proto.UserProtos.ColumnSearchability;
 import com.dremio.exec.proto.UserProtos.ColumnUpdatability;
 import com.dremio.exec.proto.UserProtos.ResultColumnMetadata;

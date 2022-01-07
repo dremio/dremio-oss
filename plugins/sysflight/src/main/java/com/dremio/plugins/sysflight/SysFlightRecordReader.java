@@ -37,6 +37,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -91,7 +92,9 @@ public class SysFlightRecordReader extends AbstractRecordReader {
     }
     selectedFields = new ArrayList<>();
     for (Field field : schema.getFields()) {
-      if(selectedColumns.contains(field.getName().toLowerCase())) {
+      if(getColumns() == null
+        || getColumns().equals(GroupScan.ALL_COLUMNS)
+        || selectedColumns.contains(field.getName().toLowerCase())) {
         selectedFields.add(field);
       }
     }
@@ -135,9 +138,7 @@ public class SysFlightRecordReader extends AbstractRecordReader {
 
         int currBatchSize = batchHolder.getRowCount();
 
-        int i = ptrToNextRecord;
-        int k = toRead;
-        int j = 0;
+        int i, k, j = 0;
         for (Field f: selectedFields) {
           i = ptrToNextRecord;
           k = toRead;
@@ -149,8 +150,9 @@ public class SysFlightRecordReader extends AbstractRecordReader {
           }
           j++;
         }
-        ptrToNextRecord = i;
-        toRead = k;
+        int recordsRead = Math.min(toRead, currBatchSize - ptrToNextRecord);
+        ptrToNextRecord = ptrToNextRecord + recordsRead;
+        toRead = toRead - recordsRead;
 
         if (ptrToNextRecord == currBatchSize) {
           batchHolder.close();
@@ -166,6 +168,11 @@ public class SysFlightRecordReader extends AbstractRecordReader {
     }
 
     return targetBatchSize - toRead;
+  }
+
+  @Override
+  protected boolean supportsSkipAllQuery(){
+    return true;
   }
 
   @Override

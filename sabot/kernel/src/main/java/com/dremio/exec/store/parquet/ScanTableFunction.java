@@ -19,6 +19,7 @@ import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
@@ -53,7 +54,6 @@ import com.dremio.service.namespace.DatasetHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
-
 /**
  * Parquet scan table function
  */
@@ -78,7 +78,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
   // This is set to true after we are done consuming from upstream and we want to produce the
   // remianing buffered splits if present.
   private boolean produceFromBufferedSplits = false;
-  private BoostBufferManager boostBufferManager;
+  protected BoostBufferManager boostBufferManager;
 
   public ScanTableFunction(FragmentExecutionContext fec,
                            OperatorContext context,
@@ -105,8 +105,8 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
       inputColIds = (VarBinaryVector) getVectorFromSchemaPath(incoming, RecordReader.COL_IDS);
       isColIdMapSet = false;
     }
+    boostBufferManager = new BoostBufferManager(fec, context, props, functionConfig);
     createRecordReaderIterator();
-    //initialise boost buffer manager here
     return outgoing;
   }
 
@@ -186,7 +186,7 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     currentRecordReader.allocate(fieldVectorMap);
     int records;
     while ((records = currentRecordReader.next()) == 0) {
-      //insert boost buffer manager here if the spilt is to be boosted.
+      addBoostSplits();
       currentRecordReader.close();
       currentRecordReader = null;
       if (!getRecordReaderIterator().hasNext()) {
@@ -220,6 +220,10 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
    * add splits to the underlying recordreaderiterator
    */
   protected abstract void addSplits(List<SplitAndPartitionInfo> splits);
+
+  protected void addBoostSplits() throws IOException {
+    return;
+  }
 
   public boolean hasBufferedRemaining() {
     produceFromBufferedSplits = true;
@@ -272,17 +276,15 @@ public abstract class ScanTableFunction extends AbstractTableFunction {
     return this.runtimeFilters;
   }
 
-
-
   @Override
   public void close() throws Exception {
     final List<AutoCloseable> closeables = new ArrayList<>(runtimeFilters.size() + 3);
     closeables.add(super::close);
     closeables.add(currentRecordReader);
     closeables.addAll(runtimeFilters);
+    boostBufferManager.close();
     AutoCloseables.close(closeables);
     currentRecordReader = null;
-    //close boost buffer manager here.
     this.context.getStats().setReadIOStats();
     this.context.getStats().setScanRuntimeFilterDetailsInProfile();;
   }

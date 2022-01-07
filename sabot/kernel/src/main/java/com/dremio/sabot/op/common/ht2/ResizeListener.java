@@ -15,10 +15,16 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.arrow.vector.FieldVector;
+
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
 
 public interface ResizeListener {
   public static ResizeListener NO_OP = new ResizeListener() {
+    @Override
     public void addBatch() {}
 
     @Override
@@ -29,6 +35,16 @@ public interface ResizeListener {
 
     @Override
     public void commitResize() {}
+
+    @Override
+    public List<Accumulator> getVarlenAccumChildren() {
+      return null;
+    }
+
+    @Override
+    public List<FieldVector> getFixedlenAccumulators(final int batchIndex) {
+      return null;
+    }
 
     @Override
     public void verifyBatchCount(int batches) { }
@@ -56,6 +72,10 @@ public interface ResizeListener {
   default boolean hasSpace(final int space, final int batchIndex) {
     return true;
   }
+
+  public List<Accumulator> getVarlenAccumChildren();
+
+  public List<FieldVector> getFixedlenAccumulators(final int batchIndex);
 
   public void accumulate(final long memoryAddr, final int count,
                          final int bitsInChunk, final int chunkOffsetMask);

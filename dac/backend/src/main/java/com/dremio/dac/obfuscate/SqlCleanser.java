@@ -26,13 +26,13 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOrderBy;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlWith;
 import org.apache.calcite.sql.SqlWithItem;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.SqlShuttle;
 
 import com.dremio.exec.calcite.SqlNodes;
@@ -55,13 +55,13 @@ class SqlCleanser {
     String cleansedSql;
     SqlParser parser = SqlParser.create(sql, CONFIG);
     try {
-      SqlNode sqlNode = parser.parseQuery();
+      SqlNodeList sqlNodeList = parser.parseStmtList();
 
       SqlCleanser cleanser = new SqlCleanser();
-      SqlNode cleansedTree = sqlNode.accept(cleanser.fromVisitor);
+      SqlNode cleansedTree = sqlNodeList.get(0).accept(cleanser.fromVisitor);
       cleansedSql = SqlNodes.toSQLString(cleansedTree);
     } catch (SqlParseException e) {
-      LOGGER.error("Exception while parsing sql, so obfuscating whole sql with a random hex string.");
+      LOGGER.error("Exception while parsing sql, so obfuscating whole sql with a random hex string.", e);
       cleansedSql = ObfuscationUtils.obfuscatePartial(sql);
     }
     return cleansedSql;
@@ -81,11 +81,8 @@ class SqlCleanser {
         return processWith((SqlWith) call);
       case WITH_ITEM:
         return processWithItem((SqlWithItem) call);
-      case UNION:
-      case AS:
-        return super.visit(call);
       default:
-        return new SqlIdentifier("Obfuscated", SqlParserPos.ZERO);
+        return super.visit(call);
       }
     }
 

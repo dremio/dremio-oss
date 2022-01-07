@@ -216,6 +216,10 @@ public class OpProps {
     return new OpProps(operatorId, userName, memReserve, memLimit, memLowLimit, cost, singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
   }
 
+  public OpProps cloneWithNewIdAndSchema(int id, BatchSchema schema) {
+    return new OpProps(id, userName, memReserve, memLimit, memLowLimit, cost, singleStream, targetBatchSize, schema, memoryBound, memoryFactor, memoryExpensive);
+  }
+
   public static OpProps prototype(int operatorId, long reserve, long limit) {
     return new OpProps(operatorId, SystemUser.SYSTEM_USERNAME, reserve, limit, 0, 1, false, 1024, new BatchSchema(ImmutableList.of()), false, 1.0d, false);
   }

@@ -30,8 +30,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -83,9 +83,7 @@ import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -373,8 +371,8 @@ public class CatalogImpl implements Catalog {
         .build();
     final Iterable<Schema> iterable = () -> listSchemata(searchQuery);
 
-    return FluentIterable.from(iterable)
-        .transform(input -> input.getSchemaName());
+    return StreamSupport.stream(iterable.spliterator(), false)
+      .map(Schema::getSchemaName)::iterator;
   }
 
   @Override
@@ -447,10 +445,10 @@ public class CatalogImpl implements Catalog {
     }
 
     return new NamespaceKey(
-      ImmutableList.copyOf(
-        Iterables.concat(
-          options.getSchemaConfig().getDefaultSchema().getPathComponents(),
-          key.getPathComponents())));
+      ImmutableList.<String>builder()
+        .addAll(options.getSchemaConfig().getDefaultSchema().getPathComponents())
+        .addAll(key.getPathComponents())
+        .build());
   }
 
   @Override
@@ -1068,12 +1066,9 @@ public class CatalogImpl implements Catalog {
           datasetFields = Lists.newArrayList();
         }
 
-        DatasetField datasetField = Iterables.find(datasetFields, new Predicate<DatasetField>() {
-          @Override
-          public boolean apply(@Nullable DatasetField input) {
-            return originField.equals(input.getFieldName());
-          }
-        }, null);
+        DatasetField datasetField = datasetFields.stream()
+          .filter(input -> originField.equals(input.getFieldName()))
+          .findFirst().orElse(null);
 
         if (datasetField == null) {
           datasetField = new DatasetField().setFieldName(originField);
@@ -1135,7 +1130,7 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public Iterator<com.dremio.service.catalog.Table> listTables(SearchQuery searchQuery) {
+  public Iterator<Table> listTables(SearchQuery searchQuery) {
     return iscDelegate.listTables(searchQuery);
   }
 
@@ -1147,5 +1142,10 @@ public class CatalogImpl implements Catalog {
   @Override
   public Iterator<TableSchema> listTableSchemata(SearchQuery searchQuery) {
     return iscDelegate.listTableSchemata(searchQuery);
+  }
+
+  @Override
+  public Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite) {
+    return catalogRewrite.apply(this);
   }
 }

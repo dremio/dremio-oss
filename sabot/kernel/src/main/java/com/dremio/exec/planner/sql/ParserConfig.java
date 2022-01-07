@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.planner.sql;
 
+import java.util.Set;
+
 import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.config.CharLiteralStyle;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.validate.SqlConformance;
@@ -26,6 +29,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.impl.ParserImpl;
 import com.dremio.exec.planner.sql.parser.impl.ParserWithCompoundIdConverter;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.google.common.collect.ImmutableSet;
 
 public class ParserConfig implements SqlParser.Config {
   // exists only for old tests that haven't yet been updated.
@@ -98,6 +102,11 @@ public class ParserConfig implements SqlParser.Config {
   @Override
   public boolean allowBangEqual() {
     return conformance().isBangEqualAllowed();
+  }
+
+  @Override
+  public Set<CharLiteralStyle> charLiteralStyles() {
+    return ImmutableSet.of(CharLiteralStyle.STANDARD);
   }
 
   @Override

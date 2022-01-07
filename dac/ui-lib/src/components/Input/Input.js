@@ -42,6 +42,7 @@ const Input = (props) => {
     prefix,
     type,
     value,
+    helpText,
     ...otherProps
   } = props;
 
@@ -84,6 +85,7 @@ const Input = (props) => {
         className={classes.label}
         style={labelStyle}
         id={`input-label-${name}`}
+        helpText={helpText}
       />}
       <div className={containerClass}>
         {prefix && <span className='input__prefix'>{prefix}</span>}
@@ -125,7 +127,8 @@ Input.propTypes = {
   form: PropTypes.object.isRequired,
   hideError: PropTypes.bool,
   prefix: PropTypes.string,
-  value: PropTypes.any
+  value: PropTypes.any,
+  helpText: PropTypes.string
 };
 
 Input.defaultProps = {

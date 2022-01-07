@@ -15,26 +15,6 @@
  */
 package com.dremio.jdbc.impl;
 
-import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.calcite.avatica.AvaticaConnection;
-import org.apache.calcite.avatica.AvaticaFactory;
-import org.apache.calcite.avatica.AvaticaStatement;
-import org.apache.calcite.avatica.Meta.ExecuteResult;
-import org.apache.calcite.avatica.Meta.StatementHandle;
-import org.apache.calcite.avatica.NoSuchStatementException;
-import org.apache.calcite.avatica.UnregisteredDriver;
-import org.slf4j.Logger;
-
-import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.rpc.RpcException;
-import com.dremio.jdbc.AlreadyClosedSqlException;
-import com.dremio.jdbc.DremioConnection;
-import com.dremio.jdbc.DremioConnectionConfig;
-import com.dremio.jdbc.InvalidParameterSqlException;
-import com.dremio.jdbc.JdbcApiSqlException;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -57,6 +37,26 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.concurrent.Executor;
+
+import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.calcite.avatica.AvaticaConnection;
+import org.apache.calcite.avatica.AvaticaFactory;
+import org.apache.calcite.avatica.AvaticaStatement;
+import org.apache.calcite.avatica.Meta.ExecuteResult;
+import org.apache.calcite.avatica.Meta.StatementHandle;
+import org.apache.calcite.avatica.NoSuchStatementException;
+import org.apache.calcite.avatica.UnregisteredDriver;
+import org.slf4j.Logger;
+
+import com.dremio.exec.client.DremioClient;
+import com.dremio.exec.rpc.RpcException;
+import com.dremio.jdbc.AlreadyClosedSqlException;
+import com.dremio.jdbc.DremioConnection;
+import com.dremio.jdbc.DremioConnectionConfig;
+import com.dremio.jdbc.InvalidParameterSqlException;
+import com.dremio.jdbc.JdbcApiSqlException;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 
 /**
  * Dremio's implementation of {@link Connection}.

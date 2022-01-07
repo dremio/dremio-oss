@@ -18,8 +18,8 @@ package com.dremio.exec.planner.logical;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 
+import org.apache.calcite.plan.RelHintsPropagator;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
@@ -144,7 +144,7 @@ public abstract class CompositeFilterJoinRule extends FilterJoinRule {
     }
 
     @Override
-    public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, BiFunction<RelNode, RelNode, RelNode> handler) {
+    public void transformTo(RelNode rel, Map<RelNode, RelNode> equiv, RelHintsPropagator handler) {
       outcome.add(rel);
     }
   }

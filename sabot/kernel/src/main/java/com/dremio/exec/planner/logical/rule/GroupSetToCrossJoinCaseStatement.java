@@ -18,6 +18,8 @@ package com.dremio.exec.planner.logical.rule;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -42,6 +44,9 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.mapping.Mapping;
+import org.apache.calcite.util.mapping.MappingType;
+import org.apache.calcite.util.mapping.Mappings;
 
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.google.common.collect.ImmutableList;
@@ -69,12 +74,13 @@ public class GroupSetToCrossJoinCaseStatement {
   };
 
   private final RexBuilder rexBuilder;
+  private Mapping m;
 
   public GroupSetToCrossJoinCaseStatement(RexBuilder rexBuilder) {
     this.rexBuilder = rexBuilder;
   }
 
-  public RelNode rewriteGroupSet(Supplier<RelBuilder> relBuilderSupplier, Aggregate aggregate, RelNode relNode) {
+  public RelNode rewriteGroupSet(Supplier<RelBuilder> relBuilderSupplier, Aggregate aggregate, RelNode input) {
     ImmutableList<ImmutableBitSet> groupSets = aggregate.groupSets;
     if(aggregate.groupSets.size() <= 1 && !containsGrouping(aggregate.getAggCallList())){
       return aggregate;
@@ -82,22 +88,22 @@ public class GroupSetToCrossJoinCaseStatement {
 
     RelBuilder relBuilder =  relBuilderSupplier.get();
     return relBuilder
-        .push(relNode)
+        .push(input)
         .values(buildValuesRexNode(groupSets.size()), rowIntType())
         .join(JoinRelType.INNER, rexBuilder.makeLiteral(true))
         .project(buildProjectWithCaseStatementForGroupingsRexList(
-            relNode,
-            aggregate.getGroupSet(),
+            aggregate,
+            input,
             groupSets))
         .aggregate(
-            buildGroupKey(relBuilder, aggregate.getGroupSet(), relNode),
-            aggregate.getAggCallList().stream().filter(c -> !isGrouping(c)).collect(Collectors.toList()))
+            buildGroupKey(relBuilder, aggregate.getGroupSet(), input),
+            transformAggCalls(aggregate.getAggCallList()))
         .project(buildTopProject(aggregate, relBuilder.peek().getRowType().getFieldList().get(aggregate.getGroupCount()).getType()), aggregate.getRowType().getFieldNames())
         .build();
   }
 
   public static boolean isGrouping(AggregateCall call) {
-    return call.getAggregation().getKind() == SqlKind.GROUP_ID || call.getAggregation().getKind() == SqlKind.GROUPING;
+    return call.getAggregation().getKind() == SqlKind.GROUPING_ID || call.getAggregation().getKind() == SqlKind.GROUPING;
   }
 
   public static boolean containsGrouping(List<AggregateCall> callList) {
@@ -107,6 +113,10 @@ public class GroupSetToCrossJoinCaseStatement {
       }
     }
     return false;
+  }
+
+  private List<AggregateCall> transformAggCalls(List<AggregateCall> calls) {
+    return calls.stream().filter(c -> !isGrouping(c)).map(c -> c.transform(m)).collect(Collectors.toList());
   }
 
   private RexNode groupingRex(AggregateCall call, Aggregate aggRel, RelDataType groupIndexType) {
@@ -152,11 +162,11 @@ public class GroupSetToCrossJoinCaseStatement {
   private RelBuilder.GroupKey buildGroupKey(
       RelBuilder relBuilder,
       ImmutableBitSet allColumnsInGroupings,
-      RelNode relNode) {
+      RelNode input) {
     return relBuilder.groupKey(
         ImmutableBitSet.builder()
             .addAll(allColumnsInGroupings)
-            .set(relNode.getRowType().getFieldCount())
+            .set(input.getRowType().getFieldCount())
             .build(),
         null);
   }
@@ -170,27 +180,50 @@ public class GroupSetToCrossJoinCaseStatement {
   }
 
   private List<RexNode> buildProjectWithCaseStatementForGroupingsRexList(
-      RelNode baseNode,
-      ImmutableBitSet allColumnsInGroupings,
+      Aggregate agg,
+      RelNode input,
       ImmutableList<ImmutableBitSet> groupingSets
   ) {
-    int fieldCount = baseNode.getRowType().getFieldCount();
-    RexNode currentColumnIndexRef = rexBuilder.makeInputRef(intType(), fieldCount);
+    ImmutableBitSet allColumnsInGroupings = agg.getGroupSet();
+    int fieldCount = input.getRowType().getFieldCount();
+    RexNode groupSetIdxRef = rexBuilder.makeInputRef(intType(), fieldCount);
 
 
     Stream<RexNode> rexNodes = IntStream.range(0,fieldCount)
       .mapToObj(columnIndex ->
           createCaseStatement(
-              baseNode,
-              currentColumnIndexRef,
+              input,
+              groupSetIdxRef,
               columnIndex,
               allColumnsInGroupings,
               groupingSets)
 
           );
+    Set<Integer> aggInputsToDuplicate = new TreeSet<>();
+    for (AggregateCall call : agg.getAggCallList()) {
+      for (int i : call.getArgList()) {
+        if (allColumnsInGroupings.get(i)) {
+          aggInputsToDuplicate.add(i);
+        }
+      }
+    }
+
+    m = Mappings.create(MappingType.FUNCTION, fieldCount, fieldCount + 1 + aggInputsToDuplicate.size());
+    for (int i = 0; i < fieldCount; i++) {
+      m.set(i, i);
+    }
+    int idx = fieldCount + 1;
+    for (int i : aggInputsToDuplicate) {
+      m.set(i, idx++);
+    }
+
+
     return Stream.concat(
+        Stream.concat(
         rexNodes,
-        Stream.of(currentColumnIndexRef))
+        Stream.of(groupSetIdxRef)
+        ),
+        aggInputsToDuplicate.stream().map(i -> new RexInputRef(i, input.getRowType().getFieldList().get(i).getType())))
         .collect(ImmutableList.toImmutableList());
   }
 

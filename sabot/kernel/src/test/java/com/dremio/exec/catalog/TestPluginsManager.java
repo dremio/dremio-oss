@@ -30,7 +30,6 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -171,7 +170,7 @@ public class TestPluginsManager {
     };
 
     plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, dremioConfig,
-      EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
+        sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), CatalogServiceMonitor.DEFAULT, () -> broadcaster,null, modifiableSchedulerService);
     plugins.start();
   }
@@ -281,7 +280,8 @@ public class TestPluginsManager {
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
     when(schemaConfig.getUserName()).thenReturn("user");
-    final MetadataRequestOptions requestOptions = MetadataRequestOptions.newBuilder(schemaConfig)
+    final MetadataRequestOptions requestOptions = MetadataRequestOptions.newBuilder()
+        .setSchemaConfig(schemaConfig)
         .setNewerThan(1000)
         .build();
 

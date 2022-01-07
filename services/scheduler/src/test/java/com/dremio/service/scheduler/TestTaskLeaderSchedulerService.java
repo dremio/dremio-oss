@@ -92,15 +92,15 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
 
 
        LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1,
-         DirectProvider.wrap(coordinator),
+         DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
          DirectProvider.wrap(nodeEndpoint1), true);
 
        LocalSchedulerService schedulerService2 = new LocalSchedulerService(schedulerPool2,
-         DirectProvider.wrap(coordinator),
+         DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
          DirectProvider.wrap(nodeEndpoint2), true);
 
        LocalSchedulerService schedulerService3 = new LocalSchedulerService(schedulerPool3,
-         DirectProvider.wrap(coordinator),
+         DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
          DirectProvider.wrap(nodeEndpoint3), true);
 
        try {
@@ -183,11 +183,11 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool2 = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(nodeEndpoint1), true);
 
       LocalSchedulerService schedulerService2 = new LocalSchedulerService(schedulerPool2,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(nodeEndpoint2), true);
 
       try {
@@ -246,7 +246,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
   @Test
   public void testTaskLeaderChangeListener() throws Exception {
     CloseableSchedulerThreadPool schedulerPool1 = new CloseableSchedulerThreadPool("test-scheduler", 1);
-    LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1, null, null, true);
+    LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1, null,
+      null, null, true);
 
     AtomicBoolean checkLost = new AtomicBoolean(false);
     AtomicBoolean checkRelinquish = new AtomicBoolean(false);
@@ -337,7 +338,8 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
   @Test
   public void testAfterCancellation() throws Exception {
     CloseableSchedulerThreadPool schedulerPool1 = new CloseableSchedulerThreadPool("test-scheduler", 1);
-    LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1, null, null, true);
+    LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1, null,
+      null, null, true);
 
     AtomicBoolean checkLost = new AtomicBoolean(true);
     AtomicBoolean checkRelinquish = new AtomicBoolean(false);
@@ -419,7 +421,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(currentEndPoint), true);
 
       CountDownLatch wasRun = new CountDownLatch(1);
@@ -470,11 +472,11 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool2 = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(nodeEndpoint1), false);
 
       LocalSchedulerService schedulerService2 = new LocalSchedulerService(schedulerPool2,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(nodeEndpoint2), false);
 
       CountDownLatch wasRun1 = new CountDownLatch(1);
@@ -520,11 +522,11 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool2 = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService1 = new LocalSchedulerService(schedulerPool1,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(nodeEndpoint1), true);
 
       LocalSchedulerService schedulerService2 = new LocalSchedulerService(schedulerPool2,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(nodeEndpoint2), true);
 
       CountDownLatch globalRun = new CountDownLatch(1);
@@ -579,7 +581,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(currentEndPoint), true);
 
       AtomicInteger count = new AtomicInteger(0);
@@ -621,7 +623,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(currentEndPoint), true);
 
       CountDownLatch wasCleaned = new CountDownLatch(1);
@@ -658,7 +660,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(currentEndPoint), true);
 
       AtomicInteger counter = new AtomicInteger(0);
@@ -711,7 +713,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(currentEndPoint), true);
 
       AtomicInteger counter = new AtomicInteger(0);
@@ -762,7 +764,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(currentEndPoint), true);
 
       AtomicInteger counter = new AtomicInteger(0);
@@ -809,7 +811,7 @@ public class TestTaskLeaderSchedulerService extends DremioTest {
       CloseableSchedulerThreadPool schedulerPool = new CloseableSchedulerThreadPool("test-scheduler", 1);
 
       LocalSchedulerService schedulerService = new LocalSchedulerService(schedulerPool,
-        DirectProvider.wrap(coordinator),
+        DirectProvider.wrap(coordinator), DirectProvider.wrap(coordinator),
         DirectProvider.wrap(currentEndPoint), true);
 
       CountDownLatch wasRun = new CountDownLatch(1);

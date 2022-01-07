@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION;
 import static com.dremio.exec.ExecConstants.ENABLE_PARTITION_STATS_USAGE;
 import static com.dremio.exec.store.RecordReader.COL_IDS;
 import static com.dremio.exec.store.RecordReader.SPLIT_IDENTITY;
@@ -53,6 +54,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsReader;
+import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.InputFile;
 
 import com.dremio.common.expression.FieldReference;
@@ -170,7 +172,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     return true;
   }
 
-  private BatchSchema getManifestFileReaderSchema(List<SchemaPath> manifestFileReaderColumns) {
+  private BatchSchema getManifestFileReaderSchema(List<SchemaPath> manifestFileReaderColumns, boolean specEvolTransEnabled) {
     BatchSchema manifestFileReaderSchema = RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA;
     if (pruneCondition == null) {
       return manifestFileReaderSchema;
@@ -180,43 +182,85 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     manifestFileReaderSchema = getSchemaWithUsedColumns(pruneCondition.getPartitionExpression(), manifestFileReaderColumns, manifestFileReaderSchema);
 
     // add non partition column filter conditions for native iceberg tables
-    if (!isConvertedIcebergDataset()) {
+    if (!isConvertedIcebergDataset() && !specEvolTransEnabled) {
       manifestFileReaderSchema = getSchemaWithMinMaxUsedColumns(pruneCondition.getNonPartitionRange(), manifestFileReaderColumns, manifestFileReaderSchema);
     }
     return manifestFileReaderSchema;
   }
 
+  /**
+   * This function will create final plan for iceberg read flow.
+   * There are two paths for iceberg read flow :
+   * 1. SPEC_EVOL_TRANFORMATION is not enabled
+   * in that case plan will be:
+   * ML => Filter(on Partition Range) => MF => Filter(on Partition Expression and on non-partition range) => Parquet Scan
+   *
+   * 2. With spec evolution and transformation
+   * Filter operator is not capable of handling transformed partition columns so we will push down filter expression to
+   * ML Reader and MF reader. and use iceberg APIs for filtering.
+   * ML(with Iceberg Expression of partition range for filtering) => MF(with Iceberg Expression of partition range and non partition range for filtering) => Parquet Scan
+   *
+   * With spec evolution and transformation if expression has identity columns only and Iceberg Expression won't able to form.
+   * in that case dremio Filter operator can take advantage so plan will be.
+   * ML(with Iceberg Expression of partition range for filtering) => MF(with Iceberg Expression of partition range and non partition range for filtering) => Filter(on Partition Expression) => Parquet Scan
+   */
   @Override
   public Prel finalizeRel() {
+    boolean specEvolTransEnabled = context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
     List<SchemaPath> manifestListReaderColumns = new ArrayList<>(Arrays.asList(SchemaPath.getSimplePath(SPLIT_IDENTITY), SchemaPath.getSimplePath(SPLIT_INFORMATION), SchemaPath.getSimplePath(COL_IDS)));
     BatchSchema manifestListReaderSchema = RecordReader.SPLIT_GEN_AND_COL_IDS_SCAN_SCHEMA;
 
     List<SchemaPath> manifestFileReaderColumns = new ArrayList<>(Arrays.asList(SchemaPath.getSimplePath(SPLIT_IDENTITY), SchemaPath.getSimplePath(SPLIT_INFORMATION), SchemaPath.getSimplePath(COL_IDS)));
-    BatchSchema manifestFileReaderSchema = getManifestFileReaderSchema(manifestFileReaderColumns);
-    if (pruneCondition != null && !isPruneConditionOnImplicitCol) {
+    BatchSchema manifestFileReaderSchema = getManifestFileReaderSchema(manifestFileReaderColumns, specEvolTransEnabled);
+    if (pruneCondition != null && !isPruneConditionOnImplicitCol && !specEvolTransEnabled) {
       manifestListReaderSchema = getSchemaWithMinMaxUsedColumns(pruneCondition.getPartitionRange(), manifestListReaderColumns, manifestListReaderSchema);
     }
 
     DistributionTrait.DistributionField distributionField = new DistributionTrait.DistributionField(0);
     DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
     RelTraitSet relTraitSet = getCluster().getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
+
+    IcebergExpGenVisitor icebergExpGenVisitor = new IcebergExpGenVisitor(getRowType());
+    Expression icebergPartitionPruneExpression = null;
+    List<RexNode> mfconditions = new ArrayList<>();
+    if (pruneCondition != null && pruneCondition.getPartitionRange() != null && specEvolTransEnabled) {
+      icebergPartitionPruneExpression = pruneCondition.getPartitionRange().accept(icebergExpGenVisitor);
+      mfconditions.add(pruneCondition.getPartitionRange());
+    }
+
     IcebergManifestListPrel manifestListPrel = new IcebergManifestListPrel(getCluster(), getTraitSet(), tableMetadata, manifestListReaderSchema, manifestListReaderColumns,
-      getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster()));
+      getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster()), icebergPartitionPruneExpression);
 
     RelNode input = manifestListPrel;
-    RexNode manifestListCondition = getManifestListFilter(getCluster().getRexBuilder(), manifestListPrel);
-    if (manifestListCondition != null) {
-      // Manifest list filter
-      input = new FilterPrel(getCluster(), getTraitSet(), manifestListPrel, manifestListCondition);
+
+    if (!specEvolTransEnabled) {
+      RexNode manifestListCondition = getManifestListFilter(getCluster().getRexBuilder(), manifestListPrel);
+      if (manifestListCondition != null) {
+        // Manifest list filter
+        input = new FilterPrel(getCluster(), getTraitSet(), manifestListPrel, manifestListCondition);
+      }
     }
 
     // exchange above manifest list scan, which is a leaf level easy scan
     HashToRandomExchangePrel manifestSplitsExchange = new HashToRandomExchangePrel(getCluster(), relTraitSet,
             input, distributionTrait.getFields(), TableFunctionUtil.getHashExchangeTableFunctionCreator(tableMetadata, true));
 
+    Expression icebergManifestFileAnyColPruneExpression = null;
+    if (specEvolTransEnabled) {
+      if (pruneCondition != null && pruneCondition.getNonPartitionRange() != null) {
+        mfconditions.add(pruneCondition.getNonPartitionRange());
+      }
+
+      IcebergExpGenVisitor icebergExpGenVisitor2 = new IcebergExpGenVisitor(getRowType());
+      if (mfconditions.size() > 0) {
+        RexNode manifestFileAnyColCondition = mfconditions.size() == 1 ? mfconditions.get(0) : getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.AND, pruneCondition.getPartitionRange(), pruneCondition.getNonPartitionRange());
+        icebergManifestFileAnyColPruneExpression = manifestFileAnyColCondition.accept(icebergExpGenVisitor2);
+      }
+    }
+
     // Manifest scan phase
     TableFunctionConfig manifestScanTableFunctionConfig =  TableFunctionUtil.getManifestScanTableFunctionConfig(
-      tableMetadata, manifestFileReaderColumns, manifestFileReaderSchema, null);
+      tableMetadata, manifestFileReaderColumns, manifestFileReaderSchema, null, icebergManifestFileAnyColPruneExpression);
 
     RelDataType rowTypeFromProjectedColumns = getRowTypeFromProjectedColumns(manifestFileReaderColumns, manifestFileReaderSchema, getCluster());
     TableFunctionPrel manifestScanTF = new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY),
@@ -224,7 +268,8 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       manifestScanTableFunctionConfig, rowTypeFromProjectedColumns);
 
     RelNode input2 = manifestScanTF;
-    final RexNode manifestFileCondition = getManifestFileFilter(getCluster().getRexBuilder(), manifestScanTF);
+
+    final RexNode manifestFileCondition = getManifestFileFilter(getCluster().getRexBuilder(), manifestScanTF, specEvolTransEnabled);
     if (manifestFileCondition != null) {
       // Manifest file filter
       input2 = new FilterPrel(getCluster(), getTraitSet(), manifestScanTF, manifestFileCondition);
@@ -237,6 +282,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     // table scan phase
     TableFunctionConfig tableFunctionConfig = TableFunctionUtil.getDataFileScanTableFunctionConfig(
       tableMetadata, filter, getProjectedColumns(), arrowCachingEnabled, isConvertedIcebergDataset);
+
     return new TableFunctionPrel(getCluster(), getTraitSet().plus(DistributionTrait.ANY), getTable(), parquetSplitsExchange, tableMetadata,
       ImmutableList.copyOf(getProjectedColumns()), tableFunctionConfig, getRowType(), getSurvivingRecords());
   }
@@ -361,26 +407,28 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     return isConvertedIcebergDataset;
   }
 
-  public RexNode getManifestFileFilter(RexBuilder builder, RelNode input) {
+  public RexNode getManifestFileFilter(RexBuilder builder, RelNode input, boolean specEvolTransEnabled) {
     if (pruneCondition == null) {
       return null;
     }
     List<RexNode> filters = new ArrayList<>();
-    // add non partition filter conditions for native iceberg tables
-    if (!isConvertedIcebergDataset()) {
-      RexNode nonPartitionRange = pruneCondition.getNonPartitionRange();
-      RelDataType rowType = getRowType();
-      if (nonPartitionRange != null) {
-        filters.add(getFilterWithIsNullCond(nonPartitionRange.accept(new MinMaxRewriter(builder, rowType, input)), builder, input));
+    if (!specEvolTransEnabled) {
+      // add non partition filter conditions for native iceberg tables
+      if (!isConvertedIcebergDataset()) {
+        RexNode nonPartitionRange = pruneCondition.getNonPartitionRange();
+        RelDataType rowType = getRowType();
+        if (nonPartitionRange != null) {
+          filters.add(getFilterWithIsNullCond(nonPartitionRange.accept(new MinMaxRewriter(builder, rowType, input)), builder, input));
+        }
       }
     }
     RexNode partitionExpression = pruneCondition.getPartitionExpression();
+
     if (partitionExpression != null) {
       filters.add(partitionExpression.accept(new ExpressionInputRewriter(builder, rowType, input, "_val")));
     }
     return filters.size() == 0 ? null : (filters.size()  == 1 ? filters.get(0) : RexUtil.flatten(builder, builder.makeCall(SqlStdOperatorTable.AND, filters)));
   }
-
 
   public BatchSchema getSchemaWithMinMaxUsedColumns(RexNode cond, List<SchemaPath> outputColumns, BatchSchema schema) {
     if (cond == null) {

@@ -101,6 +101,7 @@ public final class Fixtures {
     private final DataBatch[] batches;
     private final int records;
     private boolean orderSensitive;
+    private int keyColumnIndex = 0;
 
     private final boolean expectZero;
 
@@ -123,6 +124,11 @@ public final class Fixtures {
       return this;
     }
 
+    public  Table withKeyColumnIndex(int keyColumnIndex) {
+      this.keyColumnIndex = keyColumnIndex;
+      return this;
+    }
+
     public boolean isExpectZero() {
       return expectZero;
     }
@@ -131,9 +137,37 @@ public final class Fixtures {
       return new TableFixtureGenerator(allocator, this);
     }
 
+    public static Table fromGenerator(Generator generator, int batchSize) throws Exception {
+      try {
+        VectorAccessible acessible = generator.getOutput();
+        List<DataBatch> batches = new ArrayList<>();
+
+        int rowCount = 0;
+        while((rowCount = generator.next(batchSize)) != 0) {
+          int vectors = acessible.getSchema().getFieldCount();
+          DataRow[] rows = new DataRow[rowCount];
+          for(int row = 0; row < rowCount; row++) {
+            Object[] values = new Object[vectors];
+            int vector = 0;
+
+            for(VectorWrapper<?> w : acessible) {
+              values[vector] = w.getValueVector().getObject(row);
+              vector++;
+            }
+            rows[row] = Fixtures.tr(values);
+          }
+          batches.add(Fixtures.tb(rows));
+        }
+
+        HeaderRow th = Fixtures.th(acessible.getSchema().getFields().stream().map(Field::getName).toArray(String[]::new));
+        return Fixtures.tNoBound(th, batches.toArray(new DataBatch[0]));
+      } finally {
+        generator.close();
+      }
+    }
+
     private HashMap<Object, Fixtures.DataRow> makeResultMap() {
       HashMap<Object, DataRow> result = new HashMap<>();
-      final int keyColumnIndex = 0;
       for (DataBatch b : batches) {
         for (DataRow r : b.rows) {
           result.put(r.cells[keyColumnIndex].unwrap(), r);
@@ -204,7 +238,7 @@ public final class Fixtures {
             tablesMatched = compare(sb, fields, this.batches, actualBatches, this.records);
           } else {
             HashMap<Object, Fixtures.DataRow> resultMap = makeResultMap();
-            tablesMatched = compareTableResultMap(sb, fields, actualBatches, this.records, resultMap);
+            tablesMatched = compareTableResultMap(sb, fields, actualBatches, this.records, resultMap, this.keyColumnIndex);
           }
           if(!tablesMatched){
             okay = false;
@@ -240,7 +274,8 @@ public final class Fixtures {
   }
 
   private static boolean compareTableResultMap(StringBuilder sb, Field[] fields, List<RecordBatchData> actual,
-                                               int expectedRecordCount, HashMap<Object, Fixtures.DataRow> resultMap) {
+                                               int expectedRecordCount, HashMap<Object, Fixtures.DataRow> resultMap,
+                                               int keyColumnIndex) {
 
     int failures  = 0;
     NavigableMap<Integer, RangeHolder<DataHolder>> actualRange = new TreeMap<>();
@@ -270,7 +305,6 @@ public final class Fixtures {
     expectedOutputTable.addRow((Object[]) header);
     expectedOutputTable.addRule();
 
-    final int keyColumnIndex = 0;
     for (int rowNumber = 0; rowNumber < expectedRecordCount; rowNumber++) {
       RangeHolder<DataHolder> actualHolder = actualRange.floorEntry(rowNumber).getValue();
       final int localRowNumber = rowNumber - actualHolder.offset;
@@ -544,6 +578,8 @@ public final class Fixtures {
       return (Cell) obj;
     } else if(obj instanceof String){
       return new VarChar((String) obj);
+    } else if(obj instanceof Text){
+      return new VarChar(obj.toString());
     }else if(obj instanceof Long){
       return new BigInt((Long)obj);
     }else if(obj instanceof Double){
@@ -586,6 +622,10 @@ public final class Fixtures {
 
   public static Table t(HeaderRow header, DataRow... rows){
     return t(header, false, rows);
+  }
+
+  public static Table tNoBound(HeaderRow header, DataBatch... batches){
+    return new Table(false, false, getFields(header, batches), batches);
   }
 
   public static Table split(HeaderRow header, int desiredBatchSize, DataRow... rows) {

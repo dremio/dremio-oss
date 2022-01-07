@@ -17,21 +17,23 @@ package com.dremio.exec.store.json;
 
 import static com.dremio.ArrowDsUtil.doubleList;
 import static com.dremio.ArrowDsUtil.doubleStruct;
+import static com.dremio.ArrowDsUtil.longList;
 import static com.dremio.ArrowDsUtil.wrapDoubleListInList;
 import static com.dremio.ArrowDsUtil.wrapListInStruct;
 import static com.dremio.ArrowDsUtil.wrapStructInList;
 import static com.dremio.ArrowDsUtil.wrapStructInStruct;
-import static com.dremio.exec.ExecConstants.MIXED_TYPES_DISABLED;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -39,18 +41,10 @@ import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.sabot.rpc.user.QueryDataBatch;
+import com.google.common.io.Resources;
 
 public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase {
-
-  @BeforeClass
-  public static void disableMixedTypesSupport() {
-    setSystemOption(MIXED_TYPES_DISABLED.getOptionName(), "true");
-  }
-
-  @AfterClass
-  public static void resetMixedTypesSupport() {
-    resetSystemOption(MIXED_TYPES_DISABLED.getOptionName());
-  }
 
   @Test
   public void testBigintToDoubleCoercionForSimpleListType() throws Exception {
@@ -80,6 +74,36 @@ public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBas
       .baselineValues(doubleStruct("f1", 2.0), doubleStruct("f2", 2.3))
       .go();
     verifyCountStar(jsonDir, 2);
+  }
+
+  @Test
+  public void testEmptyListColumnRemoval() throws Exception {
+    Path jsonDir = createTempDirWithName("empty_list").toPath();
+    writeDir(jsonDir, "empty_list");
+    testBuilder()
+      .sqlQuery("SELECT * from dfs.\"" + jsonDir + "\"")
+      .unOrdered()
+      .baselineColumns("col2")
+      .baselineValues(doubleList(1.1, 2.2))
+      .go();
+    Path nonEmptyListFilePath = Paths.get("json/schema_changes/no_mixed_types/complex/array_double_bigint/array_bigint_double.json");
+    URL resource = Resources.getResource(nonEmptyListFilePath.toString());
+    java.nio.file.Files.write(jsonDir.resolve("array_bigint_double.json"), Resources.toByteArray(resource));
+    final String sql = "alter table dfs.\"" + jsonDir + "\" refresh metadata";
+    runSQL(sql);
+    testBuilder()
+      .sqlQuery("SELECT * from dfs.\"" + jsonDir + "\"")
+      .unOrdered()
+      .baselineColumns("col1", "col2")
+      .baselineValues(longList(1L, 2L), doubleList(1.1, 2.2))
+      .baselineValues(longList(), doubleList(1.1, 2.2))
+      .go();
+  }
+
+  @Test
+  public void testEmptyListWithOneNonEmptyRow() throws Exception {
+    Path jsonDir = copyFiles("large_empty_list");
+    Assert.assertThat(runDescribeQuery(jsonDir), allOf(containsString("col1"), containsString("col2")));
   }
 
   @Test
@@ -204,5 +228,11 @@ public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBas
       .baselineColumns("EXPR$0")
       .baselineValues(result);
     testBuilder.go();
+  }
+
+  private String runDescribeQuery(Path jsonDir) throws Exception {
+    String query = String.format("describe dfs.\"%s\"", jsonDir);
+    List<QueryDataBatch> queryDataBatches = testRunAndReturn(UserBitShared.QueryType.SQL, query);
+    return getResultString(queryDataBatches, "|", false);
   }
 }

@@ -39,9 +39,11 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UnknownFormatConversionException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -70,6 +72,7 @@ import org.apache.arrow.vector.util.Text;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.DremioIndexByName;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsMetadataReader;
 import org.apache.iceberg.Schema;
@@ -523,5 +526,21 @@ public class IcebergUtils {
       default:
         throw new UnsupportedOperationException("Unable to return partition field: "  + Describer.describe(field));
     }
+  }
+
+  public static Set<String> getInvalidColumnsForPruning(Map<Integer, PartitionSpec> partitionSpecMap) {
+    Set<String> scanRequiredColumns = new HashSet<>();
+    if(partitionSpecMap != null) {
+      for (Map.Entry<Integer, PartitionSpec> entry : partitionSpecMap.entrySet()) {
+        PartitionSpec partitionSpec = entry.getValue();
+        Schema schema = partitionSpec.schema();
+        for (PartitionField partitionField : partitionSpec.fields()) {
+          if (entry.getKey() != 0 || !partitionField.transform().isIdentity()) {
+            scanRequiredColumns.add(schema.findField(partitionField.sourceId()).name());
+          }
+        }
+      }
+    }
+    return scanRequiredColumns;
   }
 }

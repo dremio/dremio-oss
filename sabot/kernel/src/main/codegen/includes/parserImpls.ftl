@@ -242,17 +242,11 @@ void TableElement(List<SqlNode> list) :
     LOOKAHEAD(2) id = SimpleIdentifier()
     (
         type = DataType()
-        (
-            <NULL> { nullable = true; }
-            |
-            <NOT> <NULL> { nullable = false; }
-            |
-            { nullable = true; }
-        )
+        nullable = NullableOptDefaultTrue()
         {
             list.add(
                     new SqlColumnDeclaration(s.add(id).end(this), id,
-                    type.withNullable(nullable), null));
+                    new SqlComplexDataTypeSpec(type.withNullable(nullable)), null));
         }
         |
         { list.add(id); }
@@ -570,3 +564,91 @@ SqlNode SqlRefreshDataset() :
     { return new SqlRefreshDataset(pos, tblName, deleteUnavail, forceUp, promotion, allFilesRefresh,
         allPartitionsRefresh, fileRefresh, partitionRefresh, filesList, partitionList); }
 }
+
+/**
+ * Parse a nullable option, default is true.
+ */
+ boolean NullableOptDefaultTrue() :
+ {
+ }
+ {
+     <NULL> { return true; }
+ |
+     <NOT> <NULL> { return false; }
+ |
+     { return true; }
+ }
+
+
+/**
+ * Parse a "name1 : type1 [NULL | NOT NULL], name2: type2 [NULL | NOT NULL] ..." list,
+ * the field type default is nullable.
+ */
+ void FieldNameStructTypeCommaList(
+         List<SqlIdentifier> fieldNames,
+         List<SqlComplexDataTypeSpec> fieldTypes) :
+ {
+     SqlIdentifier fName;
+     SqlDataTypeSpec fType;
+     boolean nullable;
+ }
+ {
+     fName = SimpleIdentifier()
+     <COLON>
+     fType = DataType()
+     nullable = NullableOptDefaultTrue()
+     {
+         fieldNames.add(fName);
+         fieldTypes.add(new SqlComplexDataTypeSpec(fType.withNullable(nullable)));
+     }
+     (
+         <COMMA>
+         fName = SimpleIdentifier()
+         <COLON>
+         fType = DataType()
+         nullable = NullableOptDefaultTrue()
+         {
+             fieldNames.add(fName);
+             fieldTypes.add(new SqlComplexDataTypeSpec(fType.withNullable(nullable)));
+         }
+     )*
+ }
+
+ /**
+ * Parse Row type with format: struct<name1 : type1, name2: type2>.
+ * Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
+ * i.e. struct<name1 : type1 not null, name2: type2 null>.
+ */
+ SqlIdentifier RowTypeName() :
+ {
+     List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
+     List<SqlComplexDataTypeSpec> fieldTypes = new ArrayList<SqlComplexDataTypeSpec>();
+ }
+ {
+     <STRUCT>
+     <LT> FieldNameStructTypeCommaList(fieldNames, fieldTypes) <GT>
+     {
+         return new SqlRowTypeSpec(getPos(), fieldNames, fieldTypes);
+     }
+ }
+
+ /**
+  * Parse Array type with format: list<type1>.
+  * Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
+  * i.e. list<type1 not null>.
+  */
+  SqlIdentifier ArrayTypeName() :
+  {
+      SqlDataTypeSpec fType;
+      boolean nullable;
+  }
+  {
+      (<LIST> | <ARRAY>)
+      <LT>
+       fType = DataType()
+       nullable = NullableOptDefaultTrue()
+      <GT>
+      {
+          return new SqlArrayTypeSpec(getPos(), new SqlComplexDataTypeSpec(fType.withNullable(nullable)));
+      }
+  }

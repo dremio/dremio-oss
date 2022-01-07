@@ -32,7 +32,7 @@ final class DremioDiagnosticListener implements DiagnosticListener<JavaFileObjec
       String message = diagnostic.toString() + " (" + diagnostic.getCode() + ")";
       logger.error(message);
       Location loc = new Location( //
-          diagnostic.getSource().toString(), //
+        (diagnostic.getSource() != null) ? diagnostic.getSource().toString() : "", //
           (short) diagnostic.getLineNumber(), //
           (short) diagnostic.getColumnNumber() //
       );

@@ -157,7 +157,7 @@ public class HiveUtilities {
         if (primitiveTypeInfo.getPrimitiveCategory() == PrimitiveCategory.DECIMAL) {
           DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) primitiveTypeInfo;
           typeBuilder.setPrecision(decimalTypeInfo.precision())
-                  .setScale(decimalTypeInfo.scale()).build();
+                  .setScale(decimalTypeInfo.scale());
         }
 
         return typeBuilder.build();

@@ -76,7 +76,7 @@ public class MaestroForwarderImpl implements MaestroForwarder {
       final MaestroServiceGrpc.MaestroServiceBlockingStub stub = MaestroServiceGrpc.newBlockingStub(channel);
       stub.screenComplete(completion);
     } else {
-      logger.debug("screen completion message arrived post query termination, dropping. Query [{}] from node {}.",
+      logger.warn("screen completion message arrived post query termination, dropping. Query [{}] from node {}.",
         QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint());
     }
   }
@@ -90,7 +90,7 @@ public class MaestroForwarderImpl implements MaestroForwarder {
       final MaestroServiceGrpc.MaestroServiceBlockingStub stub = MaestroServiceGrpc.newBlockingStub(channel);
       stub.nodeQueryComplete(completion);
     } else {
-      logger.debug("A node query completion message arrived post query termination, dropping. Query [{}] from node {}.",
+      logger.warn("A node query completion message arrived post query termination, dropping. Query [{}] from node {}.",
         QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint());
     }
   }
@@ -104,7 +104,7 @@ public class MaestroForwarderImpl implements MaestroForwarder {
       final MaestroServiceGrpc.MaestroServiceBlockingStub stub = MaestroServiceGrpc.newBlockingStub(channel);
       stub.nodeFirstError(error);
     } else {
-      logger.debug("A node query error message arrived post query termination, dropping. Query [{}] from node {}.",
+      logger.warn("A node query error message arrived post query termination, dropping. Query [{}] from node {}.",
         QueryIdHelper.getQueryId(error.getHandle().getQueryId()), error.getEndpoint());
     }
   }
@@ -160,8 +160,8 @@ public class MaestroForwarderImpl implements MaestroForwarder {
       }
 
     } else {
-      logger.info("User data arrived post query termination from {}, dropping. Data was from QueryId: {}.",
-        jobResultsRequest.getForeman().getAddress(), queryId);
+      logger.warn("User data arrived post query termination from {}, dropping. Data was from " +
+          "QueryId: {}.", jobResultsRequest.getForeman().getAddress(), queryId);
       sender.sendFailure(new UserRpcException(jobResultsRequest.getForeman(), "Failed to forward job results request", new Throwable("Query Already Terminated")));
     }
   }
@@ -200,7 +200,12 @@ public class MaestroForwarderImpl implements MaestroForwarder {
     if (endpoint == null) { //for UTs
       return false;
     }
-    return !endpoint.equals(selfEndpointProvider.get())
-      && jobServiceInstances.get().contains(endpoint);
+    /* do not look at coordinator service set before forwarding. if other
+      coordinator has flaky zk connection we will block all rpcs to that coordinator
+      from executor leading to a query hang.
+      we already know the endpoint no harm in directly sending the rpc; if coordinator
+      is really not reachable thats ok; we will clean up in orphan jobs
+     */
+    return !endpoint.equals(selfEndpointProvider.get());
   }
 }

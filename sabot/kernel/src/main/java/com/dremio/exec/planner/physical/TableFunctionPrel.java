@@ -28,18 +28,24 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.iceberg.exceptions.RuntimeIOException;
+import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
+import com.google.common.base.Joiner;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -132,6 +138,14 @@ public class TableFunctionPrel extends SinglePrel {
     if (functionConfig.getFunctionContext().getScanFilter() != null) {
       pw.item("filters", functionConfig.getFunctionContext().getScanFilter().toString());
     }
+    if(functionConfig.getFunctionContext().getColumns() != null){
+      pw.item("columns", FluentIterable.from(functionConfig.getFunctionContext().getColumns()).transform(new com.google.common.base.Function<SchemaPath, String>(){
+
+        @Override
+        public String apply(SchemaPath input) {
+          return input.toString();
+        }}).join(Joiner.on(", ")));
+    }
     return explainTableFunction(pw);
   }
 
@@ -139,6 +153,19 @@ public class TableFunctionPrel extends SinglePrel {
     switch (functionConfig.getType()) {
       case DATA_FILE_SCAN:
         pw.item("table", PathUtils.constructFullPath(functionConfig.getFunctionContext().getTablePath().get(0)));
+        break;
+      case SPLIT_GEN_MANIFEST_SCAN:
+        Expression icebergAnyColExpression;
+        try {
+          icebergAnyColExpression = IcebergSerDe.deserializeFromByteArray(((SplitGenManifestScanTableFunctionContext) functionConfig.getFunctionContext()).getIcebergAnyColExpression());
+        } catch (IOException e) {
+          throw new RuntimeIOException(e, "failed to deserialize ManifestFile Filter AnyColExpression");
+        } catch (ClassNotFoundException e) {
+          throw new RuntimeException("failed to deserialize ManifestFile Filter AnyColExpression" , e);
+        }
+        if(icebergAnyColExpression != null) {
+          pw.item("ManifestFile Filter AnyColExpression", icebergAnyColExpression.toString());
+        }
         break;
     }
     return pw;

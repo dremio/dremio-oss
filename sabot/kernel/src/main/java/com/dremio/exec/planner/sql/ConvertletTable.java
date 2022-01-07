@@ -44,6 +44,9 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentDateConvertlet;
 import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentTimeConvertlet;
 import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentTimeStampConvertlet;
+import com.dremio.exec.planner.sql.HiveMaskConvertlets.HiveMaskConvertlet;
+import com.dremio.exec.planner.sql.HiveMaskConvertlets.HiveMaskFirstLastConvertlet;
+import com.dremio.exec.planner.sql.HiveMaskConvertlets.HiveMaskHashConvertlet;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -151,6 +154,12 @@ public class ConvertletTable extends ReflectiveConvertletTable {
     registerOp(SqlStdOperatorTable.LOCALTIME, new CurrentTimeConvertlet(contextInformation));
     registerOp(SqlStdOperatorTable.CURRENT_TIMESTAMP, new CurrentTimeStampConvertlet(contextInformation));
     registerOp(SqlStdOperatorTable.LOCALTIMESTAMP, new CurrentTimeStampConvertlet(contextInformation));
+    registerOp(DremioSqlOperatorTable.HIVE_MASK_HASH, HiveMaskHashConvertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.HIVE_MASK, HiveMaskConvertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.HIVE_MASK_FIRST_N, HiveMaskFirstLastConvertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.HIVE_MASK_LAST_N, HiveMaskFirstLastConvertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.HIVE_MASK_SHOW_FIRST_N, HiveMaskFirstLastConvertlet.INSTANCE);
+    registerOp(DremioSqlOperatorTable.HIVE_MASK_SHOW_LAST_N, HiveMaskFirstLastConvertlet.INSTANCE);
   }
 
   /*

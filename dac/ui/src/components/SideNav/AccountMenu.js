@@ -22,6 +22,7 @@ import { withRouter } from 'react-router';
 
 import fileABug from 'utils/fileABug';
 import { logoutUser } from '@inject/actions/account';
+import accountMenuConfig from '@inject/components/SideNav/accountMenuConfig';
 
 
 import Menu from 'components/Menus/Menu';
@@ -76,9 +77,11 @@ const AccountMenu = (props) => {
     {config.shouldEnableBugFiling &&
       <DividerHr/>
     }
-    <MenuItem onClick={onAccountSettings}>
-      <FormattedMessage id='HeaderMenu.AccountSettings'/>
-    </MenuItem>
+    {accountMenuConfig.enableAccountSettings &&
+      <MenuItem onClick={onAccountSettings}>
+        <FormattedMessage id='HeaderMenu.AccountSettings'/>
+      </MenuItem>
+    }
     <HookConsumer>
       {
         ({ doChangesCheck }) => (

@@ -31,7 +31,7 @@ export default {
       const end = moment().unix() * 1000;
       const start = moment().subtract(numDaysBack, 'days').unix() * 1000;
 
-      url += `?start=${start}&end=${end}`;
+      url += `?start=${start}&end=${end}&onlyDateWiseTotals=true`;
     }
 
     return ApiUtils.fetchJson(url, json => {
@@ -45,7 +45,7 @@ export default {
       const end = moment().unix() * 1000;
       const start = moment().subtract(numDaysBack, 'days').unix() * 1000;
 
-      url += `?start=${start}&end=${end}`;
+      url += `?start=${start}&end=${end}&onlyUniqueUsersByDate=true`;
     }
     return ApiUtils.fetchJson(url, json => {
       return json;

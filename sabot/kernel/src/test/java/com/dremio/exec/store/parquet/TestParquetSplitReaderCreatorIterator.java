@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS;
 import static com.dremio.exec.ExecConstants.NUM_SPLITS_TO_PREFETCH;
 import static com.dremio.exec.ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE;
 import static com.dremio.exec.ExecConstants.PREFETCH_READER;
+import static com.dremio.exec.ExecConstants.QUERY_EXEC_OPTION_KEY;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -50,6 +52,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionContext;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -57,6 +60,7 @@ import com.dremio.exec.store.dfs.SplitReaderCreator;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -323,6 +327,8 @@ public class TestParquetSplitReaderCreatorIterator {
     when(optionManager.getOption(PREFETCH_READER)).thenReturn(prefetch);
     when(optionManager.getOption(NUM_SPLITS_TO_PREFETCH)).thenReturn(numPrefetch);
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
+    when(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)).thenReturn("");
+    when(optionManager.getOption(QUERY_EXEC_OPTION_KEY)).thenReturn(OptionValue.createString(OptionValue.OptionType.SYSTEM,QUERY_EXEC_OPTION_KEY,"Gandiva"));
     when(context.getStats()).thenReturn(operatorStats);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
     when(fileSystemPlugin.createFS(anyString(), anyString(), any())).thenReturn(fs);
@@ -333,6 +339,7 @@ public class TestParquetSplitReaderCreatorIterator {
     when(storagePluginId.getName()).thenReturn("");
     when(config.getProps()).thenReturn(opProps);
     when(opProps.getUserName()).thenReturn("");
+    when(config.getFullSchema()).thenReturn(new BatchSchema(Collections.emptyList()));
     when(config.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
     when(config.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());
     when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR)).thenReturn("dir");
@@ -430,7 +437,7 @@ public class TestParquetSplitReaderCreatorIterator {
     when(readerConfig.getPartitionNVPairs(any(), any())).thenReturn(new ArrayList<>());
     when(readerConfig.wrapIfNecessary(any(), any(), any())).then(i -> i.getArgumentAt(1, RecordReader.class));
 
-    return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, opProps, tableFunctionConfig);
+    return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, opProps, tableFunctionConfig, false, false);
   }
 
   private SplitAndPartitionInfo createBlockBasedSplit(int start, int length, int p) {

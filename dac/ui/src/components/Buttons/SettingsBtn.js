@@ -32,6 +32,7 @@ export default class SettingsBtn extends PureComponent {
     handleSettingsClose: PropTypes.func,
     handleSettingsOpen: PropTypes.func,
     hasDropdown: PropTypes.bool,
+    position: PropTypes.any,
     hideArrowIcon: PropTypes.bool,
     children: PropTypes.node,
     style: PropTypes.object
@@ -79,7 +80,8 @@ export default class SettingsBtn extends PureComponent {
       classStr,
       style,
       hideArrowIcon,
-      children
+      children,
+      position
     } = this.props;
     const wrapClasses = classNames(classStr, {'active': this.state.open});
     return (
@@ -99,8 +101,8 @@ export default class SettingsBtn extends PureComponent {
         {hasDropdown && <Popover
           open={this.state.open}
           anchorEl={this.state.anchorEl}
-          anchorOrigin={{horizontal: 'left', vertical: 'bottom'}}
-          transformOrigin={{horizontal: 'left', vertical: 'top'}}
+          anchorOrigin={{horizontal: position ? position : 'left', vertical: 'bottom'}}
+          transformOrigin={{horizontal: position ? position : 'left', vertical: 'top'}}
           onClose={this.handleRequestClose}
         >
           {React.cloneElement(this.props.menu, {closeMenu: this.handleRequestClose})}
@@ -113,7 +115,7 @@ export default class SettingsBtn extends PureComponent {
 
 const styles = {
   popover: {
-    width: 'auto',
+    width: '',
     margin: 0
   },
   button: {

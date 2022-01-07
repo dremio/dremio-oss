@@ -34,13 +34,13 @@ public class TestMetadataProviderLimit extends BaseTestQuery {
   @Test
   public void tables() throws Exception {
     final Properties properties = cloneDefaultTestConfigProperties();
-    properties.setProperty("MaxMetadataCount", "10");
+    properties.setProperty("MaxMetadataCount", "4");
     updateClient(properties);
 
     GetTablesResp resp = client.getTables(null, null, null, null).get();
 
     assertEquals(UserProtos.RequestStatus.OK, resp.getStatus());
     List<UserProtos.TableMetadata> tables = resp.getTablesList();
-    assertEquals(10, tables.size());
+    assertEquals(4, tables.size());
   }
 }

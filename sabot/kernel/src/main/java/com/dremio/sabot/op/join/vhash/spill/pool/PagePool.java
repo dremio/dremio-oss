@@ -153,7 +153,7 @@ public class PagePool implements AutoCloseable {
 
     try {
       if (pages.size() > unused.size()) {
-        throw new IllegalStateException("Some pages are still in use.");
+        throw new IllegalStateException("Some pages " +  (pages.size() - unused.size()) + " are still in use");
       }
 
       List<AutoCloseable> ac = Stream.concat(

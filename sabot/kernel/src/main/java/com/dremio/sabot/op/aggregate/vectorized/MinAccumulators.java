@@ -542,7 +542,7 @@ public class MinAccumulators {
                                 int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
                                 int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent,
                                 BaseVariableWidthVector tempAccumulatorHolder) {
-      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.MIN, maxValuesPerBatch,
+      super(input, transferVector, AccumulatorBuilder.AccumulatorType.MIN, maxValuesPerBatch,
         computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
     }
 

@@ -84,7 +84,7 @@ public class FullMetadataRefreshCommitter extends IcebergTableCreationCommitter 
     datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
     long numDataFiles = Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
-    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(), conf, isPartitioned);
+    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(), conf, isPartitioned, getCurrentSpecMap());
 
     try {
       client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());

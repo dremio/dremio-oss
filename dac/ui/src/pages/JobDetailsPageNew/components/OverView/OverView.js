@@ -51,7 +51,8 @@ const OverView = (props) => {
     jobDetails,
     downloadJobFile,
     isContrast,
-    onClick
+    onClick,
+    location
   } = props;
   const attemptDetails = jobDetails.get('attemptDetails') || Immutable.List();
   const haveMultipleAttempts = attemptDetails.size > 1;
@@ -144,6 +145,7 @@ const OverView = (props) => {
           <>
             <ReflectionsCreated
               reflections={jobDetails.get('reflections')}
+              location={location}
             />
             <QueriedDataset queriedDataSet={jobDetails.get('queriedDatasets')} />
             <Scans scansForFilter={ScansForFilter} scans={jobDetails.get('scannedDatasets')} />
@@ -151,6 +153,7 @@ const OverView = (props) => {
               reflectionsUsed={jobDetails.get('reflectionsUsed')}
               reflectionsNotUsed={jobDetails.get('reflectionsMatched')}
               isAcceleration={jobDetails.get('accelerated')}
+              location={location}
             />
           </>
         }
@@ -171,6 +174,7 @@ OverView.propTypes = {
   downloadJobProfile: PropTypes.func,
   downloadJobFile: PropTypes.func,
   isContrast: PropTypes.bool,
-  onClick: PropTypes.func
+  onClick: PropTypes.func,
+  location: PropTypes.object.isRequired
 };
 export default injectIntl(OverView);

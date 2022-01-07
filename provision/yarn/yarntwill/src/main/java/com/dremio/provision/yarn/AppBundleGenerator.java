@@ -15,6 +15,9 @@
  */
 package com.dremio.provision.yarn;
 
+import static com.google.common.base.StandardSystemProperty.JAVA_CLASS_PATH;
+import static com.google.common.base.StandardSystemProperty.PATH_SEPARATOR;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -28,6 +31,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.jar.Attributes;
@@ -43,6 +47,7 @@ import javax.validation.constraints.NotNull;
 import com.dremio.config.DremioConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
 
@@ -222,9 +227,26 @@ public class AppBundleGenerator {
     }
   }
 
+  private static Stream<Path> parseJavaClassPath() {
+    ImmutableList.Builder<Path> paths = ImmutableList.builder();
+    for (String entry : Splitter.on(PATH_SEPARATOR.value()).split(JAVA_CLASS_PATH.value())) {
+      paths.add(Paths.get(entry));
+    }
+    return paths.build().stream();
+  }
+
   private static Stream<Path> getPaths(ClassLoader classLoader) {
     if (!(classLoader instanceof URLClassLoader)) {
-      return Stream.of();
+      // in Jdk8 the default classloader is of type URLClassLoader
+      // in Jdk9+ the default classloader is NOT of URLClassloader.
+      // SystemClassLoader loads classes from the classpath.
+      // Hence resolving all the resources from the classpath will include
+      // the required dependencies.
+      if (Objects.equals(classLoader, ClassLoader.getSystemClassLoader())) {
+        return parseJavaClassPath();
+      } else {
+        return Stream.of();
+      }
     }
 
     URLClassLoader urlCL = (URLClassLoader) classLoader;

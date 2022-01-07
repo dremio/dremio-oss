@@ -16,14 +16,12 @@
 package com.dremio.exec.planner.sql.handlers;
 
 import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
-import static com.dremio.exec.ExecConstants.MIXED_TYPES_DISABLED;
 
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -84,7 +82,6 @@ public class RefreshDatasetHandler implements SqlToPlanHandler {
   private void assertRefreshEnabled(SqlHandlerConfig config) {
     Preconditions.checkArgument(config.getContext().getOptions().getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT), PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName() + " Should be enabled");
     Preconditions.checkArgument(config.getContext().getOptions().getOption(ENABLE_ICEBERG), ENABLE_ICEBERG.getOptionName() + " Should be enabled");
-    Preconditions.checkArgument(config.getContext().getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED), MIXED_TYPES_DISABLED.getOptionName() + " Should be enabled");
   }
 
   private void setTextPlan(String textPlan) {

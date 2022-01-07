@@ -30,6 +30,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.CachingOptionResolver;
+import com.dremio.exec.store.sys.statistics.StatisticsService;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionResolver;
 import com.dremio.options.OptionValidator;
@@ -268,6 +269,8 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER = new BooleanValidator("planner.experimental.enable_bushy_join_optimizer", false);
 
+  public static final BooleanValidator ENABLE_RANGE_QUERY_REWRITE = new BooleanValidator("planner.enable_range_query_rewrite", false);
+
   public static final DoubleValidator FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR =
           new RangeDoubleValidator("planner.filter.min_selectivity_estimate_factor", 0.0, 1.0, DEFAULT_FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR);
   public static final DoubleValidator FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR_WITH_STATISTICS =
@@ -280,7 +283,7 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator REMOVE_ROW_ADJUSTMENT = new BooleanValidator("planner.remove_rowcount_adjustment", true);
 
-  public static final PositiveLongValidator CASE_EXPRESSIONS_THRESHOLD = new PositiveLongValidator("planner.case_expressions_threshold", 400, 20);
+  public static final PositiveLongValidator CASE_EXPRESSIONS_THRESHOLD = new PositiveLongValidator("planner.case_expressions_threshold", 400, 4);
 
   public static final BooleanValidator ENABLE_SCAN_MIN_COST = new BooleanValidator("planner.cost.minimum.enable", true);
   public static final DoubleValidator DEFAULT_SCAN_MIN_COST = new DoubleValidator("planner.default.min_cost_per_split", 0);
@@ -337,8 +340,14 @@ public class PlannerSettings implements Context{
 
   private final SabotConfig sabotConfig;
   private final ExecutionControls executionControls;
+  private final StatisticsService statisticsService;
   public final OptionResolver options;
   private Supplier<GroupResourceInformation> resourceInformation;
+
+  public StatisticsService getStatisticsService() {
+    return statisticsService;
+  }
+
 
   // This flag is used by AbstractRelOptPlanner to set it's "cancelFlag".
   private final CancelFlag cancelFlag = new CancelFlag(new AtomicBoolean(false));
@@ -351,16 +360,24 @@ public class PlannerSettings implements Context{
   private NodeEndpoint nodeEndpoint = null;
 
   public PlannerSettings(SabotConfig config, OptionResolver options,
-                         Supplier<GroupResourceInformation> resourceInformation) {
-    this(config, options, resourceInformation, null);
+                         Supplier<GroupResourceInformation> resourceInformation,
+                         StatisticsService statisticsService) {
+    this(config, options, resourceInformation, null, statisticsService);
   }
 
   public PlannerSettings(SabotConfig config, OptionResolver options,
-                         Supplier<GroupResourceInformation> resourceInformation, ExecutionControls executionControls) {
+                         Supplier<GroupResourceInformation> resourceInformation) {
+    this(config, options, resourceInformation, null, null);
+  }
+  public PlannerSettings(SabotConfig config, OptionResolver options,
+                         Supplier<GroupResourceInformation> resourceInformation,
+                         ExecutionControls executionControls,
+                         StatisticsService statisticsService) {
     this.sabotConfig = config;
     this.options = new CachingOptionResolver(options);
     this.resourceInformation = resourceInformation;
     this.executionControls = executionControls;
+    this.statisticsService = statisticsService;
   }
 
   public SabotConfig getSabotConfig() {

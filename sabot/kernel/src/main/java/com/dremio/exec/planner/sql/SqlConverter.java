@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql;
 
 import java.util.List;
+import java.util.function.Function;
 
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
@@ -37,6 +38,7 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.SqlOperatorTables;
+import org.apache.calcite.sql2rel.DremioRelDecorrelator;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
@@ -57,7 +59,6 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFac
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.RelMetadataQuerySupplier;
-import com.dremio.exec.planner.logical.DremioRelDecorrelator;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -91,7 +92,6 @@ public class SqlConverter {
   private final RelOptPlanner planner;
   private final RelOptCluster cluster;
   private final AttemptObserver observer;
-  private final int nestingLevel;
   private final AccelerationAwareSubstitutionProvider substitutions;
   private final MaterializationList materializations;
   private final UserSession session;
@@ -99,6 +99,7 @@ public class SqlConverter {
   private final FlattenOpCounter flattenCounter;
   private final ScanResult scanResult;
   private final SabotConfig config;
+  private final Catalog catalog;
 
   public SqlConverter(
       final PlannerSettings settings,
@@ -114,7 +115,7 @@ public class SqlConverter {
       final ScanResult scanResult,
       final RelMetadataQuerySupplier relMetadataQuerySupplier
       ) {
-    this.nestingLevel = 0;
+    this.catalog = catalog;
     this.flattenCounter = new FlattenOpCounter();
     this.observer = observer;
     this.settings = settings;
@@ -140,9 +141,7 @@ public class SqlConverter {
     this.scanResult = scanResult;
   }
 
-  public SqlConverter(SqlConverter parent, DremioCatalogReader catalog) {
-    this.nestingLevel = parent.nestingLevel + 1;
-    // since this is level 1 or deeper, we need to use system defaults instead of any overridden edge parser.
+  private SqlConverter(SqlConverter parent, DremioCatalogReader catalog) {
     this.parserConfig = parent.parserConfig.cloneWithSystemDefault();
     this.substitutions = parent.substitutions;
     this.functions = parent.functions;
@@ -166,6 +165,24 @@ public class SqlConverter {
     this.viewExpansionContext = parent.viewExpansionContext;
     this.config = parent.config;
     this.scanResult = parent.scanResult;
+    this.catalog = parent.catalog;
+  }
+
+  public SqlConverter withSchemaPathAndUser(List<String> schemaPath, String user){
+    return new SqlConverter(this,
+      getCatalogReader()
+        .withSchemaPathAndUser(schemaPath, user));
+  }
+
+  public SqlConverter withSchemaPath(List<String> schemaPath){
+    return new SqlConverter(this,
+      getCatalogReader()
+        .withSchemaPath(schemaPath));
+  }
+
+  public SqlConverter withCatalog(final Function<Catalog, Catalog> catalogTransformer) {
+    return new SqlConverter(this,
+      new DremioCatalogReader(catalogTransformer.apply(catalog), typeFactory));
   }
 
   private static SqlNodeList parseMultipleStatementsImpl(String sql, ParserConfig parserConfig, boolean isInnerQuery) {
@@ -267,10 +284,6 @@ public class SqlConverter {
 
   public MaterializationList getMaterializations() {
     return materializations;
-  }
-
-  public int getNestingLevel() {
-    return nestingLevel;
   }
 
   public RelOptCluster getCluster() {

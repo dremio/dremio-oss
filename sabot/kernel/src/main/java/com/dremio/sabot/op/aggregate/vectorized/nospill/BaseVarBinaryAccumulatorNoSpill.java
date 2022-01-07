@@ -81,7 +81,7 @@ abstract class BaseVarBinaryAccumulatorNoSpill implements AccumulatorNoSpill {
     MutableVarcharVector mv = (MutableVarcharVector) accumulators[batchIndex];
     ((VariableWidthVector) output).allocateNew(mv.getUsedByteCapacity(), LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
 
-    mv.copyToVarWidthVec((BaseVariableWidthVector) output, LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH);
+    mv.copyToVarWidthVec((BaseVariableWidthVector)output, LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH, 0);
   }
 
   @SuppressWarnings("unchecked")

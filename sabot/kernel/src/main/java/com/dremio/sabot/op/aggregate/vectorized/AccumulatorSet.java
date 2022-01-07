@@ -198,7 +198,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   }
 
   private void allocatePowerOfTwoOrLessAndSlice(final int totalSize, List<Integer> childIndices) throws Exception {
-    try(AutoCloseables.RollbackCloseable rollbackable = new AutoCloseables.RollbackCloseable()) {
+    try (AutoCloseables.RollbackCloseable rollbackable = new AutoCloseables.RollbackCloseable()) {
       final ArrowBuf bufferForAllAccumulators = allocator.buffer(totalSize);
       rollbackable.add(bufferForAllAccumulators);
       int offset = 0;
@@ -228,9 +228,9 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     }
   }
 
-  public void output(int batchIndex, int numRecords) {
-    for(Accumulator a : children){
-      a.output(batchIndex, numRecords);
+  public void output(int startBatchIndex, int[] recordsInBatches) {
+    for (Accumulator a : children){
+      a.output(startBatchIndex, recordsInBatches);
     }
   }
 
@@ -238,18 +238,12 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     return children;
   }
 
-  public List<Accumulator> getVarlenAccumChildern() {
+  @Override
+  public List<Accumulator> getVarlenAccumChildren() {
     return varLenAccums;
   }
 
-  public List<FieldVector> getVarlenAccumulators(final int batchIndex) {
-    final List<FieldVector> varLenAccumulator = new ArrayList<FieldVector>();
-    for (Accumulator a : varLenAccums) {
-      varLenAccumulator.add(((BaseVarBinaryAccumulator)a).getAccumulatorVector(batchIndex));
-    }
-    return varLenAccumulator;
-  }
-
+  @Override
   public List<FieldVector> getFixedlenAccumulators(final int batchIndex) {
     final List<FieldVector> fixedLenAccumulator = new ArrayList<FieldVector>();
     for (Accumulator a : fixedLenAccums) {

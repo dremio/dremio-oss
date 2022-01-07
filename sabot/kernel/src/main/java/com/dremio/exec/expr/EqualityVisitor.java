@@ -182,7 +182,7 @@ public class EqualityVisitor extends AbstractExprVisitor<Boolean,LogicalExpressi
     if (!(value instanceof DecimalExpression)) {
       return false;
     }
-    return decExpr.getDecimal().equals(((DecimalExpression) value).getDecimal());
+    return decExpr.getDecimal().equals(((DecimalExpression) value).getDecimal()) && decExpr.getPrecision() == ((DecimalExpression) value).getPrecision();
   }
 
   @Override

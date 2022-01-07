@@ -89,8 +89,8 @@ public class HiveTestBase extends PlanTestBase {
     for (int i = 0; i < maxRetries; i++) {
       try {
         dbUrl = String.format("jdbc:derby:;databaseName=%s;create=true", dbDir = getTempDir(hiveMetastorePath));
-        // Set login timeout to 60 seconds
-        DriverManager.setLoginTimeout(60);
+        // Set login timeout to 90 seconds
+        DriverManager.setLoginTimeout(90);
         // Create the database for metastore in derby
         DriverManager.getConnection(dbUrl);
         logger.info("Create derby db successfully.");

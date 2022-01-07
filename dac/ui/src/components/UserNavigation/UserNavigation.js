@@ -27,15 +27,16 @@ const UserNavigation = (props) => {
     location,
     sections,
     title,
+    titleObject,
     navigationSection
   } = props;
-
   const renderMenuItems = (menuItems) => {
     return menuItems.map((item, i) => {
+      const selected = location.pathname === item.url || location.pathname.startsWith(`${item.url}/`);
       const className = classNames(
         'userNavigation__link',
         'userNavigation__item',
-        { '--selected': location.pathname === item.url || location.pathname.startsWith(`${item.url}/`) },
+        { '--selected': selected },
         'text-small'
       );
       return (
@@ -58,13 +59,14 @@ const UserNavigation = (props) => {
         <span className='text-small'><FormattedMessage id={section.title}  defaultMessage={section.title}/></span>
       </div>);
     }
+
+    const selected = location.pathname === section.url || location.pathname.startsWith(`${section.url}/`);
     const itemClassName = classNames(
       { 'userNavigation__headerLink': !isNavigation },
       { 'userNavigation__navigation': isNavigation },
       { 'border-top': isNavigation },
-      { '--selected': location.pathname === section.url }
+      { '--selected': selected }
     );
-
     return (
       <Link
         className='userNavigation__link'
@@ -72,7 +74,7 @@ const UserNavigation = (props) => {
         key={`nav-header-${index}`}
       >
         <div className={itemClassName}>
-          {section.icon && <Art src={section.icon} alt={section.title} className='userNavigation__icon' />}
+          {section.icon && <Art src={section.icon} alt={section.title} id={selected ? 'selected' : null} className={selected || section.icon === 'Back.svg' ? 'userNavigation__icon' : 'userNavigation__icon --unselected'} />}
           <span className='text-small'><FormattedMessage id={section.title}  defaultMessage={section.title}/></span>
           {section.rightIcon && <Art src={section.rightIcon} alt={section.title} className='userNavigation__icon' />}
         </div>
@@ -82,11 +84,22 @@ const UserNavigation = (props) => {
 
   return (
     <div className='left-menu userNavigation__container' data-qa='left-menu'>
-      <div className='userNavigation__title'>
-        <span className='text-ellipsis'>
-          {title}
-        </span>
-      </div>
+      {
+        titleObject ? (
+          <div className='userNavigation__title'>
+            <Art src={titleObject.icon} alt={titleObject.title} className='userNavigation__title-icon' />
+            <span className='text-ellipsis'>
+              {titleObject.title}
+            </span>
+          </div>
+        ) : (
+          <div className='userNavigation__title'>
+            <span className='text-ellipsis'>
+              {title}
+            </span>
+          </div>
+        )
+      }
       <ul>
         {sections.map((section, sectionIndex) => (
           <li key={`left-nav-section-${sectionIndex}`} data-qa={`left-nav-section-${sectionIndex}`}>
@@ -97,7 +110,7 @@ const UserNavigation = (props) => {
           </li>
         ))}
         {
-          navigationSection && <div className='margin-top--double'>
+          navigationSection && <div className='margin-top--triple'>
             {navigationSection.map((section, index) => renderMenuHeader(section, index, true))}
           </div>
         }
@@ -109,7 +122,8 @@ const UserNavigation = (props) => {
 UserNavigation.propTypes = {
   location: PropTypes.object.isRequired,
   sections: PropTypes.array,
-  title: PropTypes.string.isRequired,
+  title: PropTypes.string,
+  titleObject: PropTypes.object,
   navigationSection: PropTypes.array
 };
 

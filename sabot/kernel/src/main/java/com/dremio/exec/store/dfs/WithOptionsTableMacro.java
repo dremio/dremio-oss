@@ -97,7 +97,7 @@ public final class WithOptionsTableMacro implements TableMacro {
   }
 
   @Override
-  public TranslatableTable apply(final List<Object> arguments) {
+  public TranslatableTable apply(final List<? extends Object> arguments) {
     try {
       final DatasetRetrievalOptions options = DatasetRetrievalOptions.DEFAULT.toBuilder()
           .setIgnoreAuthzErrors(schemaConfig.getIgnoreAuthErrors())

@@ -122,6 +122,7 @@ import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
+import com.dremio.exec.store.VersionedDatasetAccessOptions;
 import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
@@ -301,7 +302,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     boolean nessieCatalog = this.getFsConf().get(ExecConstants.ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.HADOOP.name())
               .equalsIgnoreCase(IcebergCatalogType.NESSIE.name());
 
-    return nessieCatalog || (supportsAtomicRename && hadoopCatalog);
+    return  nessieCatalog || (supportsAtomicRename && hadoopCatalog);
   }
 
   public boolean supportsIcebergTables() {
@@ -319,9 +320,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public BatchSchema mergeSchemas(DatasetConfig oldConfig, BatchSchema newSchema) {
-    boolean mixedTypesDisabled = context.getOptionManager().getOption(ExecConstants.MIXED_TYPES_DISABLED);
     try {
-      return CalciteArrowHelper.fromDataset(oldConfig).merge(newSchema, mixedTypesDisabled);
+      return CalciteArrowHelper.fromDataset(oldConfig).mergeWithUpPromotion(newSchema);
     } catch (NoSupportedUpPromotionOrCoercionException e) {
       if (basePath != null) {
         e.addFilePath(basePath.toString());
@@ -1402,7 +1402,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       throw UserException.validationError(e).message("Failure to check if table already exists at path %s.", key).buildSilently();
     }
 
-    IcebergModel icebergModel = getIcebergModel();
+    IcebergModel icebergModel = getIcebergModel(writerOptions.getVersionedDatasetAccessOptions());
 
     IcebergOpCommitter icebergOpCommitter = icebergModel.getCreateTableCommitter(tableName,
             icebergModel.getTableIdentifier(path.toString()), batchSchema,
@@ -1557,23 +1557,26 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       return false;
     }
   }
-
   public IcebergModel getIcebergModel() {
-    return getIcebergModel(null, null, null);
+    return getIcebergModel(null, null, null, null);
+  }
+
+  public IcebergModel getIcebergModel(VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
+    return getIcebergModel(null, null, null, versionedDatasetAccessOptions);
   }
 
   public IcebergModel getIcebergModel(FileSystem fs) {
-    return getIcebergModel(fs, null, null);
+    return getIcebergModel(fs, null, null, null);
   }
 
   public IcebergModel getIcebergModel(OperatorContext operatorContext) {
-    return getIcebergModel(null, operatorContext, null);
+    return getIcebergModel(null, operatorContext, null, null);
   }
 
   /* if fs is null it will use iceberg HadoopFileIO class instead of DremioFileIO class */
-  public IcebergModel getIcebergModel(FileSystem fs, OperatorContext operatorContext, List<String> dataset) {
+  public IcebergModel getIcebergModel(FileSystem fs, OperatorContext operatorContext, List<String> dataset, VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
     return IcebergModelCreator.createIcebergModel(
-            getFsConfCopy(), context, fs, operatorContext, dataset);
+            getFsConfCopy(), context, fs, operatorContext, dataset, versionedDatasetAccessOptions);
   }
 
   @Override

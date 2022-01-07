@@ -59,9 +59,9 @@ public class SchemaMerger {
     this.datasetPath = datasetPath;
   }
 
-  public MergeResult merge(ElasticMapping mapping, BatchSchema schema) {
+  public MergeResult merge(ElasticMapping mapping, BatchSchema schema, boolean forceDoublePrecision) {
     final ResultBuilder resultBuilder = new ResultBuilder();
-    Collection<MergeField> fields = mergeFields(null, mapping.getFields(), schema != null ? schema.getFields() : ImmutableList.<Field>of());
+    Collection<MergeField> fields = mergeFields(null, mapping.getFields(), schema != null ? schema.getFields() : ImmutableList.<Field>of(), forceDoublePrecision);
 
     return resultBuilder.toResult(FluentIterable.from(fields)
         .transform(new Function<MergeField, Field>() {
@@ -75,7 +75,7 @@ public class SchemaMerger {
   }
 
   @VisibleForTesting
-  List<MergeField> mergeFields(SchemaPath parent, List<ElasticField> declaredFields, List<Field> observedFields){
+  List<MergeField> mergeFields(SchemaPath parent, List<ElasticField> declaredFields, List<Field> observedFields, boolean forceDoublePrecision){
     if (observedFields.isEmpty()) {
       return declaredFields.stream()
           .map(f -> new MergeField(parent, f))
@@ -96,7 +96,7 @@ public class SchemaMerger {
         continue;
       }
 
-      outputFields.add(mergeField(parent, declaredField, CompleteType.fromField(observedField)));
+      outputFields.add(mergeField(parent, declaredField, CompleteType.fromField(observedField), forceDoublePrecision));
     }
 
     // Any remaining new fields that are not observed previously should be added with default settings
@@ -115,33 +115,39 @@ public class SchemaMerger {
   }
 
   @VisibleForTesting
-  MergeField mergeField(SchemaPath parent, ElasticField declaredField, CompleteType observedType){
+  MergeField mergeField(SchemaPath parent, ElasticField declaredField, CompleteType observedType, boolean forceDoublePrecision){
 
     // if we have a union of scalar and list of the same type, promote all to list.
     if(observedType.isUnion()){
-      return mergeUnion(parent, declaredField, observedType);
+      return mergeUnion(parent, declaredField, observedType, forceDoublePrecision);
     } else if (observedType.isList()) {
       return mergeList(parent, declaredField, observedType);
     }
-
-    // default behavior.
+     // default behavior.
     if((declaredField.getType() == Type.OBJECT || declaredField.getType() == Type.NESTED) &&
         (observedType.isStruct())) {
       // nested case
       SchemaPath newParent = parent == null ? SchemaPath.getSimplePath(declaredField.getName()) : parent.getChild(declaredField.getName());
-      final List<MergeField> fields = mergeFields(newParent, declaredField.getChildren(), observedType.getChildren());
+      final List<MergeField> fields = mergeFields(newParent, declaredField.getChildren(), observedType.getChildren(), forceDoublePrecision);
       return new MergeField(parent, declaredField, fields);
     } else {
-      return new MergeField(parent, declaredField, observedType);
+      return new MergeField(parent, declaredField, observedType, false);
     }
+
   }
 
-  private MergeField mergeUnion(SchemaPath parent, ElasticField declaredField, CompleteType observedType){
+  private MergeField mergeUnion(SchemaPath parent, ElasticField declaredField, CompleteType observedType, boolean forceDoublePrecision){
+
+    // Force the actual elasticfield type to Double if flag forceDoublePrecision is enabled.
+    if (forceDoublePrecision) {
+      return new MergeField(parent, declaredField, CompleteType.DOUBLE, true);
+    }
+
     List<Field> fields = observedType.getChildren();
 
     if(fields.size() != 2){
       // fall back to default merging, same as below
-      return new MergeField(parent, declaredField, observedType);
+      return new MergeField(parent, declaredField, observedType, false);
     }
 
     Field f1 = fields.get(0);
@@ -151,9 +157,8 @@ public class SchemaMerger {
 
     if( !(t1.isList() && !t2.isList()) &&  !(!t1.isList() && t2.isList())){
       // one of the two types has to be a list type.
-      return new MergeField(parent, declaredField, observedType);
+      return new MergeField(parent, declaredField, observedType, false);
     }
-
 
     CompleteType listType = t1.isList() ? t1 : t2;
     CompleteType nonListType = t1.isList() ? t2 : t1;
@@ -162,18 +167,18 @@ public class SchemaMerger {
 
     // check that the basic list types are the same. We don't compare full types here because it could be that the two different structs (only a subset of fields showed up in one or both structs).
     if(!listChild.getType().equals(nonListType.getType()) && !listChild.getType().equals(Null.INSTANCE)){
-      return new MergeField(parent, declaredField, observedType);
+      return new MergeField(parent, declaredField, observedType, false);
     }
 
     CompleteType combined = nonListType.merge(CompleteType.fromField(listChild));
 
-    return mergeField(parent, declaredField, combined).asList();
+    return mergeField(parent, declaredField, combined, false).asList();
 
   }
 
   private MergeField mergeList(SchemaPath parent, ElasticField declaredField, CompleteType observedType){
     final CompleteType listChildType = CompleteType.fromField(observedType.getOnlyChild());
-    return mergeField(parent, declaredField, listChildType).asList();
+    return mergeField(parent, declaredField, listChildType, false).asList();
   }
 
   private UserException failure(SchemaPath path, ElasticField declaredField, CompleteType observedType){
@@ -206,16 +211,16 @@ public class SchemaMerger {
     }
 
     // default merging, set type to unknown when not matching
-    public MergeField(SchemaPath parent, ElasticField elasticField, CompleteType actualType) {
+    public MergeField(SchemaPath parent, ElasticField elasticField, CompleteType actualType, boolean forceDoublePrecision) {
       super();
       this.parent = parent;
       this.elasticField = elasticField;
       this.actualField = actualType.toField(elasticField.getName());
       this.children = ImmutableList.of();
 
-      if (!CompleteType.fromField(elasticField.toArrowField()).equals(actualType)) {
-        // check for type match, set to unknown if fails
-        elasticField.setTypeUnknown();
+      if (!CompleteType.fromField(elasticField.toArrowField()).equals(actualType) && !forceDoublePrecision) {
+          // check for type match, set to unknown if fails
+          elasticField.setTypeUnknown();
       }
     }
 

@@ -16,6 +16,7 @@
 import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import { connect }   from 'react-redux';
+import { injectIntl } from 'react-intl';
 import shallowEqual from 'shallowequal';
 import PropTypes from 'prop-types';
 import { USERS_VIEW_ID, searchUsers, removeUser } from 'actions/admin';
@@ -32,7 +33,8 @@ export class Users extends PureComponent {
     removeUser: PropTypes.func,
     users: PropTypes.instanceOf(Immutable.List),
     viewState: PropTypes.instanceOf(Immutable.Map),
-    showConfirmationDialog: PropTypes.func
+    showConfirmationDialog: PropTypes.func,
+    intl: PropTypes.object
   }
 
   componentWillMount() {
@@ -64,10 +66,18 @@ export class Users extends PureComponent {
   }
 
   handleRemoveUser = (user) => {
+    const {
+      intl: {
+        formatMessage
+      }
+    } = this.props;
+    const name = user.get('name');
+    const email = user.get('email');
+    const username = name || email;
     this.props.showConfirmationDialog({
-      title: la('Remove User'),
-      text: la('Are you sure you want to remove this user?'),
-      confirmText: la('Remove'),
+      title: formatMessage({id:'Admin.User.Dialog.RemoveUser'}),
+      text: formatMessage({id:'Admin.User.Dialog.ConfirmRemoveUserMesage'}, { username }),
+      confirmText: formatMessage({id:'Admin.User.Dialog.RemoveUserConfirmText'}),
       confirm: () => this.removeUser(user)
     });
   }
@@ -100,4 +110,4 @@ export default connect(mapStateToProps, {
   searchUsers,
   removeUser,
   showConfirmationDialog
-})(Users);
+})(injectIntl(Users));

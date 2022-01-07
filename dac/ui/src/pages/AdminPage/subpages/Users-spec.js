@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from 'immutable';
 import { shallow } from 'enzyme';
 import { Users } from './Users';
 describe('Users', () => {
@@ -39,7 +40,8 @@ describe('Users', () => {
     it('should show confirmation dialog before remove', () => {
       const instance = shallow(<Users {...commonProps} />).instance();
       sinon.spy(instance, 'removeUser');
-      instance.handleRemoveUser();
+      const user = Immutable.fromJS({});
+      instance.handleRemoveUser(user);
       expect(commonProps.showConfirmationDialog).to.be.called;
       expect(instance.removeUser).to.not.be.called;
     });
@@ -49,7 +51,7 @@ describe('Users', () => {
         ...commonProps,
         showConfirmationDialog: (opts) => opts.confirm()
       };
-      const user = {user: '1'};
+      const user = Immutable.fromJS({user: '1'});
       const instance = shallow(<Users {...props} />).instance();
       sinon.spy(instance, 'removeUser');
       instance.handleRemoveUser(user);

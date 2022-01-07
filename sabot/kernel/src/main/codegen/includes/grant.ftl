@@ -110,6 +110,27 @@ SqlNode SqlGrantPrivilege(SqlParserPos pos) :
         isCatalog = false;
       }
       |
+      <IDENTITY> <PROVIDER> {
+        grantOnProjectEntities = new SqlGrantOnProjectEntities.Grant(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.GrantType.IDENTITY_PROVIDER, getPos()));
+        entity = SimpleIdentifier();
+        isDCSEntity = true;
+        isCatalog = false;
+      }
+      |
+      <OAUTH> <APPLICATION> {
+        grantOnProjectEntities = new SqlGrantOnProjectEntities.Grant(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.GrantType.OAUTH_APPLICATION, getPos()));
+        entity = SimpleIdentifier();
+        isDCSEntity = true;
+        isCatalog = false;
+      }
+      |
+      <EXTERNAL> <TOKENS> <PROVIDER> {
+        grantOnProjectEntities = new SqlGrantOnProjectEntities.Grant(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.GrantType.EXTERNAL_TOKENS_PROVIDER, getPos()));
+        entity = SimpleIdentifier();
+        isDCSEntity = true;
+        isCatalog = false;
+      }
+      |
       <ALL> <DATASETS> <IN>
       (
         (<FOLDER> | <SCHEMA>) {
@@ -230,6 +251,12 @@ void Privilege(List<SqlNode> list) :
     <CREATE> <PROJECT>
     { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_PROJECT, getPos())); }
     |
+    <CREATE> <OAUTH> <APPLICATION>
+    { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_OAUTH_APPLICATION, getPos())); }
+    |
+    <CREATE> <EXTERNAL> <TOKENS> <PROVIDER>
+    { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_EXTERNAL_TOKENS_PROVIDER, getPos())); }
+    |
     <ALL>
     { list.add(SqlLiteral.createSymbol(SqlGrant.Privilege.ALL, getPos())); }
   )
@@ -303,6 +330,27 @@ SqlNode SqlRevoke() :
       |
       <ENGINE> {
         revokeOnProjectEntities = new SqlGrantOnProjectEntities.Grant(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.GrantType.ENGINE, getPos()));
+        entity = SimpleIdentifier();
+        isDCSEntity = true;
+        isCatalog = false;
+      }
+      |
+      <IDENTITY> <PROVIDER> {
+        revokeOnProjectEntities = new SqlGrantOnProjectEntities.Grant(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.GrantType.IDENTITY_PROVIDER, getPos()));
+        entity = SimpleIdentifier();
+        isDCSEntity = true;
+        isCatalog = false;
+      }
+      |
+      <OAUTH> <APPLICATION> {
+        revokeOnProjectEntities = new SqlGrantOnProjectEntities.Grant(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.GrantType.OAUTH_APPLICATION, getPos()));
+        entity = SimpleIdentifier();
+        isDCSEntity = true;
+        isCatalog = false;
+      }
+      |
+      <EXTERNAL> <TOKENS> <PROVIDER> {
+        revokeOnProjectEntities = new SqlGrantOnProjectEntities.Grant(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.GrantType.EXTERNAL_TOKENS_PROVIDER, getPos()));
         entity = SimpleIdentifier();
         isDCSEntity = true;
         isCatalog = false;
@@ -392,6 +440,22 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
       grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.ROLE, getPos()));
       entity = SimpleIdentifier();
     }
+    |
+    <IDENTITY> <PROVIDER> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.IDENTITY_PROVIDER, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <OAUTH> <APPLICATION> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.OAUTH_APPLICATION, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <EXTERNAL> <TOKENS> <PROVIDER> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.EXTERNAL_TOKENS_PROVIDER, getPos()));
+      entity = SimpleIdentifier();
+    }
+
   )
   <TO>
     granteeType = ParseGranteeType()

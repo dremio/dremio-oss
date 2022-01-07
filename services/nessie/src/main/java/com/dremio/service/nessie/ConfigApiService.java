@@ -17,7 +17,7 @@ package com.dremio.service.nessie;
 
 import java.util.function.Supplier;
 
-import org.projectnessie.services.rest.ConfigResource;
+import org.projectnessie.api.ConfigApi;
 
 import com.dremio.service.nessieapi.ConfigApiGrpc;
 import com.dremio.service.nessieapi.NessieConfiguration;
@@ -33,9 +33,9 @@ import io.grpc.stub.StreamObserver;
 class ConfigApiService extends ConfigApiGrpc.ConfigApiImplBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConfigApiService.class);
 
-  private final Supplier<ConfigResource> configResource;
+  private final Supplier<ConfigApi> configResource;
 
-  ConfigApiService(Supplier<ConfigResource> configResource) {
+  ConfigApiService(Supplier<ConfigApi> configResource) {
     this.configResource = configResource;
   }
 

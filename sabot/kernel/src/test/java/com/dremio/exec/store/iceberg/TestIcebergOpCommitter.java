@@ -22,6 +22,7 @@ import static com.dremio.common.expression.CompleteType.DECIMAL;
 import static com.dremio.common.expression.CompleteType.DOUBLE;
 import static com.dremio.common.expression.CompleteType.FLOAT;
 import static com.dremio.common.expression.CompleteType.INT;
+import static com.dremio.common.expression.CompleteType.STRUCT;
 import static com.dremio.common.expression.CompleteType.TIME;
 import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
@@ -41,6 +42,7 @@ import java.util.UUID;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.BaseTable;
@@ -59,6 +61,7 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
@@ -81,10 +84,12 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileProtobuf;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.proto.EntityId;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
@@ -635,6 +640,81 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
 
   }
 
+  @Test
+  public void testIncrementalRefreshDroppedAndAddedColumns() throws Exception {
+    final String tableName = UUID.randomUUID().toString();
+    final File tableFolder = new File(folder, tableName);
+    final List<String> datasetPath = Lists.newArrayList("dfs", tableName);
+    try {
+      DatasetConfig datasetConfig = getDatasetConfig(datasetPath);
+      List<Field> childrenField = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"));
+
+      Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), childrenField);
+
+      BatchSchema schema = BatchSchema.of(
+        Field.nullablePrimitive("id", new ArrowType.Int(64, true)),
+        Field.nullablePrimitive("data", new ArrowType.Utf8()),
+        Field.nullablePrimitive("stringField", new ArrowType.Utf8()),
+        Field.nullablePrimitive("intField", new ArrowType.Int(32, false)),
+        structField);
+
+      BatchSchema newSchema = BatchSchema.of(
+        Field.nullablePrimitive("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+        Field.nullablePrimitive("data", new ArrowType.Utf8()),
+        Field.nullablePrimitive("stringField", new ArrowType.Utf8()),
+        Field.nullablePrimitive("intField", new ArrowType.Int(32, false)),
+        Field.nullablePrimitive("floatField",new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+        structField
+      );
+
+      String metadataFileLocation = initialiseTableWithLargeSchema(schema, tableName);
+      IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(metadataFileLocation);
+      datasetConfig.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
+      datasetConfig.setRecordSchema(schema.toByteString());
+
+      BatchSchema droppedColumns = BatchSchema.of(
+        Field.nullablePrimitive("stringField", new ArrowType.Utf8()),
+        new Field("structField", FieldType.nullable(STRUCT.getType()), ImmutableList.of(CompleteType.INT.toField("integerCol")))
+      );
+
+      BatchSchema updatedColumns = BatchSchema.of(
+        Field.nullablePrimitive("intField", new ArrowType.Utf8())
+      );
+
+     datasetConfig.getPhysicalDataset().getInternalSchemaSettings().setDroppedColumns(droppedColumns.toByteString());
+     datasetConfig.getPhysicalDataset().getInternalSchemaSettings().setModifiedColumns(updatedColumns.toByteString());
+
+      IcebergOpCommitter insertTableCommitter = icebergHadoopModel.getIncrementalMetadataRefreshCommitter(operatorContext, tableName,
+        datasetPath,
+        tableFolder.toPath().toString(), tableName,
+        icebergHadoopModel.getTableIdentifier(tableFolder.toPath().toString()),
+        schema,
+        Collections.emptyList(), false, datasetConfig);
+
+      Field newStructField = new Field("structField", FieldType.nullable(STRUCT.getType()), ImmutableList.of(CompleteType.DOUBLE.toField("doubleCol")));
+
+      BatchSchema expectedSchema = BatchSchema.of(
+        Field.nullablePrimitive("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+        Field.nullablePrimitive("data", new ArrowType.Utf8()),
+        Field.nullablePrimitive("intField", new ArrowType.Utf8()),
+        Field.nullablePrimitive("floatField",new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+        newStructField
+      );
+
+      insertTableCommitter.updateSchema(newSchema);
+      insertTableCommitter.commit();
+
+      Table newTable = getIcebergTable(tableFolder, IcebergCatalogType.HADOOP);
+      Schema sc = newTable.schema();
+      SchemaConverter schemaConverter = new SchemaConverter(newTable.name());
+      Assert.assertTrue(expectedSchema.equalsTypesWithoutPositions(schemaConverter.fromIceberg(sc)));
+    } finally {
+      FileUtils.deleteDirectory(tableFolder);
+    }
+  }
+
   ManifestFile writeManifest(File tableFolder, String fileName, DataFile... files) throws IOException {
     return writeManifest(tableFolder, fileName, null, files);
   }
@@ -698,6 +778,8 @@ public class TestIcebergOpCommitter extends BaseTestQuery {
     datasetConfig.setId(new EntityId(UUID.randomUUID().toString()));
     datasetConfig.setReadDefinition(initialReadDef);
     datasetConfig.setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER);
+
+    datasetConfig.getPhysicalDataset().setInternalSchemaSettings(UserDefinedSchemaSettings.getDefaultInstance());
     return datasetConfig;
   }
 

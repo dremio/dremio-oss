@@ -54,6 +54,7 @@ import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.op.aggregate.vectorized.AccumulatorBuilder;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.CountColumnAccumulator;
 import com.dremio.sabot.op.aggregate.vectorized.CountOneAccumulator;
@@ -89,6 +90,7 @@ import io.netty.util.internal.PlatformDependent;
  */
 public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
   private final List<Field> postSpillAccumulatorVectorFields = Lists.newArrayList();
+  private final byte[] accumulatorTypes = new byte[7];
   private final List<FieldVector> varlenAccumVectorFields = Lists.newArrayList();
   private int MAX_VALUES_PER_BATCH = 0;
 
@@ -343,7 +345,8 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
 
       final AccumulatorSet accumulator = createAccumulator(accumulatorInput, m2, m3, tempVectors, allocator, (i == 0));
       LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
-        10, true, accumulator, MAX_VALUES_PER_BATCH);
+        10, true, MAX_VALUES_PER_BATCH);
+      sourceHashTable.registerResizeListener(accumulator);
       final ArrowBuf buffer = combined.slice(i * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH,
         VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH);
       VectorizedHashAggPartition hashAggPartition = new VectorizedHashAggPartition(accumulator,
@@ -367,9 +370,9 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
       FileSystem fs = null;
       VectorizedHashAggPartitionSpillHandler partitionSpillHandler = null;
       try (final PartitionToLoadSpilledData partitionToLoadSpilledData =
-             new PartitionToLoadSpilledData(allocator, fixedBufferSize, variableBlockSize, postSpillAccumulatorVectorFields,
+             new PartitionToLoadSpilledData(allocator, fixedBufferSize, variableBlockSize,
+               postSpillAccumulatorVectorFields, accumulatorTypes,
                MAX_VALUES_PER_BATCH, (estimatedVariableWidthKeySize * MAX_VALUES_PER_BATCH))) {
-
         Configuration conf = new org.apache.hadoop.conf.Configuration();
         conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
 
@@ -595,6 +598,14 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
       postSpillAccumulatorVectorFields.add(in1Count1.getField());
       postSpillAccumulatorVectorFields.add(in2.getField());
       postSpillAccumulatorVectorFields.add(in3.getField());
+
+      accumulatorTypes[0] = (byte)AccumulatorBuilder.AccumulatorType.SUM.ordinal();
+      accumulatorTypes[1] = (byte)AccumulatorBuilder.AccumulatorType.MAX.ordinal();
+      accumulatorTypes[2] = (byte)AccumulatorBuilder.AccumulatorType.MIN.ordinal();
+      accumulatorTypes[3] = (byte)AccumulatorBuilder.AccumulatorType.COUNT.ordinal();
+      accumulatorTypes[4] = (byte)AccumulatorBuilder.AccumulatorType.COUNT1.ordinal();
+      accumulatorTypes[5] = (byte)AccumulatorBuilder.AccumulatorType.MIN.ordinal();
+      accumulatorTypes[6] = (byte)AccumulatorBuilder.AccumulatorType.MAX.ordinal();
     }
 
     return new AccumulatorSet(4*1024, 128*1024, allocator,

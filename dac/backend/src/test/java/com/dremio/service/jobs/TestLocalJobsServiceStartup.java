@@ -23,7 +23,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map.Entry;
@@ -38,6 +40,7 @@ import org.mockito.stubbing.Answer;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.beans.AttemptEvent;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
@@ -208,6 +211,8 @@ public class TestLocalJobsServiceStartup {
       assertTrue(result.getCompleted());
       assertEquals(result.getAttemptsList().get(0).getState(),
         JobState.FAILED);
+      List<AttemptEvent> stateList = result.getAttemptsList().get(0).getStateListList();
+      assertEquals(stateList.get(stateList.size() - 1).getState(), AttemptEvent.State.FAILED);
       assertTrue(result.getAttemptsList()
         .get(0)
         .getInfo()
@@ -227,6 +232,7 @@ public class TestLocalJobsServiceStartup {
               .setAttemptId(UUID.randomUUID().toString())
               .setInfo(new JobInfo(id, "sql", "dataset-version", QueryType.UI_RUN))
               .setState(jobState)
+              .setStateListList(new ArrayList<>(Collections.singleton(JobsServiceUtil.createAttemptEvent(JobsServiceUtil.jobStatusToAttemptStatus(jobState), System.currentTimeMillis()))))
               .setEndpoint(nodeEndpoint)));
 
       @Override

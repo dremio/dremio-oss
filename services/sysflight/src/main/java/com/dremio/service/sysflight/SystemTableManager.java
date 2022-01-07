@@ -39,7 +39,7 @@ public interface SystemTableManager extends AutoCloseable {
 
 
   /**
-   * Enum to check for the supported tables
+   * Enum to check for the supported tables.
    */
   public enum TABLES {
     JOBS("jobs"),
@@ -47,12 +47,9 @@ public interface SystemTableManager extends AutoCloseable {
     REFLECTIONS("reflections"),
     REFLECTION_DEPENDENCIES("reflection_dependencies"),
     ROLES("roles"),
-    ENGINES("engines"),
     PRIVILEGES("privileges"),
     MEMBERSHIP("membership"),
-    USERS("users"),
-    CLOUDS("clouds"),
-    PROJECTS("projects");
+    USERS("users");
 
     final String name;
     private TABLES(String name) {

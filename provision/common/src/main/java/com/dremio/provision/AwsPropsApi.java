@@ -25,12 +25,12 @@ import org.immutables.value.Value.Immutable;
 import org.immutables.value.Value.Redacted;
 
 import com.dremio.common.SentinelSecure;
+import com.dremio.provision.aws.util.EC2MetadataUtils;
 import com.dremio.provision.resource.ProvisioningResource;
 import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.regions.internal.util.EC2MetadataUtils;
 
 /**
  * AWS Props

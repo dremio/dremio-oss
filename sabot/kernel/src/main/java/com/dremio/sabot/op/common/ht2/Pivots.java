@@ -62,7 +62,8 @@ public class Pivots {
       nullBitOffset[i] = vpd.getNullBitOffset();
 
       List<ArrowBuf> buffers = vpd.getIncomingVector().getFieldBuffers();
-      Preconditions.checkArgument(buffers.size() == 3, "A variable length vector should have three field buffers. %s has %s buffers.", Describer.describe(vpd.getIncomingVector().getField()), buffers.size());
+      Preconditions.checkArgument(buffers.size() == 3, "A variable length vector should have three field buffers. %s has %s buffers.",
+        Describer.describe(vpd.getIncomingVector().getField()), buffers.size());
 
       // convert to bit offsets. Overflows shouldn't exist since no system (yet) has memory of Long.MAX_VALUE / 8
       bitAddresses[i] = buffers.get(0).memoryAddress() * 8;

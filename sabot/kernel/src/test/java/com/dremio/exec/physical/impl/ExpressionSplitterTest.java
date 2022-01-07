@@ -269,6 +269,7 @@ public class ExpressionSplitterTest extends BaseExpressionSplitterTest {
     };
 
     splitAndVerify(query, input, output, splits, annotator);
+    super.cleanExpToExpSplitCache();
 
     // support all functions and test
     annotator = new GandivaAnnotator("add", "subtract", "multiply");
@@ -304,6 +305,7 @@ public class ExpressionSplitterTest extends BaseExpressionSplitterTest {
     };
 
     splitAndVerify(query, input, output, splits, annotator);
+    super.cleanExpToExpSplitCache();
 
     annotator = new GandivaAnnotator("less_than");
     splits = new Split[]{
@@ -312,6 +314,7 @@ public class ExpressionSplitterTest extends BaseExpressionSplitterTest {
     };
 
     splitAndVerify(query, input, output, splits, annotator);
+    super.cleanExpToExpSplitCache();
 
     annotator = new GandivaAnnotator("greater_than", "less_than", "booleanAnd");
     splits = new Split[]{
@@ -560,6 +563,7 @@ public class ExpressionSplitterTest extends BaseExpressionSplitterTest {
     splitAndVerify(query, input, output, splits, annotator);
 
     annotator = new GandivaAnnotator("less_than");
+    super.cleanExpToExpSplitCache();
     splits = new Split[]{
       new Split(false, "_xxx0", "greater_than(c0, 10i)", 1, 1),
       new Split(true, "_xxx1", "(if (_xxx0) then (true) else (less_than(c0, 0i)) end)", 2, 0, "_xxx0")
@@ -568,6 +572,7 @@ public class ExpressionSplitterTest extends BaseExpressionSplitterTest {
     splitAndVerify(query, input, output, splits, annotator);
 
     annotator = new GandivaAnnotator("less_than", "greater_than", "booleanOr");
+    super.cleanExpToExpSplitCache();
     splits = new Split[]{
       new Split(true, "_xxx0", "booleanOr(greater_than(c0, 10i), less_than(c0, 0i))", 1, 0),
     };
@@ -761,7 +766,7 @@ public class ExpressionSplitterTest extends BaseExpressionSplitterTest {
     };
 
     splitAndVerify(query, input, output, splits, annotator);
-
+    super.cleanExpToExpSplitCache();
     annotator = new GandivaAnnotator("booleanOr", "booleanAnd", "greater_than", "less_than", "mod", "equal", "castBIGINT");
     splits = new Split[]{
       new Split(true, "_xxx0", "booleanOr(booleanAnd(greater_than(c0, castBIGINT(10i)),less_than(c0, castBIGINT(20i))), equal(mod(c0, 2i),0i))", 1, 0)

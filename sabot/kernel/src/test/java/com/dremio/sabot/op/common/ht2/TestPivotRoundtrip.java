@@ -21,9 +21,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.BitVectorHelper;
@@ -477,6 +479,175 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
           assertEquals(in.getObject(i), out.getObject(i));
         }
       }
+    }
+  }
+
+  private void pivotAndUnpivotHelperWithAppend(PivotDef pivot,
+                                               ValueVector in, ValueVector out, int count1, int count2) throws Exception {
+    final int totalCount = count1 + count2;
+    try (
+      final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+      final VariableBlockVector vbv = new VariableBlockVector(allocator, pivot.getVariableCount());
+    ) {
+      fbv.ensureAvailableBlocks(totalCount);
+      Pivots.pivot(pivot, totalCount, fbv, vbv);
+
+      AllocationHelper.allocateNew(out, totalCount);
+      Unpivots.unpivotToAllocedOutput(pivot, fbv, vbv, 0, count1, 0);
+      Unpivots.unpivotToAllocedOutput(pivot, fbv, vbv, count1, count2, count1);
+      for (int i = 0; i < count1 + count2; i++) {
+        assertEquals(in.getObject(i), out.getObject(i));
+      }
+      AutoCloseables.close(Collections.singletonList(out));
+    }
+  }
+
+  @Test
+  public void intRoundtripWithAppend() throws Exception {
+    final int count = 1024;
+    try (
+      IntVector in = new IntVector("in", allocator);
+      IntVector out = new IntVector("out", allocator);
+    ) {
+
+      in.allocateNew(count);
+
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
+          in.setSafe(i, i);
+        }
+      }
+      in.setValueCount(count);
+
+      final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
+      pivotAndUnpivotHelperWithAppend(pivot, in, out, 100, 924);
+    }
+  }
+
+  @Test
+  public void bigIntRoundtripWithAppend() throws Exception {
+    final int count = 1024;
+    try (
+      BigIntVector in = new BigIntVector("in", allocator);
+      BigIntVector out = new BigIntVector("out", allocator);
+    ) {
+
+      in.allocateNew(count);
+
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
+          in.setSafe(i, i);
+        }
+      }
+      in.setValueCount(count);
+
+      final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
+      pivotAndUnpivotHelperWithAppend(pivot, in, out, 100, 924);
+    }
+  }
+
+  @Test
+  public void decimalRoundtripWithAppend() throws Exception {
+    final int count = 1024;
+    try (
+      DecimalVector in = new DecimalVector("in", allocator, 38, 0);
+      DecimalVector out = new DecimalVector("out", allocator, 38, 0);
+    ) {
+
+      in.allocateNew(count);
+      ArrowBuf tempBuf = allocator.buffer(1024);
+
+      // Test data:
+      // - in the pivot/unpivot code, each group of 64 values is independently checked whether they're all full, all empty, or some full + some empty
+      // - test data will mirror that setup
+      assert (count % WORD_BITS) == 0 : String.format("test data code, below, assumes count is a multiple of %d. Instead count=%d", WORD_BITS, count);
+      for (int i = 0; i < count; i += WORD_BITS) {
+        if ((i / WORD_BITS) % 3 == 0) {
+          // all set
+          for (int j = 0; j < WORD_BITS; j++) {
+            BigDecimal val = BigDecimal.valueOf(i + j + ((double) (i + j) / count)).setScale(0, RoundingMode.HALF_UP);
+            DecimalUtility.writeBigDecimalToArrowBuf(val, tempBuf, 0, DecimalVector.TYPE_WIDTH);
+            in.set(i + j, tempBuf);
+          }
+        } else if ((i / WORD_BITS) % 3 == 1) {
+          // every 3rd one set: 0, 3, 6, ...
+          for (int j = 0; j < WORD_BITS; j++) {
+            if (j % 3 == 0) {
+              BigDecimal val = BigDecimal.valueOf(i + j + ((double) (i + j) / count)).setScale(0, RoundingMode.HALF_UP);
+              DecimalUtility.writeBigDecimalToArrowBuf(val, tempBuf, 0, DecimalVector.TYPE_WIDTH);
+              in.set(i + j, tempBuf);
+            }
+          }
+        } else {
+          // all blank: no-op
+        }
+      }
+      in.setValueCount(count);
+
+      final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
+      pivotAndUnpivotHelperWithAppend(pivot, in, out, 100, 924);
+      tempBuf.release();
+    }
+  }
+
+  @Test
+  public void boolRoundtripWithAppend() throws Exception {
+    final int count = 1024;
+    try (
+      BitVector in = new BitVector("in", allocator);
+      BitVector out = new BitVector("out", allocator);
+    ) {
+
+      in.allocateNew(count);
+
+      // Test data:
+      // - in the pivot/unpivot code, we process in groups of 64 bits at a time
+      // - test data will mirror that setup
+      assert (count % WORD_BITS) == 0 : String.format("test data code, below, assumes count is a multiple of %d. Instead count=%d", WORD_BITS, count);
+      for (int i = 0; i < count; i += WORD_BITS) {
+        if ((i / WORD_BITS) % 3 == 0) {
+          // all set: F, T, F, T, F, ...
+          for (int j = 0; j < WORD_BITS; j++) {
+            in.set(i + j, (j & 0x01));
+          }
+        } else if ((i / WORD_BITS) % 3 == 1) {
+          // every 3rd one set: 0, 3, 6, ..., to F, T, F, T, F, ...
+          for (int j = 0; j < WORD_BITS; j++) {
+            if (j % 3 == 0) {
+              in.set(i + j, (j & 0x01));
+            }
+          }
+        } else {
+          // all blank: no-op
+        }
+      }
+      in.setValueCount(count);
+
+      final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
+      pivotAndUnpivotHelperWithAppend(pivot, in, out, 101, 923);
+    }
+  }
+
+  @Test
+  public void varcharRoundtripWithAppend() throws Exception {
+    final int count = 1024;
+    try (
+      VarCharVector in = new VarCharVector("in", allocator);
+      VarCharVector out = new VarCharVector("out", allocator);
+    ) {
+
+      in.allocateNew(count * 8, count);
+
+      for (int i = 0; i < count; i++) {
+        if (i % 5 == 0) {
+          byte[] data = ("hello-" + i).getBytes(Charsets.UTF_8);
+          in.setSafe(i, data, 0, data.length);
+        }
+      }
+      in.setValueCount(count);
+
+      final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
+      pivotAndUnpivotHelperWithAppend(pivot, in, out, 101, 923);
     }
   }
 }

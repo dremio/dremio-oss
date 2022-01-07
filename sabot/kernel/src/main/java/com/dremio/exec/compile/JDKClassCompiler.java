@@ -26,6 +26,7 @@ import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.List;
 
+import javax.lang.model.SourceVersion;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaCompiler.CompilationTask;
@@ -69,8 +70,17 @@ class JDKClassCompiler extends AbstractClassCompiler {
     this.compiler = compiler;
     this.listener = new DremioDiagnosticListener();
     this.fileManager = new DremioJavaFileManager(compiler.getStandardFileManager(listener, null, UTF_8));
+    boolean aboveJava8 = false;
+    try {
+      aboveJava8 = compiler.getSourceVersions().contains(SourceVersion.valueOf("RELEASE_9"));
+    } catch (IllegalArgumentException ignored) {
+    }
 
     ImmutableList.Builder<String> compilerOptionsBuilder = ImmutableList.builder();
+    if (aboveJava8) {
+      compilerOptionsBuilder.add("-source", "8");
+      compilerOptionsBuilder.add("-target", "8");
+    }
     // Provides the application classpath to the compiler
     //
     // Javac cannot use the classloader directly so we need to convert it back

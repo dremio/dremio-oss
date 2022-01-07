@@ -24,7 +24,6 @@ import java.util.ListIterator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.dremio.exec.ExecConstants;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -65,6 +64,7 @@ import org.apache.orc.impl.DataReaderProperties;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.hive.HiveSettings;

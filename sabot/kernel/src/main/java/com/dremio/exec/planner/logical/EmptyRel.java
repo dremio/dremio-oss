@@ -37,7 +37,6 @@ public class EmptyRel extends AbstractRelNode implements Rel, CopyToCluster {
     super(cluster, traitSet.replace(LOGICAL));
     this.schema = schema;
     this.rowType = rowType;
-    this.digest = schema.toString();
   }
 
   @Override

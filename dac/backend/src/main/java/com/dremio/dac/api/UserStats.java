@@ -52,6 +52,18 @@ public class UserStats {
     return userStatsByDate;
   }
 
+  public static UserStats createUserStats(String edition,
+                                          List<Map<String, Object>> userStatsByDate,
+                                          List<Map<String, Object>> userStatsByWeek,
+                                          List<Map<String, Object>> userStatsByMonth) {
+    UserStats userStats = new UserStats();
+    userStats.edition = String.format(DREMIO_EDITION_FORMAT, edition, DremioVersionInfo.getVersion());
+    userStats.userStatsByDate.addAll(userStatsByDate);
+    userStats.userStatsByWeek.addAll(userStatsByWeek);
+    userStats.userStatsByMonth.addAll(userStatsByMonth);
+    return userStats;
+  }
+
   public List<Map<String, Object>> getUserStatsByWeek() {
     return userStatsByWeek;
   }

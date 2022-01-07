@@ -53,6 +53,7 @@ import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.op.aggregate.vectorized.AccumulatorBuilder;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.CountColumnAccumulator;
 import com.dremio.sabot.op.aggregate.vectorized.CountOneAccumulator;
@@ -86,6 +87,7 @@ import io.netty.util.internal.PlatformDependent;
  */
 public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
   private final List<Field> postSpillAccumulatorVectorFields = Lists.newArrayList();
+  private byte[] accumulatorTypes = new byte[20];
   private final List<FieldVector> varlenAccumVectorFields = Lists.newArrayList();
   private int MAX_VALUES_PER_BATCH = 0;
 
@@ -119,6 +121,7 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
 
     MAX_VALUES_PER_BATCH = 976;
     testPartitionRoundTrip1Helper();
+    postSpillAccumulatorVectorFields.clear();
   }
 
   private void testPartitionRoundTrip1Helper() throws Exception {
@@ -498,7 +501,10 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
     try (
       final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
       final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());
-      final PartitionToLoadSpilledData partitionToLoadSpilledData = new PartitionToLoadSpilledData(allocator, fixedBufferSize, variableBlockSize, postSpillAccumulatorVectorFields, MAX_VALUES_PER_BATCH, estimatedVariableWidthKeySize * MAX_VALUES_PER_BATCH)) {
+      final PartitionToLoadSpilledData partitionToLoadSpilledData = new PartitionToLoadSpilledData(
+        allocator, fixedBufferSize, variableBlockSize,
+        postSpillAccumulatorVectorFields, accumulatorTypes,
+        MAX_VALUES_PER_BATCH, estimatedVariableWidthKeySize * MAX_VALUES_PER_BATCH)) {
 
       /* pivot the data into temporary space */
       Pivots.pivot(pivot, records, fbv, var);
@@ -526,7 +532,9 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
           }
         }).when(spillService).getSpillSubdir(any(String.class));
 
-        LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
+        LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
+          10, true, MAX_VALUES_PER_BATCH);
+        sourceHashTable.registerResizeListener(accumulator);
         VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition
           (accumulator, sourceHashTable, pivot.getBlockWidth(), "P0", offsets, false);
         OptionManager optionManager = mock(OptionManager.class);
@@ -866,30 +874,35 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
       new SumAccumulators.IntSumAccumulator(in1, in1SumOutputVector, in1SumOutputVector,
                                             MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in1SumOutputVector.getField());
+    accumulatorTypes[0] = (byte)AccumulatorBuilder.AccumulatorType.SUM.ordinal();
 
     IntVector in1MaxOutputVector = new IntVector("int-max", allocator);
     final MaxAccumulators.IntMaxAccumulator in1MaxAccum =
       new MaxAccumulators.IntMaxAccumulator(in1, in1MaxOutputVector, in1MaxOutputVector,
                                             MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in1MaxOutputVector.getField());
+    accumulatorTypes[1] = (byte)AccumulatorBuilder.AccumulatorType.MAX.ordinal();
 
     IntVector in1MinOutputVector = new IntVector("int-min", allocator);
     final MinAccumulators.IntMinAccumulator in1MinAccum =
       new MinAccumulators.IntMinAccumulator(in1, in1MinOutputVector, in1MinOutputVector,
                                             MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in1MinOutputVector.getField());
+    accumulatorTypes[2] = (byte)AccumulatorBuilder.AccumulatorType.MIN.ordinal();
 
     BigIntVector in1Count = new BigIntVector("int-count", allocator);
     final CountColumnAccumulator in1countAccum =
       new CountColumnAccumulator(in1, in1Count, in1Count,
                                  MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in1Count.getField());
+    accumulatorTypes[3] = (byte)AccumulatorBuilder.AccumulatorType.COUNT.ordinal();
 
     BigIntVector in1Count1 = new BigIntVector("int-count1", allocator);
     final CountOneAccumulator in1count1Accum =
       new CountOneAccumulator(null, in1Count1, in1Count1,
                               MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in1Count1.getField());
+    accumulatorTypes[4] = (byte)AccumulatorBuilder.AccumulatorType.COUNT1.ordinal();
 
     /* BIGINT */
     BigIntVector in2SumOutputVector = new BigIntVector("bigint-sum", allocator);
@@ -897,24 +910,28 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
       new SumAccumulators.BigIntSumAccumulator(in2, in2SumOutputVector, in2SumOutputVector,
                                                MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in2SumOutputVector.getField());
+    accumulatorTypes[5] = (byte)AccumulatorBuilder.AccumulatorType.SUM.ordinal();
 
     BigIntVector in2MaxOutputVector = new BigIntVector("bigint-max", allocator);
     final MaxAccumulators.BigIntMaxAccumulator in2MaxAccum =
       new MaxAccumulators.BigIntMaxAccumulator(in2, in2MaxOutputVector, in2MaxOutputVector,
                                                MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in2MaxOutputVector.getField());
+    accumulatorTypes[6] = (byte)AccumulatorBuilder.AccumulatorType.MAX.ordinal();
 
     BigIntVector in2MinOutputVector = new BigIntVector("bigint-min", allocator);
     final MinAccumulators.BigIntMinAccumulator in2MinAccum =
       new MinAccumulators.BigIntMinAccumulator(in2, in2MinOutputVector, in2MinOutputVector,
                                                MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in2MinOutputVector.getField());
+    accumulatorTypes[7] = (byte)AccumulatorBuilder.AccumulatorType.MIN.ordinal();
 
     BigIntVector in2Count = new BigIntVector("bigint-count", allocator);
     final CountColumnAccumulator in2countAccum =
       new CountColumnAccumulator(in2, in2Count, in2Count,
                                  MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in2Count.getField());
+    accumulatorTypes[8] = (byte)AccumulatorBuilder.AccumulatorType.COUNT.ordinal();
 
     /* FLOAT */
     Float8Vector in3SumOutputVector = new Float8Vector("float-sum", allocator);
@@ -922,24 +939,28 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
       new SumAccumulators.FloatSumAccumulator(in3, in3SumOutputVector, in3SumOutputVector,
                                               MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in3SumOutputVector.getField());
+    accumulatorTypes[9] = (byte)AccumulatorBuilder.AccumulatorType.SUM.ordinal();
 
     Float4Vector in3MaxOutputVector = new Float4Vector("float-max", allocator);
     final MaxAccumulators.FloatMaxAccumulator in3MaxAccum =
       new MaxAccumulators.FloatMaxAccumulator(in3, in3MaxOutputVector, in3MaxOutputVector,
                                               MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in3MaxOutputVector.getField());
+    accumulatorTypes[10] = (byte)AccumulatorBuilder.AccumulatorType.MAX.ordinal();
 
     Float4Vector in3MinOutputVector = new Float4Vector("float-min", allocator);
     final MinAccumulators.FloatMinAccumulator in3MinAccum =
       new MinAccumulators.FloatMinAccumulator(in3, in3MinOutputVector, in3MinOutputVector,
                                               MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in3MinOutputVector.getField());
+    accumulatorTypes[11] = (byte)AccumulatorBuilder.AccumulatorType.MIN.ordinal();
 
     BigIntVector in3Count = new BigIntVector("float-count", allocator);
     final CountColumnAccumulator in3countAccum =
       new CountColumnAccumulator(in3, in3Count, in3Count,
                                  MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in3Count.getField());
+    accumulatorTypes[12] = (byte)AccumulatorBuilder.AccumulatorType.COUNT.ordinal();
 
     /* DOUBLE */
     Float8Vector in4SumOutputVector = new Float8Vector("double-sum", allocator);
@@ -947,34 +968,40 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
       new SumAccumulators.DoubleSumAccumulator(in4, in4SumOutputVector, in4SumOutputVector,
                                                MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in4SumOutputVector.getField());
+    accumulatorTypes[13] = (byte)AccumulatorBuilder.AccumulatorType.SUM.ordinal();
 
     Float8Vector in4MaxOutputVector = new Float8Vector("double-max", allocator);
     final MaxAccumulators.DoubleMaxAccumulator in4MaxAccum =
       new MaxAccumulators.DoubleMaxAccumulator(in4, in4MaxOutputVector, in4MaxOutputVector,
                                                MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in4MaxOutputVector.getField());
+    accumulatorTypes[14] = (byte)AccumulatorBuilder.AccumulatorType.MAX.ordinal();
 
     Float8Vector in4MinOutputVector = new Float8Vector("double-min", allocator);
     final MinAccumulators.DoubleMinAccumulator in4MinAccum =
       new MinAccumulators.DoubleMinAccumulator(in4, in4MinOutputVector, in4MinOutputVector,
                                                MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in4MinOutputVector.getField());
+    accumulatorTypes[15] = (byte)AccumulatorBuilder.AccumulatorType.MIN.ordinal();
 
     BigIntVector in4Count = new BigIntVector("double-count", allocator);
     final CountColumnAccumulator in4countAccum =
       new CountColumnAccumulator(in4, in4Count, in4Count,
                                  MAX_VALUES_PER_BATCH, allocator);
     postSpillAccumulatorVectorFields.add(in4Count.getField());
+    accumulatorTypes[16] = (byte)AccumulatorBuilder.AccumulatorType.COUNT.ordinal();
 
     VarCharVector v1 = new VarCharVector("varchar-min", allocator);
     final MinAccumulators.VarLenMinAccumulator in5MinAccum =
       new MinAccumulators.VarLenMinAccumulator(in5, v1, v1, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, 95, tempVectors[0]);
     postSpillAccumulatorVectorFields.add(in5.getField());
+    accumulatorTypes[17] = (byte)AccumulatorBuilder.AccumulatorType.MIN.ordinal();
 
     VarCharVector v2 = new VarCharVector("varchar-max", allocator);
     final MaxAccumulators.VarLenMaxAccumulator in6MaxAccum =
       new MaxAccumulators.VarLenMaxAccumulator(in6, v2, v2, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, 95, tempVectors[1]);
     postSpillAccumulatorVectorFields.add(in6.getField());
+    accumulatorTypes[18] = (byte)AccumulatorBuilder.AccumulatorType.MAX.ordinal();
 
     varlenAccumVectorFields.add(v1);
     varlenAccumVectorFields.add(v2);

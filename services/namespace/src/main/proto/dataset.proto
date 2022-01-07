@@ -93,6 +93,7 @@ message PhysicalDataset {
   optional bool allow_approx_stats = 5 [default = false];
   optional bool icebergMetadataEnabled = 6; // For this selection, iceberg metadata is present. False by default.
   optional com.dremio.service.namespace.dataset.proto.IcebergMetadata iceberg_metadata = 7;
+  optional com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings internal_schema_settings = 8;
 }
 
 message DatasetField {

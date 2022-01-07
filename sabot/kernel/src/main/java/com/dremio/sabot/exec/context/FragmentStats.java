@@ -45,6 +45,7 @@ public class FragmentStats {
   private final BufferAllocator allocator;
   private final FragmentHandle handle;
 
+  private BufferAllocator incomingAllocator;
   private long sleepingDuration;
   private long blockedOnUpstreamDuration;
   private long blockedOnDownstreamDuration;
@@ -73,6 +74,7 @@ public class FragmentStats {
     prfB.setStartTime(startTime);
     prfB.setFirstRun(firstRun);
     prfB.setMaxMemoryUsed(allocator.getPeakMemoryAllocation());
+    prfB.setMaxIncomingMemoryUsed(getMemoryUsedForIncoming());
     prfB.setEndTime(System.currentTimeMillis());
     prfB.setEndpoint(endpoint);
     for (OperatorStats o : operators) {
@@ -106,6 +108,21 @@ public class FragmentStats {
     prfB.setNumRuns(numRuns);
   }
 
+  private long getMemoryUsedForIncoming() {
+    return incomingAllocator == null ? 0 : incomingAllocator.getPeakMemoryAllocation();
+  }
+
+  private void checkAndSaveIncomingAllocator() {
+    if (incomingAllocator == null) {
+      for (BufferAllocator child : allocator.getChildAllocators()) {
+        if (child.getName().startsWith("op:") && child.getName().contains(":incoming")) {
+          incomingAllocator = child;
+          break;
+        }
+      }
+    }
+  }
+
   /**
    * Creates a new holder for operator statistics within this holder for fragment statistics.
    *
@@ -135,6 +152,7 @@ public class FragmentStats {
   }
 
   public void setupStarted() {
+    checkAndSaveIncomingAllocator();
     setupWatch.start();
   }
 

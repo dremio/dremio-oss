@@ -27,6 +27,7 @@ import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.metadatarefresh.schemaagg.SchemaAggTableFunction;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.op.boost.BoostTableFunction;
 
 /**
  * Internal factory that creates various scan table functions
@@ -54,6 +55,8 @@ public class InternalTableFunctionFactory implements TableFunctionFactory {
         return new SchemaAggTableFunction(context, functionConfig);
       case SPLIT_ASSIGNMENT:
         return new SplitAssignmentTableFunction(fec, context, props, functionConfig);
+      case BOOST_TABLE_FUNCTION:
+        return new BoostTableFunction(fec, context, props, functionConfig);
       case UNKNOWN:
       default:
         throw new UnsupportedOperationException("Unknown table function type " + functionConfig.getType());

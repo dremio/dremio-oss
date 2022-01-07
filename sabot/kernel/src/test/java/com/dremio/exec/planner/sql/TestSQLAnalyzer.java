@@ -52,6 +52,7 @@ import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.advise.SqlAdvisor;
 import org.apache.calcite.sql.advise.SqlAdvisorValidator;
 import org.apache.calcite.sql.parser.SqlParserUtil;
+import org.apache.calcite.sql.parser.StringAndPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlModality;
 import org.apache.calcite.sql.validate.SqlMoniker;
@@ -207,7 +208,7 @@ public class TestSQLAnalyzer {
       // Cursor after 'TEST_SCHEMA.'
       new Object[] {
         "select a.colOne, b.colTwo from dummy a join TEST_SCHEMA.^ on a.colTwo=",
-        109,
+        108,
         false},
       // Cursor after 'TEST_CATALOG.TEST_SCHEMA'
       new Object[] {
@@ -245,7 +246,7 @@ public class TestSQLAnalyzer {
 
   @Test
   public void testSuggestion() {
-    final SqlParserUtil.StringAndPos stringAndPos = SqlParserUtil.findPos(sql);
+    final StringAndPos stringAndPos = SqlParserUtil.findPos(sql);
     List<SqlMoniker> suggestions = sqlAnalyzer.suggest(stringAndPos.sql, stringAndPos.cursor);
     assertEquals(expectedSuggestionCount, suggestions.size());
     if (checkSuggestions) {
@@ -429,6 +430,11 @@ public class TestSQLAnalyzer {
       }
 
       @Override
+      public List<ImmutableBitSet> getKeys() {
+        return ImmutableList.of();
+      }
+
+      @Override
       public <T> T unwrap(Class<T> clazz) {
         if (clazz.isInstance(this)) {
           return clazz.cast(this);
@@ -463,6 +469,11 @@ public class TestSQLAnalyzer {
 
       @Override
       public boolean supportsModality(SqlModality modality) {
+        return false;
+      }
+
+      @Override
+      public boolean isTemporal() {
         return false;
       }
 

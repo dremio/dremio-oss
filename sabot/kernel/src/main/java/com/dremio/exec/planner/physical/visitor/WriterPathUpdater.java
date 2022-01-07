@@ -79,7 +79,7 @@ public class WriterPathUpdater extends BasePrelVisitor<Prel, CreateTableEntry, R
     // store table as system user.
     final CreateTableEntry createTableEntry = context.getCatalog()
       .resolveCatalog(SystemUser.SYSTEM_USERNAME)
-      .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions);
+      .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions, true);
     final FileSystemCreateTableEntry fileEntry = (FileSystemCreateTableEntry) createTableEntry;
 
     WriterCommitterPrel committerPrel = new WriterCommitterPrel(prel.getCluster(),

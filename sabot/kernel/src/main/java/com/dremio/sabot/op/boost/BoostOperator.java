@@ -34,15 +34,11 @@ import com.dremio.exec.physical.config.BoostPOP;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.easy.arrow.ArrowFlatBufRecordWriter;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
-import com.dremio.io.AsyncByteReader;
 import com.dremio.io.file.BoostedFileSystem;
 import com.dremio.io.file.FileSystem;
-import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
@@ -178,7 +174,8 @@ public class BoostOperator extends ScanOperator {
     for (String columnName : columnsToBoost) {
       ArrowColumnWriter arrowColumnWriter;
       try {
-        arrowColumnWriter = new ArrowColumnWriter(splitXAttr, columnName);
+        arrowColumnWriter = new ArrowColumnWriter(splitXAttr, columnName, context, boostedFS, dataset);
+        arrowColumnWriter.setup(fieldVectorMap.get(columnName.toLowerCase()));
       } catch (IOException ex) {
         logger.debug("Failed to initialize column writer to boost column [{}] of split [{}] due to {}. Skipping column.", columnName, splitXAttr.getPath(), ex.getMessage());
         continue;
@@ -221,61 +218,6 @@ public class BoostOperator extends ScanOperator {
     }
     currentWriters.clear();
     return boostOutputContainer.setAllCount(i);
-  }
-
-  private class ArrowColumnWriter implements AutoCloseable {
-    private final int rowGroupIndex;
-    private final String column;
-    private final String splitPath;
-    private final RecordWriter recordWriter;
-    private final AsyncByteReader.FileKey fileKey;
-    private final VectorContainer outputVectorContainer;
-    private boolean isClosed = false;
-
-    public ArrowColumnWriter(ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr, String column) throws IOException {
-      this.column = column;
-      this.splitPath = splitXAttr.getPath();
-      this.rowGroupIndex = splitXAttr.getRowGroupIndex();
-      this.fileKey = AsyncByteReader.FileKey.of(Path.of(splitPath), Long.toString(splitXAttr.getLastModificationTime()), AsyncByteReader.FileKey.FileType.OTHER, dataset);
-
-      recordWriter = new ArrowFlatBufRecordWriter(context, boostedFS.createBoostFile(fileKey, rowGroupIndex, column));
-      // container with just one column
-      outputVectorContainer = context.createOutputVectorContainer();
-      outputVectorContainer.add(fieldVectorMap.get(column.toLowerCase()));
-      outputVectorContainer.buildSchema();
-
-      RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
-      RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f, g, partition) -> {};
-      recordWriter.setup(outputVectorContainer, fileWriteListener, byteCountListener);
-    }
-
-    void write(int records) throws Exception {
-      outputVectorContainer.setRecordCount(records);
-      recordWriter.writeBatch(0, records);
-    }
-
-    @Override
-    public void close() throws Exception {
-      if(!isClosed) {
-        AutoCloseables.close(recordWriter); // file write is done on closing RecordWriter
-        isClosed = true;
-      }
-    }
-
-    public void commit() throws IOException {
-      Preconditions.checkArgument(isClosed, "Attempted to commit boost file before finishing writing");
-      boostedFS.commitBoostFile(fileKey, rowGroupIndex, column);
-    }
-
-    public void abort() {
-      try {
-        AutoCloseables.close(recordWriter);
-        boostedFS.abortBoostFile(fileKey, rowGroupIndex, column);
-      } catch (Exception ex) {
-        logger.error("Failure while cancelling boosting of column [{}] of split [{}]", column, splitPath, ex);
-      }
-    }
-
   }
 
   @Override

@@ -23,6 +23,7 @@ import org.apache.parquet.hadoop.CodecFactory;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -56,7 +57,6 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
   public static void setup() throws Exception {
     testRootAllocator = RootAllocatorFactory.newRoot(config);
     testAllocator = testRootAllocator.newChildAllocator("test-glb-dict", 0, testRootAllocator.getLimit());
-    setSessionOption(ExecConstants.MIXED_TYPES_DISABLED, "false");
     testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=true");
     testNoResult("CREATE TABLE dfs_test.globaldictionary AS SELECT * FROM cp.\"globaldictionary.json\"");
     testNoResult("CREATE TABLE dfs_test.places AS SELECT * FROM cp.\"places.json\"");
@@ -80,9 +80,9 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     fs.delete(tableDirPath1, true);
     fs.delete(tableDirPath2, true);
     AutoCloseables.close(testAllocator, testRootAllocator);
-    resetSessionOption(ExecConstants.MIXED_TYPES_DISABLED);
   }
 
+  @Ignore
   @Test
   public void testLimit() throws Exception {
     final String query = "select * from dfs_test.globaldictionary limit 1";
@@ -93,6 +93,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testLimit");
   }
 
+  @Ignore
   @Test
   public void testSimpleProject() throws Exception {
     final String query = "select * from dfs_test.globaldictionary";
@@ -103,6 +104,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testSimpleProject");
   }
 
+  @Ignore
   @Test
   public void testSimpleFilter() throws Exception {
     final String query = "select * from dfs_test.globaldictionary where employee_id > 1100";
@@ -113,6 +115,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testSimpleFilter");
   }
 
+  @Ignore
   @Test
   public void testFilterWithDictionaryColumn() throws Exception {
     final String query = "select * from dfs_test.globaldictionary where state='TX'";
@@ -124,6 +127,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testFilterWithDictionaryColumn");
   }
 
+  @Ignore
   @Test
   public void testSimpleGroupBy() throws Exception {
     final String query = "select city, state from dfs_test.globaldictionary group by city, state";
@@ -134,6 +138,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResultsOutOfOrder(query, "testSimpleGroupBy");
   }
 
+  @Ignore
   @Test
   public void testGroupByWithFilter() throws Exception {
     final String query = "select city, state from dfs_test.globaldictionary where state='TX' and \"position\"='STOR' group by city,state";
@@ -145,6 +150,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testGroupByWithFilter");
   }
 
+  @Ignore
   @Test
   public void testSimpleAgg() throws Exception {
     final String query = "select count(state), last_name from dfs_test.globaldictionary group by last_name";
@@ -155,6 +161,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testSimpleAgg");
   }
 
+  @Ignore
   @Test
   public void testAggWithDecoding() throws Exception {
     final String query = "select count(state || city), last_name from dfs_test.globaldictionary group by last_name";
@@ -166,6 +173,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testAggWithDecoding");
   }
 
+  @Ignore
   @Test
   public void testSelfJoin() throws Exception {
     final String query = "select * from dfs_test.globaldictionary t1 inner join dfs_test.globaldictionary t2 on t1.city = t2.state";
@@ -177,6 +185,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testSelfJoin");
   }
 
+  @Ignore
   @Test
   public void testSimpleInnerJoin() throws Exception {
     final String query = "select * from dfs_test.globaldictionary t1 inner join dfs_test.places t2 on t1.employee_id = t2.employee_id";
@@ -188,6 +197,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testSimpleInnerJoin");
   }
 
+  @Ignore
   @Test
   public void testInnerJoinWithDecoding() throws Exception {
     final String query = "select * from dfs_test.globaldictionary t1 inner join dfs_test.places t2 on t1.state = t2.place";
@@ -200,6 +210,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     validateResults(query, "testInnerJoinWithDecoding");
   }
 
+  @Ignore
   @Test
   public void testInnerJoinWithFilter() throws Exception {
     final String query = "select * from dfs_test.globaldictionary t1 inner join dfs_test.places t2 on t1.state = t2.place where \"position\"='Store'";

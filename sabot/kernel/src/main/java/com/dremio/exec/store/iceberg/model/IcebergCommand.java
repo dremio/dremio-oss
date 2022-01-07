@@ -21,6 +21,7 @@ import java.util.Map;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
@@ -164,4 +165,6 @@ public interface IcebergCommand {
 
 
     void deleteTable();
+
+    Map<Integer, PartitionSpec> getPartitionSpecMap();
 }

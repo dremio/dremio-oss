@@ -34,11 +34,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.projectnessie.api.TreeApi;
 import org.projectnessie.error.NessieConflictException;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.ImmutableIcebergTable;
 import org.projectnessie.model.Operations;
-import org.projectnessie.services.rest.TreeResource;
 
 import com.dremio.service.nessieapi.Branch;
 import com.dremio.service.nessieapi.CommitMultipleOperationsRequest;
@@ -61,7 +61,7 @@ import io.grpc.stub.StreamObserver;
 @RunWith(MockitoJUnitRunner.class)
 public class TestTreeApiService {
   private TreeApiService treeApiService;
-  @Mock private TreeResource treeResource;
+  @Mock private TreeApi treeResource;
 
   @Before
   public void setup() {
@@ -72,18 +72,24 @@ public class TestTreeApiService {
   public void createReference() throws Exception {
     final Branch branch = Branch.newBuilder().setName("foo").setHash("0011223344556677").build();
     final Reference branchRef = Reference.newBuilder().setBranch(branch).build();
-    final CreateReferenceRequest request = CreateReferenceRequest.newBuilder().setReference(branchRef).build();
+    final CreateReferenceRequest request = CreateReferenceRequest
+      .newBuilder()
+      .setReference(branchRef)
+      .setSourceRefName("sourceRef")
+      .build();
 
     StreamObserver responseObserver = mock(StreamObserver.class);
     treeApiService.createReference(request, responseObserver);
 
     final ArgumentCaptor<org.projectnessie.model.Reference> referenceCaptor =
       ArgumentCaptor.forClass(org.projectnessie.model.Reference.class);
-    verify(treeResource).createReference(referenceCaptor.capture());
+    final ArgumentCaptor<String> sourceRefNameCaptor = ArgumentCaptor.forClass(String.class);
+    verify(treeResource).createReference(sourceRefNameCaptor.capture(), referenceCaptor.capture());
 
     final org.projectnessie.model.Reference actualReference = referenceCaptor.getValue();
     assertEquals("foo", actualReference.getName());
     assertEquals("0011223344556677", actualReference.getHash());
+    assertEquals("sourceRef", sourceRefNameCaptor.getValue());
   }
 
   @Test
@@ -91,7 +97,8 @@ public class TestTreeApiService {
     final Branch branch = Branch.newBuilder().setName("foo").setHash("0011223344556677").build();
     final Reference branchRef = Reference.newBuilder().setBranch(branch).build();
 
-    doThrow(new NessieConflictException("already exists")).when(treeResource).createReference(any(org.projectnessie.model.Reference.class));
+    doThrow(new NessieConflictException("already exists")).when(treeResource)
+      .createReference(anyString(), any(org.projectnessie.model.Reference.class));
 
     final StreamObserver streamObserver = mock(StreamObserver.class);
     treeApiService.createReference(CreateReferenceRequest.newBuilder().setReference(branchRef).build(), streamObserver);
@@ -108,7 +115,8 @@ public class TestTreeApiService {
     final Branch branch = Branch.newBuilder().setName("foo").setHash("0011223344556677").build();
     final Reference branchRef = Reference.newBuilder().setBranch(branch).build();
 
-    doThrow(new RuntimeException("Unexpected exception")).when(treeResource).createReference(any(org.projectnessie.model.Reference.class));
+    doThrow(new RuntimeException("Unexpected exception")).when(treeResource)
+      .createReference(anyString(), any(org.projectnessie.model.Reference.class));
 
     final StreamObserver streamObserver = mock(StreamObserver.class);
     treeApiService.createReference(CreateReferenceRequest.newBuilder().setReference(branchRef).build(), streamObserver);
@@ -230,7 +238,6 @@ public class TestTreeApiService {
     verify(treeResource).commitMultipleOperations(
         eq("foo"),
         eq("bar"),
-        eq("message"),
         operationsCaptor.capture()
     );
 
@@ -252,7 +259,7 @@ public class TestTreeApiService {
     final CommitMultipleOperationsRequest request = createCommitMulitpleOperationsRequest(icebergTable);
 
     doThrow(new NessieNotFoundException("foo")).when(treeResource).commitMultipleOperations(
-      anyString(), anyString(), anyString(), any(Operations.class));
+      anyString(), anyString(), any(Operations.class));
     final StreamObserver streamObserver = mock(StreamObserver.class);
     treeApiService.commitMultipleOperations(request, streamObserver);
 
@@ -269,7 +276,7 @@ public class TestTreeApiService {
     final CommitMultipleOperationsRequest request = createCommitMulitpleOperationsRequest(icebergTable);
 
     doThrow(new NessieConflictException("foo")).when(treeResource).commitMultipleOperations(
-      anyString(), anyString(), anyString(), any(Operations.class));
+      anyString(), anyString(), any(Operations.class));
     final StreamObserver streamObserver = mock(StreamObserver.class);
     treeApiService.commitMultipleOperations(request, streamObserver);
 
@@ -286,7 +293,7 @@ public class TestTreeApiService {
     final CommitMultipleOperationsRequest request = createCommitMulitpleOperationsRequest(icebergTable);
 
     doThrow(new RuntimeException("Unexpected exception")).when(treeResource).commitMultipleOperations(
-      anyString(), anyString(), anyString(), any(Operations.class));
+      anyString(), anyString(), any(Operations.class));
     final StreamObserver streamObserver = mock(StreamObserver.class);
     treeApiService.commitMultipleOperations(request, streamObserver);
 

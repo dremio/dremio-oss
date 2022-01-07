@@ -15,7 +15,6 @@
  */
 package com.dremio.sabot.op.copier;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -38,7 +37,7 @@ import io.netty.util.internal.PlatformDependent;
 
 
 public abstract class FieldBufferCopier {
-
+  public static final int AVG_VAR_WIDTH = 15;
   private static final int STEP_SIZE = 2;
 
   private static final int NULL_BUFFER_ORDINAL = 0;
@@ -47,25 +46,42 @@ public abstract class FieldBufferCopier {
   public abstract void allocate(int records);
 
   // Cursor into the target vector.
-  public static class Cursor {
+  public static final class Cursor {
     // index in the target vector.
     private int targetIndex;
 
-    // index in the target data vector (used in variable width copiers).
-    private int targetDataIndex;
-
-    public Cursor () {
+    public Cursor() {
       this.targetIndex = 0;
-      this.targetDataIndex = 0;
     }
 
-    public Cursor (Cursor cursor) {
+    public Cursor(int targetIndex) {
+      this.targetIndex = targetIndex;
+    }
+
+    public Cursor(Cursor cursor) {
       this.targetIndex = cursor.targetIndex;
-      this.targetDataIndex = cursor.targetDataIndex;
+    }
+
+    public int getTargetIndex() {
+      return targetIndex;
+    }
+
+    public void setTargetIndex(int targetIndex) {
+      this.targetIndex = targetIndex;
     }
   }
 
   public abstract void copy(long offsetAddr, int count);
+
+  /**
+   * Copy starting from the previous cursor.
+   * @param offsetAddr offset addr of the selection vector
+   * @param count  number of entries to copy
+   * @param cursor cursor (tracks state across invocations).
+   */
+  public void copy(long offsetAddr, int count, Cursor cursor) {
+    throw new UnsupportedOperationException("copy with cursor not supported");
+  }
 
   // Copy data and set validity to 0 for all records in nullAddr
   // nullAddr is all the offsets of the records that are null
@@ -73,14 +89,8 @@ public abstract class FieldBufferCopier {
   // because validity data is copied in BitCopier
   public abstract void copy(long offsetAddr, int count, long nullAddr, int nullCount);
 
-  /**
-   * Copy starting from the previous cursor.
-   * @param offsetAddr offset addr of the selection vector
-   * @param count  number of entries to copy
-   * @param cursor cursor returned in the previous call (set to null on first call).
-   * @return cursor after the copy.
-   */
-  public Cursor copy(long offsetAddr, int count, Cursor cursor) {
+  // same as above, but with a cursor.
+  public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
     throw new UnsupportedOperationException("copy with cursor not supported");
   }
 
@@ -138,14 +148,15 @@ public abstract class FieldBufferCopier {
     }
 
     @Override
-    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
-      if (cursor == null) {
-        cursor = new Cursor();
-      }
-      resizeIfNeeded(targetAlt, cursor.targetIndex + count);
-      seekAndCopy(offsetAddr, count, cursor.targetIndex);
-      cursor.targetIndex += count;
-      return cursor;
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      int targetIndex = cursor.targetIndex;
+      resizeIfNeeded(targetAlt, targetIndex + count);
+      seekAndCopy(offsetAddr, count, targetIndex);
+      cursor.setTargetIndex(targetIndex + count);
+    }
+
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
+      copy(offsetAddr, count, cursor);
     }
 
     public void allocate(int records){
@@ -298,14 +309,12 @@ public abstract class FieldBufferCopier {
       this.realloc = Reallocators.getReallocator(target);
     }
 
-    private Cursor seekAndCopy(long sv2, int count, Cursor cursor) {
-      int targetIndex;
-      int targetDataIndex;
-      if (cursor == null) {
-        targetIndex =  targetDataIndex = 0;
-      } else {
-        targetIndex = cursor.targetIndex;
-        targetDataIndex = cursor.targetDataIndex;
+    private void seekAndCopy(long sv2, int count, int seekTo) {
+      int targetIndex = seekTo;
+      int targetDataIndex = 0;
+      if (targetIndex != 0) {
+        long dstOffsetAddr = target.getOffsetBufferAddress() + targetIndex * 4;
+        targetDataIndex = PlatformDependent.getInt(dstOffsetAddr);
       }
 
       final Reallocator realloc = this.realloc;
@@ -341,17 +350,12 @@ public abstract class FieldBufferCopier {
       }
 
       realloc.setCount(targetIndex + count);
-      if (cursor != null) {
-        cursor.targetIndex += count;
-        cursor.targetDataIndex = targetDataIndex;
-      }
-      return cursor;
     }
 
     @Override
     public void copy(long sv2, int count) {
       targetAlt.allocateNew(AVG_VAR_WIDTH * count, count);
-      seekAndCopy(sv2, count, null);
+      seekAndCopy(sv2, count, 0);
     }
 
     @Override
@@ -360,14 +364,17 @@ public abstract class FieldBufferCopier {
     }
 
     @Override
-    public Cursor copy(long sv2, int count, Cursor cursor) {
-      if (cursor == null) {
-        cursor = new Cursor();
-      }
-      while (targetAlt.getValueCapacity() < cursor.targetIndex + count) {
+    public void copy(long sv2, int count, Cursor cursor) {
+      int targetIndex = cursor.getTargetIndex();
+      while (targetAlt.getValueCapacity() < targetIndex + count) {
         targetAlt.reAlloc();
       }
-      return seekAndCopy(sv2, count, cursor);
+      seekAndCopy(sv2, count, targetIndex);
+      cursor.setTargetIndex(targetIndex + count);
+    }
+
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
+      copy(offsetAddr, count, cursor);
     }
 
     @Override
@@ -483,25 +490,18 @@ public abstract class FieldBufferCopier {
     }
 
     @Override
-    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
-      if (cursor == null) {
-        cursor = new Cursor();
-      }
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      int targetIndex = cursor.getTargetIndex();
       if (allocateAsFixed) {
-        while (targetAlt.getValueCapacity() < cursor.targetIndex + count) {
+        while (targetAlt.getValueCapacity() < targetIndex + count) {
           targetAlt.reAlloc();
         }
       }
-      seekAndCopy(offsetAddr, count, cursor.targetIndex);
-      cursor.targetIndex += count;
-      return cursor;
+      seekAndCopy(offsetAddr, count, targetIndex);
+      cursor.setTargetIndex(targetIndex + count);
     }
 
-    @Override
-    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
-      if (allocateAsFixed) {
-        targetAlt.allocateNew(count);
-      }
+    public void seekAndCopy(long offsetAddr, int count, long nullAddr, int nullCount, int seekTo) {
       final long srcAddr;
       final long dstAddr;
       switch (bufferOrdinal) {
@@ -518,7 +518,7 @@ public abstract class FieldBufferCopier {
       }
 
       final long maxAddr = offsetAddr + count * STEP_SIZE;
-      int targetIndex = 0;
+      int targetIndex = seekTo;
       for(; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++){
         final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
         final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
@@ -537,6 +537,25 @@ public abstract class FieldBufferCopier {
           PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) & bitVal));
         }
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      if (allocateAsFixed) {
+        targetAlt.allocateNew(count);
+      }
+      seekAndCopy(offsetAddr, count, nullAddr, nullCount, 0);
+    }
+
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
+      int targetIndex = cursor.getTargetIndex();
+      if (allocateAsFixed) {
+        while (targetAlt.getValueCapacity() < targetIndex + count) {
+          targetAlt.reAlloc();
+        }
+      }
+      seekAndCopy(offsetAddr, count, nullAddr, nullCount, targetIndex);
+      cursor.setTargetIndex(targetIndex + count);
     }
 
     @Override
@@ -624,38 +643,16 @@ public abstract class FieldBufferCopier {
     private final FieldVector source;
     private final FieldVector target;
     private final ImmutableList<FieldBufferCopier> childCopiers;
-    private ArrayList<Cursor> childVariableCopierCursorStore;
 
     public StructCopier(FieldVector source, FieldVector target) {
       this.source = source;
       this.target = target;
       childCopiers = getCopiers(source.getChildrenFromFields(), target.getChildrenFromFields(), true);
-      childVariableCopierCursorStore = new ArrayList<>();
     }
 
-    private void seekAndCopy(long offsetAddr, int count, Cursor cursor, boolean freshStart) {
-      if (freshStart) {
-        childVariableCopierCursorStore.clear();
-      }
-      int childVariableCopierTracker = 0;
+    private void seekAndCopy(long offsetAddr, int count, Cursor cursor) {
       for (FieldBufferCopier childCopier: childCopiers) {
-        if (childCopier instanceof VariableCopier) {
-          // Preserve the targetDataIndex for each string field in the struct
-          childVariableCopierTracker++;
-          if (childVariableCopierCursorStore.size() < childVariableCopierTracker) {
-            // A cursor has not yet been allotted to this field
-            childVariableCopierCursorStore.add(new Cursor());
-          }
-          childCopier.copy(offsetAddr, count, childVariableCopierCursorStore.get(childVariableCopierTracker - 1));
-        }
-        else if (childCopier instanceof StructCopier && freshStart) {
-          // Send a null cursor to inform the child StructCopier that it is a fresh start
-          childCopier.copy(offsetAddr, count, null);
-        }
-        else {
-          // Send a copy of Cursor so that next childCopier will get a copy of Cursor
-          childCopier.copy(offsetAddr, count, new Cursor(cursor));
-        }
+        childCopier.copy(offsetAddr, count, new Cursor(cursor));
       }
     }
 
@@ -676,19 +673,17 @@ public abstract class FieldBufferCopier {
       copy(offsetAddr, count);
     }
 
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
+      copy(offsetAddr, count, cursor);
+    }
+
     @Override
-    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
-      boolean freshStart = false;
-      if (cursor == null) {
-        cursor = new Cursor();
-        freshStart = true;
-      }
+    public void copy(long offsetAddr, int count, Cursor cursor) {
       while (target.getValueCapacity() < cursor.targetIndex + count) {
         target.reAlloc();
       }
-      seekAndCopy(offsetAddr, count, cursor, freshStart);
-      cursor.targetIndex += count;
-      return cursor;
+      seekAndCopy(offsetAddr, count, cursor);
+      cursor.setTargetIndex(cursor.targetIndex + count);
     }
 
     @Override
@@ -783,16 +778,17 @@ public abstract class FieldBufferCopier {
     }
 
     @Override
-    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
-      if (cursor == null) {
-        cursor = new Cursor();
-      }
-      while (target.getValueCapacity() < cursor.targetIndex + count) {
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      int targetIndex = cursor.getTargetIndex();
+      while (target.getValueCapacity() < targetIndex + count) {
         target.reAlloc();
       }
-      seekAndCopy(offsetAddr, count, cursor.targetIndex);
-      cursor.targetIndex += count;
-      return cursor;
+      seekAndCopy(offsetAddr, count, targetIndex);
+      cursor.setTargetIndex(targetIndex + count);
+    }
+
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
+      copy(offsetAddr, count, cursor);
     }
 
     @Override
@@ -885,14 +881,17 @@ public abstract class FieldBufferCopier {
     }
 
     @Override
-    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
-      if (cursor == null) {
+    public void copy(long offsetAddr, int count, Cursor cursor) {
+      int targetIndex = cursor.getTargetIndex();
+      if (targetIndex == 0) {
         dst.allocateNew();
-        cursor = new Cursor();
       }
-      seekAndCopy(offsetAddr, count, cursor.targetIndex);
-      cursor.targetIndex += count;
-      return cursor;
+      seekAndCopy(offsetAddr, count, targetIndex);
+      cursor.setTargetIndex(targetIndex + count);
+    }
+
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount, Cursor cursor) {
+      copy(offsetAddr, count, cursor);
     }
 
     @Override
@@ -995,8 +994,12 @@ public abstract class FieldBufferCopier {
       copiers.add(new GenericCopier(source, target));
       break;
 
+    case NULL:
+      // No copiers are added for null type as there are no buffers to copy.
+      break;
+
     default:
-      throw new UnsupportedOperationException("Unknown type to copy.");
+      throw new UnsupportedOperationException("Unknown type to copy. Could not assign a copier for " + CompleteType.fromField(source.getField()).toMinorType());
     }
   }
 

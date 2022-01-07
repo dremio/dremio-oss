@@ -32,4 +32,12 @@ public interface ElectionRegistrationHandle extends AutoCloseable {
    */
   @Override
   void close();
+
+  /**
+   * Expose a object that clients can use to synchronize
+   * access to the election
+   * @return
+   */
+  Object synchronizer();
+
 }

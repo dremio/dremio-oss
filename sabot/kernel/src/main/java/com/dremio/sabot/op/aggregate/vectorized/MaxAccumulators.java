@@ -537,7 +537,7 @@ public class MaxAccumulators {
                                 int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
                                 int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent,
                                 BaseVariableWidthVector tempAccumulatorHolder) {
-      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.MAX, maxValuesPerBatch,
+      super(input, transferVector, AccumulatorBuilder.AccumulatorType.MAX, maxValuesPerBatch,
         computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
     }
 

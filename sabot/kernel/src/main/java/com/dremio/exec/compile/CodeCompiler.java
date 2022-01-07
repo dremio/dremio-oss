@@ -36,7 +36,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class CodeCompiler {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CodeCompiler.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CodeCompiler.class);
 
   private final ClassTransformer transformer;
   private final ClassCompilerSelector selector;
@@ -48,9 +48,9 @@ public class CodeCompiler {
     selector = new ClassCompilerSelector(config, optionManager);
     final int cacheMaxSize = config.getInt(ExecConstants.MAX_LOADING_CACHE_SIZE_CONFIG);
     generatedCodeToCompiledClazzCache = CacheBuilder.newBuilder()
-        .softValues()
-        .maximumSize(cacheMaxSize)
-        .build(new GeneartedCodeToCompiledClazzCacheLoader());
+      .softValues()
+      .maximumSize(cacheMaxSize)
+      .build(new GeneartedCodeToCompiledClazzCacheLoader());
     expressionsToCompiledClazzCache = CacheBuilder.newBuilder()
       .softValues()
       .maximumSize(cacheMaxSize)
@@ -65,8 +65,8 @@ public class CodeCompiler {
   @SuppressWarnings("unchecked")
   public <T> List<T> getImplementationClass(final CodeGenerator<?> cg, int instanceNumber) {
     try {
-       if (cg.getRoot().getExpressionEvalInfos().size() > 0) {
-        if(cg.getRoot().doesLazyExpsContainComplexWriterFunctionHolder()) {
+      if (cg.getRoot().getExpressionEvalInfos().size() > 0) {
+        if (cg.getRoot().doesLazyExpsContainComplexWriterFunctionHolder()) {
           cg.getRoot().evaluateAllLazyExps();
         } else {
           ExpressionEvalInfosHolder expressionEvalInfoHolder = new ExpressionEvalInfosHolder(cg);
@@ -123,9 +123,11 @@ public class CodeCompiler {
   private class GeneartedCodeToCompiledClazzCacheLoader extends CacheLoader<CodeGenerator<?>, GeneratedClassEntry> {
     @Override
     public GeneratedClassEntry load(final CodeGenerator<?> cg) throws Exception {
+      logger.debug("In Cache load; Compile code");
       final QueryClassLoader loader = new QueryClassLoader(selector);
       final Class<?> c = transformer.getImplementationClass(loader, cg.getDefinition(),
-          cg.getGeneratedCode(), cg.getMaterializedClassName());
+        cg.getGeneratedCode(), cg.getMaterializedClassName());
+      logger.debug("Exit Cache load");
       return new GeneratedClassEntry(c);
     }
   }
@@ -175,7 +177,7 @@ public class CodeCompiler {
       }
 
       ExpressionEvalInfosHolder that = (ExpressionEvalInfosHolder) o;
-      return Objects.equals(expressionEvalInfos, that.expressionEvalInfos) ;
+      return Objects.equals(expressionEvalInfos, that.expressionEvalInfos);
     }
 
     @Override

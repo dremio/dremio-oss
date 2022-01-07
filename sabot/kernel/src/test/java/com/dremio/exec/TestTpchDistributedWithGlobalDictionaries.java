@@ -60,7 +60,6 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
   public static void setup() throws Exception {
     testRootAllocator = RootAllocatorFactory.newRoot(config);
     testAllocator = testRootAllocator.newChildAllocator("test-tpch-distrib", 0, testRootAllocator.getLimit());
-    setSystemOption(ExecConstants.MIXED_TYPES_DISABLED, "false");
     testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=true");
     final Configuration conf = new Configuration();
     final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(testAllocator), 0);
@@ -109,7 +108,6 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     localFs.delete(orders, true);
     enableGlobalDictionary();
     AutoCloseables.close(testAllocator, testRootAllocator);
-    resetSessionOption(ExecConstants.MIXED_TYPES_DISABLED);
   }
 
   private static void testDistributed(final String fileName, String tag) throws Exception {
@@ -118,46 +116,55 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     validateResults(query, tag);
   }
 
+  @Ignore
   @Test
   public void testLineitem() throws Exception {
     validateResults("select * from dfs_test.tpch_lineitem_gd", "lineitem");
   }
 
+  @Ignore
   @Test
   public void testCustomer() throws Exception{
     validateResults("select * from dfs_test.tpch_customer_gd", "customer");
   }
 
+  @Ignore
   @Test
   public void testOrders() throws Exception {
     validateResults("select * from dfs_test.tpch_orders_gd", "orders");
   }
 
+  @Ignore
   @Test
   public void testRegion() throws Exception{
     validateResults("select * from dfs_test.tpch_region_gd", "region");
   }
 
+  @Ignore
   @Test
   public void testNation() throws Exception{
     validateResults("select * from dfs_test.tpch_nation_gd", "nation");
   }
 
+  @Ignore
   @Test
   public void testPart() throws Exception{
     validateResults("select * from dfs_test.tpch_part_gd", "part");
   }
 
+  @Ignore
   @Test
   public void testPartsupp() throws Exception{
     validateResults("select * from dfs_test.tpch_partsupp_gd", "partsupp");
   }
 
+  @Ignore
   @Test
   public void testSupplier() throws Exception{
     validateResults("select * from dfs_test.tpch_supplier_gd", "supplier");
   }
 
+  @Ignore
   @Test
   public void tpch01() throws Exception{
     // with global dictionary enabled there is no filter in the query and no condition in the parquet scan!
@@ -170,76 +177,91 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     testDistributed("queries/tpch_gd/02.sql", "tpch02");
   }
 
+  @Ignore
   @Test
   public void tpch03() throws Exception{
     testDistributed("queries/tpch_gd/03.sql", "tpch03");
   }
 
+  @Ignore
   @Test
   public void tpch04() throws Exception{
     testDistributed("queries/tpch_gd/04.sql", "tpch04");
   }
 
+  @Ignore
   @Test
   public void tpch05() throws Exception{
     testDistributed("queries/tpch_gd/05.sql", "tpch05");
   }
 
+  @Ignore
   @Test
   public void tpch06() throws Exception{
     testDistributed("queries/tpch_gd/06.sql", "tpch06");
   }
 
+  @Ignore
   @Test
   public void tpch07() throws Exception{
     testDistributed("queries/tpch_gd/07.sql", "tpch07");
   }
 
+  @Ignore
   @Test
   public void tpch08() throws Exception{
     testDistributed("queries/tpch_gd/08.sql", "tpch08");
   }
 
+  @Ignore
   @Test
   public void tpch09() throws Exception{
     testDistributed("queries/tpch_gd/09.sql", "tpch09");
   }
 
+  @Ignore
   @Test
   public void tpch10() throws Exception{
     testDistributed("queries/tpch_gd/10.sql", "tpch10");
   }
 
+  @Ignore
   @Test
   public void tpch11() throws Exception{
     testDistributed("queries/tpch_gd/11.sql", "tpch11");
   }
 
+  @Ignore
   @Test
   public void tpch12() throws Exception{
     testDistributed("queries/tpch_gd/12.sql", "tpch12");
   }
 
+  @Ignore
   @Test
   public void tpch13() throws Exception{
     testDistributed("queries/tpch_gd/13.sql", "tpch13");
   }
 
+  @Ignore
   @Test
   public void tpch14() throws Exception{
     testDistributed("queries/tpch_gd/14.sql", "tpch14");
   }
 
+  @Ignore
   @Test
   public void tpch16() throws Exception{
     testDistributed("queries/tpch_gd/16.sql", "tpch16");
   }
 
+  @Ignore
   @Test
   public void tpch17() throws Exception{
     testDistributed("queries/tpch_gd/17.sql", "tpch17");
   }
 
+  @Ignore
   @Test
   public void tpch18() throws Exception{
     testDistributed("queries/tpch_gd/18.sql", "tpch18");
@@ -251,16 +273,19 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     testDistributed("queries/tpch_gd/19.sql", "tpch19");
   }
 
+  @Ignore
   @Test
   public void tpch19_1() throws Exception{
     testDistributed("queries/tpch_gd/19_1.sql", "tpch19_1");
   }
 
+  @Ignore
   @Test
   public void tpch20() throws Exception{
     testDistributed("queries/tpch_gd/20.sql", "tpch20");
   }
 
+  @Ignore
   @Test
   public void tpch21() throws Exception{
     testDistributed("queries/tpch_gd/21.sql", "tpch21");

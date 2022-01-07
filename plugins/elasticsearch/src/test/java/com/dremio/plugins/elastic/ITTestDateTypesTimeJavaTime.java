@@ -28,13 +28,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.util.TestTools;
-import com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import com.dremio.common.util.TestTools;
+import com.google.common.collect.ImmutableMap;
 
 @RunWith(Parameterized.class)
 public class ITTestDateTypesTimeJavaTime extends ElasticBaseTestQuery {
@@ -58,6 +59,8 @@ public class ITTestDateTypesTimeJavaTime extends ElasticBaseTestQuery {
     data.add(new Object[]{"HH:mm:ss.SSSz"});
     data.add(new Object[]{"HHmmss.SSSz"});
     data.add(new Object[]{"HHmmss.SSS"});
+    data.add(new Object[]{"HH:mm:ss.SSSzz"});
+    data.add(new Object[]{"HH:mm:ss.SSSzzz"});
     return data;
   }
 

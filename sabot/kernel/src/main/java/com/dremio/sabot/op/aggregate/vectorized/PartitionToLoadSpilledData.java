@@ -16,6 +16,8 @@
 
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.SKETCH_SIZE;
+
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -97,7 +99,9 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
                                     final int fixedDataLength,
                                     final int variableDataLength,
                                     final List<Field> postSpillAccumulatorVectorTypes,
-                                    final int batchSize, final int varLenAccumulatorCapacity) throws Exception {
+                                    final byte[] accumulatorTypes,
+                                    final int batchSize,
+                                    final int varLenAccumulatorCapacity) throws Exception {
     Preconditions.checkArgument(allocator != null, "Error: need a valid allocator to pre-allocate memory");
     this.allocator = allocator;
     this.varLenAccumulatorCapacity = varLenAccumulatorCapacity;
@@ -119,7 +123,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
       this.recordsInBatch = 0;
       this.postSpillAccumulatorVectors = new FieldVector[postSpillAccumulatorVectorTypes.size()];
       this.accumulatorTypes = new byte[postSpillAccumulatorVectorTypes.size()];
-      initPostSpillAccumulatorVectors(postSpillAccumulatorVectorTypes, batchSize, rollbackable);
+      initPostSpillAccumulatorVectors(postSpillAccumulatorVectorTypes, accumulatorTypes, batchSize, rollbackable);
       rollbackable.commit();
       logger.debug("Extra Partition Pre-allocation, fixed-data length: {}, variable-data length: {}, actual fixed-data capacity: {}, actual variable-data capacty: {}, batchSize: {}",
                    fixedDataLength, variableDataLength, fixedKeyColPivotedData.capacity(), variableKeyColPivotedData.capacity(), batchSize);
@@ -138,6 +142,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
    * @param valueCount value count for the vector
    */
   private void initPostSpillAccumulatorVectors(final List<Field> postSpillAccumulatorVectorTypes,
+                                               final byte[] accumulatorTypes,
                                                final int valueCount,
                                                final AutoCloseables.RollbackCloseable rollbackCloseable) {
     int count = 0;
@@ -146,12 +151,21 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
       rollbackCloseable.add(vector);
       /* we have aggregation on INT, BIGINT, FLOAT, FLOAT4 and DECIMAL types of
        * columns which are all fixed width as well as (for min/max) on VARCHAR/VARBINARY
-       * with variable width.
+       * with variable width. Also the aggregation of HLL and HLL_MERGE are also output
+       * as variable width.
        */
       final Types.MinorType type = org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(field.getType());
       if (type == Types.MinorType.VARCHAR || type == Types.MinorType.VARBINARY) {
-        Preconditions.checkArgument(vector instanceof BaseVariableWidthVector, "Error: detected invalid accumulator vector type");
-        ((BaseVariableWidthVector) vector).allocateNew(this.varLenAccumulatorCapacity, valueCount);
+        final int accumLen;
+        if (accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.MAX.ordinal() ||
+            accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.MIN.ordinal()) {
+          accumLen = varLenAccumulatorCapacity;
+        } else {
+          Preconditions.checkArgument(accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.HLL.ordinal() ||
+            accumulatorTypes[count] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal());
+          accumLen = SKETCH_SIZE * valueCount;
+        }
+        ((BaseVariableWidthVector) vector).allocateNew(accumLen, valueCount);
       } else {
         Preconditions.checkArgument(vector instanceof BaseFixedWidthVector, "Error: detected invalid accumulator vector type");
         ((BaseFixedWidthVector) vector).allocateNew(valueCount);

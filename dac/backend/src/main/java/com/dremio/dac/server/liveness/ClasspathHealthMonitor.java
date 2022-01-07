@@ -15,36 +15,57 @@
  */
 package com.dremio.dac.server.liveness;
 
-import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.dremio.common.liveness.LiveHealthMonitor;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
- * When YARN provisioning is used, this health monitor checks
- * whether all the jars in the classpath exist and are readable
+ * Check if the classpath has been altered during the JVM lifetime
  */
-public class ClasspathHealthMonitor implements LiveHealthMonitor {
+public final class ClasspathHealthMonitor implements LiveHealthMonitor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClasspathHealthMonitor.class);
-  private Set<String> necessaryJarFoldersSet;
+  private Set<Path> necessaryJarFoldersSet;
 
-  public ClasspathHealthMonitor() {
+
+  /**
+   * Creates a new instance using the current context classloader
+   *
+   * Creates a list of entries to track by extracting the list of files and directories comprising the classloader,
+   * and will ignore  non existing entries, files which are not readable, and directories which are not executable.
+   *
+   * Check if the entries do still exists and are still accessible each time {@code ClasspathHealthMonitor#isHealthy()}
+   * is invoked
+   *
+   * @return a new instance
+   */
+  public static ClasspathHealthMonitor newInstance() {
     URL[] urls = ((URLClassLoader) (Thread.currentThread().getContextClassLoader())).getURLs();
-    List<String> jars = Arrays.stream(urls).map(URL::getFile)
-                              .filter(jar -> !jar.isEmpty())
-                              .collect(Collectors.toList());
-    necessaryJarFoldersSet = jars.stream().map(jar -> new File(jar).getParent())
-                                 .filter(folder -> folder != null && !folder.isEmpty())
-                                 .collect(Collectors.toSet());
+    return newInstance(Arrays.stream(urls).map(URL::getFile).filter(jar -> !jar.isEmpty()).map(Paths::get));
   }
 
-  public ClasspathHealthMonitor(Set<String> classpath) {
+
+  @VisibleForTesting
+  static ClasspathHealthMonitor newInstance(Stream<Path> classpath) {
+    Set<Path> paths = classpath
+        .filter(path -> Files.exists(path)) // Confirm that files exist
+        .filter(path -> Files.isDirectory(path) || Files.isReadable(path)) // If the file is not a directory, confirm it can be read
+        .map(path -> Files.isDirectory(path) ? path : path.getParent()) // If the file is not a directory, track its parent
+        .filter(Files::isExecutable) // Check that the directories are executable
+        .collect(Collectors.toSet());
+
+    return new ClasspathHealthMonitor(paths);
+  }
+
+  private ClasspathHealthMonitor(Set<Path> classpath) {
     necessaryJarFoldersSet = classpath;
   }
 
@@ -52,15 +73,8 @@ public class ClasspathHealthMonitor implements LiveHealthMonitor {
   public boolean isHealthy() {
     logger.debug("Checking jars {}", necessaryJarFoldersSet.size());
 
-    for(String jarFolderPath : necessaryJarFoldersSet) {
-      File jarFolder = new File(jarFolderPath);
-      boolean folderAccessible = false;
-      try {
-        folderAccessible = Files.isExecutable(jarFolder.toPath());
-      } catch (SecurityException se) {
-        logger.error("SecurityException while checking folder: {}", jarFolderPath, se);
-      }
-      if (!folderAccessible) {
+    for(Path jarFolderPath : necessaryJarFoldersSet) {
+      if (!Files.isExecutable(jarFolderPath)) {
         logger.error("Jar: {} does not exist or it is not readable!", jarFolderPath);
         return false;
       }

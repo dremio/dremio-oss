@@ -19,7 +19,6 @@ import java.util.Collections;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.Values;
 import com.dremio.exec.store.EasyCoercionReader;
 import com.dremio.exec.store.RecordReader;
@@ -36,9 +35,7 @@ public class ValuesCreator implements ProducerOperator.Creator<Values> {
   @Override
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, Values config) throws ExecutionSetupException {
     RecordReader reader = new JSONRecordReader(context, config.getContent().asNode(), null, null, Collections.singletonList(SchemaPath.getSimplePath("*")));
-    if (context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED)) {
-      reader = new EasyCoercionReader(context, config.getColumns(), reader, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null));
-    }
+    reader = new EasyCoercionReader(context, config.getColumns(), reader, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null));
     return new ScanOperator(config, context, RecordReaderIterator.from(reader));
   }
 }

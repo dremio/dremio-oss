@@ -33,7 +33,6 @@ import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.collections.CollectionUtils;
@@ -46,8 +45,7 @@ import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.LBlockHashTableKeyReader;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.exec.util.ValueListFilterBuilder;
-import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartition;
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -72,19 +70,20 @@ import io.netty.util.internal.PlatformDependent;
 public final class LBlockHashTable implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LBlockHashTable.class);
   private static final long BLOOMFILTER_MAX_SIZE = 2 * 1024 * 1024;
-  private static int MAX_VAL_LIST_FILTER_KEY_SIZE = 17;
+  private static final int MAX_VAL_LIST_FILTER_KEY_SIZE = 17;
 
   public static final int CONTROL_WIDTH = 8;
   public static final int VAR_OFFSET_SIZE = 4;
   public static final int VAR_LENGTH_SIZE = 4;
   public static final int FREE = -1; // same for both int and long.
-  public static final long LFREE = -1l; // same for both int and long.
+  public static final long LFREE = -1L; // same for both int and long.
 
   private static final int RETRY_RETURN_CODE = -2;
   public static final int ORDINAL_SIZE = 4;
 
   private final HashConfigWrapper config;
-  private final ResizeListener listener;
+  private ResizeListener resizeListener;
+  private SpaceCheckListener spaceCheckListener;
 
   private final PivotDef pivot;
   private final BufferAllocator allocator;
@@ -109,24 +108,20 @@ public final class LBlockHashTable implements AutoCloseable {
   private ControlBlock[] controlBlocks;
   private FixedBlockVector[] fixedBlocks = new FixedBlockVector[0];
   private VariableBlockVector[] variableBlocks = new VariableBlockVector[0];
-  private long tableControlAddresses[] = new long[0];
-  private long tableFixedAddresses[] = new long[0];
-  private long openVariableAddresses[] = new long[0]; // current pointer where we should add values.
-  private long initVariableAddresses[] = new long[0];
-  private long maxVariableAddresses[] = new long[0];
+  private long[] tableControlAddresses = new long[0];
+  private long[] tableFixedAddresses = new long[0];
+  private long[] openVariableAddresses = new long[0]; // current pointer where we should add values.
+  private long[] initVariableAddresses = new long[0];
+  private long[] maxVariableAddresses = new long[0];
 
   private int rehashCount = 0;
   private int spliceCount = 0;
-  private int forceAccumCount = 0;
-  private Stopwatch rehashTimer = Stopwatch.createUnstarted();
-  private Stopwatch initTimer = Stopwatch.createUnstarted();
-  private Stopwatch spliceTimer = Stopwatch.createUnstarted();
-  private Stopwatch forceAccumTimer = Stopwatch.createUnstarted();
+  private final Stopwatch rehashTimer = Stopwatch.createUnstarted();
+  private final Stopwatch initTimer = Stopwatch.createUnstarted();
+  private final Stopwatch spliceTimer = Stopwatch.createUnstarted();
 
   private ArrowBuf traceBuf;
   private long traceBufNext;
-
-  private boolean preallocatedSingleBatch;
 
   private long allocatedForFixedBlocks;
   private long allocatedForVarBlocks;
@@ -142,14 +137,14 @@ public final class LBlockHashTable implements AutoCloseable {
                          int initialSize,
                          int defaultVariableLengthSize,
                          final boolean enforceVarWidthBufferLimit,
-                         ResizeListener listener,
                          final int maxHashTableBatchSize) {
     this.pivot = pivot;
     this.allocator = allocator;
     this.config = new HashConfigWrapper(config);
     this.fixedOnly = pivot.getVariableCount() == 0;
     this.enforceVarWidthBufferLimit = enforceVarWidthBufferLimit;
-    this.listener = listener;
+    this.resizeListener = ResizeListener.NO_OP;
+    this.spaceCheckListener = SpaceCheckListener.NO_OP;
     // this could be less than MAX_VALUES_PER_BATCH to optimally use direct memory with non power of 2 batch size
     this.ACTUAL_VALUES_PER_BATCH = maxHashTableBatchSize;
     /* maximum records that can be stored in hashtable block/chunk */
@@ -158,7 +153,6 @@ public final class LBlockHashTable implements AutoCloseable {
     this.CHUNK_OFFSET_MASK = (1 << BITS_IN_CHUNK) - 1;
     this.variableBlockMaxLength = (pivot.getVariableCount() == 0) ? 0 :
       (ACTUAL_VALUES_PER_BATCH * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * pivot.getVariableCount()) + VAR_LENGTH_SIZE));
-    this.preallocatedSingleBatch = false;
     this.allocatedForFixedBlocks = 0;
     this.allocatedForVarBlocks = 0;
     this.unusedForFixedBlocks = 0;
@@ -273,13 +267,13 @@ public final class LBlockHashTable implements AutoCloseable {
   public int getOrInsertWithRetry(final long keyFixedAddr, final long keyVarAddr,
                                   final int  keyVarLen, final int keyHash,
                                   final int dataWidth, final boolean insertNew) {
-    int returnValue = RETRY_RETURN_CODE;
+    int returnValue;
     int iters = 0;
 
     do {
       Preconditions.checkArgument(iters < 2);
-      returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, insertNew,
-        0, null, 0, 0, 0);
+      returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash,
+        dataWidth, insertNew, 0);
       iters++;
     } while (returnValue == RETRY_RETURN_CODE);
 
@@ -288,9 +282,7 @@ public final class LBlockHashTable implements AutoCloseable {
 
   public int getOrInsertWithAccumSpaceCheck(
        final long keyFixedAddr, final long keyVarAddr, final int keyVarLen,
-       final int keyHash, final int dataWidth, final int varRowSpace,
-       final VectorizedHashAggPartition partition, final int bitsInChunk,
-       final int chunkOffsetMask, final long seed) {
+       final int keyHash, final int dataWidth, final long seed) {
     int returnValue;
 
     do {
@@ -298,8 +290,8 @@ public final class LBlockHashTable implements AutoCloseable {
        * In worst case, we may splice every batch. Additionally additional retry
        * due to rehash.  BTW, no guarantee how many times a single batch can splice.
        */
-      returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, true,
-        varRowSpace, partition, bitsInChunk, chunkOffsetMask, seed);
+      returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash,
+        dataWidth, true, seed);
     } while (returnValue == RETRY_RETURN_CODE);
 
     return returnValue;
@@ -320,15 +312,8 @@ public final class LBlockHashTable implements AutoCloseable {
    * @return for find operation (ordinal if the key exists, -1 otherwise)
    *         for add operation (ordinal if the key exists or new ordinal after insertion or -2 if the caller should retry)
    */
-  /*
-   * XXX: It is not a good idea to hae VectctorizeHashAggPartition exposed to HashTable
-   * implementation. Instead of, a space check interface should be implemented and
-   * probeOrInsert generically query for the accumulator space check.
-   */
   private int probeOrInsert(final long keyFixedAddr, final long keyVarAddr, final int keyVarLen,
-                            final int keyHash, final int dataWidth, final boolean insertNew,
-                            final int varRowSpace, final VectorizedHashAggPartition partition,
-                            final int bitsInChunk, final int chunkMaskOffset, final long seed) {
+                            final int keyHash, final int dataWidth, final boolean insertNew, final long seed) {
     final boolean fixedOnly =  this.fixedOnly;
     final int blockWidth = pivot.getBlockWidth();
     final long[] tableControlAddresses = this.tableControlAddresses;
@@ -357,11 +342,11 @@ public final class LBlockHashTable implements AutoCloseable {
           (fixedOnly ||
            variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] +
                                          PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))) {
-          if (!insertNew || varRowSpace == 0 ||
-            listener.hasSpace(varRowSpace + partition.getBatchUsedSpace(dataChunkIndex), dataChunkIndex)) {
+          if (!insertNew || spaceCheckListener.resizeListenerHasSpace(resizeListener, dataChunkIndex, seed)) {
             return ordinal;
           }
-          return splice(ordinal, varRowSpace, partition, bitsInChunk, chunkMaskOffset, seed);
+          /* Space check have failed. Batches must have rehashed so retry again. */
+          return RETRY_RETURN_CODE;
         }
       }
 
@@ -373,8 +358,8 @@ public final class LBlockHashTable implements AutoCloseable {
       return -1;
     }
     // caller wants to add key so insert
-    return insert(blockWidth, tableControlAddr, keyHash, dataWidth, keyFixedAddr, keyVarAddr, keyVarLen,
-      varRowSpace, partition, bitsInChunk, chunkMaskOffset, seed);
+    return insert(blockWidth, tableControlAddr, keyHash, dataWidth, keyFixedAddr,
+      keyVarAddr, keyVarLen, seed);
   }
 
     // Get the length of the variable keys for the record specified by ordinal.
@@ -388,8 +373,7 @@ public final class LBlockHashTable implements AutoCloseable {
       final long tableVarOffsetAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth) + blockWidth - VAR_OFFSET_SIZE;
       final int tableVarOffset = PlatformDependent.getInt(tableVarOffsetAddr);
       // VAR_LENGTH_SIZE is not added to varLen when pivot it in pivotVariableLengths method, so we need to add it here
-      final int varLen = PlatformDependent.getInt(initVariableAddresses[dataChunkIndex] + tableVarOffset) + VAR_LENGTH_SIZE;
-      return varLen;
+      return PlatformDependent.getInt(initVariableAddresses[dataChunkIndex] + tableVarOffset) + VAR_LENGTH_SIZE;
     }
   }
 
@@ -578,8 +562,7 @@ public final class LBlockHashTable implements AutoCloseable {
 
   private int insert(final int blockWidth, long tableControlAddr, final int keyHash,
                      final int dataWidth, final long keyFixedAddr, final long keyVarAddr,
-                     final int keyVarLen, final int varRowSpace, final VectorizedHashAggPartition partition,
-                     final int bitsInChunk, final int chunkOffsetMask, final long seed) {
+                     final int keyVarLen, final long seed) {
     final boolean retry;
     if (enforceVarWidthBufferLimit) {
       retry = moveToNextValidOrdinal(keyVarLen);
@@ -597,12 +580,9 @@ public final class LBlockHashTable implements AutoCloseable {
     // first we need to make sure we are up to date on the
     final int dataChunkIndex = insertedOrdinal >>> BITS_IN_CHUNK;
 
-    if (varRowSpace != 0 &&
-        !listener.hasSpace(partition.getBatchUsedSpace(dataChunkIndex) + varRowSpace, dataChunkIndex)) {
-      int returnValue = splice(insertedOrdinal, varRowSpace, partition, bitsInChunk, chunkOffsetMask, seed);
-      if (returnValue != insertedOrdinal) {
-        return returnValue;
-      }
+    if (!spaceCheckListener.resizeListenerHasSpace(resizeListener, dataChunkIndex, seed)) {
+      /* Space check has failed. Batches must have rehashed so retry again. */
+      return RETRY_RETURN_CODE;
     }
 
     final int offsetInChunk = insertedOrdinal & CHUNK_OFFSET_MASK;
@@ -754,8 +734,7 @@ public final class LBlockHashTable implements AutoCloseable {
    * (1) Add new {@link FixedBlockVector} to array of fixed blocks.
    * (2) Add new {@link VariableBlockVector} to array of variable blocks.
    * (3) Add new {@link org.apache.arrow.vector.FieldVector} as a new target vector
-   *     in {@link com.dremio.sabot.op.aggregate.vectorized.BaseSingleAccumulator}
-   *     to store computed values. This is done for _each_ accumulator inside
+   *     for _each_ accumulator inside resizeListener, i.e
    *     {@link com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet}.
    *
    * All of the above operations have to be done in a single transaction
@@ -775,7 +754,7 @@ public final class LBlockHashTable implements AutoCloseable {
          * later on we revert on each accumulator and that might be a NO-OP
          * for some accumulators
          */
-        listener.addBatch();
+        resizeListener.addBatch();
       }
 
       /* if the above operation was successful and we fail anywhere in the following
@@ -806,7 +785,7 @@ public final class LBlockHashTable implements AutoCloseable {
         maxVariableAddresses = Longs.concat(maxVariableAddresses, new long[]{newVariable.getMaxMemoryAddress()});
       }
 
-      listener.commitResize();
+      resizeListener.commitResize();
       rollbackable.commit();
       /* bump these stats only after all new allocations have been successful as otherwise we would revert everything */
       allocatedForFixedBlocks += newFixed.getCapacity();
@@ -814,7 +793,7 @@ public final class LBlockHashTable implements AutoCloseable {
     } catch (Exception e) {
       logger.debug("ERROR: failed to add data blocks, exception: ", e);
       /* explicitly rollback resizing operations on NestedAccumulator */
-      listener.revertResize();
+      resizeListener.revertResize();
       fixedBlocks = oldFixedBlocks;
       tableFixedAddresses = oldTableFixedAddresses;
       /* do sanity checking on the state of all data structures after
@@ -824,7 +803,7 @@ public final class LBlockHashTable implements AutoCloseable {
        */
       Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
                                   "Error: detected inconsistent state in hashtable after memory allocation failed");
-      listener.verifyBatchCount(fixedBlocks.length);
+      resizeListener.verifyBatchCount(fixedBlocks.length);
       /* at this point we are as good as no memory allocation was ever attempted */
       Preconditions.checkArgument(allocator.getAllocatedMemory() == currentAllocatedMemory,
                                   "Error: detected inconsistent state of allocated memory");
@@ -833,7 +812,7 @@ public final class LBlockHashTable implements AutoCloseable {
     }
   }
 
-  private final void rehash(int newCapacity) {
+  private void rehash(int newCapacity) {
     // grab old references.
     final ControlBlock[] oldControlBlocks = this.controlBlocks;
     final long[] oldControlAddrs = this.tableControlAddresses;
@@ -883,7 +862,7 @@ public final class LBlockHashTable implements AutoCloseable {
     }
   }
 
-  private static final boolean fixedKeyEquals(
+  private static boolean fixedKeyEquals(
     final long keyDataAddr,
     final long tableDataAddr,
     final int dataWidth
@@ -891,7 +870,7 @@ public final class LBlockHashTable implements AutoCloseable {
     return memEqual(keyDataAddr, tableDataAddr, dataWidth);
   }
 
-  private static final boolean variableKeyEquals(
+  private static boolean variableKeyEquals(
     final long keyVarAddr,
     final long tableVarAddr,
     final int keyVarLength
@@ -900,7 +879,7 @@ public final class LBlockHashTable implements AutoCloseable {
     return keyVarLength == tableVarLength && memEqual(keyVarAddr + VAR_LENGTH_SIZE, tableVarAddr + VAR_LENGTH_SIZE, keyVarLength);
   }
 
-  private static final boolean memEqual(final long laddr, final long raddr, int len) {
+  private static boolean memEqual(final long laddr, final long raddr, int len) {
     int n = len;
     long lPos = laddr;
     long rPos = raddr;
@@ -1004,10 +983,6 @@ public final class LBlockHashTable implements AutoCloseable {
     return spliceTimer.elapsed(unit);
   }
 
-  public long getForceAccumTime(TimeUnit unit){
-    return forceAccumTimer.elapsed(unit);
-  }
-
   public int getRehashCount(){
     return rehashCount;
   }
@@ -1016,16 +991,12 @@ public final class LBlockHashTable implements AutoCloseable {
     return spliceCount;
   }
 
-  public int getForceAccumCount() {
-    return forceAccumCount;
-  }
-
   public int getAccumCompactionCount() {
-    return listener.getAccumCompactionCount();
+    return resizeListener.getAccumCompactionCount();
   }
 
   public long getAccumCompactionTime(TimeUnit unit) {
-    return listener.getAccumCompactionTime(unit);
+    return resizeListener.getAccumCompactionTime(unit);
   }
 
   private void internalInit(int capacity) {
@@ -1079,8 +1050,11 @@ public final class LBlockHashTable implements AutoCloseable {
     return (LBlockHashTable.CONTROL_WIDTH * maxValuesPerBatch * blocks);
   }
 
-  public void unpivot(int batchIndex, int count){
-    Unpivots.unpivot(pivot, fixedBlocks[batchIndex], variableBlocks[batchIndex], 0, count);
+  public void unpivot(int startBatchIndex, int[] recordsInBatches) {
+    Unpivots.unpivotBatches(pivot,
+      Arrays.copyOfRange(fixedBlocks, startBatchIndex, startBatchIndex + recordsInBatches.length),
+      Arrays.copyOfRange(variableBlocks, startBatchIndex, startBatchIndex + recordsInBatches.length),
+      recordsInBatches);
   }
 
   // Tracing support
@@ -1254,7 +1228,7 @@ public final class LBlockHashTable implements AutoCloseable {
     maxSize = !LHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
     openVariableAddresses[0] = initVariableAddresses[0];
 
-    listener.resetToMinimumSize();
+    resizeListener.resetToMinimumSize();
   }
 
   /*
@@ -1275,7 +1249,7 @@ public final class LBlockHashTable implements AutoCloseable {
     AutoCloseables.close(fixedBlocks[batchIdx], variableBlocks[batchIdx]);
 
     //release memory from accumulator
-    listener.releaseBatch(batchIdx);
+    resizeListener.releaseBatch(batchIdx);
   }
 
   private void initControlBlock(final long controlBlockAddr) {
@@ -1298,7 +1272,6 @@ public final class LBlockHashTable implements AutoCloseable {
     Preconditions.checkArgument(fixedBlocks.length == 1, "Error: expecting space for single batch for fixed block");
     Preconditions.checkArgument(variableBlocks.length == 1, "Error: expecting space for single batch for variable block");
     Preconditions.checkArgument(size() == 0, "Error: Expecting empty hashtable");
-    preallocatedSingleBatch = true;
   }
 
   public int getCurrentNumberOfBlocks() {
@@ -1482,6 +1455,7 @@ public final class LBlockHashTable implements AutoCloseable {
       final long keyHash = LBlockHashTable.fixedKeyHashCode(srcFixedAddr, blockWidth, seed);
       final int keyHashInt = (int) keyHash;
       int controlIndex = keyHashInt & (capacity - 1);
+      int originalControlIndex = controlIndex;
 
       while (true) {
         final int controlChunkIndex = controlIndex >>> BITS_IN_CHUNK;
@@ -1499,6 +1473,7 @@ public final class LBlockHashTable implements AutoCloseable {
           break;
         }
         controlIndex = (controlIndex - 1) & (capacity - 1);
+        Preconditions.checkArgument(controlIndex != originalControlIndex);
       }
     }
 
@@ -1549,6 +1524,7 @@ public final class LBlockHashTable implements AutoCloseable {
         keyVarAddr, (varLen - VAR_LENGTH_SIZE), seed);
       final int keyHashInt = (int) keyHash;
       int controlIndex = keyHashInt & (capacity - 1);
+      int originalControlIndex = controlIndex;
 
       //4 lookup the key & fix the ordinal
       while (true) {
@@ -1570,6 +1546,7 @@ public final class LBlockHashTable implements AutoCloseable {
           break;
         }
         controlIndex = (controlIndex - 1) & (capacity - 1);
+        Preconditions.checkArgument(controlIndex != originalControlIndex);
       }
     }
 
@@ -1611,45 +1588,36 @@ public final class LBlockHashTable implements AutoCloseable {
    * @return
    */
   @VisibleForTesting
-  private int moveAccumulatedRecords(final int srcBatchIndex, final int dstBatchIndex,
-                                           final int sourceStartIndex, final int dstStartIndex,
-                                           final int numRecords) {
+  private void moveAccumulatedRecords(final int srcBatchIndex, final int dstBatchIndex,
+                                      final int sourceStartIndex, final int dstStartIndex,
+                                      final int numRecords) {
     //1. copy any variable length accumulators
-    final int bytesCopied = moveVarLenAccumulatedRecords(srcBatchIndex, dstBatchIndex, sourceStartIndex, dstStartIndex, numRecords);
+     moveVarLenAccumulatedRecords(srcBatchIndex, dstBatchIndex, sourceStartIndex, dstStartIndex, numRecords);
 
     //2. copy fixed width accumulators
     moveFixedLenAccumulatedRecords(srcBatchIndex, dstBatchIndex, sourceStartIndex, dstStartIndex, numRecords);
-    return bytesCopied;
   }
 
   /**
    * Same as above, but for variable length accumulators - i.e. mutablevarchar vector
    * @param srcBatchIndex batch num of source accumulator
    * @param dstBatchIndex batch num of destination
-   * @param sourceStartIndex  start index of source
+   * @param srcStartIndex  start index of source
    * @param dstStartIndex  start index of source
    * @param numRecords  total records to move
    * @return
    */
   @VisibleForTesting
-  private int moveVarLenAccumulatedRecords(final int srcBatchIndex, final int dstBatchIndex,
-                                           final int sourceStartIndex, final int dstStartIndex,
-                                           final int numRecords)
+  private void moveVarLenAccumulatedRecords(final int srcBatchIndex, final int dstBatchIndex,
+                                            final int srcStartIndex, final int dstStartIndex,
+                                            final int numRecords)
   {
-    final List<FieldVector> srcVectors = ((AccumulatorSet)listener).getVarlenAccumulators(srcBatchIndex);
-    final List<FieldVector> dstVectors = ((AccumulatorSet)listener).getVarlenAccumulators(dstBatchIndex);
+    List<Accumulator> varLenAccums = resizeListener.getVarlenAccumChildren();
 
-    Preconditions.checkArgument(srcVectors.size() == dstVectors.size());
-    Preconditions.checkArgument(srcVectors.size() > 0);
-
-    int total_moved = 0;
-    for (int i = 0; i < srcVectors.size(); ++i) {
-      final MutableVarcharVector srcMv = ((MutableVarcharVector)srcVectors.get(i));
-      final int moved = srcMv.moveToAndFreeSpace(sourceStartIndex, dstStartIndex, numRecords, dstVectors.get(i));
-      total_moved += moved;
+    for (Accumulator a : varLenAccums) {
+      a.moveValuesAndFreeSpace(srcBatchIndex, dstBatchIndex,
+          srcStartIndex, dstStartIndex, numRecords);
     }
-
-    return total_moved;
   }
 
   /**
@@ -1665,57 +1633,53 @@ public final class LBlockHashTable implements AutoCloseable {
   private void moveFixedLenAccumulatedRecords(final int srcBatchIndex, final int dstBatchIndex,
                                              final int sourceStartIndex, final int dstStartIndex,
                                              final int numRecords) {
-    final List<FieldVector> srcVectors = ((AccumulatorSet)listener).getFixedlenAccumulators(srcBatchIndex);
-    final List<FieldVector> dstVectors = ((AccumulatorSet)listener).getFixedlenAccumulators(dstBatchIndex);
+    final List<FieldVector> srcVectors = resizeListener.getFixedlenAccumulators(srcBatchIndex);
+    final List<FieldVector> dstVectors = resizeListener.getFixedlenAccumulators(dstBatchIndex);
 
     Preconditions.checkArgument(srcVectors.size() == dstVectors.size());
 
     for (int i = 0; i < srcVectors.size(); ++i) {
       final BaseFixedWidthVector src = ((BaseFixedWidthVector)srcVectors.get(i));
       final BaseFixedWidthVector dst = ((BaseFixedWidthVector)dstVectors.get(i));
-      int dstIndex = dstStartIndex;
-      int count = 0;
       final ArrowBuf srcValidityBuf = src.getValidityBuffer();
+      final ArrowBuf dstValidityBuf = dst.getValidityBuffer();
+
       //copy each record from source to destination
-      for (int srcIndex = sourceStartIndex; count < numRecords; ++srcIndex, ++dstIndex, ++count) {
-        dst.copyFrom(srcIndex, dstIndex, src);
+
+      // 1. first copy the validity buffer.
+      // XXX: Seems no helper function available yet to copy validity bits from a random index at source.
+      int dstIndex = dstStartIndex;
+      for (int srcIndex = sourceStartIndex; srcIndex < sourceStartIndex + numRecords; ++srcIndex, ++dstIndex) {
+        BitVectorHelper.setValidityBit(dstValidityBuf, dstIndex,
+          BitVectorHelper.get(srcValidityBuf, srcIndex));
         BitVectorHelper.setValidityBit(srcValidityBuf, srcIndex, 0);
       }
+
+      final ArrowBuf srcDataBuf = src.getDataBuffer();
+      final ArrowBuf dstDataBuf = dst.getDataBuffer();
+      final int typeWidth = src.getTypeWidth();
+
+      // 2. copy the databuf. setBytes() take absolute byte address
+      dstDataBuf.setBytes(dstStartIndex * typeWidth, srcDataBuf,
+        sourceStartIndex * typeWidth, numRecords * typeWidth);
     }
   }
 
   /**
    * Splits a batch, by creating a new batch and copying some records from old to new.
    * The copied records are then marked as 'free' in the original batch.
-   * @param expectedOrdinal the ordinal at which the entry trying to be inserted
+   * @param batchIndex the batch at which the entry trying to be inserted
    * @seed seed to use when rehashing the keys
    * @return
    */
-  public int splice(final int expectedOrdinal, final int varRowSpace, final VectorizedHashAggPartition partition,
-                     final int bitsInChunk, final int chunkOffsetMask, final long seed) {
-    final int batchIndex = getBatchIndexForOrdinal(expectedOrdinal);
-    /* First accumulate the existing records */
-    if (partition.getRecords() > 0) {
-      ++forceAccumCount;
-      forceAccumTimer.start();
-      listener.accumulate(partition.getBuffer().memoryAddress(), partition.getRecords(),
-        bitsInChunk, chunkOffsetMask);
-      forceAccumTimer.stop();
-      partition.resetRecords();
-
-      /* If the batch has enough space after accumulation, no need to splice */
-      if (listener.hasSpace(varRowSpace, batchIndex)) {
-        return expectedOrdinal;
-      }
-    }
-
+  public void splice(final int batchIndex, final long seed) {
     try {
       ++spliceCount;
       spliceTimer.start();
       final int numRecords = this.getRecordsInBatch(batchIndex);
       Preconditions.checkArgument(numRecords > 1);
 
-      listener.verifyBatchCount(fixedBlocks.length);
+      resizeListener.verifyBatchCount(fixedBlocks.length);
       Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
         "Error: detected inconsistent state in hashtable before starting splice");
 
@@ -1723,7 +1687,7 @@ public final class LBlockHashTable implements AutoCloseable {
       //(may throw an OOM exception, the caller must handle this)
       addDataBlocks();
 
-      listener.verifyBatchCount(fixedBlocks.length);
+      resizeListener.verifyBatchCount(fixedBlocks.length);
       Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length,
         "Error: detected inconsistent state in hashtable during splice");
 
@@ -1743,8 +1707,7 @@ public final class LBlockHashTable implements AutoCloseable {
 
       //4 move accumulated records and free space
       final int dstBatchIndex = newCurrentOrdinal >>> BITS_IN_CHUNK;
-      final int total_moved = moveAccumulatedRecords(batchIndex, dstBatchIndex,
-        sourceStartIndex, 0, recordsToCopy);
+      moveAccumulatedRecords(batchIndex, dstBatchIndex, sourceStartIndex, 0, recordsToCopy);
 
       //5 fix the usage of fixed & varlen key buffers post copying
       if (!fixedOnly) {
@@ -1767,7 +1730,6 @@ public final class LBlockHashTable implements AutoCloseable {
       //logger.debug("spliceop batch: {} old ordinal: {}, new ordinal: {}", batchIndex, currentOrdinal, targetOrdinal);
       maxOrdinalBeforeExpand = newCurrentOrdinal + ACTUAL_VALUES_PER_BATCH;
       currentOrdinal = targetOrdinal;
-      return RETRY_RETURN_CODE;
     } finally {
       spliceTimer.stop();
     }
@@ -1776,5 +1738,13 @@ public final class LBlockHashTable implements AutoCloseable {
   public final int getBatchIndexForOrdinal(final int ordinal) {
     final int batchIndex = ordinal >>> BITS_IN_CHUNK;
     return batchIndex;
+  }
+
+  public void registerSpaceCheckListener(SpaceCheckListener spaceCheckListener) {
+    this.spaceCheckListener = spaceCheckListener;
+  }
+
+  public void registerResizeListener(ResizeListener resizeListener) {
+    this.resizeListener = resizeListener;
   }
 }

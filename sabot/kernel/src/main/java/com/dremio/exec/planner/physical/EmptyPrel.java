@@ -51,7 +51,6 @@ public class EmptyPrel extends AbstractRelNode implements Prel {
     super(cluster, traitSet);
     this.schema = schema;
     this.rowType = rowType;
-    this.digest = schema.toString();
   }
 
   public BatchSchema getBatchSchema() {
@@ -102,5 +101,4 @@ public class EmptyPrel extends AbstractRelNode implements Prel {
   public boolean needsFinalColumnReordering() {
     return false;
   }
-
 }

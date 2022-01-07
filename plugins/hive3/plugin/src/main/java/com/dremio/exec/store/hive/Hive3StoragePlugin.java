@@ -890,7 +890,7 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
     }
   }
 
-  private HiveClient getClient(String user) {
+  protected HiveClient getClient(String user) {
     Preconditions.checkState(isCoordinator, "Hive client only available on coordinator nodes");
     if (!isOpen.get()) {
       throw buildAlreadyClosedException();

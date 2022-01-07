@@ -104,6 +104,7 @@ public class VectorizedCopyOperator implements SingleInputOperator {
       shouldBufferOutput = false;
     }
     cursors = new Cursor[copiers.size()];
+    resetCursors();
 
     state = State.CAN_CONSUME;
 
@@ -112,7 +113,7 @@ public class VectorizedCopyOperator implements SingleInputOperator {
 
   private void resetCursors() {
     for (int i = 0; i < copiers.size(); i++) {
-      cursors[i] = null;
+      cursors[i] = new Cursor();
     }
   }
 
@@ -182,7 +183,7 @@ public class VectorizedCopyOperator implements SingleInputOperator {
     if (appendCount > 0) {
       int idx = 0;
       for (FieldBufferCopier copier : copiers) {
-        cursors[idx] = copier.copy(addr, appendCount, cursors[idx]);
+        copier.copy(addr, appendCount, cursors[idx]);
         ++idx;
       }
       incomingIndex += appendCount;

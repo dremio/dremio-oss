@@ -112,7 +112,7 @@ const SideNav = (props) => {
     e.stopPropagation();
   };
 
-  const renderTopAction = (name, active, anchorUrl, icon, labelTooltip, dataQa = 'data-qa', anchorOnChange = undefined, iconStyle = '') => {
+  const renderTopAction = (name, active, anchorUrl, icon, labelTooltip, dataqa = 'data-qa', anchorOnChange = undefined, iconStyle = '') => {
     if (!anchorOnChange) {
       anchorOnChange = defaultClickHandler;
     }
@@ -124,7 +124,7 @@ const SideNav = (props) => {
     return (
       <div className={'sideNav-item'}>
         <div className={name + active} title={displayTooltip ? intl.formatMessage({id: labelTooltip}) : ''}>
-          <Link to={anchorUrl} dataQa={dataQa} style={{...activeStyle}}>
+          <Link to={anchorUrl} dataqa={dataqa} style={{...activeStyle}}>
             <div className={'sideNav-items'}>
               <div className={'sideNav-item__icon'}>
                 <div className={icon + ' sideNav-item__iconType'} style={{...iconStyle}}/>

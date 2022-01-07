@@ -104,7 +104,7 @@ class TimeUtils {
 
   isInvalidDateTime(stringTime) {
     const t = moment(stringTime);
-    return t.isValid() && t.get('year') === 1970 && t.get('month') === 0 && t.get('date') === 1;
+    return t.isValid() && t.valueOf() === 0;
   }
 
   toNow(timestamp) {

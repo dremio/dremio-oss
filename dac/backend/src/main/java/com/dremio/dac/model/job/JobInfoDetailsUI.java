@@ -15,19 +15,19 @@
  */
 package com.dremio.dac.model.job;
 
-import static com.dremio.dac.util.JobsConstant.ACCELERATOR;
-import static com.dremio.dac.util.JobsConstant.AGGREGATION;
-import static com.dremio.dac.util.JobsConstant.ALGEBRAIC_REFLECTIONS;
-import static com.dremio.dac.util.JobsConstant.DATASETGRAPH;
-import static com.dremio.dac.util.JobsConstant.DATASET_GRAPH_ERROR;
-import static com.dremio.dac.util.JobsConstant.DOT_BACKSLASH;
-import static com.dremio.dac.util.JobsConstant.EXTERNAL_QUERY;
-import static com.dremio.dac.util.JobsConstant.OTHERS;
-import static com.dremio.dac.util.JobsConstant.PDS;
-import static com.dremio.dac.util.JobsConstant.QUOTES;
-import static com.dremio.dac.util.JobsConstant.REFLECTION;
-import static com.dremio.dac.util.JobsConstant.__ACCELERATOR;
 import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserialize;
+import static com.dremio.service.jobs.JobsConstant.ACCELERATOR;
+import static com.dremio.service.jobs.JobsConstant.AGGREGATION;
+import static com.dremio.service.jobs.JobsConstant.ALGEBRAIC_REFLECTIONS;
+import static com.dremio.service.jobs.JobsConstant.DATASETGRAPH;
+import static com.dremio.service.jobs.JobsConstant.DATASET_GRAPH_ERROR;
+import static com.dremio.service.jobs.JobsConstant.DOT_BACKSLASH;
+import static com.dremio.service.jobs.JobsConstant.EXTERNAL_QUERY;
+import static com.dremio.service.jobs.JobsConstant.OTHERS;
+import static com.dremio.service.jobs.JobsConstant.PDS;
+import static com.dremio.service.jobs.JobsConstant.QUOTES;
+import static com.dremio.service.jobs.JobsConstant.REFLECTION;
+import static com.dremio.service.jobs.JobsConstant.__ACCELERATOR;
 
 import java.security.AccessControlException;
 import java.util.ArrayList;
@@ -99,6 +99,10 @@ public class JobInfoDetailsUI {
   private String wlmQueue;
   private Long startTime;
   private Long endTime;
+  private String engine;
+  private Long rowsScanned;
+  private Double plannerEstimatedCost;
+  private boolean isComplete;
   private long waitInClient;
   private boolean isAccelerated;
   private Long inputBytes;
@@ -180,7 +184,11 @@ public class JobInfoDetailsUI {
     @JsonProperty("failureInfo") JobFailureInfo failureInfo,
     @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
     @JsonProperty("datasetVersion") String datasetVersion,
-    @JsonProperty("resultsAvailable") Boolean resultsAvailable) {
+    @JsonProperty("resultsAvailable") Boolean resultsAvailable,
+    @JsonProperty("engine") String engine,
+    @JsonProperty("isComplete") boolean isComplete,
+    @JsonProperty("rowsScanned") Long rowsScanned,
+    @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost) {
     this.id = id;
     this.jobStatus = jobStatus;
     this.queryType = queryType;
@@ -189,6 +197,10 @@ public class JobInfoDetailsUI {
     this.wlmQueue = wlmQueue;
     this.startTime = startTime;
     this.endTime = endTime;
+    this.engine = engine;
+    this.rowsScanned = rowsScanned;
+    this.plannerEstimatedCost = plannerEstimatedCost;
+    this.isComplete = isComplete;
     this.waitInClient = waitInClient;
     this.isAccelerated = isAccelerated;
     this.inputBytes = inputBytes;
@@ -240,6 +252,10 @@ public class JobInfoDetailsUI {
     queryUser = jobInfo.getUser();
     queryText = jobInfo.getSql();
     wlmQueue = jobInfo.getResourceSchedulingInfo().getQueueName();
+    engine = jobInfo.getResourceSchedulingInfo().getEngineName();
+    rowsScanned = jobAttempt.getStats().getInputRecords();
+    plannerEstimatedCost = jobInfo.getOriginalCost();
+    isComplete = JobUtil.isComplete(lastJobAttempt.getState());
     startTime = jobDetails.getAttempts(0).getInfo().getStartTime();
     endTime = jobDetails.getAttempts(attemptIndex).getInfo().getFinishTime();
     waitInClient = jobAttempt.getDetails().getWaitInClient();
@@ -327,7 +343,11 @@ public class JobInfoDetailsUI {
       failureInfo,
       cancellationInfo,
       datasetVersion,
-      resultsAvailable
+      resultsAvailable,
+      engine,
+      isComplete,
+      rowsScanned,
+      plannerEstimatedCost
     );
   }
 
@@ -402,6 +422,23 @@ public class JobInfoDetailsUI {
 
   public Long getEndTime() {
     return endTime;
+  }
+
+  public String getEngine() {
+    return engine;
+  }
+
+  public Long getRowsScanned() {
+    return rowsScanned;
+  }
+
+  public Double getPlannerEstimatedCost() {
+    return plannerEstimatedCost;
+  }
+
+  @JsonProperty("isComplete")
+  public boolean isComplete() {
+    return isComplete;
   }
 
   public long getWaitInClient() {
@@ -601,6 +638,7 @@ public class JobInfoDetailsUI {
     AtomicBoolean isExternalQuery = getIsExternalQuery(pathList);
     String tempId = uuid != null ? uuid : cItem;
     if (isExternalQuery.get()) {
+      sqlQuery = dGraph.size() > 0 ? "" : sqlQuery;
       dGraph.add(buildExternalQueryDataset(sqlQuery, pathList, OTHERS, EXTERNAL_QUERY, tempId));
     } else {
       dGraph.add(buildExternalQueryDataset(sqlQuery, pathList, OTHERS, OTHERS, tempId));
@@ -658,7 +696,7 @@ public class JobInfoDetailsUI {
     sampleDataset = addReflections(reflectionServiceHelper, sampleDataset);
     datasetGraph.setDataSet(sampleDataset);
     java.util.Optional<UserBitShared.DatasetProfile> datasetProfileOptional = profile.getDatasetProfileList().stream().filter(datasetProfile ->
-      datasetProfile.getDatasetPath().equals(String.join(".", dataset.getFullPathList()))).findFirst();
+      datasetProfile.getDatasetPath().replaceAll(QUOTES,"").equals(String.join(".", dataset.getFullPathList()))).findFirst();
     if (datasetProfileOptional.isPresent()) {
       datasetGraph.setSql(datasetProfileOptional.get().getSql());
     }
@@ -794,6 +832,7 @@ public class JobInfoDetailsUI {
     ReflectionType reflectionType = (materializationFor.getReflectionType() != null && !materializationFor.getReflectionType().isEmpty()) ? (materializationFor.getReflectionType().equalsIgnoreCase(AGGREGATION) ? ReflectionType.AGGREGATE : ReflectionType.valueOf(materializationFor.getReflectionType())) : null;
     reflection.setReflectionType(reflectionType);
     reflection.setReflectionDatasetPath(String.join(".", datasetPathList));
+    reflection.setDatasetId(materializationFor.getDatasetId());
     reflections.add(reflection);
   }
 

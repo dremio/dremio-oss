@@ -26,6 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 import javax.inject.Provider;
 
@@ -33,6 +34,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.DeferredException;
 import com.dremio.common.exceptions.UserException;
@@ -84,7 +87,6 @@ import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
@@ -102,16 +104,16 @@ import io.protostuff.ProtobufIOUtil;
  * - PluginsManager is a glorified map that includes all the StoragePugins.
  */
 public class CatalogServiceImpl implements CatalogService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CatalogServiceImpl.class);
+  private static final Logger logger = LoggerFactory.getLogger(CatalogServiceImpl.class);
   public static final long CATALOG_SYNC = TimeUnit.MINUTES.toMillis(3);
   private static final long CHANGE_COMMUNICATION_WAIT = TimeUnit.SECONDS.toMillis(5);
 
 
-  private static final String LOCAL_TASK_LEADER_NAME = "catalogservice";
+  private static final String LOCAL_TASK_LEADER_NAME = "catalogserviceV2";
 
   public static final String CATALOG_SOURCE_DATA_NAMESPACE = "catalog-source-data";
 
-  private static final String SYSFLIGHT_SOURCE_NAME = "sys_runtime";
+  public static final String SYSTEM_TABLE_SOURCE_NAME = "sys";
 
   protected final Provider<SabotContext> context;
   protected final Provider<SchedulerService> scheduler;
@@ -225,33 +227,40 @@ public class CatalogServiceImpl implements CatalogService {
               }
             }
 
-            createSourceIfMissing(new SourceConfig()
-              .setConnectionConf(sysTableConfProvider.get().get())
-              .setName("sys")
-              .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY));
+            if (optionManager.get().getOption(ExecConstants.ENABLE_SYSFLIGHT_SOURCE)) {
+              if (sysFlightTableConfProvider != null) {
+                logger.info("Creating SysFlight source plugin.");
+                // check if the sys plugin config type is matching as expected with the flight config type {SYSFLIGHT},
+                // if not, delete and recreate with flight config.
+                if (getPlugins().get(SYSTEM_TABLE_SOURCE_NAME) != null
+                  && !getPlugins().get(SYSTEM_TABLE_SOURCE_NAME).getConnectionConf().getType().equals(sysFlightTableConfProvider.get().get().getType())) {
+                  deleteSource(SYSTEM_TABLE_SOURCE_NAME);
+                }
+                createSourceIfMissing(new SourceConfig()
+                  .setConnectionConf(sysFlightTableConfProvider.get().get())
+                  .setName(SYSTEM_TABLE_SOURCE_NAME)
+                  .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY));
+              }
+            } else {
+              // check if the sys plugin config type is matching as expected with the old system table config type {SYS},
+              // if not, delete and recreate with old system table config type.
+              if (getPlugins().get(SYSTEM_TABLE_SOURCE_NAME) != null
+                && !getPlugins().get(SYSTEM_TABLE_SOURCE_NAME).getConnectionConf().getType().equals(sysTableConfProvider.get().get().getType())) {
+                deleteSource(SYSTEM_TABLE_SOURCE_NAME);
+              }
+              createSourceIfMissing(new SourceConfig()
+                .setConnectionConf(sysTableConfProvider.get().get())
+                .setName(SYSTEM_TABLE_SOURCE_NAME)
+                .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY));
+            }
 
-            logger.debug("Refreshing 'sys' source");
+            logger.debug("Refreshing {} source", SYSTEM_TABLE_SOURCE_NAME);
             try {
-              refreshSource(new NamespaceKey("sys"), CatalogService.NEVER_REFRESH_POLICY, UpdateType.FULL);
+              refreshSource(new NamespaceKey(SYSTEM_TABLE_SOURCE_NAME), CatalogService.NEVER_REFRESH_POLICY, UpdateType.FULL);
             } catch (NamespaceException e) {
               throw new RuntimeException(e);
             }
 
-            if (optionManager.get().getOption(ExecConstants.ENABLE_SYSFLIGHT_SOURCE)) {
-              if (sysFlightTableConfProvider != null) {
-                createSourceIfMissing(new SourceConfig()
-                  .setConnectionConf(sysFlightTableConfProvider.get().get())
-                  .setName(SYSFLIGHT_SOURCE_NAME)
-                  .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY));
-
-                logger.debug("Refreshing {} source", SYSFLIGHT_SOURCE_NAME);
-                try {
-                  refreshSource(new NamespaceKey(SYSFLIGHT_SOURCE_NAME), CatalogService.DEFAULT_METADATA_POLICY, UpdateType.FULL);
-                } catch (NamespaceException e) {
-                  throw new RuntimeException(e);
-                }
-              }
-            }
           } finally {
             wasRun.countDown();
           }
@@ -266,7 +275,7 @@ public class CatalogServiceImpl implements CatalogService {
 
   protected PluginsManager newPluginsManager() {
     return new PluginsManager(context.get(), systemNamespace, datasetListingService.get(), optionManager.get(),
-      config, roles, sourceDataStore, scheduler.get(), connectionReaderProvider.get(), monitor, broadcasterProvider,
+      config, sourceDataStore, scheduler.get(), connectionReaderProvider.get(), monitor, broadcasterProvider,
       isInfluxSource, modifiableSchedulerService);
   }
 

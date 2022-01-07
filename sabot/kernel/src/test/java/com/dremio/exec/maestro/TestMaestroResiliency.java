@@ -18,14 +18,19 @@ package com.dremio.exec.maestro;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.testing.Controls;
@@ -44,6 +49,9 @@ import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 public class TestMaestroResiliency extends BaseTestQuery {
   private static final org.slf4j.Logger logger =
     org.slf4j.LoggerFactory.getLogger(TestMaestroResiliency.class);
+
+  @Rule
+  public final TestRule TIMEOUT = TestTools.getTimeoutRule(60, TimeUnit.SECONDS);
 
   private static final int QUEUE_LIMIT = 2;
   private static final int NUM_NODES = 3;

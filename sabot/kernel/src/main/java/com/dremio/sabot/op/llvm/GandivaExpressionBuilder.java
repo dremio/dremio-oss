@@ -94,7 +94,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
                                              FieldVector out, Set<ReferencedField> referencedFields,
                                              FunctionContext functionContext) {
     GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields,
-      ConstantExpressionIdentifier.getConstantExtractor(ex).getConstantExpressionIdentitySet(), functionContext);
+      ConstantExpressionIdentifier.getConstantExpressions(ex), functionContext);
     TreeNode expr = ex.accept(serializer, null);
     return TreeBuilder.makeExpression(expr, out.getField());
   }
@@ -110,7 +110,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
                                                    Set<ReferencedField> referencedFields,
                                                    FunctionContext functionContext) {
     GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields,
-      ConstantExpressionIdentifier.getConstantExtractor(expr).getConstantExpressionIdentitySet(), functionContext);
+      ConstantExpressionIdentifier.getConstantExpressions(expr), functionContext);
     TreeNode expression = expr.accept(serializer, null);
     return TreeBuilder.makeCondition(expression);
   }

@@ -199,4 +199,27 @@ public class TestCsvHeader extends BaseTestQuery{
       .baselineValues("1999", "Chevy", "Venture \"Extended Edition\"", "", "4900.00")
       .go();
   }
+
+  @Test
+  public void testCsvHeaderDifferentCaseHeadings() throws Exception {
+    String dfile = FileUtils.getResourceAsFile("/store/text/data/testcasesensitivityheaders").getAbsolutePath();
+    String query = String.format("select * from TABLE(dfs_root.\"%s\"(type => 'TEXT', fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))", dfile);
+    try {
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("YEAR")
+        .baselineValues("1999")
+        .baselineValues("1997")
+        .go();
+    } catch (AssertionError e) {
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("Year")
+        .baselineValues("1999")
+        .baselineValues("1997")
+        .go();
+    }
+  }
 }

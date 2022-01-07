@@ -17,15 +17,12 @@ package com.dremio.service.nessie;
 
 import java.util.function.Supplier;
 
-import org.projectnessie.error.NessieConflictException;
+import org.projectnessie.api.ContentsApi;
 import org.projectnessie.error.NessieNotFoundException;
 import org.projectnessie.model.Contents;
-import org.projectnessie.services.rest.ContentsResource;
 
 import com.dremio.service.nessieapi.ContentsApiGrpc;
 import com.dremio.service.nessieapi.GetContentsRequest;
-import com.dremio.service.nessieapi.SetContentsRequest;
-import com.google.protobuf.Empty;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -37,9 +34,9 @@ import io.grpc.stub.StreamObserver;
 class ContentsApiService extends ContentsApiGrpc.ContentsApiImplBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ContentsApiService.class);
 
-  private final Supplier<ContentsResource> contentsResource;
+  private final Supplier<ContentsApi> contentsResource;
 
-  ContentsApiService(Supplier<ContentsResource> contentsResource) {
+  ContentsApiService(Supplier<ContentsApi> contentsResource) {
     this.contentsResource = contentsResource;
   }
 
@@ -47,7 +44,10 @@ class ContentsApiService extends ContentsApiGrpc.ContentsApiImplBase {
   public void getContents(GetContentsRequest request, StreamObserver<com.dremio.service.nessieapi.Contents> responseObserver) {
     logger.debug("[gRPC] GetContents (contentsKey: {}, ref: {})", request.getContentsKey(), request.getRef());
     try {
-      final Contents contents = contentsResource.get().getContents(GrpcNessieConverter.fromGrpc(request.getContentsKey()), request.getRef());
+      final Contents contents = contentsResource.get().getContents(
+        GrpcNessieConverter.fromGrpc(request.getContentsKey()),
+        request.getRef(),
+        request.getHashOnRef().length() == 0 ? null : request.getHashOnRef());
       responseObserver.onNext(GrpcNessieConverter.toGrpc(contents));
       responseObserver.onCompleted();
     } catch (NessieNotFoundException e) {
@@ -58,35 +58,6 @@ class ContentsApiService extends ContentsApiGrpc.ContentsApiImplBase {
       responseObserver.onError(new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e)));
     } catch (Exception e) {
       logger.error("GetContents failed with an unexpected exception.", e);
-      responseObserver.onError(new StatusRuntimeException(Status.UNKNOWN.withDescription(e.getMessage()).withCause(e)));
-    }
-  }
-
-  @Override
-  public void setContents(SetContentsRequest request, StreamObserver<Empty> responseObserver) {
-    logger.debug("[gRPC] SetContents (branch: {}, contentsKey: {}, hash: {})", request.getBranch(), request.getContentsKey(), request.getHash());
-    try {
-      contentsResource.get().setContents(
-         GrpcNessieConverter.fromGrpc(request.getContentsKey()),
-         request.getBranch(),
-         request.getHash(),
-         request.getMessage(),
-         GrpcNessieConverter.fromGrpc(request.getContents())
-      );
-
-      responseObserver.onNext(Empty.getDefaultInstance());
-      responseObserver.onCompleted();
-    } catch (NessieNotFoundException e) {
-      logger.error("SetContents failed with a NessieNotFoundException.", e);
-      responseObserver.onError(new StatusRuntimeException(Status.NOT_FOUND.withDescription(e.getMessage()).withCause(e)));
-    } catch (NessieConflictException e) {
-      logger.error("SetContents failed with a NessieConflictException.", e);
-      responseObserver.onError(new StatusRuntimeException(Status.ABORTED.withDescription(e.getMessage()).withCause(e)));
-    } catch (IllegalArgumentException e) {
-      logger.error("SetContents failed with a IllegalArgumentException.", e);
-      responseObserver.onError(new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).withCause(e)));
-    } catch (Exception e) {
-      logger.error("SetContents failed with an unexpected exception.", e);
       responseObserver.onError(new StatusRuntimeException(Status.UNKNOWN.withDescription(e.getMessage()).withCause(e)));
     }
   }

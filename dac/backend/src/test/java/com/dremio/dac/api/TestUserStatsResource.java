@@ -76,7 +76,7 @@ public class TestUserStatsResource {
     when(jobsService.searchJobs(any(SearchJobsRequest.class))).thenReturn(testJobResults);
 
     UserStatsResource resource = new UserStatsResource(jobsService, editionProvider);
-    UserStats stats = resource.getActiveUserStats(0,0);
+    UserStats stats = resource.getActiveUserStats(0,0, "false");
 
     List<Map<String, Object>> statsByDate = stats.getUserStatsByDate();
     Map<String, Object> firstDateEntry = fetchDateEntry("date", now.toString(), statsByDate);

@@ -17,6 +17,8 @@ import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import {Link} from 'react-router';
 
+import jobsUtils from '@app/utils/jobsUtils.js';
+
 import Menu from './Menu';
 import MenuItem from './MenuItem';
 
@@ -35,12 +37,13 @@ export class JobStatusMenu extends PureComponent {
 
   render() {
     const {isCancellable, jobId} = this.props;
+    const isNewJobsPage = jobsUtils.isNewJobsPage();
     return (
       <Menu>
         <MenuItem key='job-details'>
           <Link to={{
-            pathname: '/jobs',
-            hash: `#${jobId}`,
+            pathname: isNewJobsPage ? `/job/${jobId}` : '/jobs',
+            hash: isNewJobsPage ? null : `#${jobId}`,
             state: {
               selectedJobId: jobId,
               isFromJobListing: false

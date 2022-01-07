@@ -44,6 +44,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ImmutableMetadataRequestOptions;
 import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -203,7 +204,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
       .build();
     this.executionControls = new ExecutionControls(optionManager, sabotContext.getEndpoint());
     this.plannerSettings = new PlannerSettings(sabotContext.getConfig(), optionManager,
-      () -> groupResourceInformation, executionControls);
+      () -> groupResourceInformation, executionControls, getStatisticsService());
     functionImplementationRegistry = this.optionManager.getOption(PlannerSettings
       .ENABLE_DECIMAL_V2)? sabotContext.getDecimalFunctionImplementationRegistry() : sabotContext
       .getFunctionImplementationRegistry();
@@ -231,7 +232,9 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
         .setDatasetValidityChecker(datasetValidityChecker)
         .build();
 
-    final ImmutableMetadataRequestOptions.Builder requestOptions = MetadataRequestOptions.newBuilder(schemaConfig);
+    final ImmutableMetadataRequestOptions.Builder requestOptions = MetadataRequestOptions.newBuilder()
+        .setSchemaConfig(schemaConfig)
+        .setVersionContext(session.getVersionContext());
     checkMetadataValidity.ifPresent(requestOptions::setCheckValidity);
     this.catalog = sabotContext.getCatalogService()
         .getCatalog(requestOptions.build());
@@ -507,6 +510,8 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   public CompilationOptions getCompilationOptions() {
     return new CompilationOptions(optionManager);
   }
+
+  public ExpressionSplitCache getExpressionSplitCache() { return sabotContext.getExpressionSplitCache(); }
 
   public ExecutorService getExecutorService() {
     return sabotContext.getExecutorService();

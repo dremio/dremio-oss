@@ -15,11 +15,11 @@
  */
 package com.dremio.io.file;
 
+import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
+
 import java.io.IOException;
 import java.nio.file.NotLinkException;
 import java.nio.file.attribute.PosixFileAttributes;
-
-import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 
 /**
  * File attributes associated with file

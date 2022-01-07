@@ -17,9 +17,10 @@ package com.dremio.exec.store.hive;
 
 import java.util.List;
 
-import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 
 import com.dremio.hive.thrift.TException;
 
@@ -43,6 +44,9 @@ public interface HiveClient extends AutoCloseable {
   List<String> getPartitionNames(String dbName, String tableName) throws TException;
 
   String getDelegationToken(final String proxyUser) throws TException;
+
+  List<HivePrivilegeObject> getRowFilterAndColumnMasking(List<HivePrivilegeObject> inputHiveObjects) throws
+    SemanticException;
 
   @Override
   void close();

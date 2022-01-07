@@ -33,6 +33,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
+import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
@@ -482,14 +483,14 @@ public class TestExampleQueries extends PlanTestBase {
     // just testing that this successfully plans
     test("select *\n" +
       "from\n" +
-      "   sys.nodes,\n" +
-      "   sys.threads,\n" +
-      "   sys.memory\n" +
+      "   INFORMATION_SCHEMA.CATALOGS,\n" +
+      "   INFORMATION_SCHEMA.SCHEMATA,\n" +
+      "   INFORMATION_SCHEMA.\"TABLES\"\n" +
       "where\n" +
-      "   nodes.hostname = threads.hostname \n" +
-      "   and nodes.fabric_port = threads.fabric_port  \n" +
-      "   and nodes.hostname = memory.hostname \n" +
-      "   and nodes.fabric_port = memory.fabric_port");
+      "   CATALOGS.CATALOG_NAME = SCHEMATA.CATALOG_NAME \n" +
+      "   and CATALOGS.CATALOG_NAME = \"TABLES\".TABLE_CATALOG \n" +
+      "   and SCHEMATA.SCHEMA_NAME = \"TABLES\".TABLE_SCHEMA  \n" +
+      "   and SCHEMATA.CATALOG_NAME = \"TABLES\".TABLE_CATALOG");
   }
 
   @Test
@@ -765,7 +766,7 @@ public class TestExampleQueries extends PlanTestBase {
 
   @Test
   public void testReduceConstants() throws Exception {
-    test("select extract(second from now())=extract(second from current_timestamp) from sys.nodes limit 1");
+    test("select extract(second from now())=extract(second from current_timestamp) from INFORMATION_SCHEMA.CATALOGS limit 1");
   }
 
   @Test
@@ -1972,8 +1973,11 @@ public class TestExampleQueries extends PlanTestBase {
 
     String query1 = String.format("explain plan for select * from dfs.\"%s\"", root);
     String query2 = String.format("explain plan for select * from dfs.\"%s\"", toFile);
-
+    thrownException.expect(UserRemoteException.class);
+    thrownException.expectMessage("DATA_READ ERROR: Selected table has no columns.");
     test(query1);
+    thrownException.expect(UserRemoteException.class);
+    thrownException.expectMessage("DATA_READ ERROR: Selected table has no columns.");
     test(query2);
   }
 
@@ -2319,6 +2323,20 @@ public class TestExampleQueries extends PlanTestBase {
   @Test
   public void testCopier3() throws Exception {
     String query = "SELECT * FROM cp.\"parquet/30717-3.parquet\" t where varchar_col='Doe' or t.\"structOfStruct\".\"struct\".\"string\" = 'row3' or t.\"structOfStructOfStruct\".\"structOfStruct\".\"struct\".\"string\" = 'row2'";
+
+    testBuilder()
+      .unOrdered()
+      .optionSettingQueriesForTestQuery("alter system set \"exec.operator.copier.complex.vectorize\" = true")
+      .sqlQuery(query)
+      .optionSettingQueriesForBaseline("alter system set \"exec.operator.copier.complex.vectorize\" = false")
+      .sqlBaselineQuery(query)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testCopier4() throws Exception {
+    String query = "SELECT * FROM cp.\"json/40598.json\" t where col1 = 'row1' or col1 = 'row2'";
 
     testBuilder()
       .unOrdered()

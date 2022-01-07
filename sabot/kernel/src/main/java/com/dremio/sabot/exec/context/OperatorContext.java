@@ -30,6 +30,7 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.expr.ClassProducer;
+import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
@@ -128,6 +129,8 @@ public abstract class OperatorContext {
   public abstract MajorFragmentAssignment getExtMajorFragmentAssignments(int extMajorFragment);
 
   public abstract List<MinorFragmentEndpoint> getMinorFragmentEndpoints();
+
+  public abstract ExpressionSplitCache getExpressionSplitCache();
 
   public static int getChildCount(PhysicalOperator popConfig) {
     Iterator<PhysicalOperator> iter = popConfig.iterator();

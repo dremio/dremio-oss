@@ -24,6 +24,8 @@ import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BaseFixedWidthVector;
+import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
@@ -143,7 +145,8 @@ abstract class BaseSingleAccumulator implements Accumulator {
     this.serializedField = serializedFieldBuilder.build();
   }
 
-  AccumulatorBuilder.AccumulatorType getType() {
+  @Override
+  public AccumulatorBuilder.AccumulatorType getType() {
     return type;
   }
 
@@ -191,12 +194,21 @@ abstract class BaseSingleAccumulator implements Accumulator {
     this.valueAddresses = new long[size];
   }
 
+  @Override
   public int getBatchCount() {
     return batches;
   }
 
-  public List<ArrowBuf> getBuffers(final int batchIndex) {
+  @Override
+  public List<ArrowBuf> getBuffers(int batchIndex, int numRecords) {
+    setValueCount(batchIndex, numRecords);
     return accumulators[batchIndex].getFieldBuffers();
+  }
+
+  @Override
+  public SerializedField getSerializedField(int batchIndex, int recordsInBatch) {
+    setValueCount(batchIndex, recordsInBatch);
+    return TypeHelper.getMetadata(getAccumulatorVector(batchIndex));
   }
 
   public FieldVector getAccumulatorVector(final int batchIndex) {
@@ -361,6 +373,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
       resetFirstAccumulatorVector();
       return;
     }
+
     final FieldVector[] oldAccumulators = this.accumulators;
     accumulators = Arrays.copyOfRange(oldAccumulators, 0, 1);
     bitAddresses =  Arrays.copyOfRange(bitAddresses, 0, 1);
@@ -373,7 +386,6 @@ abstract class BaseSingleAccumulator implements Accumulator {
   }
 
   private void resetFirstAccumulatorVector() {
-    Preconditions.checkArgument(accumulators.length == 1, "Error: incorrect number of batches in accumulator");
     final FieldVector vector = accumulators[0];
     Preconditions.checkArgument(vector != null, "Error: expecting a valid accumulator");
     final ArrowBuf validityBuffer = vector.getValidityBuffer();
@@ -409,39 +421,63 @@ abstract class BaseSingleAccumulator implements Accumulator {
   /**
    * Take the accumulator vector (the vector that stores computed values)
    * for a particular batch (identified by batchIndex) and output its contents.
-   * Output is done by transferring the contents from accumulator vector
-   * to its counterpart in outgoing container. As part of transfer,
-   * the memory ownership (along with data) is transferred from source
-   * vector's allocator to target vector's allocator and source vector's
-   * memory is released.
+   * If output for single batch is requested, output is done by transferring
+   * the contents from accumulator vector to its counterpart in outgoing
+   * container. As part of transfer, the memory ownership (along with data)
+   * is transferred from source vector's allocator to target vector's allocator
+   * and source vector's memory is released.
    *
-   * While the transfer is good as it essentially
-   * avoids copy, we still want the memory associated with
-   * allocator of source vector because of post-spill processing
-   * where this accumulator vector will still continue to store
-   * the computed values as we start treating spilled batches
-   * as new input into the operator.
+   * While the transfer is good as it essentially avoids copy, we still want
+   * the memory associated with allocator of source vector because of post-spill
+   * processing where this accumulator vector will still continue to store the
+   * computed values as we start treating spilled batches as new input into the
+   * operator.
    *
-   * This is why we need to immediately allocate
-   * the accumulator vector after transfer is done. However we do this
-   * for a singe batch only as once we are done outputting a partition,
-   * we anyway get rid of all but 1 batch.
+   * This is why we need to immediately allocate the accumulator vector after
+   * transfer is done. However we do this for a singe batch only as once we are
+   * done outputting a partition, we anyway get rid of all but 1 batch.
    *
-   * @param batchIndex batch to output
+   * If requested to output multiple batches, a transferVector is allocated and
+   * copied the contents from multiple batches to the transferVector.
    */
   @Override
-  public void output(final int batchIndex, int numRecords) {
-    final FieldVector accumulationVector = accumulators[batchIndex];
-    /* We cannot actually verify how many actual returns that are being transferred */
-    // Preconditions.checkArgument(accumulationVector.getValueCount() == numRecords);
-    final TransferPair transferPair = accumulationVector.makeTransferPair(transferVector);
-    transferPair.transfer();
-    if (batchIndex == 0) {
-      ((FixedWidthVector) accumulationVector).allocateNew(maxValuesPerBatch);
-      accumulationVector.setValueCount(0);
-      initialize(accumulationVector);
-      bitAddresses[batchIndex] = accumulationVector.getValidityBufferAddress();
-      valueAddresses[batchIndex] = accumulationVector.getDataBufferAddress();
+  public void output(final int startBatchIndex, int[] recordsInBatches) {
+    if (recordsInBatches.length == 1) {
+      final FieldVector accumulationVector = accumulators[startBatchIndex];
+      final TransferPair transferPair = accumulationVector.makeTransferPair(transferVector);
+      transferPair.transfer();
+      if (startBatchIndex == 0) {
+        ((FixedWidthVector) accumulationVector).allocateNew(maxValuesPerBatch);
+        accumulationVector.setValueCount(0);
+        initialize(accumulationVector);
+        bitAddresses[startBatchIndex] = accumulationVector.getValidityBufferAddress();
+        valueAddresses[startBatchIndex] = accumulationVector.getDataBufferAddress();
+      }
+    } else {
+      int numRecords = 0;
+      for (int i = 0; i < recordsInBatches.length; ++i) {
+        numRecords += recordsInBatches[i];
+      }
+      ((FixedWidthVector) transferVector).allocateNew(numRecords);
+      transferVector.setValueCount(0);
+      initialize(transferVector);
+
+      ArrowBuf validityBuf = transferVector.getValidityBuffer();
+      ArrowBuf dataBuf = transferVector.getDataBuffer();
+      int typeWidth = ((BaseFixedWidthVector)transferVector).getTypeWidth();
+
+      numRecords = 0;
+      for (int i = 0; i < recordsInBatches.length; ++i) {
+        //concat validity bits
+        BitVectorHelper.concatBits(validityBuf, numRecords,
+        accumulators[startBatchIndex + i].getValidityBuffer(), recordsInBatches[i], validityBuf);
+        //concat data
+        dataBuf.setBytes(numRecords * typeWidth,
+          accumulators[startBatchIndex + i].getDataBuffer(), 0,
+          recordsInBatches[i] * typeWidth);
+        numRecords += recordsInBatches[i];
+        releaseBatch(startBatchIndex + i);
+      }
     }
   }
 

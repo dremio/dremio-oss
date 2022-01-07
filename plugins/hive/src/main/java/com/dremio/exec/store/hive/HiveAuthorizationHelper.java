@@ -38,6 +38,7 @@ import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObje
 import org.apache.hadoop.hive.ql.session.SessionState;
 
 import com.dremio.common.util.Closeable;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
@@ -48,12 +49,11 @@ import com.google.common.collect.ImmutableList;
 public class HiveAuthorizationHelper {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveAuthorizationHelper.class);
 
-  final boolean authzEnabled;
   final HiveAuthorizer authorizerV2;
 
   public HiveAuthorizationHelper(final IMetaStoreClient mClient, final HiveConf hiveConf, final String user) {
-    authzEnabled = hiveConf.getBoolVar(ConfVars.HIVE_AUTHORIZATION_ENABLED);
-    if (!authzEnabled) {
+    boolean authEnabled = hiveConf.getBoolVar(ConfVars.HIVE_AUTHORIZATION_ENABLED);
+    if (!authEnabled) {
       authorizerV2 = null;
       return;
     }
@@ -99,7 +99,7 @@ public class HiveAuthorizationHelper {
    * for illegal access.
    */
   public void authorizeShowDatabases() throws HiveAccessControlException {
-    if (!authzEnabled) {
+    if (!isAuthEnabled()) {
       return;
     }
 
@@ -112,7 +112,7 @@ public class HiveAuthorizationHelper {
    * @param dbName
    */
   public void authorizeShowTables(final String dbName) throws HiveAccessControlException {
-    if (!authzEnabled) {
+    if (!isAuthEnabled()) {
       return;
     }
 
@@ -128,7 +128,7 @@ public class HiveAuthorizationHelper {
    * @param tableName
    */
   public void authorizeReadTable(final String dbName, final String tableName) throws HiveAccessControlException {
-    if (!authzEnabled) {
+    if (!isAuthEnabled()) {
       return;
     }
 
@@ -136,8 +136,9 @@ public class HiveAuthorizationHelper {
     authorize(HiveOperationType.QUERY, ImmutableList.of(toRead), Collections.<HivePrivilegeObject> emptyList(), "READ TABLE");
   }
 
+  @VisibleForTesting
   /* Helper method to check privileges */
-  private void authorize(final HiveOperationType hiveOpType, final List<HivePrivilegeObject> toRead,
+  void authorize(final HiveOperationType hiveOpType, final List<HivePrivilegeObject> toRead,
       final List<HivePrivilegeObject> toWrite, final String cmd) throws HiveAccessControlException {
     try {
       HiveAuthzContext.Builder authzContextBuilder = new HiveAuthzContext.Builder();
@@ -151,5 +152,15 @@ public class HiveAuthorizationHelper {
       Throwables.propagateIfPossible(e);
       throw new RuntimeException("Failed to use the Hive authorization components: " + e.getMessage(), e);
     }
+  }
+
+  @VisibleForTesting
+  boolean isAuthEnabled() {
+    return null != authorizerV2;
+  }
+
+  HiveAuthorizer getAuthorizer() {
+    assert null != authorizerV2;
+    return authorizerV2;
   }
 }

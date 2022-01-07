@@ -361,7 +361,7 @@ public class TestSchemaAggTableFunction extends BaseTestQuery {
 
   private OperatorContext getOpCtx() {
     SabotContext sabotContext = getSabotContext();
-    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), testAllocator, sabotContext.getOptionManager(), 10);
+    return new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), testAllocator, sabotContext.getOptionManager(), 10, sabotContext.getExpressionSplitCache());
   }
 
   private void compareVectors(VectorContainer outputContainer, Field field, Class type, List<Object> values) {

@@ -74,7 +74,7 @@ public class SettingsResource {
   }
 
   @POST
-  public SettingsWrapperObject list
+  public Response list
     (/* Body */ SettingsRequest request) {
     Preconditions.checkNotNull(request, "request could not be null");
 
@@ -92,7 +92,7 @@ public class SettingsResource {
         }
       }
     }
-    return new SettingsWrapperObject(settings);
+    return Response.ok(new SettingsWrapperObject(settings)).build();
   }
 
   /**

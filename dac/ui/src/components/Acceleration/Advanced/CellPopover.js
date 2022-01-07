@@ -143,9 +143,11 @@ export default class CellPopover extends Component {
 
   handleDragEnd = (fieldName, column) => {
     const { dragIndex, hoverIndex } = this.state;
-    this.props[fieldName].removeField(dragIndex);
-    this.props[fieldName].addField(column, hoverIndex);
-    this.setState({dragIndex: -1, hoverIndex: -1});
+    // DX-38452: updating form after component rerenders with anchor tag
+    this.setState({dragIndex: -1, hoverIndex: -1}, () => {
+      this.props[fieldName].removeField(dragIndex);
+      this.props[fieldName].addField(column, hoverIndex);
+    });
   };
 
   receiveProps(nextProps, oldProps) {

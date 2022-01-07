@@ -60,9 +60,6 @@ import com.google.common.collect.Iterables;
  * ElasticFinalPrel which is a leaf prel for parallelization and execution purposes
  */
 public class ElasticsearchIntermediatePrel extends SinglePrel implements PrelFinalizable {
-
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticsearchIntermediatePrel.class);
-
   private final Map<Class<? extends ElasticsearchPrel>, ElasticsearchPrel> nodes;
   private final StoragePluginId pluginId;
   private final FunctionLookupContext functionLookupContext;
@@ -202,9 +199,7 @@ public class ElasticsearchIntermediatePrel extends SinglePrel implements PrelFin
         getCluster(),
         getTraitSet(),
         stack.get(0),
-        builder,
-        functionLookupContext);
-
+        builder);
 
     // apply outside limit as necessary (could be duplicative)
     Prel output = finalPrel;

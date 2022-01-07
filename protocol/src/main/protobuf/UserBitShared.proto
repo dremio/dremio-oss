@@ -508,6 +508,8 @@ message MinorFragmentProfile {
   optional NodeEndpoint endpoint = 9;
   optional int64 last_update = 10;
   optional int64 last_progress = 11;
+  // max memory used for incoming buffers (not handed off to receiver operator yet)
+  optional int64 max_incoming_memory_used = 12;
 
 // if you make any changes to the fragment stats make sure to update the profile rendering code in FragmentWrapper
   optional int64 sleeping_duration = 1001;

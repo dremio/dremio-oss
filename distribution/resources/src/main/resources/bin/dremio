@@ -138,7 +138,9 @@ dremio_internal_start() {
         fi
     fi
 
-    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon $DREMIO_DAC_DAEMON_EXTRA_OPTIONS
+    DREMIO_DAEMON_MAIN_CLASS=${DREMIO_DAEMON_MAIN_CLASS:-"com.dremio.dac.daemon.DremioDaemon"}
+
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" $DREMIO_DAEMON_MAIN_CLASS $DREMIO_DAC_DAEMON_EXTRA_OPTIONS
 }
 
 check_before_start() {
@@ -201,14 +203,22 @@ pid="$DREMIO_PID_DIR/dremio.pid"
 export LOG_TO_CONSOLE=0
 
 DREMIO_GC_LOGS_ENABLED=${DREMIO_GC_LOGS_ENABLED:-"yes"}
+DREMIO_GC_LOG_TO_CONSOLE=${DREMIO_GC_LOG_TO_CONSOLE:-"no"}
 if [ "$DREMIO_GC_LOGS_ENABLED" != "no" ]; then
-  if [ "$JAVA_MAJOR_VERSION" -le 8 ]; then
-    SERVER_GC_OPTS="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:${loggc}"
+  if [ "$DREMIO_GC_LOG_TO_CONSOLE" != "no" ]; then
+    if [ "$JAVA_MAJOR_VERSION" -le 8 ]; then
+      SERVER_GC_OPTS="-XX:+PrintGCDetails -XX:+PrintGCDateStamps"
+    else
+      SERVER_GC_OPTS="-Xlog:gc*::time,uptime,tags,level"
+    fi
   else
-    SERVER_GC_OPTS="-Xlog:gc*:file=${loggc}:uptime"
+    if [ "$JAVA_MAJOR_VERSION" -le 8 ]; then
+      SERVER_GC_OPTS="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:${loggc}"
+    else
+      SERVER_GC_OPTS="-Xlog:gc*:file=${loggc}:time,uptime,tags,level"
+    fi
   fi
 fi
-
 # Set default scheduling priority
 DREMIO_NICENESS="${DREMIO_NICENESS:-0}"
 

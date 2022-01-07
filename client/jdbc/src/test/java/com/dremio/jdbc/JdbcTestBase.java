@@ -25,10 +25,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Properties;
 
-import com.dremio.exec.ExecTest;
-import com.dremio.jdbc.test.JdbcAssert;
-import com.google.common.base.Strings;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -37,6 +33,10 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
+
+import com.dremio.exec.ExecTest;
+import com.dremio.jdbc.test.JdbcAssert;
+import com.google.common.base.Strings;
 
 // TODO:  Document this, especially what writers of unit tests need to know
 //   (e.g., the reusing of connections, the automatic interception of test

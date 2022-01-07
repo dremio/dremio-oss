@@ -39,13 +39,16 @@
     min-height: 30px;
     align-items: center;
     &.--header {
-      border-bottom: 1px solid $dark-gray;
+      border-bottom: 1px solid $border-color;
       font-weight: 500;
       height: 30px;
     }
 
     &.--data {
       border-bottom: 1px solid $border-color;
+      &:nth-child(even) {
+        background: $lighter-neutral-color;
+       }
     }
 
     &.--empty {

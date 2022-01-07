@@ -50,7 +50,7 @@ public class TestCreateViewFix extends BaseTestServer {
     final int numVds = VM.availableProcessors();
     Semaphore semaphore = new Semaphore(0);
     for (int i = 0; i < numVds; i++) {
-      final String query = String.format("CREATE VDS %s.vds%d AS SELECT * FROM sys.version", testSpace, i);
+      final String query = String.format("CREATE VDS %s.vds%d AS SELECT * FROM INFORMATION_SCHEMA.CATALOGS", testSpace, i);
       Thread thread = new Thread(() -> {
         submitJobAndWaitUntilCompletion(
           JobRequest.newBuilder()

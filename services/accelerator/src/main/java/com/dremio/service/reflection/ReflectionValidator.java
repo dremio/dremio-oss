@@ -82,9 +82,8 @@ public class ReflectionValidator {
 
     // The dataset that the reflection refers to must exist.
     final EntityExplorer entityExplorer = catalogService.get()
-        .getCatalog(MetadataRequestOptions.newBuilder(
-            SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME)
-                .build())
+        .getCatalog(MetadataRequestOptions.newBuilder()
+            .setSchemaConfig(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build())
             .setCheckValidity(false)
             .build());
 

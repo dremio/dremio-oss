@@ -31,7 +31,7 @@ public class TestAlterTableWithContext extends BaseTestQuery {
       String tableName = "dropcol0";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
@@ -52,7 +52,7 @@ public class TestAlterTableWithContext extends BaseTestQuery {
       String tableName = "addcol7";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);

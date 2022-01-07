@@ -58,7 +58,8 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
     int count = sv2.getCount();
 
     for (FieldBufferCopier fbc : copiers) {
-      Cursor cursor = fbc.copy(sv2.memoryAddress(), count / 2, null);
+      Cursor cursor = new Cursor();
+      fbc.copy(sv2.memoryAddress(), count / 2, cursor);
       fbc.copy(sv2.memoryAddress() + count, count - count / 2, cursor);
     }
   }

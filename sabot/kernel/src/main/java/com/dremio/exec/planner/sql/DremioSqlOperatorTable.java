@@ -15,14 +15,17 @@
  */
 package com.dremio.exec.planner.sql;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.fun.SqlBasicAggFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable;
 
@@ -131,6 +134,159 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
   //NOW function
   public static final SqlFunction NOW = new DremioSqlAbstractTimeFunction("NOW", SqlTypeName.TIMESTAMP);
 
+  /**
+   * The MEDIAN operator. Takes the median / PERCENTILE_CONT(.5) of a dataset.
+   * The argument must be a numeric expression.
+   * The return type is a double.
+   */
+  public static final SqlAggFunction MEDIAN =
+    SqlBasicAggFunction.create("MEDIAN", SqlKind.OTHER, ReturnTypes.DOUBLE, OperandTypes.NUMERIC)
+      .withFunctionType(SqlFunctionCategory.SYSTEM);
+
+  // -----------------------------
+  // Dremio Hive Masking Functions
+  // -----------------------------
+  public static final SqlFunction HIVE_MASK_INTERNAL =
+    new SqlFunction(
+      "MASK_INTERNAL",
+      SqlKind.OTHER_FUNCTION,
+      opBinding -> {
+        RelDataType type = opBinding.getOperandType(0);
+        if ((type.getFamily() == SqlTypeFamily.CHARACTER)
+          || (type.getSqlTypeName() == SqlTypeName.DATE)
+          || (SqlTypeName.INT_TYPES.contains(type.getSqlTypeName()))) {
+          return type;
+        }
+
+        return opBinding.getTypeFactory()
+          .createTypeWithNullability(type, true);
+      },
+      null,
+      OperandTypes.ONE_OR_MORE,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+  public static final SqlFunction HIVE_MASK =
+    new SqlFunction(
+      "MASK",
+      SqlKind.OTHER_FUNCTION,
+      opBinding -> {
+        RelDataType type = opBinding.getOperandType(0);
+        if ((type.getFamily() == SqlTypeFamily.CHARACTER)
+          || (type.getSqlTypeName() == SqlTypeName.DATE)
+          || (SqlTypeName.INT_TYPES.contains(type.getSqlTypeName()))) {
+          return type;
+        }
+
+        return opBinding.getTypeFactory()
+          .createTypeWithNullability(type, true);
+      },
+      null,
+      OperandTypes.ONE_OR_MORE,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+
+  public static final SqlFunction HIVE_MASK_FIRST_N =
+    new SqlFunction(
+      "MASK_FIRST_N",
+      SqlKind.OTHER_FUNCTION,
+      opBinding -> {
+        RelDataType type = opBinding.getOperandType(0);
+        if ((type.getFamily() == SqlTypeFamily.CHARACTER)
+          || (type.getSqlTypeName() == SqlTypeName.DATE)
+          || (SqlTypeName.INT_TYPES.contains(type.getSqlTypeName()))) {
+          return type;
+        }
+
+        return opBinding.getTypeFactory()
+          .createTypeWithNullability(type, true);
+      },
+      null,
+      OperandTypes.ONE_OR_MORE,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+
+  public static final SqlFunction HIVE_MASK_LAST_N =
+    new SqlFunction(
+      "MASK_LAST_N",
+      SqlKind.OTHER_FUNCTION,
+      opBinding -> {
+        RelDataType type = opBinding.getOperandType(0);
+        if ((type.getFamily() == SqlTypeFamily.CHARACTER)
+          || (type.getSqlTypeName() == SqlTypeName.DATE)
+          || (SqlTypeName.INT_TYPES.contains(type.getSqlTypeName()))) {
+          return type;
+        }
+
+        return opBinding.getTypeFactory()
+          .createTypeWithNullability(type, true);
+      },
+      null,
+      OperandTypes.ONE_OR_MORE,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+
+  public static final SqlFunction HIVE_MASK_SHOW_FIRST_N =
+    new SqlFunction(
+      "MASK_SHOW_FIRST_N",
+      SqlKind.OTHER_FUNCTION,
+      opBinding -> {
+        RelDataType type = opBinding.getOperandType(0);
+        if ((type.getFamily() == SqlTypeFamily.CHARACTER)
+          || (type.getSqlTypeName() == SqlTypeName.DATE)
+          || (SqlTypeName.INT_TYPES.contains(type.getSqlTypeName()))) {
+          return type;
+        }
+
+        return opBinding.getTypeFactory()
+          .createTypeWithNullability(type, true);
+      },
+      null,
+      OperandTypes.ONE_OR_MORE,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+
+  public static final SqlFunction HIVE_MASK_SHOW_LAST_N =
+    new SqlFunction(
+      "MASK_SHOW_LAST_N",
+      SqlKind.OTHER_FUNCTION,
+      opBinding -> {
+        RelDataType type = opBinding.getOperandType(0);
+        if ((type.getFamily() == SqlTypeFamily.CHARACTER)
+          || (type.getSqlTypeName() == SqlTypeName.DATE)
+          || (SqlTypeName.INT_TYPES.contains(type.getSqlTypeName()))) {
+          return type;
+        }
+
+        return opBinding.getTypeFactory()
+          .createTypeWithNullability(type, true);
+      },
+      null,
+      OperandTypes.ONE_OR_MORE,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+
+  public static final SqlFunction HIVE_MASK_HASH =
+    new SqlFunction(
+      "MASK_HASH",
+      SqlKind.OTHER_FUNCTION,
+      opBinding -> {
+        RelDataType type = opBinding.getOperandType(0);
+        if (type.getFamily() == SqlTypeFamily.CHARACTER) {
+          return opBinding.getTypeFactory().createSqlType(SqlTypeName.VARCHAR);
+        }
+
+        return opBinding.getTypeFactory()
+          .createTypeWithNullability(type, true);
+      },
+      null,
+      OperandTypes.ONE_OR_MORE,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
+
+  // ------------------------
+  // Dremio Gandiva Functions
+  // ------------------------
+  public static final SqlFunction HASHSHA256 =
+    new SqlFunction(
+      "HASHSHA256",
+      SqlKind.OTHER_FUNCTION,
+      ReturnTypes.explicit(SqlTypeName.VARCHAR),
+      null,
+      OperandTypes.ANY,
+      SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
   private DremioSqlOperatorTable() {
   }

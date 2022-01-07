@@ -15,7 +15,6 @@
  */
 import { shallow } from 'enzyme';
 import sinon from 'sinon';
-import Immutable from 'immutable';
 
 import JobPage from './JobPageNew';
 
@@ -23,11 +22,10 @@ describe('JobPage', () => {
   let minimalProps;
   beforeEach(() => {
     minimalProps = {
-      location: { query: { filters: {} } },
-      filterJobsListData: sinon.stub(),
-      updateQueryState: sinon.stub(),
-      queryState: new Immutable.Map(),
-      jobs: new Immutable.List()
+      intl: {
+        formatMessage: sinon.stub()
+      },
+      children: {}
     };
   });
 

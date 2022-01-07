@@ -24,7 +24,6 @@ import org.projectnessie.model.ImmutableUnchanged;
 import org.projectnessie.model.Operation;
 
 import com.dremio.service.nessieapi.Branch;
-import com.dremio.service.nessieapi.Hash;
 import com.dremio.service.nessieapi.NessieConfiguration;
 import com.dremio.service.nessieapi.Reference;
 import com.dremio.service.nessieapi.Tag;
@@ -40,8 +39,6 @@ class GrpcNessieConverter {
       refBuilder.setBranch(Branch.newBuilder().setName(reference.getName()).setHash(reference.getHash()));
     } else if (reference instanceof org.projectnessie.model.Tag) {
       refBuilder.setTag(Tag.newBuilder().setName(reference.getName()).setHash(reference.getHash()));
-    } else if (reference instanceof org.projectnessie.model.Hash) {
-      refBuilder.setHash(Hash.newBuilder().setHash(reference.getHash()));
     }
 
     return refBuilder.build();
@@ -78,8 +75,6 @@ class GrpcNessieConverter {
       return org.projectnessie.model.Branch.of(reference.getBranch().getName(), reference.getBranch().getHash());
     } else if (reference.hasTag()) {
       return org.projectnessie.model.Tag.of(reference.getTag().getName(), reference.getTag().getHash());
-    } else if (reference.hasHash()) {
-      return org.projectnessie.model.Hash.of(reference.getHash().getHash());
     } else {
       throw new UnsupportedOperationException();
     }
@@ -92,7 +87,7 @@ class GrpcNessieConverter {
   static Contents fromGrpc(com.dremio.service.nessieapi.Contents contents) {
     switch (contents.getType()) {
       case ICEBERG_TABLE:
-        return IcebergTable.of(contents.getIcebergTable().getMetadataLocation());
+        return IcebergTable.of(contents.getIcebergTable().getMetadataLocation(), "X");
       default:
         throw new UnsupportedOperationException();
     }

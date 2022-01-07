@@ -18,6 +18,7 @@ package com.dremio.datastore;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import javax.inject.Provider;
 
@@ -71,8 +72,10 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   // To provide compatibility with older code
   private final LegacyKVStoreProvider legacyProvider;
   private long remoteRpcTimeout;
+  private StoreBuildingFactory storeBuildingFactory;
 
   private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
+  private Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> storesProvider;
 
   @VisibleForTesting
   public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed) {
@@ -113,6 +116,8 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     this.hostName = hostName;
     this.scan = scan;
     this.legacyProvider = new LegacyKVStoreProviderAdapter(this);
+    this.storeBuildingFactory = this::newStore;
+    this.storesProvider = () -> StoreLoader.buildStores(scan, storeBuildingFactory);
   }
 
   public LocalKVStoreProvider(
@@ -136,10 +141,20 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     this.remoteRpcTimeout = (Long)config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);
   }
 
+  @VisibleForTesting
+  public void setStoresProvider(Supplier<ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>> storesProvider) {
+    this.storesProvider = storesProvider;
+  }
+
   @Override
   @VisibleForTesting
   public <K, V> StoreBuilder<K, V> newStore(){
     return new LocalStoreBuilder<>(coreStoreProvider.<K, V>newStore());
+  }
+
+  @VisibleForTesting
+  public void setStoreBuildingFactory(StoreBuildingFactory storeBuildingFactory) {
+    this.storeBuildingFactory = storeBuildingFactory;
   }
 
   @SuppressWarnings("unchecked")
@@ -159,12 +174,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     coreStoreProvider.start();
 
     // Build all stores before starting up the DatastoreRpcService.
-    stores = StoreLoader.buildStores(scan, new StoreBuildingFactory() {
-      @Override
-      public <K, V> StoreBuilder<K, V> newStore() {
-        return LocalKVStoreProvider.this.newStore();
-      }
-    });
+    stores = storesProvider.get();
 
     // recover after the stores are built
     coreStoreProvider.recoverIfPreviouslyCrashed();

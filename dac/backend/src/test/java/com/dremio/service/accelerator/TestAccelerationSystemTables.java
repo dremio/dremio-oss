@@ -57,7 +57,7 @@ public class TestAccelerationSystemTables extends BaseTestServer {
   @Test
   public void testDependenciesTable() {
     submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
-        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.dependencies"))
+        .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.reflection_dependencies"))
         .setDatasetPath(NONE_PATH)
         .build()
     );

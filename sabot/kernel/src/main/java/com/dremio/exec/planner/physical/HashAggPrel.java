@@ -172,15 +172,17 @@ public class HashAggPrel extends AggPrelBase implements Prel{
       return false;
     }
     boolean useSpill = true;
+    final boolean isNdvSpillEnabled = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_NDV_ACCUMULATOR);
+    final boolean isVarLenMinMaxSpillEnabled = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR);
     final BatchSchema childSchema = child.getProps().getSchema();
-    for(NamedExpression ne : aggExprs) {
+    for (NamedExpression ne : aggExprs) {
       final LogicalExpression expr = ExpressionTreeMaterializer.materializeAndCheckErrors(ne.getExpr(), childSchema, creator.getContext().getFunctionRegistry());
       if (expr != null && (expr instanceof FunctionHolderExpr)) {
         final String functionName = ((FunctionHolderExpr) expr).getName();
         final boolean isMinMaxFn = (functionName.equals("min") || functionName.equals("max"));
         final boolean isNDVFn = (functionName.equals("hll") || functionName.equals("hll_merge"));
-        if (isNDVFn || (isMinMaxFn && expr.getCompleteType().isVariableWidthScalar() &&
-                        !creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR))) {
+        if ((isNDVFn && !isNdvSpillEnabled) ||
+            (isMinMaxFn && expr.getCompleteType().isVariableWidthScalar() && !isVarLenMinMaxSpillEnabled)) {
           useSpill = false;
           break;
         }
@@ -226,6 +228,7 @@ public class HashAggPrel extends AggPrelBase implements Prel{
     }
 
     final boolean enabledVarcharNdv = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR);
+    final boolean enabledSpillNdv = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_NDV_ACCUMULATOR);
     final boolean enabledSpillVarchar = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_SPILL_VARCHAR_ACCUMULATOR);
 
     for(NamedExpression ne : aggExprs){
@@ -289,7 +292,7 @@ public class HashAggPrel extends AggPrelBase implements Prel{
 
       case "hll":
       case "hll_merge":
-        if (!enabledVarcharNdv) {
+        if (!enabledVarcharNdv && !enabledSpillNdv) {
           return false;
         }
         continue;

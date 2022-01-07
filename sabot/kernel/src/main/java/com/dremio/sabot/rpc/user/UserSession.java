@@ -17,11 +17,13 @@ package com.dremio.sabot.rpc.user;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 import org.apache.calcite.avatica.util.Quoting;
 
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
@@ -51,6 +53,8 @@ public class UserSession {
   public static final String SUPPORTFULLYQUALIFIEDPROJECTS = PropertySetter.SUPPORTFULLYQUALIFIEDPROJECTS.toPropertyName();
   public static final String ROUTING_TAG = PropertySetter.ROUTING_TAG.toPropertyName();
   public static final String ROUTING_QUEUE = PropertySetter.ROUTING_QUEUE.toPropertyName();
+  public static final String ROUTING_ENGINE = PropertySetter.ROUTING_ENGINE.toPropertyName();
+  public static final String TRACING_ENABLED = PropertySetter.TRACING_ENABLED.toPropertyName();
 
   public static final RangeLongValidator MAX_METADATA_COUNT =
       new RangeLongValidator("client.max_metadata_count", 0, Integer.MAX_VALUE, 0);
@@ -185,6 +189,7 @@ public class UserSession {
   private boolean tracingEnabled = false;
   private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
   private int maxMetadataCount = 0;
+  private Optional<VersionContext> versionContext = Optional.empty();
 
   public static class Builder {
     UserSession userSession;
@@ -446,4 +451,12 @@ public class UserSession {
   public QueryId getLastQueryId() { return lastQueryId; }
 
   public void setLastQueryId(QueryId id) { lastQueryId = id; }
+
+  public Optional<VersionContext> getVersionContext() {
+    return versionContext;
+  }
+
+  public void setVersionContext(Optional<VersionContext> versionContext) {
+    this.versionContext = versionContext;
+  }
 }

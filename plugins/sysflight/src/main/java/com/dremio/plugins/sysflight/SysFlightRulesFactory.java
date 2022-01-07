@@ -19,6 +19,7 @@ import java.util.Set;
 
 import org.apache.calcite.plan.RelOptRule;
 
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
@@ -37,9 +38,10 @@ public class SysFlightRulesFactory extends StoragePluginTypeRulesFactory {
       return ImmutableSet.<RelOptRule>of(new SysFlightScanDrule(pluginType));
 
     case PHYSICAL:
-      return ImmutableSet.of(SysFlightScanPrule.INSTANCE,
-         SysFlightPushFilterIntoScan.IS_FILTER_ON_PROJECT,
-         SysFlightPushFilterIntoScan.IS_FILTER_ON_SCAN);
+      return ImmutableSet.of(
+        new SysFlightScanPrule(optimizerContext.getCatalogService().getSource(CatalogServiceImpl.SYSTEM_TABLE_SOURCE_NAME)),
+        SysFlightPushFilterIntoScan.IS_FILTER_ON_PROJECT,
+        SysFlightPushFilterIntoScan.IS_FILTER_ON_SCAN);
 
     default:
       return ImmutableSet.of();

@@ -21,4 +21,8 @@ public interface Generator extends AutoCloseable {
 
   VectorAccessible getOutput();
   int next(int records);
+
+  default Fixtures.Table toTable(int batchSize) throws Exception {
+    return Fixtures.Table.fromGenerator(this, batchSize);
+  }
 }

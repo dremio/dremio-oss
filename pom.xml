@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>19.3.0-202201011605440679-67815cf6</version>
+  <version>20.0.0-202201050826310141-8cc7162b</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -43,7 +43,7 @@
     -->
     <arrow.version>4.0.0-20210722102535-bda216e83f-dremio</arrow.version>
     <avatica.version>1.18.0</avatica.version>
-    <calcite.version>1.16.0-202112230200020337-98e6aace</calcite.version>
+    <calcite.version>1.16.0-202112082203210157-0b7b2dd</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.81</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -73,7 +73,7 @@
     <plugin.hive2.mapr.hadoop.version>2.7.0-mapr-1803</plugin.hive2.mapr.hadoop.version>
     <plugin.hive2.mapr.hive.version>2.1.1-mapr-1803-202112221639140828-cb8c82b</plugin.hive2.mapr.hive.version>
     <plugin.hive2.mapr.maprfs.version>6.0.1-mapr-client-dremio-20190717</plugin.hive2.mapr.maprfs.version>
-    <plugin.hive2.aws.glue.version>1.10.0-202006290831310925-84f4082</plugin.hive2.aws.glue.version>
+    <plugin.hive2.aws.glue.version>1.10.0-202111190435510345-8160822</plugin.hive2.aws.glue.version>
 
     <!-- [DX-18063] HBase versions older than 1.1.7 get version info using package-info.class
     metadata. However it is unreliable to get this when both the parent and child classloaders
@@ -104,24 +104,24 @@
     <jersey.version>2.30</jersey.version>
     <jetty.version>9.4.43.v20210629</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
-    <junit.version>4.12</junit.version>
+    <junit.version>4.13.2</junit.version>
     <lilith.version>8.2.0</lilith.version>
     <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
     <logback.version>1.2.9</logback.version>
     <metrics.version>4.1.19</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
-    <nessie.version>0.4.0</nessie.version>
+
     <netty.version>4.1.48.Final</netty.version>
     <netty3.version>3.10.6.Final-nohttp</netty3.version>
     <netty.boringssl.version>2.0.28.Final</netty.boringssl.version>
     <parquet.version>1.12.0-202012300655090309-fc8298d</parquet.version>
     <pf4j.version>3.0.1</pf4j.version>
     <postgresql.version>42.2.18</postgresql.version>
-    <protobuf.version>3.9.1</protobuf.version>
+    <protobuf.version>3.19.0</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
     <slf4j.version>1.7.28</slf4j.version>
-    <twill.version>0.14.0</twill.version>
+    <twill.version>0.14.0-202111020547020344-41637331</twill.version>
     <zkclient.version>0.10</zkclient.version>
     <zookeeper.version>3.4.14</zookeeper.version>
     <curator.version>4.2.0</curator.version>
@@ -133,11 +133,12 @@
     <rocksdb.version>5.14.2</rocksdb.version>
     <opencensus.version>0.24.0</opencensus.version>
     <grpc.version>1.32.2</grpc.version>
-    <guava.version>28.1-jre</guava.version>
+    <guava.version>31.0.1-jre</guava.version>
     <guice.version>4.2.2</guice.version>
     <redis.clients.jedis.version>3.4.1</redis.clients.jedis.version>
     <opentelemetry.version>1.0.1</opentelemetry.version>
     <scim2-sdk.version>2.3.5</scim2-sdk.version>
+    <nessie.version>0.12.0</nessie.version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
     <elasticsearch.version>5.5.3</elasticsearch.version>
@@ -156,8 +157,10 @@
     <!-- Default intercom app id -->
     <dremio.ui.intercom.appid>z8apq4co</dremio.ui.intercom.appid>
     <npm.registry.url>https://registry.npmjs.org</npm.registry.url>
+
     <dremio.mapr.distribution>nonmapr</dremio.mapr.distribution>
     <dremio.release>false</dremio.release>
+
     <!--
       We could not use empty property here due to a bug https://github.com/eirslett/frontend-maven-plugin/issues/771
       If the token would not be overwritten from outside, we would try to access sentry with
@@ -166,6 +169,7 @@
     -->
     <project.sentry.token>NO_TOKEN</project.sentry.token>
     <project.sentry.skip>true</project.sentry.skip>
+    <nessie.version>0.12.0</nessie.version>
   </properties>
 
   <profiles>
@@ -371,6 +375,7 @@
         </plugins>
       </build>
     </profile>
+
   </profiles>
 
   <build>
@@ -713,6 +718,7 @@ limitations under the License.
             <exclude>**/.MySCMServerInfo</exclude>
             <exclude>**/.dotfile</exclude>
             <exclude>**/.DS_Store</exclude>
+
             <exclude>**/.metadata</exclude>
             <exclude>**/.metadata/**</exclude>
             <exclude>**/.helmignore</exclude>
@@ -840,6 +846,7 @@ limitations under the License.
             <!-- by directory name -->
             <exclude>**/node_modules/**</exclude>
             <exclude>**/.idea/**</exclude>
+            <exclude>src/test/**/*.pem</exclude>
           </excludes>
           <mapping>
             <java>SLASHSTAR_STYLE</java>
@@ -1004,11 +1011,13 @@ limitations under the License.
           <artifactId>maven-antrun-plugin</artifactId>
           <version>1.7</version>
         </plugin>
+        <!-- Please keep in sync with tools/build-tools/pom.xml -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-install-plugin</artifactId>
           <version>3.0.0-M1</version>
         </plugin>
+        <!-- Please keep in sync with tools/build-tools/pom.xml -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-deploy-plugin</artifactId>
@@ -1088,6 +1097,7 @@ limitations under the License.
               <configuration>
                 <nodeVersion>v14.0.0</nodeVersion>
                 <npmVersion>7.7.5</npmVersion>
+
               </configuration>
             </execution>
           </executions>
@@ -1543,6 +1553,11 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-usersessions</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-users</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1555,6 +1570,11 @@ limitations under the License.
       <dependency>
         <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-sysflight</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-transientstore</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -1609,7 +1629,7 @@ limitations under the License.
       <dependency>
         <groupId>de.flapdoodle.embed</groupId>
         <artifactId>de.flapdoodle.embed.mongo</artifactId>
-        <version>3.0.0</version>
+        <version>3.1.4</version>
       </dependency>
       <dependency>
         <groupId>org.mariadb.jdbc</groupId>
@@ -1620,7 +1640,7 @@ limitations under the License.
         <!-- Address CVE-2019-12402 -->
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
-        <version>1.20</version>
+        <version>1.21</version>
       </dependency>
 
       <dependency>
@@ -1950,36 +1970,7 @@ limitations under the License.
         <version>4.4.9</version>
       </dependency>
       <dependency>
-        <groupId>org.projectnessie</groupId>
-        <artifactId>nessie-model</artifactId>
-        <version>${nessie.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.projectnessie</groupId>
-        <artifactId>nessie-server-store</artifactId>
-        <version>${nessie.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.projectnessie</groupId>
-        <artifactId>nessie-services</artifactId>
-        <version>${nessie.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.projectnessie</groupId>
-        <artifactId>nessie-versioned-memory</artifactId>
-        <version>${nessie.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.projectnessie</groupId>
-        <artifactId>nessie-versioned-spi</artifactId>
-        <version>${nessie.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.projectnessie</groupId>
-        <artifactId>nessie-versioned-tests</artifactId>
-        <version>${nessie.version}</version>
-      </dependency>
-      <dependency>
+
         <groupId>org.apache.arrow</groupId>
         <artifactId>arrow-format</artifactId>
         <version>${arrow.version}</version>
@@ -2064,6 +2055,14 @@ limitations under the License.
             <artifactId>commons-logging</artifactId>
           </exclusion>
           <exclusion>
+            <groupId>org.codehaus.janino</groupId>
+            <artifactId>commons-compiler</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.janino</groupId>
+            <artifactId>janino</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
           </exclusion>
@@ -2090,6 +2089,14 @@ limitations under the License.
           <exclusion>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.janino</groupId>
+            <artifactId>commons-compiler</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.janino</groupId>
+            <artifactId>janino</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -3285,8 +3292,8 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>org.mongodb</groupId>
-        <artifactId>mongo-java-driver</artifactId>
-        <version>3.12.0</version>
+        <artifactId>mongodb-driver-legacy</artifactId>
+        <version>4.3.4</version>
       </dependency>
       <dependency>
         <groupId>org.xerial.snappy</groupId>
@@ -3325,6 +3332,11 @@ limitations under the License.
         <artifactId>wildfly-openssl</artifactId>
         <version>1.0.9.Final</version>
         <scope>runtime</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.projectnessie</groupId>
+        <artifactId>nessie-client</artifactId>
+        <version>${nessie.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

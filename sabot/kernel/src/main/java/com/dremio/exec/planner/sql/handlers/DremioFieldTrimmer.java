@@ -366,6 +366,16 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       });
     }
 
+    if (pruneFilterCondition != null && pruneFilterCondition.getPartitionRange() != null) {
+      pruneFilterCondition.getPartitionRange().accept(new RexShuttle() {
+        @Override
+        public RexNode visitInputRef(final RexInputRef inputRef) {
+          fieldBuilder.set(inputRef.getIndex());
+          return super.visitInputRef(inputRef);
+        }
+      });
+    }
+
     fieldsUsed = fieldBuilder.build();
 
 

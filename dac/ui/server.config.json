@@ -4,9 +4,12 @@
     }, {
       "patterns": ["/ui*"], "origin": "atlantisApp", "ws": false
     }, {
+      "patterns": ["/support*"], "origin": "supportApi", "ws": false
+    }, {
       "patterns": ["/api*", "/static"], "ws": true
     }],
   "apiOrigin": "http://automaster.drem.io:9047",
   "atlantisApp": "https://app.dev.dremio.site",
-  "atlantisApi": "https://api.dev.dremio.site"
+  "atlantisApi": "https://api.dev.dremio.site",
+  "supportApi": "https://support.dev.dremio.site"
 }

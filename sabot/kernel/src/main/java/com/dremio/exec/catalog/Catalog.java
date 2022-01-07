@@ -18,6 +18,7 @@ package com.dremio.exec.catalog;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.store.ColumnExtendedProperty;
@@ -81,4 +82,10 @@ public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, Dataset
    */
   Map<String, List<ColumnExtendedProperty>> getColumnExtendedProperties(DremioTable table);
 
+  /**
+   * Visits each catalog in a depth first order.
+   * @param catalogRewrite function for transforming the catalog
+   * @return resulting transformed catalog
+   */
+  Catalog visit(Function<Catalog, Catalog> catalogRewrite);
 }

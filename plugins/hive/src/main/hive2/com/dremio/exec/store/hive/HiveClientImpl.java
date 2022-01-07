@@ -32,6 +32,9 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzContext;
+import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 import org.apache.hadoop.hive.shims.Utils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.helpers.NOPLogger;
@@ -291,6 +294,12 @@ class HiveClientImpl implements HiveClient {
   public String getDelegationToken(final String proxyUser) throws TException {
     return doCommand((RetryableClientCommand<String>)
       client -> client.getDelegationToken(proxyUser, HiveImpersonationUtil.getProcessUserName()));
+  }
+
+  @Override
+  public List<HivePrivilegeObject> getRowFilterAndColumnMasking(
+    List<HivePrivilegeObject> inputHiveObjects) throws SemanticException {
+    return Collections.emptyList();
   }
 
   private interface RetryableClientCommand<T> {

@@ -62,6 +62,7 @@ export class AccelerationForm extends Component {
     destroyForm: PropTypes.func,
     isModal: PropTypes.bool,
     canAlter: PropTypes.any,
+    canSubmit: PropTypes.bool,
 
     putReflection: PropTypes.func.isRequired,
     postReflection: PropTypes.func.isRequired,
@@ -69,6 +70,7 @@ export class AccelerationForm extends Component {
   };
 
   static defaultProps = {
+    canSubmit: true,
     errors: {},
     fields: {},
     acceleration: Immutable.Map()
@@ -551,13 +553,18 @@ export class AccelerationForm extends Component {
   };
 
   render() {
-    const { handleSubmit, onCancel, isModal = true } = this.props;
+    const {
+      handleSubmit,
+      onCancel,
+      canSubmit,
+      isModal = true
+    } = this.props;
     const { formIsDirty, waitingForRecommendations } = this.state;
     const modalFormStyle = isModal ? {} : modalStyles.noModalForm;
     const confirmStyle = isModal ? {} : modalStyles.noModalConfirmCancel;
     const cancelText = isModal ? la('Cancel') : la('Revert');
     const onCancelClick = isModal ? onCancel : this.resetForm;
-    const canSubmit = isModal ? true : formIsDirty && !waitingForRecommendations;
+    const updatedCanSubmit = canSubmit && (isModal ? true : formIsDirty && !waitingForRecommendations);
     const canCancel = isModal ? true : formIsDirty && !waitingForRecommendations;
 
     return (
@@ -570,7 +577,7 @@ export class AccelerationForm extends Component {
           cancelText={cancelText}
           onSubmit={handleSubmit(this.submitForm)}
           onCancel={onCancelClick}
-          canSubmit={canSubmit}
+          canSubmit={updatedCanSubmit}
           canCancel={canCancel}
         >
           {this.renderFormErrorMessage()}

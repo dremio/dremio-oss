@@ -63,6 +63,6 @@ const styles = {
     zIndex: 1,
     padding: '5px 0',
     overflow: 'hidden',
-    width: 192
+    width: 'fit-content -moz-fit-content !important'
   }
 };

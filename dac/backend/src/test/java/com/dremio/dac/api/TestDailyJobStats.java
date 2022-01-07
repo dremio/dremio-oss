@@ -76,7 +76,7 @@ public class TestDailyJobStats  {
     when(service.searchJobs(any())).thenReturn(() -> prepareJobSummaryData(jobCount));
 
     final DailyJobStatsResource dailyJobStatsResource = new DailyJobStatsResource(service, mock(EditionProvider.class));
-    final DailyJobStatsResource.DailyJobStats results = dailyJobStatsResource.getStats(0,0);
+    final DailyJobStatsResource.DailyJobStats results = dailyJobStatsResource.getStats(0,0, "false");
 
     final List<Map<String, Object>> stats = results.getJobStats();
 

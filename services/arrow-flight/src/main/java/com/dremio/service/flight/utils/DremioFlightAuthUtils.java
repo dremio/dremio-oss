@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 
 import com.dremio.service.flight.DremioFlightSessionsManager;
 import com.dremio.service.tokens.TokenManager;
+import com.dremio.service.users.AuthResult;
 import com.dremio.service.users.UserService;
 
 /**
@@ -51,12 +52,12 @@ public final class DremioFlightAuthUtils {
                                                     DremioFlightSessionsManager dremioFlightSessionsManager,
                                                     String username, String password, Logger logger) {
     checkUserSessionLimit(dremioFlightSessionsManager, logger);
-    authenticateCredentials(userServiceProvider, username, password, logger);
+    AuthResult authResult = authenticateCredentials(userServiceProvider, username, password, logger);
     return createUserSession(
       tokenManagerProvider,
       dremioFlightSessionsManager,
       null,
-      username);
+      authResult.getUserName());
   }
 
   /**
@@ -91,10 +92,10 @@ public final class DremioFlightAuthUtils {
    * @throws org.apache.arrow.flight.FlightRuntimeException if unable to authenticate against Dremio
    * with the provided credentials.
    */
-  public static void authenticateCredentials(Provider<UserService> userServiceProvider,
-                                             String username, String password, Logger logger) {
+  public static AuthResult authenticateCredentials(Provider<UserService> userServiceProvider,
+                                                   String username, String password, Logger logger) {
     try {
-      userServiceProvider.get().authenticate(username, password);
+      return userServiceProvider.get().authenticate(username, password);
     } catch (Exception e) {
       logger.error("Unable to authenticate user {}", username, e);
       final String errorMessage = "Unable to authenticate user " + username + ", exception: " + e.getMessage();

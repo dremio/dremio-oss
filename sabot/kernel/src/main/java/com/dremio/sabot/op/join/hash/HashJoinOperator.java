@@ -49,6 +49,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.PowerOfTwoLongValidator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.common.hashtable.ChainedHashTable;
@@ -74,6 +75,7 @@ import io.netty.util.internal.PlatformDependent;
 public class HashJoinOperator implements DualInputOperator {
 
   public static final BooleanValidator ENABLE_SPILL = new BooleanValidator("exec.op.join.spill", false);
+  public static final PowerOfTwoLongValidator NUM_PARTITIONS = new PowerOfTwoLongValidator("exec.op.join.spill.num_partitions", 16, 8);
 
   private long outputRecords;
 

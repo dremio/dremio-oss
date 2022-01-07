@@ -38,6 +38,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
+import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
@@ -89,6 +90,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final EndpointsIndex endpointsIndex;
   private final Map<Integer, MajorFragmentAssignment> majorFragmentAssignments;
   private final List<MinorFragmentEndpoint> minorFragmentEndpoints;
+  private final ExpressionSplitCache expressionSplitCache;
 
   public OperatorContextImpl(
     SabotConfig sabotConfig,
@@ -113,7 +115,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     List<MajorFragmentAssignment> majorFragmentAssignments,
     Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
     EndpointsIndex endpointsIndex,
-    List<MinorFragmentEndpoint> minorFragmentEndpoints) throws OutOfMemoryException {
+    List<MinorFragmentEndpoint> minorFragmentEndpoints,
+    ExpressionSplitCache expressionSplitCache) throws OutOfMemoryException {
     this.config = sabotConfig;
     this.dremioConfig = dremioConfig;
     this.handle = handle;
@@ -143,6 +146,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
             .map(f -> f.stream().collect(Collectors.toMap(MajorFragmentAssignment::getMajorFragmentId, v -> v)))
             .orElse(Collections.emptyMap());
     this.minorFragmentEndpoints = minorFragmentEndpoints;
+    this.expressionSplitCache = expressionSplitCache;
   }
 
   public OperatorContextImpl(
@@ -150,10 +154,11 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     DremioConfig dremioConfig,
     BufferAllocator allocator,
     OptionManager optionManager,
-    int targetBatchSize) {
+    int targetBatchSize, ExpressionSplitCache expressionSplitCache) {
 
     this(config, dremioConfig, null, null, allocator, allocator, null, null, null, null, null, null, null,
-      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null, null);
+      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), ImmutableList.of(), null, null, null,
+      expressionSplitCache);
   }
 
   @Override
@@ -192,6 +197,10 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       throw new UnsupportedOperationException("Operator context does not have an executor");
     }
     return executor;
+  }
+
+  public ExpressionSplitCache getExpressionSplitCache() {
+    return expressionSplitCache;
   }
 
   @Override

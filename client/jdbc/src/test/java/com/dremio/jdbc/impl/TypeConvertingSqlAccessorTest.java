@@ -15,21 +15,21 @@
  */
 package com.dremio.jdbc.impl;
 
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
 import com.dremio.exec.vector.accessor.AbstractSqlAccessor;
 import com.dremio.exec.vector.accessor.InvalidAccessException;
 import com.dremio.exec.vector.accessor.SqlAccessor;
 import com.dremio.jdbc.SQLConversionOverflowException;
-import com.dremio.jdbc.impl.TypeConvertingSqlAccessor;
-
-import static org.junit.Assert.assertThat;
-import static org.hamcrest.CoreMatchers.*;
 
 /**
  * Class-level unit test for {@link TypeConvertingSqlAccessor}.

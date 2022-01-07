@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -43,6 +44,7 @@ import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
@@ -56,6 +58,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
@@ -83,6 +86,7 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
   private final Map<String, Integer> partColToKeyMap;
   private final BlockBasedSplitGenerator splitGenerator;
   private final HashMap<Field, ValueVector> valueVectorMap = new HashMap<>();
+  private final Set<String> invalidColumnsForPruning;
   private byte[] extendedProperty;
 
   private Schema fileSchema;
@@ -96,6 +100,7 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
   private Map<String, Object> dataFilePartitionAndStats;
   private PartitionProtobuf.NormalizedPartitionInfo dataFilePartitionInfo;
   private ArrowBuf tmpBuf; // used for writing split path to vector
+  private Map<Integer, PartitionSpec> partitionSpecMap = null;
 
   public SplitGeneratingDatafileProcessor(OperatorContext context, SupportsInternalIcebergTable plugin, OpProps props, TableFunctionContext functionContext) {
     this.context = context;
@@ -112,6 +117,10 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     BatchSchema tableSchema = functionContext.getTableSchema();
     Map<String, Field> nameToFieldMap = tableSchema.getFields().stream().collect(Collectors.toMap(f -> f.getName().toLowerCase(), f -> f));
     partitionFields = partitionCols != null ? partitionCols.stream().map(c -> nameToFieldMap.get(c.toLowerCase())).collect(Collectors.toList()) : null;
+    if(((SplitGenManifestScanTableFunctionContext) functionContext).getPartitionSpecMap() != null){
+      partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(((SplitGenManifestScanTableFunctionContext) functionContext).getPartitionSpecMap().toByteArray());
+    }
+    invalidColumnsForPruning = IcebergUtils.getInvalidColumnsForPruning(partitionSpecMap);
   }
 
   @VisibleForTesting
@@ -205,6 +214,16 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     // get table partition spec
     StructLike partitionStruct = currentDataFile.partition();
     for (int partColPos = 0; partColPos < partitionStruct.size(); ++partColPos) {
+      PartitionField field = icebergPartitionSpec.fields().get(partColPos);
+      /**
+       * we can not send partition column value for 1. nonIdentity columns or 2. columns which was not partition but later added as partition columns.
+       * because in case 1. information will be partial and scan will get incorrect values
+       * in case2. initially when column was not partition we don't have value.
+       */
+      if(invalidColumnsForPruning != null && invalidColumnsForPruning.contains(fileSchema.findField(field.sourceId()).name())) {
+        continue;
+      }
+
       PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
       partitionValueBuilder.setColumn(partitionCols.get(partColPos));
       Object value = partitionStruct.get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));

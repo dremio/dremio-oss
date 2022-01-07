@@ -23,10 +23,12 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.VersionedDatasetAccessOptions;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.nessie.IcebergNessieModel;
+import com.dremio.exec.store.iceberg.nessie.IcebergNessieVersionedModel;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -35,37 +37,47 @@ import com.dremio.sabot.exec.context.OperatorContext;
  * Returns appropriate Iceberg model given catalog type
  */
 public class IcebergModelCreator {
-    public static String DREMIO_NESSIE_DEFAULT_NAMESPACE = "dremio.default";
-    public static IcebergModel createIcebergModel(
-        Configuration configuration,
-        SabotContext context,
-        FileSystem fs, /* if fs is null it will use Iceberg HadoopFileIO class else it will use DremioFileIO class */
-        OperatorContext operatorContext, List<String> dataset) {
-        // if parameter is not set then using Hadoop as default
-        IcebergCatalogType catalogType = getIcebergCatalogType(configuration, context);
-        String namespace = configuration.get(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE);
+  public static String DREMIO_NESSIE_DEFAULT_NAMESPACE = "dremio.default";
 
-        switch (catalogType) {
-            case NESSIE:
-                return new IcebergNessieModel(namespace, configuration, context.getNessieContentsApiBlockingStub(),
-                        context.getNessieTreeApiBlockingStub(), fs, operatorContext, dataset,
-                  new DatasetCatalogGrpcClient(context.getDatasetCatalogBlockingStub().get()));
-            case HADOOP:
-                return new IcebergHadoopModel(namespace, configuration, fs, operatorContext, dataset,
-                  new DatasetCatalogGrpcClient(context.getDatasetCatalogBlockingStub().get()));
-            default:
-                throw new UnsupportedOperationException();
-        }
+  public static IcebergModel createIcebergModel(
+    Configuration configuration,
+    SabotContext context,
+    FileSystem fs, /* if fs is null it will use Iceberg HadoopFileIO class else it will use DremioFileIO class */
+    OperatorContext operatorContext,
+    List<String> dataset,
+    VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
+    // if parameter is not set then using Hadoop as default
+    IcebergCatalogType catalogType = getIcebergCatalogType(configuration, context);
+    String namespace = configuration.get(ICEBERG_NAMESPACE_KEY, DREMIO_NESSIE_DEFAULT_NAMESPACE);
+
+    boolean versionContextPresent = versionedDatasetAccessOptions != null && versionedDatasetAccessOptions.isVersionContextSpecified();
+    if (versionContextPresent) {
+      return new IcebergNessieVersionedModel(namespace, configuration, context.getNessieClientProvider().get(),
+         fs, operatorContext, dataset,
+        new DatasetCatalogGrpcClient(context.getDatasetCatalogBlockingStub().get()), versionedDatasetAccessOptions);
     }
 
-    public static IcebergCatalogType getIcebergCatalogType(Configuration configuration, SabotContext context) {
-      String icebergCatalogType = configuration.get(ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.HADOOP.name()).toUpperCase();
-      IcebergCatalogType catalogType;
-        try {
-            catalogType = IcebergCatalogType.valueOf(icebergCatalogType);
-        } catch (IllegalArgumentException iae) {
-            catalogType = IcebergCatalogType.UNKNOWN;
-        }
-        return catalogType;
+    switch (catalogType) {
+      case NESSIE:
+        return new IcebergNessieModel(namespace, configuration, context.getNessieContentsApiBlockingStub(),
+          context.getNessieTreeApiBlockingStub(), fs, operatorContext, dataset,
+          new DatasetCatalogGrpcClient(context.getDatasetCatalogBlockingStub().get()));
+      case HADOOP:
+        return new IcebergHadoopModel(namespace, configuration, fs, operatorContext, dataset,
+          new DatasetCatalogGrpcClient(context.getDatasetCatalogBlockingStub().get()));
+      default:
+        throw new UnsupportedOperationException();
     }
+  }
+
+  public static IcebergCatalogType getIcebergCatalogType(Configuration configuration, SabotContext context) {
+    String icebergCatalogType = configuration.get(ICEBERG_CATALOG_TYPE_KEY, IcebergCatalogType.HADOOP.name()).toUpperCase();
+    IcebergCatalogType catalogType;
+    try {
+      catalogType = IcebergCatalogType.valueOf(icebergCatalogType);
+    } catch (IllegalArgumentException iae) {
+      catalogType = IcebergCatalogType.UNKNOWN;
+    }
+    return catalogType;
+  }
 }

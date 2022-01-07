@@ -123,7 +123,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
       super.unparse(writer, leftPrec, rightPrec);
 
       if (collation != null) {
-        collation.unparse(writer, leftPrec, rightPrec);
+        collation.unparse(writer);
       }
     }
   }
@@ -930,7 +930,15 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
                 // Dialect requires emulating null direction.
                 // Put the emulation in the order list first, then the ordering on the column only.
                 orderNodes.add(emulatedNullDirNode);
-                orderNodes.add(orderingColumnNode);
+                switch (rfc.getDirection()) {
+                  case DESCENDING:
+                  case STRICTLY_DESCENDING:
+                    orderNodes.add(SqlStdOperatorTable.DESC.createCall(POS, orderingColumnNode));
+                    break;
+                  default:
+                    orderNodes.add(orderingColumnNode);
+                    break;
+                }
               } else {
                 // Dialect implements NULLS FIRST and NULLS LAST clauses. These will get
                 // unparsed as part of the RexFieldCollation.
@@ -1313,9 +1321,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         }
       }
 
-      SqlNodeList selectList = getSelectList(node);
-
-      return new SqlSelect(POS, SqlNodeList.EMPTY, selectList, node, null, null, null,
+      return new SqlSelect(POS, SqlNodeList.EMPTY, getSelectList(node), node, null, null, null,
         SqlNodeList.EMPTY, pushUpOrderList, null, null, null);
     }
 
@@ -1364,6 +1370,16 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         if (nodeList != null) {
           selectList = new SqlNodeList(nodeList, POS);
         }
+      } else if (node instanceof SqlBasicCall) {
+        final SqlBasicCall basicCall = (SqlBasicCall)node;
+        if (0 < basicCall.getOperands().length) {
+          final SqlNode operand = basicCall.getOperands()[0];
+          if (operand instanceof SqlSelect && (null != ((SqlSelect) operand).getSelectList())) {
+            // Ensure there is a select list to avoid a * expansion which may result in ambiguous columns.
+            final List<SqlNode> nodeList = getSelectNodes(null, (SqlSelect) operand, new HashSet<>(), false);
+            selectList = new SqlNodeList(nodeList, POS);
+          }
+        }
       }
 
       return selectList;
@@ -1397,8 +1413,12 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
       // the underlying references will have any necessary modifications (ie addition of explicit casts) done to them
       // already.
       final String tableAlias = SqlValidatorUtil.getAlias(node, -1);
+      return getSelectNodes(tableAlias, (SqlSelect)childNode, usedNames, shouldUniquify);
+    }
+
+    private List<SqlNode> getSelectNodes(String tableAlias, SqlSelect childNode, Set<String> usedNames, boolean shouldUniquify) {
       final List<SqlNode> selectList = new ArrayList<>();
-      ((SqlSelect) childNode).getSelectList().getList().forEach(n -> {
+      childNode.getSelectList().getList().forEach(n -> {
         String colAlias = SqlValidatorUtil.getAlias(n, -1);
         if (null == colAlias) {
           // Guard against possible null aliases being returned by generating a unique value.

@@ -42,7 +42,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
       String tableName = "addcol0";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
 
@@ -67,7 +67,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
       String tableName = "addcol1";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
@@ -87,7 +87,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
       String tableName = "addcol7";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
@@ -107,7 +107,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
       String tableName = "addcol07";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
@@ -126,14 +126,14 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
       String tableName = "addcol2";
       try (AutoCloseable c = enableIcebergTables()) {
 
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
 
-        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(version varchar, col2 int, col3 int)", testSchema,
+        String query = String.format("ALTER TABLE %s.%s ADD COLUMNS(CATALOG_NAME varchar, col2 int, col3 int)", testSchema,
           tableName);
-        errorMsgTestHelper(query, "Column [VERSION] already in the table.");
+        errorMsgTestHelper(query, "Column [CATALOG_NAME] already in the table.");
 
         query = String.format("ALTER TABLE %s.%s ADD COLUMNS(col1 varchar, col1 int, col3 int)", testSchema,
           tableName);
@@ -165,7 +165,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
     for (String testSchema: SCHEMAS_FOR_TEST) {
       String tableName = "addcol4";
       try {
-        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
           testSchema, tableName);
         test(createTableQuery);
         Thread.sleep(1001);
@@ -183,7 +183,7 @@ public class TestAlterTableAddColumns extends BaseTestQuery {
   public void nonIcebergTable() throws Exception {
     for (String testSchema: SCHEMAS_FOR_TEST) {
       String tableName = "addcol5";
-      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from sys.version",
+      final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
         testSchema, tableName);
       test(createTableQuery);
       try (AutoCloseable c = enableIcebergTables()) {

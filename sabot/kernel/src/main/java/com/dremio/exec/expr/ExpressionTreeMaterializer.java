@@ -20,6 +20,7 @@ import java.util.List;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.common.collections.Tuple;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.ErrorCollector;
@@ -132,7 +133,7 @@ public class ExpressionTreeMaterializer {
    * ONLY for Projector and Filter to use for setting up code generation to follow.
    * Use API without the options parameter for all other cases.
    */
-  public static LogicalExpression materialize(ExpressionEvaluationOptions options,
+  public static Tuple<LogicalExpression, LogicalExpression> materialize(ExpressionEvaluationOptions options,
                                               LogicalExpression expr,
                                               BatchSchema schema,
                                               ErrorCollector errorCollector,
@@ -166,10 +167,10 @@ public class ExpressionTreeMaterializer {
     switch (codeGenOption) {
       case Gandiva:
       case GandivaOnly:
-        return annotateGandivaExecution(codeGenOption, schema, contextTree, functionLookupContext.isDecimalV2Enabled(), options);
+        return Tuple.of(annotateGandivaExecution(codeGenOption, schema, contextTree, functionLookupContext.isDecimalV2Enabled(), options), out);
       case Java:
       default:
-        return contextTree;
+        return Tuple.of(contextTree, out);
     }
   }
 

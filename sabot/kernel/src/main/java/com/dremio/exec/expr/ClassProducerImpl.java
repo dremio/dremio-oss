@@ -23,6 +23,7 @@ import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
 
+import com.dremio.common.collections.Tuple;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ErrorCollector;
@@ -106,7 +107,7 @@ public class ClassProducerImpl implements ClassProducer {
    * ONLY for Projector and Filter to use for setting up code generation to follow.
    */
   @Override
-  public LogicalExpression materializeAndAllowComplex(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch) {
+  public Tuple<LogicalExpression, LogicalExpression> materializeAndAllowComplex(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch) {
     try(ErrorCollector collector = new ErrorCollectorImpl()){
       return ExpressionTreeMaterializer.materialize(options, expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true);
     }

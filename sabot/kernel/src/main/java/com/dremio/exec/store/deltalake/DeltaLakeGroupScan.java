@@ -67,7 +67,8 @@ public class DeltaLakeGroupScan extends EasyGroupScan {
       dataset.getStoragePluginId(),
       columns,
       partitionCols,
-      getDataset().getReadDefinition().getExtendedProperty());
+      getDataset().getReadDefinition().getExtendedProperty(),
+      null);
   }
 
   private boolean isParquetCheckpointSplit(SplitWork split) {

@@ -19,16 +19,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.planner.physical.WriterPrel;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.iceberg.FieldIdBroker;
-import com.dremio.exec.store.iceberg.FieldIdBroker.UnboundedFieldIdBroker;
-import com.google.common.collect.Lists;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeVisitor;
 import org.apache.arrow.vector.types.pojo.ArrowType.Binary;
@@ -188,13 +178,7 @@ public class SchemaConverter {
                 // the existing schema definition for older tables, and to use MICROS for newer tables
                 return CompleteType.TIME;
             case TIMESTAMP:
-            {
-                if (((TimestampType) type.asPrimitiveType()).shouldAdjustToUTC()) {
-                    return CompleteType.TIMESTAMP;
-                } else {
-                    throw new UnsupportedOperationException("iceberg timestamp type without zone not supported");
-                }
-            }
+              return CompleteType.TIMESTAMP;
             case FIXED:
                 return new CompleteType(new FixedSizeBinary(((FixedType)type).length()));
             case DECIMAL:

@@ -101,6 +101,10 @@ $directions: "left", "right", "top", "bottom";
   }
 }
 
+.flex {
+  display: flex;
+}
+
 .modal {
   // To be used for ViewStateWrapper when used inside a modal from ui-lib.
   &__viewState {

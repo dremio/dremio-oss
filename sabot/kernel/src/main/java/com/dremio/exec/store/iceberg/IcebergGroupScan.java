@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import org.apache.iceberg.expressions.Expression;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
@@ -32,12 +35,16 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.easy.EasyGroupScan;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
 
+import io.protostuff.ByteString;
+
 /**
  * Iceberg dataset group scan
  */
 public class IcebergGroupScan extends EasyGroupScan {
-  public IcebergGroupScan(OpProps props, TableMetadata dataset, List<SchemaPath> columns) {
+  private final Expression icebergFilterExpression;
+  public IcebergGroupScan(OpProps props, TableMetadata dataset, List<SchemaPath> columns, Expression icebergFilterExpression) {
     super(props, dataset, columns);
+    this.icebergFilterExpression = icebergFilterExpression;
   }
 
   @Override
@@ -55,6 +62,16 @@ public class IcebergGroupScan extends EasyGroupScan {
       }
       pluginId = dataset.getStoragePluginId();
     }
+    IcebergExtendedProp icebergExtendedProp = null;
+    try {
+      ByteString partitionSpecMap = null;
+      if(getDataset().getDatasetConfig().getPhysicalDataset().getIcebergMetadata() != null){
+        partitionSpecMap = getDataset().getDatasetConfig().getPhysicalDataset().getIcebergMetadata().getPartitionSpecs();
+      }
+      icebergExtendedProp = new IcebergExtendedProp(partitionSpecMap, IcebergSerDe.serializeToByteArray(icebergFilterExpression));
+    } catch (IOException e) {
+      throw new RuntimeException("Unabled to serialized iceberg filter expression");
+    }
 
     return new EasySubScan(
       props,
@@ -66,7 +83,8 @@ public class IcebergGroupScan extends EasyGroupScan {
       dataset.getStoragePluginId(),
       columns,
       getDataset().getReadDefinition().getPartitionColumnsList(),
-      getDataset().getReadDefinition().getExtendedProperty());
+      getDataset().getReadDefinition().getExtendedProperty(),
+      icebergExtendedProp);
   }
 
   @Override

@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.IntPredicate;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.CalciteConnectionConfig;
@@ -65,8 +66,6 @@ import org.apache.calcite.util.Util;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -239,12 +238,15 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     return new DremioCatalogReader(catalog.resolveCatalog(withSchemaPath), typeFactory);
   }
 
-  public DremioCatalogReader withSchemaPathAndUser(String username, List<String> newNamespacePath) {
+  public DremioCatalogReader withSchemaPathAndUser(List<String> newNamespacePath,
+    String username) {
     NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
     return new DremioCatalogReader(catalog.resolveCatalog(username, withSchemaPath), typeFactory);
   }
 
-  public DremioCatalogReader withSchemaPathAndUser(String username, List<String> newNamespacePath, boolean checkValidity) {
+  public DremioCatalogReader withSchemaPathAndUser(List<String> newNamespacePath,
+    String username,
+    boolean checkValidity) {
     NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
     return new DremioCatalogReader(catalog.resolveCatalog(username, withSchemaPath, checkValidity), typeFactory);
   }
@@ -263,12 +265,9 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
       return;
     }
 
-    paramList.addAll(FluentIterable.from(catalog.getFunctions(new NamespaceKey(paramSqlIdentifier.names))).transform(new com.google.common.base.Function<org.apache.calcite.schema.Function, SqlOperator>(){
-
-      @Override
-      public SqlOperator apply(Function input) {
-        return toOp(paramSqlIdentifier, input);
-      }}).toList());
+    catalog.getFunctions(new NamespaceKey(paramSqlIdentifier.names)).stream()
+      .map(input -> toOp(paramSqlIdentifier, input))
+      .forEach(paramList::add);
   }
 
 
@@ -284,15 +283,10 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
       typeFamilies.add(
           Util.first(type.getSqlTypeName().getFamily(), SqlTypeFamily.ANY));
     }
-    final Predicate<Integer> optional =
-        new Predicate<Integer>() {
-          @Override
-          public boolean apply(Integer input) {
-            return function.getParameters().get(input).isOptional();
-          }
-        };
+    final IntPredicate isParameterAtIndexOptional = index ->
+      function.getParameters().get(index).isOptional();
     final FamilyOperandTypeChecker typeChecker =
-        OperandTypes.family(typeFamilies, optional);
+        OperandTypes.family(typeFamilies, isParameterAtIndexOptional::test);
     final List<RelDataType> paramTypes = toSql(argTypes);
     if (function instanceof ScalarFunction) {
       return new SqlUserDefinedFunction(name, infer((ScalarFunction) function),

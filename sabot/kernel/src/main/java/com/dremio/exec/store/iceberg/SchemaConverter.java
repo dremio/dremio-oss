@@ -106,6 +106,7 @@ public class SchemaConverter {
       .stream()
       .map(PartitionField::sourceId)
       .map(table.schema()::findColumnName) // column name from schema
+      .distinct()
       .collect(Collectors.toList());
   }
 
@@ -178,13 +179,7 @@ public class SchemaConverter {
         // the existing schema definition for older tables, and to use MICROS for newer tables
         return CompleteType.TIME;
       case TIMESTAMP:
-        {
-          if (((TimestampType) type.asPrimitiveType()).shouldAdjustToUTC()) {
-            return CompleteType.TIMESTAMP;
-          } else {
-            throw new UnsupportedOperationException("iceberg timestamp type without zone not supported");
-          }
-        }
+        return CompleteType.TIMESTAMP;
       case FIXED:
         return new CompleteType(new FixedSizeBinary(((FixedType)type).length()));
       case DECIMAL:

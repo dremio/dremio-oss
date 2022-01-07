@@ -21,6 +21,7 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.Collections;
@@ -33,6 +34,8 @@ import java.util.function.Consumer;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.projectnessie.client.api.NessieApiV1;
+import org.projectnessie.client.http.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +85,7 @@ import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.transientstore.TransientStoreProvider;
 import com.dremio.edition.EditionProvider;
 import com.dremio.edition.EditionProviderImpl;
 import com.dremio.exec.ExecConstants;
@@ -119,6 +123,8 @@ import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.OptionNotificationService;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.exec.server.options.SessionOptionManager;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.service.executor.ExecutorService;
 import com.dremio.exec.service.executor.ExecutorServiceProductClientFactory;
@@ -192,6 +198,7 @@ import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.conduit.server.ConduitServiceRegistry;
 import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ClusterElectionManager;
 import com.dremio.service.coordinator.ClusterServiceSetManager;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV1;
 import com.dremio.service.coordinator.DremioAssumeRoleCredentialsProviderV2;
@@ -224,7 +231,6 @@ import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.jobresults.server.JobResultsGrpcServerFacade;
 import com.dremio.service.jobs.Chronicle;
 import com.dremio.service.jobs.HybridJobsService;
-import com.dremio.service.jobs.JobResultToLogEntryConverter;
 import com.dremio.service.jobs.JobResultsStore;
 import com.dremio.service.jobs.JobsFlightProducer;
 import com.dremio.service.jobs.JobsService;
@@ -240,6 +246,7 @@ import com.dremio.service.maestroservice.MaestroClientFactory;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.SplitOrphansCleanerService;
+import com.dremio.service.nessie.NessieApiV1Unsupported;
 import com.dremio.service.nessie.NessieService;
 import com.dremio.service.nessieapi.ContentsApiGrpc;
 import com.dremio.service.nessieapi.TreeApiGrpc;
@@ -264,6 +271,8 @@ import com.dremio.service.tokens.TokenManager;
 import com.dremio.service.tokens.TokenManagerImpl;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
+import com.dremio.service.usersessions.UserSessionService;
+import com.dremio.service.usersessions.UserSessionServiceImpl;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.ssl.SSLEngineFactory;
@@ -341,6 +350,7 @@ public class DACDaemonModule implements DACModule {
     final MasterStatusListener masterStatusListener;
     final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider =
       () -> bootstrapRegistry.provider(ClusterCoordinator.class).get();
+
     if (!isMasterless) {
       masterStatusListener = new MasterStatusListener(clusterServiceSetManagerProvider, config.getSabotConfig(), isMaster);
     } else {
@@ -495,6 +505,8 @@ public class DACDaemonModule implements DACModule {
     registry.bindProvider(ContentsApiGrpc.ContentsApiBlockingStub.class,
             () -> ContentsApiGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster()));
 
+    registry.bindProvider(NessieApiV1.class, () -> getNessieClientInstance(config));
+
     registry.bind(
       KVStoreProvider.class,
       KVStoreProviderHelper.newKVStoreProvider(
@@ -593,6 +605,7 @@ public class DACDaemonModule implements DACModule {
       () -> new SoftwareCoordinatorModeInfo(),
       registry.provider(TreeApiGrpc.TreeApiBlockingStub.class),
       registry.provider(ContentsApiGrpc.ContentsApiBlockingStub.class),
+      registry.provider(NessieApiV1.class),
       registry.provider(StatisticsService.class),
       registry.provider(StatisticsAdministrationService.Factory.class),
       registry.provider(StatisticsListManager.class),
@@ -616,6 +629,8 @@ public class DACDaemonModule implements DACModule {
       () -> registry.provider(SabotContext.class).get().getEndpoint();
 
     final Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider =
+      () -> registry.provider(ClusterCoordinator.class).get();
+    final Provider<ClusterElectionManager> clusterElectionManagerProvider =
       () -> registry.provider(ClusterCoordinator.class).get();
 
     final boolean isInternalUGS = setupUserService(registry, dacConfig.getConfig(),
@@ -662,7 +677,8 @@ public class DACDaemonModule implements DACModule {
     // Periodic task scheduler service
     registry.bind(SchedulerService.class, new LocalSchedulerService(
       config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT),
-      clusterServiceSetManagerProvider, currentEndPoint, isDistributedCoordinator));
+      clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentEndPoint,
+      isDistributedCoordinator));
 
     final OptionChangeBroadcaster systemOptionChangeBroadcaster =
       new OptionChangeBroadcaster(
@@ -675,6 +691,10 @@ public class DACDaemonModule implements DACModule {
 
     final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(scanResult);
     final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(optionValidatorListing);
+
+    registry.bindProvider(SessionOptionManager.class, () -> new SessionOptionManagerImpl(optionValidatorListing));
+    registry.bindProvider(UserSessionService.class, () -> new UserSessionServiceImpl(registry.provider(OptionManager.class), registry.provider(SessionOptionManager.class), registry.provider(TransientStoreProvider.class)));
+
 
     final SystemOptionManager systemOptionManager;
     if (isCoordinator) {
@@ -840,7 +860,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(SchedulerService.class),
         registry.provider(CommandPool.class),
         registry.provider(JobTelemetryClient.class),
-        new JobResultToLogEntryConverter(),
+        LocalJobsService.createJobResultLogger(),
         isDistributedMaster,
         registry.provider(ConduitProvider.class)
       );
@@ -1224,7 +1244,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(OptionManager.class)));
     }
 
-    if (isMaster && config.getBoolean(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN)) {
+    if (isCoordinator && config.getBoolean(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN)) {
       final boolean inMemoryBackend = config.getBoolean(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN);
       final int defaultKvStoreMaxCommitRetries = config.getInt(DremioConfig.NESSIE_SERVICE_KVSTORE_MAX_COMMIT_RETRIES);
 
@@ -1422,5 +1442,13 @@ public class DACDaemonModule implements DACModule {
     tablesMap.put(SystemTableManager.TABLES.MATERIALIZATIONS, new MaterializationsTable(() -> reflectionsStub));
     tablesMap.put(SystemTableManager.TABLES.REFLECTION_DEPENDENCIES, new ReflectionDependenciesTable(() -> reflectionsStub));
     return tablesMap;
+  }
+
+  protected NessieApiV1 getNessieClientInstance(DremioConfig config) {
+    String endpoint = config.getString(DremioConfig.NESSIE_SERVICE_REMOTE_URI);
+    if (endpoint == null || endpoint.isEmpty()) {
+      return new NessieApiV1Unsupported();
+    }
+    return HttpClientBuilder.builder().withUri(URI.create(endpoint)).build(NessieApiV1.class);
   }
 }

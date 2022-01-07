@@ -14,3 +14,6 @@ javax.xml.stream.XMLInputFactory#newInstance(java.lang.String, java.lang.ClassLo
 javax.xml.transform.TransformerFactory#newInstance()
 javax.xml.transform.TransformerFactory#newInstance(java.lang.String, java.lang.ClassLoader)
 
+# EC2MetadataUtil
+com.amazonaws.util.EC2MetadataUtils @ Do not use Amazon's EC2MetadataUtils, use Dremio's internal EC2MetadataUtils instead
+software.amazon.awssdk.regions.internal.** @ Forbidden AWS SDK's internal package. Use Dremio's internal EC2MetadataUtils instead

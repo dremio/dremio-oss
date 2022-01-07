@@ -16,9 +16,11 @@
 
 package com.dremio.exec.store.dfs;
 
+import static com.dremio.exec.ExecConstants.DISABLED_GANDIVA_FUNCTIONS;
 import static com.dremio.exec.ExecConstants.NUM_SPLITS_TO_PREFETCH;
 import static com.dremio.exec.ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE;
 import static com.dremio.exec.ExecConstants.PREFETCH_READER;
+import static com.dremio.exec.ExecConstants.QUERY_EXEC_OPTION_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -57,6 +59,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.CompositeColumnFilter;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RuntimeFilter;
@@ -75,6 +78,7 @@ import com.dremio.exec.util.BloomFilter;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -626,6 +630,8 @@ public class TestPrefetchingIterator {
     when(optionManager.getOption(NUM_SPLITS_TO_PREFETCH)).thenReturn(numPrefetch);
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
     when(optionManager.getOption(ExecConstants.RUNTIME_FILTER_KEY_MAX_SIZE)).thenReturn(32L);
+    when(optionManager.getOption(DISABLED_GANDIVA_FUNCTIONS)).thenReturn("");
+    when(optionManager.getOption(QUERY_EXEC_OPTION_KEY)).thenReturn(OptionValue.createString(OptionValue.OptionType.SYSTEM,QUERY_EXEC_OPTION_KEY,"Gandiva"));
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
     when(fileSystemPlugin.createFS(anyString() ,anyString(), any())).thenReturn(fs);
     when(fs.supportsPath(any())).thenReturn(true);
@@ -633,6 +639,7 @@ public class TestPrefetchingIterator {
     when(config.getPluginId()).thenReturn(storagePluginId);
     when(storagePluginId.getName()).thenReturn("");
     when(config.getProps()).thenReturn(opProps);
+    when(config.getFullSchema()).thenReturn(new BatchSchema(Collections.emptyList()));
     when(opProps.getUserName()).thenReturn("");
     when(config.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
     when(config.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());

@@ -297,6 +297,61 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
   }
 
   @Test
+  public void testFooterReadTableFunctionForListOfNull() throws URISyntaxException, ExecutionSetupException {
+    incomingRow.accept(getFullPath("list_of_null_in_footer.parquet", FileType.PARQUET), 8416L, currentTime, 0, true);
+    /*File schema:
+    schema(id:: varchar, count:: int32, creationTime:: timestamp,
+    creationTimeOffset:: int32, creationTimeWithOffset:: timestamp,
+    lastUpdated:: timestamp, lastUpdatedOffset:: int32,
+    lastUpdatedWithOffset:: timestamp, YEAR:: varchar, MONTH:: varchar,
+    DAY:: varchar, time:: timestamp, timeOffset:: int32, timeWithOffset:: timestamp,
+    history:: list<null>,
+    severity:: varchar, source:: varchar,status:: varchar, text:: varchar, type:: varchar)
+     */
+    FooterReadTableFunction tableFunction = new FooterReadTableFunction(getFragmentExecutionContext(), getOpCtx(), null, getConfig(null, FileType.PARQUET));
+    tableFunction.setFs(fs);
+
+    try {
+      incoming.setAllCount(20);
+      incoming.buildSchema();
+      outgoing = tableFunction.setup(incoming);
+
+      VarBinaryVector outputDatafileVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.DATA_FILE);
+
+      VarBinaryVector outputSchemaVector = (VarBinaryVector) VectorUtil.getVectorFromSchemaPath(outgoing,
+        MetadataRefreshExecConstants.FooterRead.OUTPUT_SCHEMA.FILE_SCHEMA);
+
+      tableFunction.startRow(0);
+      assertEquals(1, tableFunction.processRow(0, 5));
+      verifyOutput(outputDatafileVector.get(0), outputSchemaVector.get(0),
+        BatchSchema.of(Field.nullable("id", new ArrowType.Utf8()),
+          Field.nullable("count", new ArrowType.Int(32, true)),
+          Field.nullable("creationTime", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
+          Field.nullable("creationTimeOffset", new ArrowType.Int(32, true)),
+          Field.nullable("creationTimeWithOffset", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
+          Field.nullable("lastUpdated", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
+          Field.nullable("lastUpdatedOffset", new ArrowType.Int(32, true)),
+          Field.nullable("lastUpdatedWithOffset", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
+          Field.nullable("YEAR", new ArrowType.Utf8()),
+          Field.nullable("MONTH", new ArrowType.Utf8()),
+          Field.nullable("DAY", new ArrowType.Utf8()),
+          Field.nullable("time", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
+          Field.nullable("timeOffset", new ArrowType.Int(32, true)),
+          Field.nullable("timeWithOffset", new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)),
+          Field.nullable("severity", new ArrowType.Utf8()),
+          Field.nullable("source", new ArrowType.Utf8()),
+          Field.nullable("status", new ArrowType.Utf8()),
+          Field.nullable("text", new ArrowType.Utf8()),
+          Field.nullable("type", new ArrowType.Utf8())),
+        new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
+      tableFunction.closeRow();
+    } catch (Exception e) {
+      fail(e.getMessage());
+    }
+  }
+
+  @Test
   public void testAvroEstimater() throws Exception {
     BatchSchema tableSchema = BatchSchema.of(
       Field.nullablePrimitive("col1", new ArrowType.PrimitiveType.Utf8()),
@@ -366,7 +421,7 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
 
   private OperatorContext getOpCtx() {
     SabotContext sabotContext = getSabotContext();
-    OperatorContextImpl context =  new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10);
+    OperatorContextImpl context =  new OperatorContextImpl(sabotContext.getConfig(), sabotContext.getDremioConfig(), getAllocator(), sabotContext.getOptionManager(), 10, sabotContext.getExpressionSplitCache());
 
     OpProfileDef prof = new OpProfileDef(1, 1, 1);
     final OperatorStats operatorStats = new OperatorStats(prof, allocator);

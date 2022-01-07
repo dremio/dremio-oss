@@ -50,6 +50,7 @@ import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.sql2rel.DremioRelDecorrelator;
 import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
@@ -86,7 +87,6 @@ import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.logical.ConstExecutor;
-import com.dremio.exec.planner.logical.DremioRelDecorrelator;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.InvalidViewRel;
 import com.dremio.exec.planner.logical.PreProcessRel;
@@ -234,7 +234,8 @@ public class PrelTransformer {
     try {
       final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
       final RelNode trimmed = trimFields(relNode, true, plannerSettings.isRelPlanningEnabled());
-      final RelNode projPush = transform(config, PlannerType.HEP_AC, PlannerPhase.PROJECT_PUSHDOWN, trimmed, trimmed.getTraitSet(), true);
+      final RelNode rangeConditionRewrite = trimmed.accept(new RangeConditionRewriteVisitor(plannerSettings));
+      final RelNode projPush = transform(config, PlannerType.HEP_AC, PlannerPhase.PROJECT_PUSHDOWN, rangeConditionRewrite, rangeConditionRewrite.getTraitSet(), true);
       final RelNode preLog = transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, projPush, projPush.getTraitSet(), true);
       final RelNode preLogTransitive = getPreLogicalTransitive(config, preLog, plannerSettings);
       final RelNode logical = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLogTransitive, preLogTransitive.getTraitSet().plus(Rel.LOGICAL), true);

@@ -15,19 +15,20 @@
  */
 package com.dremio.exec.store.hive.metadata;
 
-import com.dremio.exec.store.TimedRunnable;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hive.ql.io.AcidInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import com.dremio.exec.store.TimedRunnable;
 
 public class TestHive3MetadataUtils {
   @Test

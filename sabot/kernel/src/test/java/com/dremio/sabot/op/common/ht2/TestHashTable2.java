@@ -87,7 +87,8 @@ public class TestHashTable2 extends DremioTest {
 
         Pivots.pivot(pivot, records, fbv, var);
 
-        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, ResizeListener.NO_OP, MAX_VALUES_PER_BATCH);
+        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
+          10, true, MAX_VALUES_PER_BATCH);
              SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
@@ -151,7 +152,8 @@ public class TestHashTable2 extends DremioTest {
 
         Pivots.pivot(pivot, records, fbv, var);
 
-        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, ResizeListener.NO_OP, MAX_VALUES_PER_BATCH);
+        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
+          10, true, MAX_VALUES_PER_BATCH);
              SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
@@ -216,7 +218,8 @@ public class TestHashTable2 extends DremioTest {
 
         Pivots.pivot(pivot, records, fbv, var);
 
-        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, ResizeListener.NO_OP, MAX_VALUES_PER_BATCH);
+        try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
+          10, true, MAX_VALUES_PER_BATCH);
              SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
@@ -314,7 +317,7 @@ public class TestHashTable2 extends DremioTest {
 
         Pivots.pivot(pivot, records, fbv, var);
         try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator,
-            200, estimatedVarFieldsLength, true, ResizeListener.NO_OP, MAX_VALUES_PER_BATCH);
+            200, estimatedVarFieldsLength, true, MAX_VALUES_PER_BATCH);
              SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();
@@ -434,7 +437,7 @@ public class TestHashTable2 extends DremioTest {
         Pivots.pivot(pivot, records, fbv, var);
 
         try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator,
-            200, 20, true, ResizeListener.NO_OP, MAX_VALUES_PER_BATCH);
+            200, 20, true, MAX_VALUES_PER_BATCH);
              SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
           final long keyFixedVectorAddr = fbv.getMemoryAddress();
           final long keyVarVectorAddr = var.getMemoryAddress();

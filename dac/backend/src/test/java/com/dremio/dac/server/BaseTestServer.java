@@ -1140,15 +1140,12 @@ public abstract class BaseTestServer extends BaseClientUtils {
   protected static AutoCloseable enableUnlimitedSplitsSupportFlags() {
     setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
-    setSystemOption(ExecConstants.MIXED_TYPES_DISABLED, "true");
 
     return () -> {
       setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT,
         PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
-      setSystemOption(ExecConstants.MIXED_TYPES_DISABLED,
-        ExecConstants.MIXED_TYPES_DISABLED.getDefault().getBoolVal().toString());
     };
   }
 }

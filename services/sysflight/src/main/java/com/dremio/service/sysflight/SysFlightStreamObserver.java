@@ -48,7 +48,7 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
                                  ServerStreamListener listener,
                                  Descriptors.Descriptor descriptor,
                                  int recordBatchSize) {
-    this.allocator = allocator;
+    this.allocator = allocator.newChildAllocator("sys-flight-stream-observer-allocator", 0, Long.MAX_VALUE);
     this.listener = listener;
     this.recordBatchSize = recordBatchSize;
 
@@ -93,7 +93,7 @@ public class SysFlightStreamObserver<E extends Message> implements StreamObserve
         listener.error(ex);
       }
     } finally {
-      AutoCloseables.close(AutoCloseables.all(vectorMap.values()), root);
+      AutoCloseables.close(AutoCloseables.all(vectorMap.values()), root, allocator);
     }
   }
 }

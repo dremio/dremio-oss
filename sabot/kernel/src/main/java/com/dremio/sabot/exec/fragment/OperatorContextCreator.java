@@ -30,6 +30,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.compile.CodeCompiler;
+import com.dremio.exec.expr.ExpressionSplitCache;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Sender;
@@ -80,6 +81,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
   private final List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments;
   private List<MinorFragmentEndpoint> minorFragmentEndpoints;
+  private final ExpressionSplitCache expressionSplitCache;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
                                 SabotConfig config, DremioConfig dremioConfig, FragmentHandle handle, ExecutionControls executionControls,
@@ -89,7 +91,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
                                 NodeDebugContextProvider nodeDebugContextProvider, TunnelProvider tunnelProvider,
                                 List<FragmentAssignment> assignments, EndpointsIndex endpointsIndex,
                                 Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
-                                List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments) {
+                                List<CoordExecRPC.MajorFragmentAssignment> extFragmentAssignments, ExpressionSplitCache expressionSplitCache) {
     super();
     this.stats = stats;
     this.allocator = allocator;
@@ -113,6 +115,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.assignments = assignments;
     this.endpointsIndex = endpointsIndex;
     this.extFragmentAssignments = extFragmentAssignments;
+    this.expressionSplitCache = expressionSplitCache;
   }
 
   public void setFragmentOutputAllocator(BufferAllocator fragmentOutputAllocator) {
@@ -166,7 +169,8 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         extFragmentAssignments,
         nodeEndpointProvider,
         endpointsIndex,
-        minorFragmentEndpoints);
+        minorFragmentEndpoints,
+        expressionSplitCache);
       operatorContexts.add(context);
       closeable.commit();
       return context;

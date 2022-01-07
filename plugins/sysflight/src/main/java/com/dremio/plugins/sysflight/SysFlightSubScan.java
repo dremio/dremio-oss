@@ -46,7 +46,6 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
   private final BatchSchema schema;
   private final SearchQuery query;
 
-
   @JsonCreator
   public SysFlightSubScan(
     @JsonProperty("props") OpProps props,
@@ -61,13 +60,12 @@ public class SysFlightSubScan extends AbstractSubScan implements OpWithMinorSpec
     this.columns = columns;
     this.datasetPath = datasetPath;
     this.pluginId = pluginId;
-
     this.query = query;
   }
 
   CoordinatorFlightTicket getTicket() {
     SysFlightTicket.Builder ticketBuilder = SysFlightTicket.newBuilder()
-      .setDatasetName(datasetPath.get(datasetPath.size() - 1))
+      .setDatasetName(String.join(".", datasetPath.subList(1, datasetPath.size())))
       .setUserName(props.getUserName());
     if(query != null) {
       ticketBuilder.setQuery(query);

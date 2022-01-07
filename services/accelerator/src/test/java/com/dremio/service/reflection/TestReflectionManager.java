@@ -31,7 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
@@ -84,7 +84,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
-import com.sun.tools.javac.util.List;
 
 /**
  * Test Reflection Manager
@@ -499,7 +498,7 @@ public class TestReflectionManager {
 
 
     // Used only by orphan purger
-    when(subject.materializationStore.getAllMaterializations()).thenReturn(new ArrayList<>(List.of(materialization1,materialization2,materialization3)));
+    when(subject.materializationStore.getAllMaterializations()).thenReturn(Arrays.asList(materialization1,materialization2,materialization3));
 
     when(subject.materializationStore.getDeletableEntriesModifiedBefore(anyLong(), anyInt())).thenReturn(emptyList());
     when(subject.materializationStore.getAllExpiredWhen(anyLong())).thenReturn(emptyList());
@@ -766,6 +765,7 @@ class Subject {
   @VisibleForTesting Set<ReflectionId> reflectionsToUpdate = Sets.newHashSet();
   @VisibleForTesting ReflectionManager.WakeUpCallback wakeUpCallback = Mockito.mock(ReflectionManager.WakeUpCallback.class);
   @VisibleForTesting Supplier<ReflectionServiceImpl.ExpansionHelper> expansionHelper = Mockito.mock(Supplier.class);
+  @VisibleForTesting Supplier<ReflectionServiceImpl.PlanCacheInvalidationHelper> planCacheInvalidationHelper = Mockito.mock(Supplier.class);
   @VisibleForTesting BufferAllocator allocator = Mockito.mock(BufferAllocator.class);
   @VisibleForTesting ReflectionGoalChecker reflectionGoalChecker = Mockito.mock(ReflectionGoalChecker.class);
   @VisibleForTesting RefreshStartHandler refreshStartHandler = Mockito.mock(RefreshStartHandler.class);
@@ -784,6 +784,7 @@ class Subject {
       reflectionsToUpdate,
       wakeUpCallback,
       expansionHelper,
+      planCacheInvalidationHelper,
       allocator,
       accelerationPlugin,
       Path.of("."), //TODO maybe we want to use JIMFS here,

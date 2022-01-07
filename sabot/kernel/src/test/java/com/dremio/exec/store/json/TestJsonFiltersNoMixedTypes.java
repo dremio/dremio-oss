@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.json;
 
-import static com.dremio.exec.ExecConstants.MIXED_TYPES_DISABLED;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
@@ -24,8 +23,6 @@ import static org.junit.Assert.fail;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -34,16 +31,6 @@ import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.proto.UserBitShared;
 
 public class TestJsonFiltersNoMixedTypes extends PlanTestBase {
-
-  @BeforeClass
-  public static void disableMixedTypesSupport() {
-    setSystemOption(MIXED_TYPES_DISABLED.getOptionName(), "true");
-  }
-
-  @AfterClass
-  public static void resetMixedTypesSupport() {
-    resetSystemOption(MIXED_TYPES_DISABLED.getOptionName());
-  }
 
   @Test
   public void testEqFilterSelectSingleColumn() throws Exception {

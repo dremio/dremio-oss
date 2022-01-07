@@ -18,47 +18,84 @@ package com.dremio.dac.server.liveness;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
-import java.util.HashSet;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
+import java.util.stream.Stream;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import com.dremio.test.DremioTest;
 
 /**
  * Tests for ClasspathHealthMonitor
  */
-public class TestClasspathHealthMonitor {
-  private ClasspathHealthMonitor classpathHealthMonitor;
-  private String firstJarFolder;
-  private String secondJarFolder;
+public class TestClasspathHealthMonitor extends DremioTest {
 
-  @Before
-  public void setup() throws Exception {
-    firstJarFolder = Files.createTempDirectory("abc").toString();
-    secondJarFolder = Files.createTempDirectory("xyz").toString();
-    Set<String> jarFolders = new HashSet<String>();
-    jarFolders.add(firstJarFolder);
-    jarFolders.add(secondJarFolder);
-    classpathHealthMonitor = new ClasspathHealthMonitor(jarFolders);
-  }
+  @Rule
+  public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  @After
-  public void cleanup() {
-    new File(firstJarFolder).delete();
-    new File(secondJarFolder).delete();
+  @Test
+  public void checkIsHealthy() throws IOException {
+    Path folder1 = temporaryFolder.newFolder("abc").toPath();
+    Path folder2 = temporaryFolder.newFolder("xyz").toPath();
+
+    ClasspathHealthMonitor classpathHealthMonitor =  ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
+    assertTrue(classpathHealthMonitor.isHealthy());
   }
 
   @Test
-  public void testIsHealthy() {
+  public void checkIsHealthyWithMissingFolder() throws IOException {
+    Path folder1 = temporaryFolder.newFolder("abc").toPath();
+    Path folder2 = temporaryFolder.newFolder("xyz").toPath();
+    Path folder3 = Paths.get("/dev/null/nonexistent");
+
+    ClasspathHealthMonitor classpathHealthMonitor = ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2, folder3));
     assertTrue(classpathHealthMonitor.isHealthy());
-    new File(secondJarFolder).setExecutable(false);
+  }
+
+  @Test
+  public void checkIsHealthyWithMissingFile() throws IOException {
+    Path folder1 = temporaryFolder.newFolder("abc").toPath();
+    Path folder2 = temporaryFolder.newFolder("xyz").toPath();
+    Path folder3 = temporaryFolder.newFolder("foo").toPath();
+
+    ClasspathHealthMonitor classpathHealthMonitor =  ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2, folder3.resolve("text.txt")));
+    assertTrue(classpathHealthMonitor.isHealthy());
+
+    Files.delete(folder3);
+    assertTrue(classpathHealthMonitor.isHealthy());
+  }
+
+  @Test
+  public void checkIsNotHealthyDirectoryNonExecutable() throws IOException {
+    Path folder1 = temporaryFolder.newFolder("abc").toPath();
+    Path folder2 = temporaryFolder.newFolder("xyz").toPath();
+
+    ClasspathHealthMonitor classpathHealthMonitor = ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
+    assertTrue(classpathHealthMonitor.isHealthy());
+
+    // Remove executable atttribute to folder
+    Set<PosixFilePermission> attributes = Files.getPosixFilePermissions(folder2);
+    attributes.remove(PosixFilePermission.OWNER_EXECUTE);
+    Files.setPosixFilePermissions(folder2, attributes);
+
     assertFalse(classpathHealthMonitor.isHealthy());
-    new File(secondJarFolder).setExecutable(true);
+  }
+
+  @Test
+  public void checkIsNotHealthyDirectoryDeleted() throws IOException {
+    Path folder1 = temporaryFolder.newFolder("abc").toPath();
+    Path folder2 = temporaryFolder.newFolder("xyz").toPath();
+
+    ClasspathHealthMonitor classpathHealthMonitor = ClasspathHealthMonitor.newInstance(Stream.of(folder1, folder2));
     assertTrue(classpathHealthMonitor.isHealthy());
-    new File(secondJarFolder).delete();
+    Files.delete(folder2);
     assertFalse(classpathHealthMonitor.isHealthy());
   }
 }

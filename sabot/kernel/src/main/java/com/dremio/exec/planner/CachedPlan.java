@@ -35,8 +35,8 @@ public class CachedPlan {
     this.creationTime = System.currentTimeMillis();
   }
 
-  public static CachedPlan createCachedPlan(String query, Prel prel, String textPlan, int esitimatedSize) {
-    return new CachedPlan(query, prel, textPlan, 0, esitimatedSize);
+  public static CachedPlan createCachedPlan(String query, Prel prel, String textPlan, int estimatedSize) {
+    return new CachedPlan(query, prel, textPlan, 0, estimatedSize);
   }
 
   public Prel getPrel() {

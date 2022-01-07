@@ -40,7 +40,8 @@ const reflectionsUsed = Immutable.fromJS([
 describe('Acceleration', () => {
   const minimalProps = {
     reflectionsUsed: new Immutable.List(),
-    reflectionsNotUsed: new Immutable.List()
+    reflectionsNotUsed: new Immutable.List(),
+    location: {}
   };
 
   it('should render with minimal props without exploding', () => {
@@ -48,7 +49,9 @@ describe('Acceleration', () => {
     expect(wrapper).to.have.length(1);
   });
   it('renders child correctly', () => {
-    const wrapper = shallow(<Acceleration reflectionsUsed={reflectionsUsed} reflectionsNotUsed={reflectionsNotUsed} />);
+    minimalProps.reflectionsUsed = reflectionsUsed;
+    minimalProps.reflectionsNotUsed = reflectionsNotUsed;
+    const wrapper = shallow(<Acceleration {...minimalProps} />);
     expect(wrapper.find('[data-qa="reflectionUsedTestCase"]').length).equal(reflectionsUsed.size);
     expect(wrapper.find('[data-qa="reflectionNotUsedTestCase"]').length).equal(reflectionsNotUsed.size);
   });

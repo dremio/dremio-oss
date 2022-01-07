@@ -18,7 +18,6 @@ package com.dremio.exec.planner.acceleration;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
@@ -28,7 +27,6 @@ import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -43,6 +41,7 @@ import com.dremio.exec.planner.acceleration.StrippingFactory.StripResult;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.serialization.LogicalPlanDeserializer;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.DremioToRelContext;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -219,18 +218,7 @@ public class MaterializationExpander {
       return null;
     }
 
-    ToRelContext context = new ToRelContext() {
-      @Override
-      public RelOptCluster getCluster() {
-        return parent.getCluster();
-      }
-
-      @Override
-      public RelRoot expandView(RelDataType rowType, String queryString, List<String> schemaPath,
-                                List<String> viewPath) {
-        return null;
-      }
-    };
+    ToRelContext context = DremioToRelContext.createSerializationContext(parent.getCluster());
 
     NamespaceTable newTable = table.unwrap(NamespaceTable.class);
     if(newTable != null){
@@ -243,7 +231,7 @@ public class MaterializationExpander {
 
 
   public static RelNode deserializePlan(final byte[] planBytes, SqlConverter parent, CatalogService catalogService) {
-    final SqlConverter parser = new SqlConverter(parent, parent.getCatalogReader().withSchemaPath(ImmutableList.of()));
+    final SqlConverter parser = parent.withSchemaPath(ImmutableList.of());
     try {
       final LogicalPlanDeserializer deserializer = parser.getSerializerFactory().getDeserializer(parser.getCluster(), parser.getCatalogReader(), parser.getFunctionImplementationRegistry(), catalogService);
       return deserializer.deserialize(planBytes);

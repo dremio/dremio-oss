@@ -21,7 +21,6 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.OpProps;
@@ -121,11 +120,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
     List<SchemaPath> columns,
     FragmentExecutionContext fec,
     EasySubScan config) throws ExecutionSetupException {
-    boolean mixedTypesDisabled = context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED);
-    if (mixedTypesDisabled) {
       return getRecordReader(context, dfs, splitAttributes, columns, config);
-    }
-    return getRecordReader(context, dfs, splitAttributes, columns);
   }
 
   protected RecordReader getRecordReader(

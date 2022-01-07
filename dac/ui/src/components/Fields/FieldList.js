@@ -50,11 +50,12 @@ export class AddButton extends Component {
 
 RemoveButton.propTypes = {
   onClick: PropTypes.func,
-  style: PropTypes.object
+  style: PropTypes.object,
+  className: PropTypes.string
 };
 
-export function RemoveButton({onClick, style}) {
-  return <span data-qa='remove-button'><Art
+export function RemoveButton({onClick, style, className}) {
+  return <span data-qa='remove-button' className={className}><Art
     src={'XSmall.svg'}
     alt={formatMessage('Common.Close')}
     style={{...styles.removeButton, ...style}}

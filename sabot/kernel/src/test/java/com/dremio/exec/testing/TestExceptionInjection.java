@@ -97,14 +97,14 @@ public class TestExceptionInjection extends BaseTestQuery {
   @SuppressWarnings("static-method")
   @Test
   public void noInjection() throws Exception {
-    test("select * from sys.memory");
+    test("select * from information_schema.columns");
   }
 
   @SuppressWarnings("static-method")
   @Test
   public void emptyInjection() throws Exception {
     ControlsInjectionUtil.setControls(session, "{\"injections\":[]}");
-    test("select * from sys.memory");
+    test("select * from information_schema.columns");
   }
 
   /**

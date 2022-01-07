@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,6 +63,7 @@ import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.compile.sig.ConstantExpressionIdentifier;
 import com.dremio.exec.compile.sig.ConstantExtractor;
 import com.dremio.exec.compile.sig.GeneratorMapping;
@@ -71,6 +73,8 @@ import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
+import com.dremio.exec.expr.fn.impl.StringFunctionHelpers;
+import com.dremio.exec.record.TypedFieldId;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
@@ -85,6 +89,7 @@ import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JInvocation;
 import com.sun.codemodel.JLabel;
 import com.sun.codemodel.JMethod;
+import com.sun.codemodel.JSwitch;
 import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
 
@@ -366,27 +371,125 @@ public class EvaluationVisitor {
       JLabel caseLabel = generator.getEvalBlockLabel("caseBlock");
       JBlock eval = generator.createInnerEvalBlock();
       generator.nestEvalBlock(eval);
-      for (final CaseExpression.CaseConditionNode node : caseExpression.caseConditions) {
-        final JBlock local = generator.getEvalBlock();
+      final HoldingContainer doSwitch = checkIsSwitch(caseExpression, generator);
+      if (doSwitch != null) {
+        final JBlock evalBlock = generator.getEvalBlock();
         final JBlock conditionalBlock = new JBlock(false, false);
-        final HoldingContainer holdingContainer = node.whenExpr.accept(this, generator);
-        final JConditional jc = conditionalBlock._if(holdingContainer.getIsSet().eq(JExpr.lit(1))
-          .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
-        generator.nestEvalBlock(jc._then());
-        HoldingContainer thenExpr = node.thenExpr.accept(this, generator);
+        final JConditional jc = conditionalBlock._if(doSwitch.getIsSet().eq(JExpr.lit(1)));
+        JExpression switchTest = doSwitch.getCompleteType().toMinorType().equals(TypeProtos.MinorType.VARCHAR) ?
+          generator.getModel().ref(StringFunctionHelpers.class).staticInvoke("getStringFromNullableVarCharHolder")
+            .arg(doSwitch.getHolder()) : doSwitch.getValue();
+        final JSwitch switchBlock = jc._then()._switch(switchTest);
+        {
+          final Set<Object> literalsSoFar = new HashSet<>();
+          for (final CaseExpression.CaseConditionNode node : caseExpression.caseConditions) {
+            JExpression caseExpr = extractLiteral(node.whenExpr, literalsSoFar);
+            if (caseExpr == null) {
+              // must be a duplicate
+              continue;
+            }
+            JBlock caseBody = switchBlock._case(caseExpr).body();
+            generator.nestEvalBlock(caseBody);
+            HoldingContainer thenExpr = node.thenExpr.accept(this, generator);
+            assigner.accept(thenExpr, caseBody);
+            generator.unNestEvalBlock();
+            caseBody._break(caseLabel);
+          }
+        }
+        JBlock defaultBody = switchBlock._default().body();
+        defaultBody._break();
+        evalBlock.add(conditionalBlock);
+        generator.nestEvalBlock(evalBlock);
+        HoldingContainer thenExpr = caseExpression.elseExpr.accept(this, generator);
+        assigner.accept(thenExpr, evalBlock);
         generator.unNestEvalBlock();
-        assigner.accept(thenExpr, jc._then());
-        jc._then()._break(caseLabel);
-        local.add(conditionalBlock);
+      } else {
+        for (final CaseExpression.CaseConditionNode node : caseExpression.caseConditions) {
+          final JBlock local = generator.getEvalBlock();
+          final JBlock conditionalBlock = new JBlock(false, false);
+          final HoldingContainer holdingContainer = node.whenExpr.accept(this, generator);
+          final JConditional jc = conditionalBlock._if(holdingContainer.getIsSet().eq(JExpr.lit(1))
+            .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
+          generator.nestEvalBlock(jc._then());
+          HoldingContainer thenExpr = node.thenExpr.accept(this, generator);
+          generator.unNestEvalBlock();
+          assigner.accept(thenExpr, jc._then());
+          jc._then()._break(caseLabel);
+          local.add(conditionalBlock);
+        }
+        final JBlock elseBlock = generator.getEvalBlock();
+        generator.nestEvalBlock(elseBlock);
+        final HoldingContainer elseExpr = caseExpression.elseExpr.accept(this, generator);
+        generator.unNestEvalBlock();
+        assigner.accept(elseExpr, elseBlock);
       }
-      final JBlock elseBlock = generator.getEvalBlock();
-      generator.nestEvalBlock(elseBlock);
-      final HoldingContainer elseExpr = caseExpression.elseExpr.accept(this, generator);
-      generator.unNestEvalBlock();
-      assigner.accept(elseExpr, elseBlock);
-
       generator.unNestEvalBlock();
       return outputSupplier.get();
+    }
+
+    private JExpression extractLiteral(LogicalExpression whenExpr, Set<Object> literalsSoFar) {
+      final FunctionHolderExpr expr = (FunctionHolderExpr) whenExpr;
+      return (expr.args.get(0) instanceof ValueVectorReadExpression)
+        ? extractLiteralFrom(expr.args.get(1), literalsSoFar) : extractLiteralFrom(expr.args.get(0), literalsSoFar);
+    }
+
+    private JExpression extractLiteralFrom(LogicalExpression litExpr, Set<Object> literalsSoFar) {
+      JExpression ret;
+      Object objToAdd;
+      if (litExpr instanceof IntExpression) {
+        final int val = ((IntExpression) litExpr).getInt();
+        objToAdd = val;
+        ret = JExpr.lit(val);
+      } else {
+        final String val = ((QuotedString) litExpr).getString();
+        objToAdd = val;
+        ret = JExpr.lit(val);
+      }
+      if (literalsSoFar.contains(objToAdd)) {
+        return null;
+      }
+      literalsSoFar.add(objToAdd);
+      return ret;
+    }
+
+    private HoldingContainer checkIsSwitch(CaseExpression caseExpression, ClassGenerator<?> generator) {
+      if (caseExpression.caseConditions.size() <= 2) {
+        return null;
+      }
+      TypedFieldId prevFieldId = null;
+      ValueVectorReadExpression readExpr = null;
+      for (final CaseExpression.CaseConditionNode node : caseExpression.caseConditions) {
+        readExpr = extractValueVector(node.whenExpr);
+        final TypedFieldId nextFieldId = (readExpr == null) ? null : readExpr.getFieldId();
+        if (nextFieldId == null || (prevFieldId != null && !prevFieldId.equals(nextFieldId))) {
+          // not matching
+          readExpr = null;
+          break;
+        }
+        prevFieldId = nextFieldId;
+      }
+      return readExpr == null ? null : readExpr.accept(this, generator);
+    }
+
+    private static final String EQUAL_FN = "equal";
+    private ValueVectorReadExpression extractValueVector(LogicalExpression whenExpr) {
+      ValueVectorReadExpression ret = null;
+      if (whenExpr instanceof FunctionHolderExpr &&
+        ((FunctionHolderExpr) whenExpr).getName().equalsIgnoreCase(EQUAL_FN)) {
+        final FunctionHolderExpr expr = (FunctionHolderExpr) whenExpr;
+        if (expr.args.size() == 2) {
+          final LogicalExpression arg1 = expr.args.get(0);
+          final LogicalExpression arg2 = expr.args.get(1);
+          if (arg1 instanceof ValueVectorReadExpression &&
+            (arg2 instanceof IntExpression || arg2 instanceof QuotedString)) {
+            ret = (ValueVectorReadExpression) arg1;
+          } else if (arg2 instanceof ValueVectorReadExpression &&
+            (arg1 instanceof IntExpression || arg1 instanceof QuotedString)) {
+            ret = (ValueVectorReadExpression) arg2;
+          }
+        }
+      }
+      return ret;
     }
 
     @Override

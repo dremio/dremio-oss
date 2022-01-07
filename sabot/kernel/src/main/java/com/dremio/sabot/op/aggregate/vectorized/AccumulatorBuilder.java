@@ -95,7 +95,7 @@ public class AccumulatorBuilder {
         continue;
       }
 
-      /* SUM, MIN, MAX, $SUM0, COUNT */
+      /* SUM, MIN, MAX, $SUM0, COUNT, HLL, HLL_MERGE */
       final ValueVectorReadExpression vvread = (ValueVectorReadExpression) exprs.get(0);
       inputVector = incoming.getValueAccessorById(FieldVector.class, vvread.getFieldId().getFieldIds()).getValueVector();
       accumulatorTypes[i] = getAccumulatorTypeFromName(func.getName());
@@ -110,10 +110,10 @@ public class AccumulatorBuilder {
     return new MaterializedAggExpressionsResult(accumulatorTypes, inputVectors, outputVectorFields);
   }
 
-  public static MaterializedAggExpressionsResult getAccumulatorTypesFromExpressions(ClassProducer producer,
+  public static MaterializedAggExpressionsResult getAccumulatorTypesFromExpressions(
+    ClassProducer producer,
     List<NamedExpression> namedExpressions,
     VectorAccessible incoming) throws Exception {
-
     List<LogicalExpression> materializedExprs = namedExpressions
       .stream()
       .map(ne -> producer.materialize(ne.getExpr(), incoming))
@@ -160,35 +160,22 @@ public class AccumulatorBuilder {
 
     final Accumulator[] accums = new Accumulator[accumulatorTypes.length];
 
-    int varLenIdx = 0;
     for (int i = 0; i < accumulatorTypes.length; i++) {
       final FieldVector inputVector = inputVectors.get(i);
       final FieldVector outputVector = TypeHelper.getNewVector(outputVectorFields.get(i), outputVectorAllocator);
-      final FieldVector transferVector;
+      final FieldVector transferVector = outgoing.addOrGet(outputVector.getField());
       final byte accumulatorType = accumulatorTypes[i];
-      final boolean minMaxAccum = (accumulatorType == AccumulatorType.MIN.ordinal() ||
-                                   accumulatorType == AccumulatorType.MAX.ordinal());
 
-      transferVector = outgoing.addOrGet(outputVector.getField());
-
-      BaseVariableWidthVector tempVector = null;
-      if (minMaxAccum && inputVector != null) { // COUNT1 and some test cases pass inputVector as null
-        final MinorType type = CompleteType.fromField(inputVector.getField()).toMinorType();
-        if (type == MinorType.VARCHAR || type == MinorType.VARBINARY) {
-          tempVector = tempAccumulatorHolder[varLenIdx];
-          ++varLenIdx;
-        }
-      }
-
-      accums[i] = getAccumulator(accumulatorType, inputVector, outputVector,
-                                 transferVector, maxValuesPerBatch, computationVectorAllocator,
-                                 decimalV2Enabled, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent,tempVector);
+      accums[i] = getAccumulator(accumulatorType, inputVector, outputVector, transferVector,
+        maxValuesPerBatch, computationVectorAllocator, decimalV2Enabled,
+        varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder[i]);
       if (accums[i] == null) {
         throw new IllegalStateException("ERROR: invalid accumulator state");
       }
     }
 
-    return new AccumulatorSet(jointAllocationMin, jointAllocationLimit, computationVectorAllocator, accums);
+    return new AccumulatorSet(jointAllocationMin, jointAllocationLimit,
+      computationVectorAllocator, accums);
   }
 
   private static Accumulator getAccumulator(byte accumulatorType, FieldVector incomingValues,
@@ -196,7 +183,8 @@ public class AccumulatorBuilder {
                                             final int maxValuesPerBatch,
                                             final BufferAllocator computationVectorAllocator,
                                             boolean decimalCompleteEnabled,
-                                            int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent,
+                                            int varLenAccumulatorCapacity,
+                                            int maxVarWidthVecUsagePercent,
                                             BaseVariableWidthVector tempAccumulatorHolder) {
     if (accumulatorType == AccumulatorType.COUNT1.ordinal()) {
       return new CountOneAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
@@ -205,7 +193,7 @@ public class AccumulatorBuilder {
 
     final MinorType type = CompleteType.fromField(incomingValues.getField()).toMinorType();
     switch(accumulatorType) {
-      case 0: {
+      case 0 /* SUM */: {
         switch(type){
           case INT:
             return new SumAccumulators.IntSumAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
@@ -231,7 +219,7 @@ public class AccumulatorBuilder {
         break;
       }
 
-      case 1: {
+      case 1 /* MIN */: {
         switch(type){
           case INT:
             return new MinAccumulators.IntMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
@@ -288,7 +276,7 @@ public class AccumulatorBuilder {
         break;
       }
 
-      case 2: {
+      case 2 /* MAX */: {
         switch(type){
           case INT:
             return new MaxAccumulators.IntMaxAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
@@ -344,7 +332,7 @@ public class AccumulatorBuilder {
         break;
       }
 
-      case 3: {
+      case 3 /* SUM0 */: {
         switch(type){
           case INT:
             return new SumZeroAccumulators.IntSumZeroAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
@@ -370,11 +358,70 @@ public class AccumulatorBuilder {
         break;
       }
 
-      case 4: {
+      case 4 /* COUNT */: {
         return new CountColumnAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                           computationVectorAllocator);
       }
+      case 6 /* HLL */: {
+        switch (type) {
+          case INT:
+            return new NdvAccumulators.IntNdvAccumulators(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case FLOAT4:
+            return new NdvAccumulators.FloatNdvAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case BIGINT:
+            return new NdvAccumulators.BigIntNdvAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case FLOAT8:
+            return new NdvAccumulators.DoubleNdvAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case DECIMAL:
+            if (decimalCompleteEnabled) {
+              return new NdvAccumulators.DecimalNdvAccumulatorV2(incomingValues, transferVector, maxValuesPerBatch,
+                computationVectorAllocator, tempAccumulatorHolder);
+            } else {
+              return new NdvAccumulators.DecimalNdvAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+                computationVectorAllocator, tempAccumulatorHolder);
+            }
+          case BIT:
+            return new NdvAccumulators.BitNdvAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case DATE:
+            // dates represented as NullableDateMilli, which are 8-byte values. For purposes of min(), comparisions
+            // of NullableDateMilli are the same as comparisons on the underlying long values
+            return new NdvAccumulators.BigIntNdvAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case TIME:
+            // time represented as NullableTimeMilli, which are 4-byte values. For purposes of min(), comparisons
+            // of NullableTimeMilli are the same as comparisons on the underlying int values
+            return new NdvAccumulators.IntNdvAccumulators(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case TIMESTAMP:
+            // time represented as NullableTimeStampMilli, which are 8-byte values. For purposes of min(), comparisons
+            // of NullableTimeStampMilli are the same as comparisons on the underlying long values
+            return new NdvAccumulators.BigIntNdvAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case INTERVALDAY:
+            return new NdvAccumulators.IntervalDayNdvAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case INTERVALYEAR:
+            // interval-year represented as a NullableIntervalYear, which is a 4-byte value containing the number of months
+            // in the interval. Comparisons are the same as comparisons on the underlying int values
+            return new NdvAccumulators.IntNdvAccumulators(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+          case VARCHAR:
+          case VARBINARY:
+            return new NdvAccumulators.VarLenNdvAccumulators(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, tempAccumulatorHolder);
+        }
+        break;
+      }
 
+      case 7 /* HLL_MERGE */: {
+        return new NdvAccumulators.NdvUnionAccumulators(incomingValues, transferVector,
+          maxValuesPerBatch, computationVectorAllocator, tempAccumulatorHolder);
+      }
     }
 
     return null;
@@ -402,6 +449,10 @@ public class AccumulatorBuilder {
       return outputVectorFields;
     }
 
+    public byte[] getAccumulatorTypes() {
+      return accumulatorTypes;
+    }
+
     public List<FieldVector> getInputVectors() {
       return inputVectors;
     }
@@ -413,7 +464,9 @@ public class AccumulatorBuilder {
     MAX,
     SUM0,
     COUNT,
-    COUNT1
+    COUNT1,
+    HLL,
+    HLL_MERGE,
   }
 
   private static byte getAccumulatorTypeFromName(String name) {
@@ -432,6 +485,12 @@ public class AccumulatorBuilder {
         return (byte)AccumulatorType.COUNT.ordinal();
       case "count1":
         return (byte)AccumulatorType.COUNT1.ordinal();
+      case "hll":
+        switch (name) {
+          case "hll_merge":
+            return (byte) AccumulatorType.HLL_MERGE.ordinal();
+        }
+        return (byte) AccumulatorType.HLL.ordinal();
       default:
         throw UserException.unsupportedError().message("Unable to handle accumulator function %s", name).build(logger);
     }

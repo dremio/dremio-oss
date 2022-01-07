@@ -40,8 +40,10 @@ import io.protostuff.ByteString;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY)
 @JsonSubTypes({
-  @JsonSubTypes.Type(value = FooterReaderTableFunctionContext.class, name = "footer-reader")}
-  )
+  @JsonSubTypes.Type(value = FooterReaderTableFunctionContext.class, name = "footer-reader"),
+  @JsonSubTypes.Type(value = BoostTableFunctionContext.class, name = "boost"),
+  @JsonSubTypes.Type(value = SplitGenManifestScanTableFunctionContext.class, name = "split-gen-manifest-scan")}
+)
 public class TableFunctionContext {
   private final List<SchemaPath> columns;
   private final ScanFilter scanFilter;

@@ -159,7 +159,10 @@ public class ScanOperator implements ProducerOperator {
     NUM_RUNTIME_FILTERS, // Number of runtime filter received at scan
     RUNTIME_COL_FILTER_DROP_COUNT, // Number of non partition column filters dropped due to schema incompatibility
     ROW_GROUPS_SCANNED_WITH_RUNTIME_FILTER, // Number of rowgroups scanned with runtime filter
-    PAGE_DECODING_TIME_NS, // Total Time take for decoding the pages during vectorized column reading
+    RLE_PAGE_DECODING_READ_TIME_NS, // Total time taken for reading during page decoding for RLE encoding
+    RLE_PAGE_DECODING_WRITE_TIME_NS, // Total time taken for writing arrow vectors during page decoding for RLE encoding
+    PACKED_PAGE_DECODING_READ_TIME_NS, // Total time taken for reading during page decoding for PACKED encoding
+    PACKED_PAGE_DECODING_WRITE_TIME_NS, // Total time taken for writing arrow vectors during page decoding for PACKED encoding
     MIN_METADATA_IO_READ_TIME_NS,  // Minimum IO read time for metadata operations
     MAX_METADATA_IO_READ_TIME_NS,   // Maximum IO read time for metadata operations
     AVG_METADATA_IO_READ_TIME_NS,  // Average IO read time for metadata operations
@@ -563,8 +566,8 @@ public class ScanOperator implements ProducerOperator {
       return;
     }
 
-    if (!((ParquetSubScan) config).isArrowCachingEnabled()) {
-      logger.debug("Not starting boost fragment since boost flag is disabled in scan config");
+    if (!((ParquetSubScan) config).isArrowCachingEnabled() && !context.getOptions().getOption(ExecConstants.ENABLE_PARQUET_ARROW_CACHING)) {
+      logger.debug("Not starting boost fragment since boost flag/support option is disabled");
       return;
     }
 

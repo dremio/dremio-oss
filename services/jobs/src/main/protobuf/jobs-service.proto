@@ -55,6 +55,9 @@ service Chronicle {
 
   rpc GetJobStats (JobStatsRequest) returns (JobStats) {}
 
+  // Get count of unique users who triggered job during the duration mentioned in request.
+  rpc GetUniqueUserStats (UniqueUserStatsRequest) returns (UniqueUserStats) {}
+
   rpc GetProfile (QueryProfileRequest) returns (exec.shared.QueryProfile) {}
 
   rpc SearchJobs (SearchJobsRequest) returns (stream JobSummary) {}
@@ -150,19 +153,23 @@ message ActiveJobSummary {
   string status = 2;
   string query_type = 3;
   string user_name = 4;
-  bool accelerated = 5;
-  google.protobuf.Timestamp submit = 6;
-  google.protobuf.Timestamp queue = 7;
-  google.protobuf.Timestamp start = 8;
-  google.protobuf.Timestamp finish = 9;
-  string queue_name = 10;
-  string engine = 17;
-  int64 query_planning_time = 11;
-  int64 queue_time = 12;
-  int64 execution_planning_time = 13;
-  int64 execution_time = 14;
-  int64 row_count = 15;
-  string error_msg = 16;
+  string queried_datasets = 5;
+  string scanned_datasets = 6;
+  int64 submitted_ts = 7;
+  int64 metadata_retrieval_ts = 8;
+  int64 planning_start_ts = 9;
+  int64 query_enqueued_ts = 10;
+  int64 engine_start_ts = 11;
+  int64 execution_planning_ts = 12;
+  int64 execution_start_ts = 13;
+  int64 final_state_ts = 14;
+  int64 rows_scanned = 15;
+  int64 rows_returned = 16;
+  bool accelerated = 17;
+  string queue_name = 18;
+  string engine = 19;
+  string error_msg = 20;
+  string query = 21;
 }
 
 //proto2 enums cannot be used directly in proto3 syntax
@@ -289,6 +296,17 @@ message JobStats {
   }
 
   repeated JobCountWithType counts = 1;
+}
+
+message UniqueUserStatsRequest {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp end_date = 2;
+}
+
+message UniqueUserStats {
+  // This is currently only used for displaying unique users in "About Dremio" page in UI. Please do NOT add more
+  // attributes here unless there is no performance impact in displaying in above page.
+  int32 uniqueUsers= 1;
 }
 
 message CancelJobRequest {

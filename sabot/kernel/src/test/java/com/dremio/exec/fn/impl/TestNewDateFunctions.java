@@ -197,7 +197,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
             ", to_timestamp(683) c31" +
             ", to_timestamp(1477440000) c32" +
             ", to_timestamp(1477440683) c33" +
-            " FROM sys.version"
+            " FROM INFORMATION_SCHEMA.CATALOGS"
         ).unOrdered()
         .baselineColumns(
             "c11",
@@ -322,7 +322,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
         " to_date('2016-10-26a', 'YYYY-MM-DD', 1) b4," +
         " to_timestamp('1970-01-01 21:44:33', 'YYYY-MM-DD hh24:mi:ss', 1) b5," +
         " to_timestamp('1970-a01-01 21:44:33', 'YYYY-MM-DD hh24:mi:ss', 1) b6" +
-        " FROM sys.version"
+        " FROM INFORMATION_SCHEMA.CATALOGS"
       ).ordered()
       .baselineColumns("b1", "b2", "b3", "b4", "b5", "b6")
       .baselineValues(
@@ -336,7 +336,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
 
     try {
       testBuilder()
-        .sqlQuery("SELECT to_time('13:44:3a3', 'hh24:mi:ss', 0) FROM sys.version")
+        .sqlQuery("SELECT to_time('13:44:3a3', 'hh24:mi:ss', 0) FROM INFORMATION_SCHEMA.CATALOGS")
         .expectsEmptyResultSet().go();
       fail("expected exception on invalid date format was not thrown.");
     } catch (RpcException ex) {
@@ -400,7 +400,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
         " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '2-6' YEAR TO MONTH) AS VAL10," +
         " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '10:22' MINUTE TO SECOND) AS VAL11," +
         " date_add(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '4 5:12:10' DAY TO SECOND) AS VAL12" +
-        " FROM sys.version"
+        " FROM INFORMATION_SCHEMA.CATALOGS"
       ).unOrdered()
       .baselineColumns("VAL1", "VAL2", "VAL3", "VAL4", "VAL5", "VAL6", "VAL7", "VAL8", "VAL9",
         "VAL10", "VAL11", "VAL12")
@@ -437,7 +437,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
         " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '2-6' YEAR TO MONTH) AS VAL10," +
         " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '10:22' MINUTE TO SECOND) AS VAL11," +
         " date_sub(TIMESTAMP '2008-03-15 09:34:21', INTERVAL '4 5:12:10' DAY TO SECOND) AS VAL12" +
-        " FROM sys.version"
+        " FROM INFORMATION_SCHEMA.CATALOGS"
       ).unOrdered()
       .baselineColumns("VAL1", "VAL2", "VAL3", "VAL4", "VAL5", "VAL6", "VAL7", "VAL8", "VAL9",
         "VAL10", "VAL11", "VAL12")
@@ -468,7 +468,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
         "date_part('month', interval '1-4' YEAR TO MONTH) e5, " +
         "date_part('year', interval '45' YEAR) e6, " +
         "date_part('month', interval '45' YEAR) e7 " +
-        "from sys.version";
+        "from INFORMATION_SCHEMA.CATALOGS";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()

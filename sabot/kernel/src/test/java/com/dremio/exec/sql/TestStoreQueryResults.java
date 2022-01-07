@@ -250,7 +250,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
   @Test
   public void explain() throws Exception {
     String storeTblName = "explain";
-    String query = "EXPLAIN PLAN FOR SELECT * FROM SYS.VERSION";
+    String query = "EXPLAIN PLAN FOR SELECT * FROM INFORMATION_SCHEMA.CATALOGS";
 
     final String explain = localQueryHelper(query, storeTblName);
 

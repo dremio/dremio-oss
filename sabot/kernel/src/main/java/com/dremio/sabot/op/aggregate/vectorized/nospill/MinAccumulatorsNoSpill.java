@@ -26,6 +26,7 @@ import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.util.ByteFunctionHelpers;
 
 import com.dremio.exec.util.DecimalUtils;
+import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
 
 import io.netty.util.internal.PlatformDependent;
@@ -257,7 +258,7 @@ public class MinAccumulatorsNoSpill {
 
       int incomingIndex = 0;
       for (long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
-        java.math.BigDecimal newVal = DecimalAccumulatorUtilsNoSpill.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
         int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;

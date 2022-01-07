@@ -224,4 +224,14 @@ public class AttemptsHelper {
     }
     return null;
   }
+
+  public Long getStateTimeStamp(AttemptEvent.State state) {
+    if (getDuration(state) != null) {
+      Optional<AttemptEvent> event = events.stream().filter(e -> e.getState() == state).findAny();
+      if (event.isPresent()) {
+        return event.get().getStartTime();
+      }
+    }
+    return null;
+  }
 }

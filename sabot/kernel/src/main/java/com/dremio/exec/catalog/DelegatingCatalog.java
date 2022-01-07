@@ -51,7 +51,7 @@ import com.google.common.base.Preconditions;
 /**
  * Delegating implementation of {@link Catalog}
  */
-public class DelegatingCatalog implements Catalog {
+public abstract class DelegatingCatalog implements Catalog {
 
   protected final Catalog delegate;
 

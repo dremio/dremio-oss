@@ -17,8 +17,6 @@ package com.dremio.exec.catalog;
 
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
-import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -26,13 +24,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.DremioCollectors;
 import com.dremio.concurrent.Runnables;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStore;
@@ -55,10 +59,7 @@ import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 
@@ -68,7 +69,7 @@ import com.google.common.collect.Iterables;
  */
 class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PluginsManager.class);
+  private static final Logger logger = LoggerFactory.getLogger(PluginsManager.class);
 
   protected final SabotContext context;
   protected final OptionManager optionManager;
@@ -93,7 +94,6 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     DatasetListingService datasetListingService,
     OptionManager optionManager,
     DremioConfig config,
-    EnumSet<Role> roles,
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
     SchedulerService scheduler,
     ConnectionReader reader,
@@ -123,11 +123,9 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   }
 
   public Set<String> getSourceNameSet(){
-    return new HashSet<>(FluentIterable.from(plugins.values()).transform(new Function<ManagedStoragePlugin, String>(){
-      @Override
-      public String apply(ManagedStoragePlugin input) {
-        return input.getName().getRoot();
-      }}).toSet());
+    return plugins.values().stream()
+      .map(input -> input.getName().getRoot())
+      .collect(Collectors.toSet());
   }
 
 
@@ -333,26 +331,17 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
    */
   @Override
   public Iterator<StoragePlugin> iterator() {
-    return FluentIterable.from(plugins.values())
-        .transform(new Function<ManagedStoragePlugin, StoragePlugin>(){
-          @Override
-          public StoragePlugin apply(ManagedStoragePlugin input) {
-            return input.unwrap(StoragePlugin.class);
-          }})
-        .filter(new Predicate<StoragePlugin>() {
-
-        @Override
-        public boolean apply(StoragePlugin input) {
-          SourceState state = input.getState();
-          return state.getStatus() != SourceStatus.bad;
-        }}).iterator();
+    return plugins.values().stream()
+      .map(input -> input.unwrap(StoragePlugin.class))
+      .filter(input -> input.getState().getStatus() != SourceStatus.bad)
+      .iterator();
   }
 
   public boolean hasPlugin(String name) {
     return plugins.containsKey(c(name));
   }
 
-  public ManagedStoragePlugin getSynchronized(SourceConfig pluginConfig, Predicate<String> influxSourcePred) throws Exception {
+  public ManagedStoragePlugin getSynchronized(SourceConfig pluginConfig, java.util.function.Predicate<String> influxSourcePred) throws Exception {
     while (true) {
       ManagedStoragePlugin plugin = plugins.get(c(pluginConfig.getName()));
 
@@ -433,19 +422,11 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
    * For each source, synchronize the sources definition to the namespace.
    */
   @VisibleForTesting
-  void synchronizeSources(Predicate<String> influxSourcePred) {
+  void synchronizeSources(java.util.function.Predicate<String> influxSourcePred) {
     // first collect up all the current source configs.
-    final Map<String, SourceConfig> configs = FluentIterable.from(plugins.values()).transform(new Function<ManagedStoragePlugin, SourceConfig>(){
-
-      @Override
-      public SourceConfig apply(ManagedStoragePlugin input) {
-        return input.getConfig();
-      }}).uniqueIndex(new Function<SourceConfig, String>(){
-
-        @Override
-        public String apply(SourceConfig input) {
-          return input.getName();
-        }});
+    final Map<String, SourceConfig> configs = plugins.values().stream()
+      .map(ManagedStoragePlugin::getConfig)
+      .collect(DremioCollectors.uniqueGrouping(SourceConfig::getName));
 
     // second, for each source, synchronize to latest state
     final Set<String> names = getSourceNameSet();

@@ -48,7 +48,9 @@ const MultiSelect = (props) => {
     options,
     placeholder,
     typeAhead,
-    value
+    value,
+    onChange,
+    loadNextRecords
   } = props;
 
   const getMenuClass = (anchor) => makeStyles(() => {
@@ -74,7 +76,7 @@ const MultiSelect = (props) => {
         noFilterText ||
         optionValue.toLowerCase().indexOf(filterText.toLowerCase()) !== -1
       );
-  }, [filterText]);
+  }, [filterText, options]);
 
   const visibleValues = useMemo(() => (
     limitTags && !showMenu ? value.slice(0, limitTags) : value
@@ -148,7 +150,9 @@ const MultiSelect = (props) => {
   };
 
   const handleTypeAhead = (e) => {
-    setFilterText(e.currentTarget.value);
+    const stringValue = e.currentTarget.value;
+    setFilterText(stringValue);
+    onChange && onChange(stringValue);
   };
 
   const handleInputKeyDown = (e) => {
@@ -175,13 +179,28 @@ const MultiSelect = (props) => {
     }
   };
 
+  const handleScroll = (event) => {
+    const {
+      target:{
+        scrollHeight,
+        scrollTop,
+        clientHeight
+      }
+    } = event;
+    const hasReachedBottom = scrollHeight - scrollTop === clientHeight;
+    if (hasReachedBottom) {
+      loadNextRecords && loadNextRecords(filterText);
+    }
+  };
+
   const handleClear = (e) => {
     updateValue([]);
+    onChange && onChange('');
     e.stopPropagation();
   };
 
   const getDisplayName = (val) => {
-    const { label: displayName = '' } = options.find(({ value: optionValue }) => val === optionValue) || {};
+    const { label: displayName = val } = options.find(({ value: optionValue }) => val === optionValue) || {};
     return displayName;
   };
 
@@ -291,6 +310,9 @@ const MultiSelect = (props) => {
           disablePadding: true,
           className: 'multiSelect__menuList'
         }}
+        PaperProps={{
+          onScroll: handleScroll
+        }}
       >
         {renderMenuItems()}
       </Menu>
@@ -317,7 +339,9 @@ MultiSelect.propTypes = {
   name: PropTypes.string,
   form: PropTypes.object,
   typeAhead: PropTypes.bool,
-  placeholder: PropTypes.string
+  placeholder: PropTypes.string,
+  loadNextRecords: PropTypes.func,
+  onChange: PropTypes.func
 };
 
 MultiSelect.defaultProps = {

@@ -168,7 +168,7 @@ public class DirListingInvocationPrel extends ScanPrelBase implements Prel, Prel
     final RelDataType manifestListRowType = getRowTypeFromProjectedColumns(manifestListReaderColumns, manifestListReaderSchema, getCluster());
 
     IcebergManifestListPrel manifestListPrel = new IcebergManifestListPrel(getCluster(), traitSet, icebergScanTableMetadata, manifestListReaderSchema, manifestListReaderColumns,
-      manifestListRowType);
+      manifestListRowType, null); //TODO: check icebergExpression can be null or not
     return manifestListPrel;
   }
 

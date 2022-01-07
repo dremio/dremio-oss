@@ -168,6 +168,10 @@ public class ElasticBaseTestQuery extends PlanTestBase {
 
   @Before
   public void setupElastic() throws IOException, InterruptedException {
+    setupElasticHelper(false);
+  }
+
+  public void setupElasticHelper(boolean forceDoublePrecision) throws IOException, InterruptedException {
     ScriptsEnabled scriptEnabledAnnotation = this.getClass().getAnnotation(ScriptsEnabled.class);
     boolean scriptsEnabled = true;
     if (scriptEnabledAnnotation != null) {
@@ -198,14 +202,14 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     }
 
     AllowPushdownNormalizedOrAnalyzedFields pushdownAnalyzed =
-        this.getClass().getAnnotation(AllowPushdownNormalizedOrAnalyzedFields.class);
+      this.getClass().getAnnotation(AllowPushdownNormalizedOrAnalyzedFields.class);
     boolean allowPushdownNormalizedOrAnalyzedFields = false;
     if (pushdownAnalyzed != null) {
       allowPushdownNormalizedOrAnalyzedFields = pushdownAnalyzed.enabled();
     }
 
     getSabotContext().getOptionManager().setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.ELASTIC_ACTION_RETRIES, 3));
-    elastic = new ElasticsearchCluster(scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled, getSabotContext().getOptionManager().getOption(ELASTIC_ACTION_RETRIES_VALIDATOR));
+    elastic = new ElasticsearchCluster(scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled, getSabotContext().getOptionManager().getOption(ELASTIC_ACTION_RETRIES_VALIDATOR), forceDoublePrecision);
     SourceConfig sc = new SourceConfig();
     sc.setName("elasticsearch");
     sc.setConnectionConf(elastic.config(allowPushdownNormalizedOrAnalyzedFields));
@@ -222,6 +226,11 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     service.deleteSource("elasticsearch");
     if (elastic != null) {
       elastic.wipe();
+      try {
+        elastic.close();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 

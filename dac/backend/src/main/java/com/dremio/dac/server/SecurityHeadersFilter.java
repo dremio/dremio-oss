@@ -18,6 +18,8 @@ package com.dremio.dac.server;
 import static com.dremio.dac.server.UIOptions.CSP_HEADER_VALUE;
 
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
@@ -56,7 +58,8 @@ public class SecurityHeadersFilter implements Filter {
     response.setHeader("x-content-type-options", "nosniff");
     response.setHeader("x-frame-options", "SAMEORIGIN");
     response.setHeader("x-xss-protection", "1; mode=block");
-    response.setHeader("Content-Security-Policy", System.getProperty("dremio.ui.csp-header", cspCache));
+    response.setHeader("Content-Security-Policy", System.getProperty("dremio.ui.csp-header", cspCache)
+      + URLDecoder.decode(System.getProperty("dremio.ui.csp-header.opt-directives", ""), StandardCharsets.UTF_8.name()));
 
     if (servletRequest.isSecure()) {
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security

@@ -157,7 +157,7 @@ final class Environment implements Closeable{
     final StaticArtifactStore artifactStore = StaticArtifactStore.forCommand(command);
     resources.add(artifactStore);
     return RuntimeConfig.builder()
-        .processOutput(ProcessOutput.getDefaultInstanceSilent())
+        .processOutput(ProcessOutput.silent())
         .artifactStore(artifactStore)
         .isDaemonProcess(daemonProcess)
         .build();

@@ -239,10 +239,6 @@ public class JSONRecordReader extends AbstractRecordReader {
         }
       }
 
-      if (!context.getOptions().getOption(ExecConstants.MIXED_TYPES_DISABLED)) {
-        jsonReader.ensureAtLeastOneField(writer);
-      }
-
       writer.setValueCount(recordCount);
 //      p.stop();
 //      System.out.println(String.format("Wrote %d records in %dms.", recordCount, p.elapsed(TimeUnit.MILLISECONDS)));

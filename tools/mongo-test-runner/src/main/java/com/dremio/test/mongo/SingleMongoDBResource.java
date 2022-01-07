@@ -51,7 +51,7 @@ class SingleMongoDBResource extends AbstractMongoDBResource {
         Future<MongodProcess> startProcess = executor.submit(() -> {
           return executable.start();
         });
-        process = startProcess.get(60, TimeUnit.SECONDS);
+        process = startProcess.get(120, TimeUnit.SECONDS);
         setPort(config.net().getPort());
         executor.shutdown();
         super.before();

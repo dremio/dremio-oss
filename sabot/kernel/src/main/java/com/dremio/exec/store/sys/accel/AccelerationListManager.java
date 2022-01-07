@@ -120,6 +120,9 @@ public interface AccelerationListManager extends Service {
         if (measures != null) {
           protoReflectionInfo.setMeasures(measures);
         }
+
+        protoReflectionInfo.setArrowCache(arrow_cache);
+
       return protoReflectionInfo.build();
     }
 

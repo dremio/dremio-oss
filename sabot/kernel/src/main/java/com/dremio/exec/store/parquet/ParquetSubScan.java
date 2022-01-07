@@ -163,6 +163,7 @@ public class ParquetSubScan extends SubScanWithProjection {
       columnsToBoost,
       this.getPartitionColumns(),
       this.getGlobalDictionaryEncodedColumns(),
-      this.getExtendedProperty());
+      this.getExtendedProperty(),
+      false);
   }
 }

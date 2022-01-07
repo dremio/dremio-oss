@@ -118,7 +118,13 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   @Override
   protected void registerMaterializations() {
-    final SubstitutionStream result = substitutionProvider.findSubstitutions(getOriginalRoot());
+    SubstitutionStream result;
+    try {
+      result = substitutionProvider.findSubstitutions(getOriginalRoot());
+    } catch (RuntimeException ex) {
+      logger.debug(ex.getMessage());
+      return;
+    }
     Pointer<Integer> count = new Pointer<>(0);
     try {
       result.stream().forEach(substitution -> {

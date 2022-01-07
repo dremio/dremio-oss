@@ -22,6 +22,7 @@ import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ClusterElectionManager;
 import com.dremio.service.coordinator.ClusterServiceSetManager;
 import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
@@ -31,7 +32,7 @@ import com.google.common.collect.Maps;
 /**
  * ZK implementation for ClusterServiceSetManager
  */
-public class ZKClusterServiceSetManager implements ClusterServiceSetManager {
+public class ZKClusterServiceSetManager implements ClusterServiceSetManager, ClusterElectionManager {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZKClusterServiceSetManager.class);
   private final ConcurrentMap<String, ZKServiceSet> serviceSets = Maps.newConcurrentMap();
 

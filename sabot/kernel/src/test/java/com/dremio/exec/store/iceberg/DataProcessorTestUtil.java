@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
@@ -39,6 +41,7 @@ import org.apache.iceberg.PartitionSpec;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
@@ -47,11 +50,18 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.service.namespace.file.proto.FileConfig;
 
+import io.protostuff.ByteString;
+
 public class DataProcessorTestUtil {
 
   static TableFunctionContext getTableFunctionContext(DataProcessorType datafileProcessorType) throws Exception {
-    TableFunctionContext functionContext = mock(TableFunctionContext.class);
+    SplitGenManifestScanTableFunctionContext functionContext = mock(SplitGenManifestScanTableFunctionContext.class);
+
     BatchSchema batchSchema = getBatchSchema(datafileProcessorType);
+    Map map = new HashMap();
+    map.put(0, PartitionSpec.unpartitioned());
+    ByteString mapByteString = ByteString.copyFrom(IcebergSerDe.serializePartitionSpecMap(map));
+    when(functionContext.getPartitionSpecMap()).thenReturn(mapByteString);
     BatchSchema spyBatchSchema = spy(batchSchema);
     when(functionContext.getFullSchema()).thenReturn(spyBatchSchema);
     when(functionContext.getColumns()).thenReturn(Arrays.asList(SchemaPath.getSimplePath(SPLIT_INFORMATION),

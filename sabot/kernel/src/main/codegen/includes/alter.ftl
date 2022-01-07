@@ -33,6 +33,7 @@
     SqlLiteral fileRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
     SqlLiteral allPartitionsRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
     SqlLiteral partitionRefresh = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral enableSchemaLearning = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
     SqlNodeList filesList = SqlNodeList.EMPTY;
     SqlNodeList partitionList = SqlNodeList.EMPTY;
 }
@@ -126,6 +127,8 @@
               allPartitionsRefresh, fileRefresh, partitionRefresh, filesList, partitionList); }
           |
           <ENABLE> (
+            <SCHEMA> <LEARNING> { return new SqlAlterTableToggleSchemaLearning(pos, tblName, SqlLiteral.createBoolean(true, SqlParserPos.ZERO)); }
+            |
             <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(true, pos));}
             |
             (
@@ -142,6 +145,8 @@
            )
           |
           <DISABLE> (
+            <SCHEMA> <LEARNING> { return new SqlAlterTableToggleSchemaLearning(pos, tblName, SqlLiteral.createBoolean(false, SqlParserPos.ZERO)); }
+            |
             <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(false, pos));}
             |
             (
@@ -531,16 +536,10 @@ SqlColumnDeclaration TypedElement() :
 {
     id = SimpleIdentifier()
     type = DataType()
-    (
-        <NULL> { nullable = true; }
-        |
-        <NOT> <NULL> { nullable = false; }
-        |
-        { nullable = true; }
-    )
+    nullable = NullableOptDefaultTrue()
     {
         return new SqlColumnDeclaration(s.add(id).end(this), id,
-                type.withNullable(nullable), null);
+                new SqlComplexDataTypeSpec(type.withNullable(nullable)), null);
     }
 }
 

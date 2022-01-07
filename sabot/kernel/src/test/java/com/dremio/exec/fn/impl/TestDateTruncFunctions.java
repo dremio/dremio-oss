@@ -40,7 +40,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('DECADE', time '2:30:21.5') as \"decade\", " +
         "date_trunc('CENTURY', time '2:30:21.5') as \"century\", " +
         "date_trunc('MILLENNIUM', time '2:30:21.5') as \"millennium\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -76,7 +76,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('DECADE', date '2011-2-3') as \"decade1\", " +
         "date_trunc('DECADE', date '2072-2-3') as \"decade2\", " +
         "date_trunc('DECADE', date '1978-2-3') as \"decade3\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -109,7 +109,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('CENTURY', date '1901-11-3') as c3, " +
         "date_trunc('CENTURY', date '900-2-3') as c4, " +
         "date_trunc('CENTURY', date '0001-1-3') as c5 " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -134,7 +134,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('MILLENNIUM', date '1983-05-18') as \"m3\", " +
         "date_trunc('MILLENNIUM', date '990-11-3') as \"m4\", " +
         "date_trunc('MILLENNIUM', date '0001-11-3') as \"m5\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -165,7 +165,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('DECADE', timestamp '2011-2-3 10:11:12.100') as \"decade1\", " +
         "date_trunc('DECADE', timestamp '2072-2-3 10:11:12.100') as \"decade2\", " +
         "date_trunc('DECADE', timestamp '1978-2-3 10:11:12.100') as \"decade3\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -198,7 +198,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('CENTURY', timestamp '1901-11-3 10:11:12.100') as c3, " +
         "date_trunc('CENTURY', timestamp '900-2-3 10:11:12.100') as c4, " +
         "date_trunc('CENTURY', timestamp '0001-1-3 10:11:12.100') as c5 " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -223,7 +223,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('MILLENNIUM', timestamp '1983-05-18 10:11:12.100') as \"m3\", " +
         "date_trunc('MILLENNIUM', timestamp '990-11-3 10:11:12.100') as \"m4\", " +
         "date_trunc('MILLENNIUM', timestamp '0001-11-3 10:11:12.100') as \"m5\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -251,7 +251,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('DECADE', interval '217-7' year(3) to month) as \"decade\", " +
         "date_trunc('CENTURY', interval '217-7' year(3) to month) as \"century\", " +
         "date_trunc('MILLENNIUM', interval '217-7' year(3) to month) as \"millennium\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)
@@ -284,7 +284,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         "date_trunc('DECADE', interval '200 10:20:30.123' day(3) to second) as \"decade\", " +
         "date_trunc('CENTURY', interval '200 10:20:30.123' day(3) to second) as \"century\", " +
         "date_trunc('MILLENNIUM', interval '200 10:20:30.123' day(3) to second) as \"millennium\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     testBuilder()
         .sqlQuery(query)

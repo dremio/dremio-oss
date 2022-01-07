@@ -70,6 +70,9 @@ public class JobDataFragmentImpl implements JobDataFragment {
   public Object extractValue(String column, int index){
     Pair<RecordBatchData, Integer> dataBatch = find(index);
     Integer columnIndex = nameToColumnIndex.get(column);
+    if (columnIndex == null) {
+      throw new IllegalArgumentException(String.format("Invalid column name %s", column));
+    }
     return DremioGetObject.getObject(dataBatch.getKey().getVectors().get(columnIndex), dataBatch.getValue());
   }
 

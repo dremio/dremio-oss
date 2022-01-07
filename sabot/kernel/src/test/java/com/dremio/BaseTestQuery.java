@@ -750,6 +750,14 @@ public class BaseTestQuery extends ExecTest {
     };
   }
 
+  protected static AutoCloseable enableUseSyntax() {
+    setSystemOption(ExecConstants.ENABLE_USE_VERSION_SYNTAX, "true");
+    return () -> {
+      setSystemOption(ExecConstants.ENABLE_USE_VERSION_SYNTAX,
+        ExecConstants.ENABLE_USE_VERSION_SYNTAX.getDefault().getBoolVal().toString());
+    };
+  }
+
   protected static AutoCloseable disablePartitionPruning() {
     setSystemOption(PlannerSettings.ENABLE_PARTITION_PRUNING, "false");
     return () ->
@@ -768,15 +776,12 @@ public class BaseTestQuery extends ExecTest {
   protected static AutoCloseable enableUnlimitedSplitsSupportFlags() {
     setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
-    setSystemOption(ExecConstants.MIXED_TYPES_DISABLED, "true");
 
     return () -> {
       setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT,
         PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
-      setSystemOption(ExecConstants.MIXED_TYPES_DISABLED,
-              ExecConstants.MIXED_TYPES_DISABLED.getDefault().getBoolVal().toString());
     };
   }
 

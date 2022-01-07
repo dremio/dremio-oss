@@ -37,7 +37,6 @@ import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.sql.ExtendedToRelContext;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -150,7 +149,6 @@ public class RefreshHandler implements SqlToPlanHandler {
           materialization,
           service.getExcludedReflectionsProvider(),
           namespace,
-          new ExtendedToRelContext(config.getConverter()),
           config.getContext().getConfig(),
           reflectionSettings,
           materializationStore,
@@ -277,7 +275,6 @@ public class RefreshHandler implements SqlToPlanHandler {
       Materialization materialization,
       ExcludedReflectionsProvider exclusionsProvider,
       NamespaceService namespace,
-      ExtendedToRelContext context,
       SabotConfig config,
       ReflectionSettings reflectionSettings,
       MaterializationStore materializationStore,
@@ -296,13 +293,13 @@ public class RefreshHandler implements SqlToPlanHandler {
       .addAll(exclusionsProvider.getExcludedReflections(goal.getId().getId()))
       .add(goal.getId().getId())
       .build();
-    context.getSession().getSubstitutionSettings().setExclusions(exclusions);
+    sqlHandlerConfig.getConverter().getSession().getSubstitutionSettings().setExclusions(exclusions);
 
     RefreshDecision decision = planGenerator.getRefreshDecision();
     refreshDecisions[0] = decision;
 
     // save the decision for later.
-    context.recordExtraInfo(DECISION_NAME, ABSTRACT_SERIALIZER.serialize(decision));
+    sqlHandlerConfig.getConverter().getObserver().recordExtraInfo(DECISION_NAME, ABSTRACT_SERIALIZER.serialize(decision));
 
     logger.trace("Refresh decision: {}", decision);
     if(logger.isTraceEnabled()) {

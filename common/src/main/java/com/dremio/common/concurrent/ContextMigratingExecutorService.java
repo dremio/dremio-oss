@@ -25,13 +25,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
+import com.dremio.common.tracing.TracingUtils;
 import com.dremio.context.RequestContext;
 import com.google.common.base.Preconditions;
 
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
-import com.dremio.common.tracing.TracingUtils;
 
 /**
  * Responsible for ensuring :

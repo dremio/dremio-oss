@@ -20,6 +20,7 @@ import java.util.Arrays;
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.exec.ExecConstants;
@@ -80,6 +81,11 @@ public class TestExcessiveSplits extends BaseTestOperator {
 
   private static final String EXPR_DECIMAL = "case when equal( c_name,  '1+') then castDECIMAL(1l,2l, 0l) else " +
     "castDECIMAL('1', 2l, 0l) end";
+
+  @Before
+  public void cleanExpToExpSplitsCache() {
+    testContext.invalidateExpToExpSplitsCache();
+  }
   /*
    * Gandiva function bool equal(str, str) is hidden. This leads to too many splits
    * and the expression is evaluated in Java completely

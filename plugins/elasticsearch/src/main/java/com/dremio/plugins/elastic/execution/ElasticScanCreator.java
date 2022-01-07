@@ -60,6 +60,7 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
       final boolean useEdgeProject = context.getOptions().getOption(ExecConstants.ELASTIC_RULES_EDGE_PROJECT);
       final ImmutableMap<SchemaPath, FieldAnnotation> annotations = FieldAnnotation.getAnnotationMap(tableAttributes.getAnnotationList());
       final int maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+      final boolean forceDoublePrecision = plugin.getConfig().isForceDoublePrecision();
       for (SplitAndPartitionInfo split : subScan.getSplits()) {
 
         final ElasticConnection connection = plugin.getConnection(FluentIterable.from(split.getDatasetSplitInfo().getAffinitiesList()).transform(new Function<Affinity, String>(){
@@ -78,7 +79,7 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
           split,
           connection,
           subScan.getColumns(),
-          FieldReadDefinition.getTree(subScan.getFullSchema(), annotations, workingBuffer, maxCellSize, new ElasticVersionBehaviorProvider(connection.getESVersionInCluster())),
+          FieldReadDefinition.getTree(subScan.getFullSchema(), annotations, workingBuffer, maxCellSize, new ElasticVersionBehaviorProvider(connection.getESVersionInCluster()), forceDoublePrecision),
           plugin.getConfig()
         ));
       }

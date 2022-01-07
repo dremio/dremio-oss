@@ -25,6 +25,8 @@ import MenuItem from 'components/Menus/MenuItem';
 import Divider from '@material-ui/core/Divider';
 import { withLocation } from 'containers/dremioLocation';
 
+import './SelectedTextPopover.less';
+
 // todo: loc
 
 @Radium
@@ -179,6 +181,9 @@ export class SelectedTextPopoverView extends Component {
         listRightAligned
         onClose={this.hideDrop}
         useLayerForClickAway
+        classes={{
+          root: 'selectedTextPopover__root'
+        }}
       >
         {this.renderItems()}
       </Popover>

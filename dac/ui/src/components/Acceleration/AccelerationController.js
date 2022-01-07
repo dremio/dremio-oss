@@ -33,6 +33,7 @@ export class AccelerationController extends Component {
     dataset: PropTypes.instanceOf(Immutable.Map),
     reflections: PropTypes.instanceOf(Immutable.Map),
     canAlter: PropTypes.any,
+    canSubmit: PropTypes.bool,
 
     getReflections: PropTypes.func.isRequired,
     getDataset: PropTypes.func.isRequired,
@@ -45,6 +46,7 @@ export class AccelerationController extends Component {
   };
 
   state = {
+    canSubmit: true,
     getComplete: false // need to track ourselves because viewState initial state looks the same as loaded-success
   };
 
@@ -77,7 +79,15 @@ export class AccelerationController extends Component {
   };
 
   renderContent() {
-    const { viewState, reflections, dataset, onCancel, isModal = true, canAlter } = this.props;
+    const {
+      viewState,
+      reflections,
+      dataset,
+      onCancel,
+      isModal = true,
+      canAlter,
+      canSubmit
+    } = this.props;
 
     if (!this.state.getComplete || viewState.get('isFailed')) {
       return null; // AccelerationForm expects to only be created after data is ready
@@ -87,6 +97,7 @@ export class AccelerationController extends Component {
 
     return <AccelerationForm
       canAlter={canAlter}
+      canSubmit={canSubmit}
       isModal={isModal}
       updateFormDirtyState={this.props.updateFormDirtyState}
       onCancel={onCancel}

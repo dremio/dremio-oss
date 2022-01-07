@@ -17,55 +17,37 @@ package com.dremio.exec.expr;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.TransferPair;
 
-import com.dremio.common.expression.BooleanOperator;
-import com.dremio.common.expression.CaseExpression;
-import com.dremio.common.expression.FunctionHolderExpression;
-import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
-import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 /**
  * Class captures an expression that is split
  */
-public class ExpressionSplit implements Closeable {
+public class ExpressionSplit extends CachableExpressionSplit implements Closeable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionSplit.class);
-
-  // The split. This could be an intermediate root-node or the expression root
-  private NamedExpression namedExpression;
-
-  // Set of splits on which this split depends
-  private final Set<String> dependsOnSplits = Sets.newHashSet();
-
-  // true, if the output of this split, is the output of the original expression
-  private final boolean isOriginalExpression;
-
   // This vector captures the output when the split is executed
   // The data from this value vector has to be transferred to vvOut and to all
   // readers of the output of this split
   private ValueVector outputOfSplit = null;
 
-  // ValueVectorReadExpression representing the output of this split
-  private final CodeGenContext readExpressionContext;
+  // The split. This could be an intermediate root-node or the expression root
+  private NamedExpression namedExpression;
+
   // The value vector representing the ValueVectorRead representing this split
   private final ValueVector vvOut;
   // Transfers output of this split. This will only contain vvOut (if non-null)
   private final List<TransferPair> transferPairList = Lists.newArrayList();
-
-  // number of readers of the output from this split
-  private int totalReadersOfOutput = 0;
 
   // The number of readers that have read the intermediate output from this split
   // When this matches totalReadersOfOutput, the ValueVector holding the output (vvOut)
@@ -75,59 +57,72 @@ public class ExpressionSplit implements Closeable {
   // All pre-req splits whose output is read by this split
   // On evaluting this split, all pre-req splits are informed that their output has
   // been read
-  private final List<ExpressionSplit> transfersIn = Lists.newArrayList();
+  private List<ExpressionSplit> transfersIn = Lists.newArrayList();
 
   // The iteration in which this split is executed. For testing purposes only
   private int execIteration;
 
-  // The number of extra if expressions created due to this split
-  private int numExtraIfExprs;
+  private Set<String> dependsOnSplits = new HashSet<>();
 
-  // Should the llvm build be optimised if the split evaluated in gandiva
-  private boolean optimize;
-
-  final private TypedFieldId typedFieldId;
-
-  public SupportedEngines.Engine getExecutionEngine() {
-    return executionEngine;
+  public TypedFieldId getTypedFieldId() {
+    return typedFieldId;
   }
 
-  private final SupportedEngines.Engine executionEngine;
+  private final TypedFieldId typedFieldId;
+
+  // ValueVectorReadExpression representing the output of this split
+  private final CodeGenContext readExpressionContext;
+
+  ExpressionSplit(CachableExpressionSplit cachableExpressionSplit, ValueVector vvOut, NamedExpression namedExpression, TypedFieldId fieldId, CodeGenContext readExprContext) {
+    super(cachableExpressionSplit);
+    LogicalExpression expression = CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
+    this.vvOut = vvOut;
+    this.namedExpression = new NamedExpression(expression, namedExpression.getRef());
+    this.typedFieldId = fieldId;
+    this.readExpressionContext = readExprContext;
+  }
+
 
   ExpressionSplit(NamedExpression namedExpression, SplitDependencyTracker helper, TypedFieldId fieldId,
                   CodeGenContext readExprContext, ValueVector vvOut, boolean isOriginalExpression, SupportedEngines.Engine
-                  executionEngine, int numExtraIfExprs, OperatorContext operatorContext) {
+                    executionEngine, int numExtraIfExprs, OperatorContext operatorContext) {
+    super(namedExpression, isOriginalExpression, operatorContext, executionEngine, helper, numExtraIfExprs, fieldId);
     LogicalExpression expression = CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
-    this.namedExpression = new NamedExpression(expression, namedExpression.getRef());
-    this.executionEngine = executionEngine;
-    this.typedFieldId = fieldId;
-    this.isOriginalExpression = isOriginalExpression;
-    this.readExpressionContext = readExprContext;
     this.vvOut = vvOut;
-
-    this.dependsOnSplits.addAll(helper.getNamesOfDependencies());
     this.transfersIn.addAll(helper.getTransfersIn());
-    this.numExtraIfExprs = numExtraIfExprs;
-    this.optimize = operatorContext.getOptions().getOption(ExecConstants.GANDIVA_OPTIMIZE)
-      && (executionEngine.equals(SupportedEngines.Engine.GANDIVA) && expression.accept(new ExpressionWorkEstimator(), null) < operatorContext.getOptions()
-      .getOption(ExecConstants.EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD));
+    this.namedExpression = new NamedExpression(expression, namedExpression.getRef());
+    this.typedFieldId = fieldId;
+    this.dependsOnSplits.addAll(helper.getNamesOfDependencies());
+    this.readExpressionContext = readExprContext;
+  }
+
+  public Set<String> getDependsOnSplits() {
+    return dependsOnSplits;
+  }
+
+  @Override
+  public String getOutputName() { return namedExpression.getRef().getAsUnescapedPath(); }
+
+
+  public void setDependsOnSplits(Set<String> dependsOnSplits) {
+    this.dependsOnSplits = dependsOnSplits;
   }
 
   public String toString() {
     StringBuilder dependsOn = new StringBuilder();
-    for (String str : dependsOnSplits) {
+    for (String str : getDependsOnSplits()) {
       dependsOn.append(str).append(" ");
     }
 
     String fieldIdStr = "null";
-    if (typedFieldId != null) {
+    if ( typedFieldId != null) {
       fieldIdStr = typedFieldId.toString();
     }
 
     StringBuilder sb = new StringBuilder();
     sb.append("name: ").append(namedExpression.getRef())
       .append(", fieldId: ").append(fieldIdStr)
-      .append(", readers: ").append(totalReadersOfOutput)
+      .append(", readers: ").append(getTotalReadersOfOutput())
       .append(", dependencies: ").append(dependsOn)
       .append(", expr: ").append(namedExpression.getExpr());
 
@@ -135,18 +130,11 @@ public class ExpressionSplit implements Closeable {
   }
 
   // All used by test code to verify correctness
-  public NamedExpression getNamedExpression() { return namedExpression; }
-  public String getOutputName() { return namedExpression.getRef().getAsUnescapedPath(); }
   public int getExecIteration() { return execIteration; }
-  public int getTotalReadersOfOutput() { return totalReadersOfOutput; }
   public List<String> getDependencies() {
-    return Lists.newArrayList(this.dependsOnSplits);
-  }
-  int getOverheadDueToExtraIfs() {
-    return numExtraIfExprs;
+    return Lists.newArrayList(getDependsOnSplits());
   }
 
-  CodeGenContext getReadExpressionContext() { return readExpressionContext; }
   void setOutputOfSplit(ValueVector valueVector) {
     this.outputOfSplit = valueVector;
     if (vvOut != null) {
@@ -179,7 +167,7 @@ public class ExpressionSplit implements Closeable {
 
   // returns a double that quantifies amount of work done by this split
   double getWork() {
-    LogicalExpression expr = getNamedExpression().getExpr();
+    LogicalExpression expr = namedExpression.getExpr();
     ExpressionWorkEstimator workEstimator = new ExpressionWorkEstimator();
     double result = expr.accept(workEstimator, null);
 
@@ -192,9 +180,9 @@ public class ExpressionSplit implements Closeable {
   }
 
   // mark this split's output as being read
-  private void markAsRead() {
+   void markAsRead() {
     this.numReadersOfOutput++;
-    if (this.totalReadersOfOutput == this.numReadersOfOutput) {
+    if (getTotalReadersOfOutput()== this.numReadersOfOutput) {
       if (logger.isTraceEnabled()) {
         logger.trace("Releasing output buffer for {}, fieldid {}", getOutputName(),
           typedFieldId != null ? typedFieldId.toString() : "null");
@@ -203,77 +191,32 @@ public class ExpressionSplit implements Closeable {
     }
   }
 
-  // increment the readers of this split
-  void incrementReaders() {
-    this.totalReadersOfOutput++;
-  }
-
-  boolean isOriginalExpression() { return isOriginalExpression; }
-
   void setExecIteration(int iteration) {
     this.execIteration = iteration;
   }
 
-  public boolean getOptimize() {
-    return optimize;
+  public List<ExpressionSplit> getTransfersIn() {
+    return transfersIn;
+  }
+
+  public void setTransfersIn(List<ExpressionSplit> transfersIn) {
+    this.transfersIn = transfersIn;
+  }
+
+  public CodeGenContext getReadExpressionContext() {
+    return readExpressionContext;
+  }
+
+  public NamedExpression getNamedExpression() {
+    return namedExpression;
+  }
+
+  public void setNamedExpression(NamedExpression namedExpression) {
+    this.namedExpression = namedExpression;
   }
 
   @Override
   public void close() throws IOException {
     transfersIn.clear();
-  }
-
-  // Estimates the cost of evaluating an expression
-  // Can enhance this later to provide additional weight for specific Gandiva/Java functions
-  // TODO: Improve the definition of work
-  // For now, functions and if-expr contribute 1 to the work
-  class ExpressionWorkEstimator extends AbstractExprVisitor<Double, Void, RuntimeException> {
-    @Override
-    public Double visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
-      double result = 1.0;
-
-      for(LogicalExpression arg : holder.args) {
-        result += arg.accept(this, null);
-      }
-
-      return result;
-    }
-
-    @Override
-    public Double visitIfExpression(IfExpression ifExpr, Void value) throws RuntimeException {
-      double result = 1.0;
-
-      result += ifExpr.ifCondition.condition.accept(this, null);
-      result += ifExpr.ifCondition.expression.accept(this, null);
-      result += ifExpr.elseExpression.accept(this, null);
-
-      return result;
-    }
-
-    @Override
-    public Double visitBooleanOperator(BooleanOperator op, Void value) throws RuntimeException {
-      double result = op.args.size() - 1;
-
-      for(LogicalExpression arg : op.args) {
-        result += arg.accept(this, null);
-      }
-
-      return result;
-    }
-
-    @Override
-    public Double visitUnknown(LogicalExpression e, Void value) throws RuntimeException {
-      return 0.0;
-    }
-
-    @Override
-    public Double visitCaseExpression(CaseExpression caseExpression, Void value) throws RuntimeException {
-      double result = 1.0;
-
-      for (LogicalExpression e : caseExpression) {
-        result += e.accept(this, value);
-      }
-      return result;
-    }
   }
 }

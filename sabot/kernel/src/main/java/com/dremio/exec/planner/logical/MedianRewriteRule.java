@@ -31,12 +31,12 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.sql.DremioSqlOperatorTable;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -72,13 +72,13 @@ public class MedianRewriteRule extends RelOptRule {
     final Aggregate aggregate = relOptRuleCall.rel(0);
     final List<AggregateCall> aggCallList = aggregate.getAggCallList();
     for (AggregateCall aggregateCall : aggCallList) {
-      final SqlKind kind = aggregateCall.getAggregation().getKind();
       //Median/Percentil rewrite rule doesn't handle the filter at all currently.
       //So when it fires, it does an incorrect transformation.
       //Each rule needs to correctly transform, regardless of whatever other rules might be out there.
       //As long as the filter rewrite rule is in the same phase (or earlier) than the percentile rewrite,
       //it should be fine.
-      if((kind == SqlKind.MEDIAN) && !aggregateCall.hasFilter()) {
+      if(aggregateCall.getAggregation() == DremioSqlOperatorTable.MEDIAN
+          && !aggregateCall.hasFilter()) {
         return true;
       }
     }
@@ -131,12 +131,7 @@ public class MedianRewriteRule extends RelOptRule {
       AggregateCall aggregateCall = aggregateCalls.get(i);
       AggregateCall rewrittenAggregateCall;
 
-      final SqlKind kind = aggregateCall.getAggregation().getKind();
-
-      if(kind != SqlKind.MEDIAN) {
-        rewrittenAggregateCall = aggregateCall;
-      }
-      else {
+      if(aggregateCall.getAggregation() == DremioSqlOperatorTable.MEDIAN) {
         // Constructing the "WITHIN GROUP (ORDER BY median_arg)"
         int medianArgumentIndex = aggregateCall.getArgList().get(0);
         final RelCollation withinGroupRelCollation = RelCollations.of(new RelFieldCollation(medianArgumentIndex));
@@ -154,6 +149,8 @@ public class MedianRewriteRule extends RelOptRule {
           originalInput,
           /*type*/null,
           aggregateCall.name);
+      } else {
+        rewrittenAggregateCall = aggregateCall;
       }
 
       rewrittenAggregateCalls.add(rewrittenAggregateCall);

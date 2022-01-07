@@ -60,7 +60,7 @@ import com.google.common.annotations.VisibleForTesting;
 public class SystemStoragePluginInitializer implements Initializer<Void> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemStoragePluginInitializer.class);
 
-  private static final String LOCAL_TASK_LEADER_NAME = "plugininit";
+  private static final String LOCAL_TASK_LEADER_NAME = "plugininitv2";
   private static final int MAX_CACHE_SPACE_PERCENT = 100;
 
   @Override
@@ -78,6 +78,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
       // masterless mode
       TaskLeaderElection taskLeaderElection = new TaskLeaderElection(
         LOCAL_TASK_LEADER_NAME,
+        DirectProvider.wrap(sabotContext.getClusterCoordinator()),
         DirectProvider.wrap(sabotContext.getClusterCoordinator()),
         DirectProvider.wrap(sabotContext.getEndpoint()));
 

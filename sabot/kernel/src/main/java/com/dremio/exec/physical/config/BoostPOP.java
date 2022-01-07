@@ -45,19 +45,21 @@ public class BoostPOP extends SubScanWithProjection {
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final ByteString extendedProperty;
   private final List<SplitAndPartitionInfo> splits;
+  private final boolean unlimitedSplitsBoost;
 
   @JsonCreator
   public BoostPOP(
-      @JsonProperty("props") OpProps props,
-      @JsonProperty("formatSettings") FileConfig formatSettings,
-      @JsonProperty("splits") List<SplitAndPartitionInfo> splits,
-      @JsonProperty("schema") BatchSchema fullSchema,
-      @JsonProperty("referencedTables") List<List<String>> tablePath,
-      @JsonProperty("pluginId") StoragePluginId pluginId,
-      @JsonProperty("columns") List<SchemaPath> columns,
-      @JsonProperty("partitionColumns") List<String> partitionColumns,
-      @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-      @JsonProperty("extendedProperty") ByteString extendedProperty) {
+    @JsonProperty("props") OpProps props,
+    @JsonProperty("formatSettings") FileConfig formatSettings,
+    @JsonProperty("splits") List<SplitAndPartitionInfo> splits,
+    @JsonProperty("schema") BatchSchema fullSchema,
+    @JsonProperty("referencedTables") List<List<String>> tablePath,
+    @JsonProperty("pluginId") StoragePluginId pluginId,
+    @JsonProperty("columns") List<SchemaPath> columns,
+    @JsonProperty("partitionColumns") List<String> partitionColumns,
+    @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
+    @JsonProperty("extendedProperty") ByteString extendedProperty,
+    @JsonProperty("unlimitedSplitsBoost") boolean unlimitedSplitsBoost) {
     super(props, fullSchema, tablePath, columns);
     this.formatSettings = formatSettings;
     this.splits = splits;
@@ -66,6 +68,7 @@ public class BoostPOP extends SubScanWithProjection {
     this.partitionColumns = partitionColumns;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.extendedProperty = extendedProperty;
+    this.unlimitedSplitsBoost = unlimitedSplitsBoost;
   }
 
   @Override
@@ -93,9 +96,12 @@ public class BoostPOP extends SubScanWithProjection {
     return extendedProperty;
   }
 
-
   public StoragePluginId getPluginId() {
     return pluginId;
+  }
+
+  public boolean isUnlimitedSplitsBoost() {
+    return unlimitedSplitsBoost;
   }
 
   public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {
@@ -135,8 +141,8 @@ public class BoostPOP extends SubScanWithProjection {
       Collections.emptyList(),
       partitionColumns,
       globalDictionaryEncodedColumns,
-      extendedProperty
-    );
+      extendedProperty,
+      unlimitedSplitsBoost);
   }
 
 }

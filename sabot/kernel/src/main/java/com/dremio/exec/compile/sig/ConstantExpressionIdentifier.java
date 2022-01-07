@@ -18,6 +18,7 @@ package com.dremio.exec.compile.sig;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,18 @@ public class ConstantExpressionIdentifier implements ExprVisitor<Boolean, Consta
       return extractor;
     }
   }
+
+  //returns a set of constants containing exps which are ValueExpressions only
+  public static Set<LogicalExpression> getConstantExpressions(LogicalExpression e) {
+    final Set<LogicalExpression> constantsSet = new HashSet<>();
+    if (e instanceof ValueExpressions.ConstantExpression) {
+      constantsSet.add(e);
+      return constantsSet;
+    }
+    ConstantValueIdentifier constantValueIdentifier = new ConstantValueIdentifier();
+    return e.accept(constantValueIdentifier, constantsSet);
+  }
+
 
   public static boolean isExpressionConstant(LogicalExpression e) {
     return e.accept(new ConstantExpressionIdentifier(), null);
@@ -277,4 +290,151 @@ public class ConstantExpressionIdentifier implements ExprVisitor<Boolean, Consta
       constantsPerType.compute(e.getCompleteType(), (k, v) -> v == null ? 1 : ++v);
     }
   }
+
+  static class ConstantValueIdentifier implements ExprVisitor<Set<LogicalExpression>, Set<LogicalExpression>, RuntimeException> {
+
+    private Set<LogicalExpression> checkChildren(LogicalExpression expression, Set<LogicalExpression> constants) {
+      for (LogicalExpression childExp : expression) {
+        childExp.accept(this, constants);
+      }
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitFunctionCall(FunctionCall call, Set<LogicalExpression> value) throws RuntimeException {
+      throw new UnsupportedOperationException("FunctionCall is not expected here. " +
+        "It should have been converted to FunctionHolderExpression in materialization");
+    }
+
+    @Override
+    public Set<LogicalExpression> visitFunctionHolderExpression(FunctionHolderExpression holder, Set<LogicalExpression> constants) throws RuntimeException {
+      return checkChildren(holder, constants);
+    }
+
+    @Override
+    public Set<LogicalExpression> visitIfExpression(IfExpression ifExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      return checkChildren(ifExpr, constants);
+    }
+
+    @Override
+    public Set<LogicalExpression> visitCaseExpression(CaseExpression caseExpression, Set<LogicalExpression> constants) throws RuntimeException {
+      return checkChildren(caseExpression, constants);
+    }
+
+    @Override
+    public Set<LogicalExpression> visitBooleanOperator(BooleanOperator call, Set<LogicalExpression> constants) throws RuntimeException {
+      return checkChildren(call, constants);
+    }
+
+
+    @Override
+    public Set<LogicalExpression> visitSchemaPath(SchemaPath path, Set<LogicalExpression> constants) throws RuntimeException {
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitIntConstant(ValueExpressions.IntExpression intExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(intExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitFloatConstant(ValueExpressions.FloatExpression fExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(fExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitLongConstant(LongExpression longExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(longExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitDateConstant(DateExpression dateExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(dateExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitTimeConstant(TimeExpression timeExpression, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(timeExpression);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitTimeStampConstant(TimeStampExpression tsExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(tsExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitIntervalYearConstant(IntervalYearExpression iyExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(iyExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitIntervalDayConstant(IntervalDayExpression idExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(idExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitDecimalConstant(DecimalExpression decExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(decExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitDoubleConstant(DoubleExpression dExpr, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(dExpr);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitBooleanConstant(BooleanExpression e, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(e);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitQuotedStringConstant(QuotedString e, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(e);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitNullConstant(TypedNullConstant e, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(e);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitNullExpression(NullExpression e, Set<LogicalExpression> constants) throws RuntimeException {
+      constants.add(e);
+      return constants;
+    }
+
+    @Override
+    public Set<LogicalExpression> visitUnknown(LogicalExpression e, Set<LogicalExpression> constants) throws RuntimeException {
+      return checkChildren(e, constants);
+    }
+
+    @Override
+    public Set<LogicalExpression> visitCastExpression(CastExpression e, Set<LogicalExpression> constants) throws RuntimeException {
+      return e.getInput().accept(this, constants);
+    }
+
+    @Override
+    public Set<LogicalExpression> visitConvertExpression(ConvertExpression e, Set<LogicalExpression> constants) throws RuntimeException {
+      return e.getInput().accept(this, constants);
+    }
+
+    @Override
+    public Set<LogicalExpression> visitInputReference(InputReference e, Set<LogicalExpression> constants) throws RuntimeException {
+      return e.getReference().accept(this, constants);
+    }
+  }
+
 }

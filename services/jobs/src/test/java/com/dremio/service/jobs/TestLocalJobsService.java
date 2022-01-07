@@ -32,6 +32,7 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.stubbing.Answer;
 
+import com.dremio.common.logging.StructuredLogger;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.store.JobResultsStoreConfig;
@@ -73,7 +74,7 @@ public class TestLocalJobsService {
   @Mock private SchedulerService schedulerService;
   @Mock private CommandPool commandPool;
   @Mock private JobTelemetryClient jobTelemetryClient;
-  @Mock private JobResultToLogEntryConverter jobResultToLogEntryConverter;
+  @Mock private StructuredLogger<Job> jobResultLogger;
   @Mock private ConduitProvider conduitProvider;
 
   @Rule
@@ -97,7 +98,7 @@ public class TestLocalJobsService {
       () -> schedulerService,
       () -> commandPool,
       () -> jobTelemetryClient,
-      jobResultToLogEntryConverter,
+      jobResultLogger,
       true,
       () -> conduitProvider
     );

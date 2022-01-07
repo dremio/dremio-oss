@@ -29,11 +29,11 @@ import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.VariableWidthVector;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-
 
 /**
  * A base accumulator that manages the basic concepts of expanding the array of
@@ -43,7 +43,6 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseVarBinaryAccumulator.class);
 
   private FieldVector input;
-  private final FieldVector output;
   private final FieldVector transferVector;
   protected FieldVector[] accumulators;
   private final AccumulatorBuilder.AccumulatorType type;
@@ -60,19 +59,13 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
 
   /**
    * @param input
-   * @param output
    * @param transferVector
    */
-  public BaseVarBinaryAccumulator(final FieldVector input, final FieldVector output,
-                               final FieldVector transferVector, final AccumulatorBuilder.AccumulatorType type,
-                               final int maxValuesPerBatch, final BufferAllocator computationVectorAllocator,
-                               int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent, BaseVariableWidthVector tempAccumulatorHolder) {
-    /* todo:
-     * explore removing output vector. it is probably redundant and we only need
-     * input and transfer vectors
-     */
+  public BaseVarBinaryAccumulator(final FieldVector input, final FieldVector transferVector,
+                                  final AccumulatorBuilder.AccumulatorType type, final int maxValuesPerBatch,
+                                  final BufferAllocator computationVectorAllocator, int varLenAccumulatorCapacity,
+                                  int maxVarWidthVecUsagePercent, BaseVariableWidthVector tempAccumulatorHolder) {
     this.input = input;
-    this.output = output;
     this.transferVector = transferVector;
     this.type = type;
     this.maxValuesPerBatch = maxValuesPerBatch;
@@ -83,12 +76,13 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     this.varLenAccumulatorCapacity = varLenAccumulatorCapacity;
     this.maxVarWidthVecUsagePercent = maxVarWidthVecUsagePercent;
     this.tempAccumulatorHolder = tempAccumulatorHolder;
-    // buffer sizes
+    Preconditions.checkArgument(tempAccumulatorHolder.getByteCapacity() >= varLenAccumulatorCapacity);
     this.validityBufferSize = MutableVarcharVector.getValidityBufferSizeFromCount(maxValuesPerBatch);
     this.dataBufferSize = MutableVarcharVector.getDataBufferSizeFromCount(maxValuesPerBatch, varLenAccumulatorCapacity);
   }
 
-  AccumulatorBuilder.AccumulatorType getType() {
+  @Override
+  public AccumulatorBuilder.AccumulatorType getType() {
     return type;
   }
 
@@ -132,19 +126,19 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     this.accumulators = new FieldVector[size];
   }
 
+  @Override
   public int getBatchCount() {
     return batches;
   }
 
-  public List<ArrowBuf> getBuffers(final int batchIndex, final int numRecordsInChunk) {
-    final MutableVarcharVector mv = (MutableVarcharVector) accumulators[batchIndex];
-    tempAccumulatorHolder.reset();
-    mv.copyToVarWidthVec(tempAccumulatorHolder, numRecordsInChunk);
-    return tempAccumulatorHolder.getFieldBuffers();
-  }
+  @Override
+  public List<ArrowBuf> getBuffers(final int batchIndex, final int recordsInBatch) {
+    final MutableVarcharVector mv = (MutableVarcharVector)accumulators[batchIndex];
 
-  public FieldVector getAccumulatorVector(final int batchIndex) {
-    return accumulators[batchIndex];
+    tempAccumulatorHolder.reset();
+    mv.copyToVarWidthVec(tempAccumulatorHolder, recordsInBatch, 0);
+
+    return tempAccumulatorHolder.getFieldBuffers();
   }
 
   @Override
@@ -297,29 +291,40 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
    * Take the accumulator vector (the vector that stores computed values)
    * for a particular batch (identified by batchIndex) and output its contents.
    * Output is done by copying the contents from accumulator vector to its
-   * counterpart in outgoing container. Copy is done after allocating new
-   * memory region in the outgoing container. Like other accumulators, we
-   * cannot transfer the contents.
+   * counterpart in outgoing container. Copy is done after allocating new memory
+   * region in the outgoing container. Unlike fixed length accumulators, we
+   * cannot transfer the contents as backing MutableVarcharVector does not
+   * have the data stored in the index order. Even if requested to output multiple
+   * batches, the process is same.
    *
    * We still want the memory associated with allocator of source vector because
    * of post-spill processing where this accumulator vector will still continue
    * to store the computed values as we start treating spilled batches as new
    * input into the operator. However we do this for a singe batch only as once
    * we are done outputting a partition, we anyway get rid of all but 1 batch.
-   *
-   * @param batchIndex batch to output
    */
   @Override
-  public void output(final int batchIndex, int numRecords) {
+  public void output(final int startBatchIndex, int[] recordsInBatches) {
+    int numRecords = 0;
+    int usedByteCapacity = 0;
+
+    for (int i = 0; i < recordsInBatches.length; i++) {
+      usedByteCapacity += getUsedByteCapacity(startBatchIndex + i);
+      numRecords += recordsInBatches[i];
+    }
+
     /* trasferVector is always empty as after output, the buffers are transferred. */
-    final int usedByteCapacity = getUsedByteCapacity(batchIndex);
     ((VariableWidthVector) transferVector).allocateNew(usedByteCapacity, numRecords);
     transferVector.reset();
 
-    final MutableVarcharVector mv = (MutableVarcharVector)accumulators[batchIndex];
-    mv.copyToVarWidthVec((BaseVariableWidthVector) transferVector, numRecords);
+    numRecords = 0;
+    for (int i = 0; i < recordsInBatches.length; i++) {
+      final MutableVarcharVector mv = (MutableVarcharVector) accumulators[startBatchIndex + i];
+      mv.copyToVarWidthVec((BaseVariableWidthVector) transferVector, recordsInBatches[i], numRecords);
+      numRecords += recordsInBatches[i];
 
-    releaseBatch(batchIndex);
+      releaseBatch(startBatchIndex + i);
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -351,9 +356,17 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     return transferVector;
   }
 
+  @Override
   public SerializedField getSerializedField(int batchIndex, int recordCount) {
-    final MutableVarcharVector mv = (MutableVarcharVector)accumulators[batchIndex];
-    return mv.getSerializedField(recordCount);
+    /*
+     * HashAggPartitionWritableBatch.java:getNextWritableBatch() will call getBuffers()
+     * followed by getSerializedField().
+     * In the current context, the tempAccumulatorHolder already has the data saved,
+     * especially the valueCount hence directly calling the TypeHelper.getMetadata()
+     * is sufficient.
+     */
+    Preconditions.checkArgument(tempAccumulatorHolder.getValueCount() == recordCount);
+    return TypeHelper.getMetadata(tempAccumulatorHolder);
   }
 
   private int getUsedByteCapacity(final int batchIndex) {
@@ -376,6 +389,13 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   public boolean hasSpace(final int space, int batchIndex) {
     final MutableVarcharVector mv = (MutableVarcharVector)accumulators[batchIndex];
     return mv.checkHasAvailableSpace(space);
+  }
+
+  @Override
+  public void moveValuesAndFreeSpace(int srcBatchIndex, int dstBatchIndex,
+                                     int srcStartIndex, int dstStartIndex, int numRecords) {
+    ((MutableVarcharVector)accumulators[srcBatchIndex]).moveValuesAndFreeSpace(
+      srcStartIndex, dstStartIndex, numRecords, accumulators[dstBatchIndex]);
   }
 
   @Override

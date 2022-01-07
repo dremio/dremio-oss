@@ -359,8 +359,8 @@ public class TestSourceMetadataManager {
     doAnswer(invocation -> {
       forced[0] = true;
       return DatasetMetadata.of(DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()), new Schema(new ArrayList<>()));
-    }).when(sp).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any());
-    when(sp.listPartitionChunks(any(), any(), any()))
+    }).when(sp).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any(), any());
+    when(sp.listPartitionChunks(any(), any(), any(), any()))
         .thenReturn(Collections::emptyIterator);
     when(sp.validateMetadata(any(), any(), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
@@ -426,7 +426,7 @@ public class TestSourceMetadataManager {
       doAnswer(invocation -> {
         forced[0] = true;
         return DatasetMetadata.of(DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()), new Schema(new ArrayList<>()));
-      }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any());
+      }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any(),any());
 
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any()))
@@ -481,7 +481,7 @@ public class TestSourceMetadataManager {
         .thenReturn(SupportsReadSignature.MetadataValidity.INVALID);
     doThrow(new ColumnCountTooLargeException(1))
         .when(sp)
-        .getDatasetMetadata(eq(handle), any(PartitionChunkListing.class), any(), any());
+        .getDatasetMetadata(eq(handle), any(PartitionChunkListing.class), any(), any(), any());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
     when(msp.getMetadata())

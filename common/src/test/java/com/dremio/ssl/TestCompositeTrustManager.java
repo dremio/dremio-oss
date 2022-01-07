@@ -18,6 +18,7 @@ package com.dremio.ssl;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.net.Socket;
 import java.security.cert.CertificateException;
@@ -33,8 +34,6 @@ import org.junit.Test;
 
 import com.dremio.common.SuppressForbidden;
 import com.google.common.collect.ImmutableList;
-
-import sun.security.x509.X509CertImpl;
 
 /**
  * Tests for {@link CompositeTrustManager}
@@ -94,8 +93,8 @@ public class TestCompositeTrustManager {
 
   @SuppressForbidden
   static class AlwaysSuccessTrustManager extends SingleStateX509ExtendedTrustManager {
-    static final X509Certificate CERT1 = new X509CertImpl();
-    static final X509Certificate CERT2 = new X509CertImpl();
+    static final X509Certificate CERT1 = mock(X509Certificate.class);
+    static final X509Certificate CERT2 = mock(X509Certificate.class);
 
     @Override
     void doCheck() {
@@ -110,8 +109,8 @@ public class TestCompositeTrustManager {
 
   @SuppressForbidden
   static class FailingTrustManager extends SingleStateX509ExtendedTrustManager {
-    static final X509Certificate CERT1 = new X509CertImpl();
-    static final X509Certificate CERT2 = new X509CertImpl();
+    static final X509Certificate CERT1 = mock(X509Certificate.class);
+    static final X509Certificate CERT2 = mock(X509Certificate.class);
 
     @Override
     void doCheck() throws CertificateException {

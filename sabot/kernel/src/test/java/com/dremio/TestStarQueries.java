@@ -259,15 +259,15 @@ public class TestStarQueries extends BaseTestQuery{
 
   @Test  // select star for a SchemaTable.
   public void testSelStarSubQSchemaTable() throws Exception {
-    test("select name, kind, type from (select * from sys.options);");
+    test("select CATALOG_NAME, CATALOG_DESCRIPTION from (select * from INFORMATION_SCHEMA.CATALOGS);");
   }
 
   @Test  // Join a select star of SchemaTable, with a select star of Schema-less table.
   public void testSelStarJoinSchemaWithSchemaLess() throws Exception {
-    String query = "select t1.name, t1.kind, t2.n_nationkey from " +
-        "(select * from sys.options) t1 " +
+    String query = "select t1.CATALOG_NAME, t1.CATALOG_DESCRIPTION, t2.n_nationkey from " +
+        "(select * from INFORMATION_SCHEMA.CATALOGS) t1 " +
         "join (select * from cp.\"tpch/nation.parquet\") t2 " +
-        "on t1.name = t2.n_name";
+        "on t1.CATALOG_NAME = t2.n_name";
 
     test("alter session set \"planner.enable_broadcast_join\" = false");
     test(query);

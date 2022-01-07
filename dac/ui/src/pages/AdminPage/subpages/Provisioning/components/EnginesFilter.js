@@ -19,7 +19,7 @@ import FilterSelectMenuWrapper from '@app/components/Fields/FilterSelectMenuWrap
 import EnginesFilterMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/components/EnginesFilterMixin';
 
 import {
-  ENGINE_FILTER_NAME,
+  availableFilters,
   ENGINE_FILTER_LABEL,
   DEFAULT_ENGINE_FILTER_SELECTIONS
 } from 'dyn-load/constants/provisioningPage/provisioningConstants';
@@ -40,7 +40,7 @@ export default class EnginesFilter extends PureComponent {
   };
 
   getShownFilters = () => {
-    return Object.values(ENGINE_FILTER_NAME);
+    return availableFilters();
   };
 
   renderSelectMenu = (menuType) => {

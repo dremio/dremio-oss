@@ -23,11 +23,14 @@ import javax.inject.Provider;
 import org.projectnessie.model.CommitMeta;
 import org.projectnessie.model.Contents;
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
-import org.projectnessie.services.rest.ConfigResource;
-import org.projectnessie.services.rest.ContentsResource;
-import org.projectnessie.services.rest.TreeResource;
+import org.projectnessie.services.impl.ConfigApiImpl;
+import org.projectnessie.services.impl.ContentsApiImpl;
+import org.projectnessie.services.impl.TreeApiImpl;
 import org.projectnessie.versioned.VersionStore;
-import org.projectnessie.versioned.memory.InMemoryVersionStore;
+import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
+import org.projectnessie.versioned.persist.inmem.InmemoryDatabaseAdapterFactory;
+import org.projectnessie.versioned.persist.inmem.InmemoryStore;
+import org.projectnessie.versioned.persist.store.PersistVersionStore;
 
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.options.OptionManager;
@@ -56,7 +59,7 @@ public class NessieService implements Service {
 
   private final Provider<KVStoreProvider> kvStoreProvider;
   private final NessieConfig serverConfig;
-  private final Supplier<VersionStore<Contents, CommitMeta>> versionStoreSupplier;
+  private final Supplier<VersionStore<Contents, CommitMeta, Contents.Type>> versionStoreSupplier;
   private final TreeApiService treeApiService;
   private final ContentsApiService contentsApiService;
   private final ConfigApiService configApiService;
@@ -74,11 +77,12 @@ public class NessieService implements Service {
     };
 
     this.versionStoreSupplier = Suppliers.memoize(() -> getVersionStore(inMemoryBackend));
-    this.treeApiService = new TreeApiService(Suppliers.memoize(() -> new TreeResource(serverConfig, null, versionStoreSupplier.get())));
+    this.treeApiService = new TreeApiService(Suppliers.memoize(() ->
+      new TreeApiImpl(serverConfig, versionStoreSupplier.get(), null, null)));
     this.contentsApiService = new ContentsApiService(Suppliers.memoize(() ->
-        new ContentsResource(serverConfig, null, versionStoreSupplier.get()))
+        new ContentsApiImpl(serverConfig, versionStoreSupplier.get(), null, null))
     );
-    this.configApiService = new ConfigApiService(Suppliers.memoize(() -> new ConfigResource(serverConfig)));
+    this.configApiService = new ConfigApiService(Suppliers.memoize(() -> new ConfigApiImpl(serverConfig)));
   }
 
   public List<BindableService> getGrpcServices() {
@@ -101,31 +105,19 @@ public class NessieService implements Service {
     logger.info("Stopping Nessie gRPC Service: Nothing to do");
   }
 
-  private final VersionStore<Contents, CommitMeta> getVersionStore(boolean inMemoryBackend) {
+  private final VersionStore<Contents, CommitMeta, Contents.Type> getVersionStore(boolean inMemoryBackend) {
     final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
+    final NessieDatabaseAdapterConfig adapterCfg = new NessieDatabaseAdapterConfig(kvStoreMaxCommitRetriesSupplier.get());
+    DatabaseAdapter adapter;
     if (inMemoryBackend) {
-      return getInMemoryVersionStore(worker);
+      logger.debug("Using in-memory backing store for nessie...");
+      adapter = new InmemoryDatabaseAdapterFactory().newBuilder().withConfig(adapterCfg)
+        .withConnector(new InmemoryStore()).build();
     } else {
-      return getPersistingVersionStore(worker);
+      logger.debug("Using persistent backing store for nessie...");
+      adapter = new DatastoreDatabaseAdapter(adapterCfg, new NessieDatastoreInstance(kvStoreProvider));
     }
+    adapter.initializeRepo(serverConfig.getDefaultBranch());
+    return new PersistVersionStore<>(adapter, worker);
   }
-
-  private final VersionStore<Contents, CommitMeta> getPersistingVersionStore(TableCommitMetaStoreWorker worker) {
-    return NessieKVVersionStore.builder()
-      .metadataSerializer(worker.getMetadataSerializer())
-      .valueSerializer(worker.getValueSerializer())
-      .namedReferences(kvStoreProvider.get().getStore(NessieRefKVStoreBuilder.class))
-      .commits(kvStoreProvider.get().getStore(NessieCommitKVStoreBuilder.class))
-      .defaultBranchName(serverConfig.getDefaultBranch())
-      .maxCommitRetriesSupplier(kvStoreMaxCommitRetriesSupplier)
-      .build();
-  }
-
-  private final VersionStore<Contents, CommitMeta> getInMemoryVersionStore(TableCommitMetaStoreWorker worker) {
-    return InMemoryVersionStore.<Contents, CommitMeta>builder()
-      .metadataSerializer(worker.getMetadataSerializer())
-      .valueSerializer(worker.getValueSerializer())
-      .build();
-  }
-
 }

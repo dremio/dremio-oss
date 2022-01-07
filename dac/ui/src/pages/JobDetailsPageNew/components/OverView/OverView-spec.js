@@ -29,6 +29,7 @@ describe('OverView', () => {
         isAcceleration: false
       }
     },
+    location: {},
     jobDetails: Immutable.fromJS({
       queryText: 'SELECT * FROM nation',
       durationDetails: [],

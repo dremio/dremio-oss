@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>19.3.0-202201011605440679-67815cf6</version>
+    <version>20.0.0-202201050826310141-8cc7162b</version>
   </parent>
 
   <artifactId>dremio-common</artifactId>
@@ -174,6 +174,26 @@
               <sources>
                 <source>${flatc.generated.files}</source>
               </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <configuration>
+          <clearOutputDirectory>false</clearOutputDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <id>generate-test-proto</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>test-compile</goal>
+            </goals>
+            <configuration>
+              <protoSourceRoot>${project.basedir}/src/test/proto</protoSourceRoot>
+              <outputDirectory>${project.build.directory}/generated-test-sources/protobuf</outputDirectory>
             </configuration>
           </execution>
         </executions>
@@ -336,6 +356,19 @@
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>auth</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

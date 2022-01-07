@@ -84,6 +84,11 @@ public class RelOptTableWrapper implements RelOptTable {
   }
 
   @Override
+  public List<ImmutableBitSet> getKeys() {
+    return relOptTable.getKeys();
+  }
+
+  @Override
   public <T> T unwrap(Class<T> clazz) {
     return relOptTable.unwrap(clazz);
   }

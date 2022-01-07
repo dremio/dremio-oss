@@ -17,10 +17,12 @@ package com.dremio.exec.store.iceberg.model;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 
 import com.dremio.exec.record.BatchSchema;
@@ -77,5 +79,10 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
   @Override
   public String getRootPointer() {
     return icebergCommand.getRootPointer();
+  }
+
+  @Override
+  public Map<Integer, PartitionSpec> getCurrentSpecMap() {
+    return icebergCommand.getPartitionSpecMap();
   }
 }

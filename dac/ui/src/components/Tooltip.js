@@ -15,6 +15,7 @@
  */
 import { PureComponent } from 'react';
 import { Overlay } from 'react-overlays';
+import clsx from 'clsx';
 
 import PropTypes from 'prop-types';
 
@@ -56,22 +57,23 @@ export class Tooltip extends PureComponent {
       container,
       dataQa
     } = this.props;
-    const index = placement.indexOf('-');
     const styles = getTooltipStyles(this.props.type);
-    const placementStyle = styles.placement[index >= 0 ? placement.substring(0, index) : placement];
     const finalStyle = { ...styles.base, ...style };
 
     return (
       <Overlay
         show={Boolean(target())}
         placement={placement}
+        flip
         target={target}
         container={container}
         popperConfig={popperConfig}
       >
         {
           (overlayInfo) => {
-            const { props: overlayProps, arrowProps } = overlayInfo;
+            const { placement: curPlacement, props: overlayProps, arrowProps } = overlayInfo;
+            const basePlacement = (!curPlacement ? placement : curPlacement).split('-')[0];
+            const placementStyle = styles.placement[basePlacement];
 
             return (
               <div
@@ -93,7 +95,7 @@ export class Tooltip extends PureComponent {
                       ...arrowProps.style,
                       ...placementStyle.arrow
                     }}
-                    className={tooltipArrowClass}
+                    className={clsx(tooltipArrowClass, `--${basePlacement}`)}
                   />
                   <div
                     data-qa={dataQa}

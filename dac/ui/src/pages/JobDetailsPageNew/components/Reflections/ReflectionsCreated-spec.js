@@ -33,7 +33,8 @@ const reflections = Immutable.fromJS([
 
 describe('reflectionCreated', () => {
   const minimalProps = {
-    reflections: new Immutable.List()
+    reflections: new Immutable.List(),
+    location: {}
   };
 
   it('should render with minimal props without exploding', () => {
@@ -41,7 +42,8 @@ describe('reflectionCreated', () => {
     expect(wrapper).to.have.length(1);
   });
   it('renders child correctly', () => {
-    const wrapper = shallow(<ReflectionCreated reflections={reflections} />);
+    minimalProps.reflections = reflections;
+    const wrapper = shallow(<ReflectionCreated {...minimalProps} />);
     expect(wrapper.find('[data-qa="reflectionsTestCase"]').length).equal(reflections.size);
   });
 });

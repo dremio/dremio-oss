@@ -19,8 +19,8 @@ import java.util.EnumSet;
 
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
-import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.dremio.exec.proto.UserBitShared.QueryResult;
 
 /**
  * Converts newly added error types to types compatible with the existing C or ODBC clients.

@@ -458,7 +458,7 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
         "extract(SECOND FROM time '2:30:21.5') as \"second\", " +
         "extract(MINUTE FROM time '2:30:21.5') as \"minute\", " +
         "extract(HOUR FROM time '2:30:21.5') as \"hour\" " +
-        "FROM sys.version";
+        "FROM INFORMATION_SCHEMA.CATALOGS";
 
     @SuppressWarnings("unchecked")
     final List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList(
