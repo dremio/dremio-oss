@@ -319,7 +319,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     } else {
       rowGroupSplitIterator = Collections.emptyIterator();
       List<ParquetBlockBasedSplit> blockBasedSplits = inputSplits.stream().map(ParquetBlockBasedSplit::new).sorted().collect(Collectors.toCollection(LinkedList::new));
-      splitsPathRowGroupsMap = new SplitsPathRowGroupsMap(blockBasedSplits);
+      splitsPathRowGroupsMap = new SplitsPathRowGroupsMap(blockBasedSplits, realFields.size(), context.getOptions());
       sortedBlockSplitsIterator = new RemovingIterator<>(blockBasedSplits.iterator());
       splitAndPartitionInfoIterator = inputSplits.iterator();
       pathToRowGroupsMap = null;
@@ -526,6 +526,15 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     this.lastInputStreamProvider = lastInputStreamProvider;
   }
 
+  public void trimRowGroupsFromFooter(final MutableParquetMetadata footer, String path,  int rowGroupIndex) {
+    if (splitsPathRowGroupsMap != null) {
+      final Set<Integer> usedRowGroups = splitsPathRowGroupsMap.getPathRowGroups(path, footer, rowGroupIndex);
+      if (usedRowGroups != null && trimRowGroups) {
+        long numRowGroupsTrimmed = footer.removeUnusedRowGroups(usedRowGroups);
+        context.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS_TRIMMED, numRowGroupsTrimmed);
+      }
+    }
+  }
   private void expandBlockSplit(ParquetBlockBasedSplit blockSplit) throws IOException {
     if (shouldBeFiltered(blockSplit.getSplitAndPartitionInfo())) {
       return;
@@ -551,11 +560,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
       try {
         if (rowGroupNums.isEmpty()) { // make sure rowGroupNums is populated only once
           rowGroupNums.addAll(ParquetReaderUtility.getRowGroupNumbersFromFileSplit(blockSplit.getStart(), blockSplit.getLength(), f));
-          final Set<Integer> usedRowGroups = splitsPathRowGroupsMap.getPathRowGroups(blockSplit.getPath(), f);
-          if (usedRowGroups != null && trimRowGroups) {
-            long numRowGroupsTrimmed = f.removeUnusedRowGroups(usedRowGroups);
-            context.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS_TRIMMED, numRowGroupsTrimmed);
-          }
+          trimRowGroupsFromFooter(f, blockSplit.getPath(), 0);
         }
       } catch (IOException e) {
         throw UserException.ioExceptionError(e)
@@ -633,8 +638,8 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   }
 
   public InputStreamProvider createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter,
-                                                        Path path, SplitAndPartitionInfo datasetSplit, Function<MutableParquetMetadata,
-          Integer> rowGroupIndexProvider, long length, long mTime) throws IOException {
+                                                       Path path, SplitAndPartitionInfo datasetSplit, Function<MutableParquetMetadata,
+    Integer> rowGroupIndexProvider, long length, long mTime) throws IOException {
 
     final Path lastPath = (lastInputStreamProvider != null) ? lastInputStreamProvider.getStreamPath() : null;
     MutableParquetMetadata validLastFooter = null;
@@ -657,7 +662,6 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
     // If the ExecOption to ReadColumnIndexes is True and the configuration has a Filter, set readColumnIndices to true.
     boolean readColumnIndices = (context.getOptions().getOption(READ_COLUMN_INDEXES) &&
             ((conditions != null) && (conditions.size() >= 1)));
-
     return factory.create(
             fs,
             context,

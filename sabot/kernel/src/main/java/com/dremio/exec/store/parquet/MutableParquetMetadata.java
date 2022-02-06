@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.store.parquet;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.parquet.hadoop.PageHeaderWithOffset;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
@@ -131,6 +133,44 @@ public class MutableParquetMetadata {
 
     // ParquetMetadata returns its intenal ArrayList as part of the call to getBlocks()
     // so, it is not required to create a new footer object here
+  }
+
+  // removes PageHeaderWithOffset objects from the footer
+  public void removePageHeaders(int rowGroupIndex) {
+    List<BlockMetaData> blocks = getBlocks();
+    if (blocks.size() <= rowGroupIndex) {
+      return;
+    }
+
+    BlockMetaData blockMetaData = blocks.get(rowGroupIndex);
+    BlockMetaData newBlockMetaData = new BlockMetaData();
+    for(ColumnChunkMetaData column : blockMetaData.getColumns()) {
+      ColumnChunkMetaData newColumn = column;
+      List<PageHeaderWithOffset> headers = column.getPageHeaders();
+      if (headers != null && headers.size() > 0) {
+        // clone without page headers
+        newColumn = ColumnChunkMetaData.get(
+          column.getPath(),
+          column.getPrimitiveType(),
+          column.getCodec(),
+          column.getEncodingStats(),
+          column.getEncodings(),
+          column.getStatistics(),
+          column.getFirstDataPageOffset(),
+          column.getDictionaryPageOffset(),
+          column.getValueCount(),
+          column.getTotalSize(),
+          column.getTotalUncompressedSize(),
+          Collections.emptyList());
+      }
+      newBlockMetaData.addColumn(newColumn);
+    }
+
+    // copy over the rest of the fields
+    newBlockMetaData.setPath(blockMetaData.getPath());
+    newBlockMetaData.setRowCount(blockMetaData.getRowCount());
+    newBlockMetaData.setTotalByteSize(blockMetaData.getTotalByteSize());
+    blocks.set(rowGroupIndex, newBlockMetaData);
   }
 
   public String toString() {

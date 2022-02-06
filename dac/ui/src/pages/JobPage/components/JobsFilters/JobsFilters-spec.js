@@ -127,7 +127,14 @@ describe('JobsFilters', () => {
 
   describe('#getAllFilters', () => {
     it('should return false for User Filter if user is non-admin', () => {
-      const wrapper = shallow(<JobsFilters {...commonProps} />, { context: { loggedInUser: { admin: true } } });
+      const wrapper = shallow(<JobsFilters {...commonProps} />, {
+        context: {
+          loggedInUser: {
+            admin: true,
+            permissions: { canViewAllJobs: false }
+          }
+        }
+      });
       const instance = wrapper.instance();
       expect(instance.getAllFilters().filter(filter => filter.value === 'usr')).to.have.length(1);
 

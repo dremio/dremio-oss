@@ -88,6 +88,7 @@ import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
+import org.apache.calcite.util.Util;
 
 import com.dremio.common.dialect.DremioSqlDialect;
 import com.dremio.common.dialect.arp.transformer.CallTransformer;
@@ -1321,48 +1322,15 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         }
       }
 
-      return new SqlSelect(POS, SqlNodeList.EMPTY, getSelectList(node), node, null, null, null,
+      return new SqlSelect(POS, SqlNodeList.EMPTY, getSelectNodes(node), node, null, null, null,
         SqlNodeList.EMPTY, pushUpOrderList, null, null, null);
     }
 
-    protected SqlNodeList getSelectList(SqlNode node) {
+    protected SqlNodeList getSelectNodes(SqlNode node) {
       SqlNodeList selectList = null;
       if (node instanceof SqlIdentifier && (this.neededType.getFieldCount() != 0)) {
         // Ensure the query isn't changed into a SELECT * to preserve the field ordering.
-        selectList = new SqlNodeList(POS);
-        final String nodeName = ((SqlIdentifier)node).names.reverse().iterator().next();
-        for (RelDataTypeField field : this.neededType.getFieldList()) {
-          final SqlCollation collation;
-
-          if (canAddCollation(field)) {
-            collation = getDialect().getDefaultCollation(SqlKind.IDENTIFIER);
-          } else {
-            collation = null;
-          }
-
-          final List<String> names = new ArrayList<>();
-          names.add(nodeName);
-          names.add(field.getName());
-
-          if (null != collation) {
-            final SqlIdentifier ident = new SqlIdentifier(
-              names,
-              collation,
-              POS,
-              null);
-            selectList.add(SqlStdOperatorTable.AS.createCall(
-              POS, addCastIfNeeded(ident, field.getType()), new SqlIdentifier(field.getName(), POS)));
-          } else {
-            final SqlIdentifier ident = new SqlIdentifier(names, POS);
-            SqlNode possibleCast = addCastIfNeeded(ident, field.getType());
-            if (ident != possibleCast) {
-              // Only add an alias here if a cast was added, to maintain the schema.
-              possibleCast = SqlStdOperatorTable.AS.createCall(
-                POS, possibleCast, new SqlIdentifier(field.getName(), POS));
-            }
-            selectList.add(possibleCast);
-          }
-        }
+        selectList = new SqlNodeList(getSelectNodes((SqlIdentifier) node, new HashSet<>()), POS);
       } else if (node instanceof SqlJoin && this.neededType == null) {
         final Set<String> usedNames = new HashSet<>();
         // Avoid * where possible when used with JOINs, as it can lead to ambiguous column references.
@@ -1406,6 +1374,9 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
       }
 
       if (childNode.getKind() != SqlKind.SELECT || ((SqlSelect)childNode).getSelectList() == null) {
+        if (node instanceof SqlIdentifier) {
+          return getSelectNodes((SqlIdentifier) node, usedNames);
+        }
         return null;
       }
 
@@ -1414,6 +1385,59 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
       // already.
       final String tableAlias = SqlValidatorUtil.getAlias(node, -1);
       return getSelectNodes(tableAlias, (SqlSelect)childNode, usedNames, shouldUniquify);
+    }
+
+    private List<SqlNode> getSelectNodes(SqlIdentifier node, Set<String> usedNames) {
+      final List<SqlNode> selectList = new ArrayList<>();
+      final String nodeName = Util.last(node.names);
+      final List<RelDataTypeField> fields;
+      if (this.neededType == null) {
+        fields = this.aliases.get(nodeName).getFieldList();
+      } else {
+        fields = this.neededType.getFieldList();
+      }
+
+      for (RelDataTypeField field : fields) {
+        final SqlCollation collation;
+
+        if (canAddCollation(field)) {
+          collation = getDialect().getDefaultCollation(SqlKind.IDENTIFIER);
+        } else {
+          collation = null;
+        }
+
+        final List<String> names = new ArrayList<>();
+        names.add(nodeName);
+        names.add(field.getName());
+
+        final String aliasName;
+        if (usedNames.contains(field.getName())) {
+          aliasName = SqlValidatorUtil.uniquify(field.getName(), usedNames, SqlValidatorUtil.EXPR_SUGGESTER);
+        } else {
+          aliasName = field.getName();
+          usedNames.add(aliasName);
+        }
+
+        if (null != collation) {
+          final SqlIdentifier ident = new SqlIdentifier(
+            names,
+            collation,
+            POS,
+            null);
+          selectList.add(SqlStdOperatorTable.AS.createCall(
+            POS, addCastIfNeeded(ident, field.getType()), new SqlIdentifier(aliasName, POS)));
+        } else {
+          final SqlIdentifier ident = new SqlIdentifier(names, POS);
+          SqlNode possibleCast = addCastIfNeeded(ident, field.getType());
+
+          if (possibleCast != ident || !aliasName.equals(field.getName())) {
+            possibleCast = SqlStdOperatorTable.AS.createCall(
+              POS, possibleCast, new SqlIdentifier(aliasName, POS));
+          }
+          selectList.add(possibleCast);
+        }
+      }
+      return selectList;
     }
 
     private List<SqlNode> getSelectNodes(String tableAlias, SqlSelect childNode, Set<String> usedNames, boolean shouldUniquify) {

@@ -285,12 +285,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |20.0.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |20.0.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |20.0.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |20.0.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |20.0.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |20.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |20.1.0              |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |20.1.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |20.1.0              |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |20.1.0              |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |20.1.0              |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |20.1.0              |Dremio Free Software License 1.0|
 |dremio-ui-lib                                               |1.0.0               |Unlicense           |
 |easy-peasy                                                  |4.0.1               |MIT                 |
 |EclipseLink                                                 |2.5.2               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|

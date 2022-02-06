@@ -598,4 +598,10 @@ public interface ExecConstants {
 
   // option used to enable rle and packed stats using ReaderTimer
   BooleanValidator ENABLE_PARQUET_PERF_MONITORING = new BooleanValidator("dremio.exec.parquet_enable_perf_monitoring", false);
+
+  // option used to set the dremio parquet page size estimate.
+  RangeLongValidator PAGE_SIZE_IN_BYTES = new RangeLongValidator("dremio.parquet.page_size_estimate", 1*1024, 500*1024, 100*1024);
+
+  // option used to set the total java heap object in memory based on parquet footer.
+  RangeLongValidator TOTAL_HEAP_OBJ_SIZE = new RangeLongValidator("dremio.parquet.num_footer_heap_objects", 0, 100000, 50000);
 }

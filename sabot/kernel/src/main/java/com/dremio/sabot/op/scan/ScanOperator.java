@@ -168,7 +168,8 @@ public class ScanOperator implements ProducerOperator {
     AVG_METADATA_IO_READ_TIME_NS,  // Average IO read time for metadata operations
     NUM_METADATA_IO_READ,
     HIVE_FILE_FORMATS,// File Formats in hive sub scan represented as bitmap. Indices correspond to HiveFilFormat enum
-    NUM_ZERO_SIZED_COLUMN // Number of zero sized column
+    NUM_ZERO_SIZED_COLUMN, // Number of zero sized column
+    NUM_EXTRA_FOOTER_READS // Number of times footer is read for a split.
     ;
 
     @Override

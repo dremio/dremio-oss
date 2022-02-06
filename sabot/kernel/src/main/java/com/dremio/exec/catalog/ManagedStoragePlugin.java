@@ -162,7 +162,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.conf = reader.getConnectionConf(sourceConfig);
     this.plugin = conf.newPlugin(context, sourceConfig.getName(), this::getId);
     this.metadataPolicy = sourceConfig.getMetadataPolicy() == null ? CatalogService.NEVER_REFRESH_POLICY : sourceConfig.getMetadataPolicy();
-    this.permissionsCache = new PermissionCheckCache(this::getPlugin, () -> getMetadataPolicy().getAuthTtlMs(), 2500);
+    this.permissionsCache = new PermissionCheckCache(this::getPlugin, getAuthTtlMsProvider(options, sourceConfig), 2500);
     this.options = options;
     this.reader = reader;
     this.monitor = monitor;
@@ -199,6 +199,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
   @VisibleForTesting
   protected AutoCloseableLock writeLock() {
     return AutoCloseableLock.lockAndWrap(writeLock, true);
+  }
+
+  protected Provider<Long> getAuthTtlMsProvider(OptionManager options, SourceConfig sourceConfig) {
+    return () -> getMetadataPolicy().getAuthTtlMs();
   }
 
   private long createWaitMillis() {

@@ -93,7 +93,11 @@ export default class JobsFilters extends Component {
 
   componentWillMount() {
     this.props.loadItemsForFilter('spaces');
-    if (this.context.loggedInUser.admin) {
+    const {
+      admin: isAdmin,
+      permissions: { canViewAllJobs } = {}
+    } = this.context.loggedInUser;
+    if (isAdmin || canViewAllJobs) {
       this.props.loadItemsForFilter('users');
     }
     this.prepareQueuesFilter();
@@ -101,7 +105,10 @@ export default class JobsFilters extends Component {
 
   getAllFilters() {
     const { queryState, intl, isQVJobs } = this.props;
-    const { loggedInUser } = this.context;
+    const {
+      admin: isAdmin,
+      permissions: { canViewAllJobs } = {}
+    } = this.context.loggedInUser;
     const startTime = queryState.getIn(['filters', 'st', 0]) || 0;
     const endTime = queryState.getIn(['filters', 'st', 1]) || 0;
     const selectedJst = queryState.getIn(['filters', 'jst']);
@@ -193,7 +200,9 @@ export default class JobsFilters extends Component {
           />
         )
       }
-    ].filter(filter => filter.value !== 'usr' && !loggedInUser.admin || loggedInUser.admin);
+    ].filter(
+      (filter) => (filter.value !== 'usr' && !isAdmin) || isAdmin || canViewAllJobs
+    );
   }
 
   handleStartTimeChange(type, rangeObj) {

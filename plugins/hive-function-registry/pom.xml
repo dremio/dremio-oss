@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>20.0.0-202201050826310141-8cc7162b</version>
+    <version>20.1.0-202202061055110045-36733c65</version>
   </parent>
 
   <artifactId>dremio-hive-function-registry</artifactId>

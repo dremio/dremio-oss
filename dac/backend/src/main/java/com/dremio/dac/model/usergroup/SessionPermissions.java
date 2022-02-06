@@ -27,18 +27,21 @@ public class SessionPermissions {
   private final boolean canDownloadProfiles;
   private final boolean canEmailForSupport;
   private final boolean canChatForSupport;
+  private final boolean canViewAllJobs;
 
   @JsonCreator
   public SessionPermissions(
       @JsonProperty("canUploadProfiles") boolean canUploadProfiles,
       @JsonProperty("canDownloadProfiles") boolean canDownloadProfiles,
       @JsonProperty("canEmailForSupport") boolean canEmailForSupport,
-      @JsonProperty("canChatForSupport") boolean canChatForSupport) {
+      @JsonProperty("canChatForSupport") boolean canChatForSupport,
+      @JsonProperty("canViewAllJobs") boolean canViewAllJobs) {
     super();
     this.canUploadProfiles = canUploadProfiles;
     this.canDownloadProfiles = canDownloadProfiles;
     this.canEmailForSupport = canEmailForSupport;
     this.canChatForSupport = canChatForSupport;
+    this.canViewAllJobs = canViewAllJobs;
   }
 
   public boolean isCanUploadProfiles() {
@@ -53,6 +56,7 @@ public class SessionPermissions {
   public boolean isCanChatForSupport() {
     return canChatForSupport;
   }
-
-
+  public boolean isCanViewAllJobs() {
+    return canViewAllJobs;
+  }
 }

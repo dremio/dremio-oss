@@ -19,10 +19,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
@@ -192,6 +194,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
 
     handleEx(() -> {
       long length, mTime;
+      MutableParquetMetadata newFooter;
       if (splitXAttr.hasFileLength() && splitXAttr.hasLastModificationTime() && context.getOptions().getOption(ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE)) {
         length = splitXAttr.getFileLength();
         mTime = splitXAttr.getLastModificationTime();
@@ -200,7 +203,26 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
         length = fileAttributes.size();
         mTime = fileAttributes.lastModifiedTime().toMillis();
       }
-      inputStreamProvider = parquetSplitReaderCreatorIterator.createInputStreamProvider(lastInputStreamProvider, lastFooter, Path.of(splitXAttr.getPath()), datasetSplit, (f) -> splitXAttr.getRowGroupIndex(), length, mTime);
+      int currRowGroupIndex = splitXAttr.getRowGroupIndex();
+      Function<MutableParquetMetadata, Integer> rowGroupIndexProvider = (f) ->
+         splitXAttr.getRowGroupIndex();
+      BlockMetaData currentBlockMetadata = null;
+      if (lastFooter != null && lastFooter.getBlocks().size() < currRowGroupIndex) {
+        currentBlockMetadata = lastFooter.getBlocks().get(currRowGroupIndex);
+      }
+      newFooter = lastFooter;
+      Function<MutableParquetMetadata, Integer> newRowGroupIndexProvider = rowGroupIndexProvider;
+      if (lastInputStreamProvider != null && path.equals(lastInputStreamProvider.getStreamPath()) &&
+        (currentBlockMetadata == null )) {
+        newFooter = null;
+        newRowGroupIndexProvider = (f) -> {
+          int rowGroupIndex = rowGroupIndexProvider.apply(f);
+          parquetSplitReaderCreatorIterator.trimRowGroupsFromFooter(f, path.toString(), rowGroupIndex);
+          return rowGroupIndex;
+        };
+        context.getStats().addLongStat(ScanOperator.Metric.NUM_EXTRA_FOOTER_READS, 1);
+      }
+      inputStreamProvider = parquetSplitReaderCreatorIterator.createInputStreamProvider(lastInputStreamProvider, newFooter, Path.of(splitXAttr.getPath()), datasetSplit, newRowGroupIndexProvider, length, mTime);
       return null;
     });
     parquetSplitReaderCreatorIterator.setLastInputStreamProvider(inputStreamProvider);

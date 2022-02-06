@@ -61,7 +61,6 @@ public abstract class SplitReaderCreator implements AutoCloseable {
 
   /**
    * Initializes InputStreamProvider to be used by split reader
-   * @param lastPath
    * @param lastInputStreamProvider
    */
   public abstract void createInputStreamProvider(InputStreamProvider lastInputStreamProvider, MutableParquetMetadata lastFooter);
