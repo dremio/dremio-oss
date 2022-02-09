@@ -17,8 +17,11 @@ package com.dremio.exec.expr.fn;
 
 import java.util.List;
 import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import com.dremio.exec.store.sys.functions.FunctionParameterInfo;
+import com.dremio.exec.store.sys.functions.SysTableFunctionsInfo;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.dremio.common.config.SabotConfig;
@@ -39,6 +42,10 @@ import com.google.inject.ConfigurationException;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.ProvisionException;
+import org.apache.calcite.sql.*;
+import org.apache.calcite.sql.type.SqlOperandTypeInference;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * This class offers the registry for functions. Notably, in addition to Dremio its functions
@@ -55,15 +62,16 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   private static final Set<String> aggrFunctionNames = Sets.newHashSet("sum", "$sum0", "min",
     "max", "hll");
   protected boolean isDecimalV2Enabled;
+  private SabotConfig sabotConfig;
 
-  public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan){
+  public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan) {
     Stopwatch w = Stopwatch.createStarted();
-
+    this.sabotConfig = config;
     logger.debug("Generating function registry.");
     functionRegistry = new FunctionRegistry(classpathScan);
     initializePrimaryRegistries();
     Set<Class<? extends PluggableFunctionRegistry>> registryClasses =
-        classpathScan.getImplementations(PluggableFunctionRegistry.class);
+      classpathScan.getImplementations(PluggableFunctionRegistry.class);
 
     // Create a small Guice module
     final Injector injector = Guice.createInjector(new AbstractModule() {
@@ -110,6 +118,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
 
   /**
    * Register functions in given operator table.
+   *
    * @param operatorTable
    */
   public void register(OperatorTable operatorTable) {
@@ -118,7 +127,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
       registry.register(operatorTable, isDecimalV2Enabled);
     }
 
-    for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
+    for (PluggableFunctionRegistry registry : pluggableFuncRegistries) {
       registry.register(operatorTable, isDecimalV2Enabled);
     }
   }
@@ -179,7 +188,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   /**
    * Find function implementation for given <code>functionCall</code> in non-Dremio function registries such as Hive UDF
    * registry.
-   *
+   * <p>
    * Note: Order of searching is same as order of {@link com.dremio.exec.expr.fn.PluggableFunctionRegistry}
    * implementations found on classpath.
    *
@@ -188,7 +197,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
    */
   @Override
   public AbstractFunctionHolder findNonFunction(FunctionCall functionCall) {
-    for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
+    for (PluggableFunctionRegistry registry : pluggableFuncRegistries) {
       AbstractFunctionHolder h = registry.getFunction(functionCall);
       if (h != null) {
         return h;
@@ -207,7 +216,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   public boolean isFunctionComplexOutput(String name) {
     List<AbstractFunctionHolder> methods = functionRegistry.getMethods(name);
     for (AbstractFunctionHolder holder : methods) {
-      if (((BaseFunctionHolder)holder).getReturnValue().isComplexWriter()) {
+      if (((BaseFunctionHolder) holder).getReturnValue().isComplexWriter()) {
         return true;
       }
     }
@@ -221,5 +230,115 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   @Override
   public boolean isDecimalV2Enabled() {
     return isDecimalV2Enabled;
+  }
+
+  public Map<String, Map<String, Object>> generateMapWithRegisteredFunctions() {
+    // Retrieve the registered functions on the function registry
+    ArrayListMultimap<String, AbstractFunctionHolder> functions = this.getRegisteredFunctions();
+
+    Map<String, Map<String, Object>> functionsToSave = new HashMap<>();
+    Map<String, Object> stringObjectMap;
+    // Iterate over each registered function to extract the available information
+    for (Map.Entry<String, AbstractFunctionHolder> holders : functions.entries()) {
+      String functionName = holders.getKey().toLowerCase();
+      BaseFunctionHolder value = (BaseFunctionHolder) holders.getValue();
+
+      stringObjectMap = functionsToSave.get(functionName);
+      if (stringObjectMap == null) {
+        stringObjectMap = new HashMap<>();
+        stringObjectMap.put("functionName", functionName.toUpperCase());
+        stringObjectMap.put("dremioVersions", null);
+        stringObjectMap.put("description", null);
+        stringObjectMap.put("extendedDescription", null);
+        stringObjectMap.put("useCaseExamples", null);
+      }
+      List<Map<String, Object>> signaturesList = (List<Map<String, Object>>) stringObjectMap.get("signatures");
+      if (signaturesList == null) {
+        signaturesList = new ArrayList<>();
+      }
+
+      // Define signatures values
+      Map<String, Object> signaturesValues = new HashMap<>();
+      List<Map<String, Object>> parametersList = new ArrayList<>();
+      int count = 1;
+      for (BaseFunctionHolder.ValueReference parameter : value.getParameters()) {
+        int finalCount = count;
+        parametersList.add(
+          new HashMap<String, Object>() {
+            {
+              put("ordinalPosition", finalCount);
+              put("parameterName", parameter.getName());
+              put("parameterType", parameter.getType().toString());
+              try {
+                put("parameterFormat", (parameter.getType().toMinorType()));
+              } catch (Exception ignored) {
+              }
+            }
+          }
+        );
+        count++;
+      }
+      signaturesValues.put("parameterList", parametersList);
+      signaturesValues.put("returnType", value.getReturnValue().getType().toString());
+      signaturesList.add(signaturesValues);
+      stringObjectMap.put("signatures", signaturesList);
+
+      functionsToSave.put(functionName, stringObjectMap);
+    }
+    return functionsToSave;
+  }
+
+  public List<SysTableFunctionsInfo> generateListWithCalciteFunctions() {
+    OperatorTable operatorTable = new OperatorTable(this);
+    List<SysTableFunctionsInfo> functionsInfoList = new ArrayList<>();
+
+    for (SqlOperator operator : operatorTable.getOperatorList()) {
+      String opName = operator.getName();
+      // Only SQL's functions are uppercased
+      opName = opName.toLowerCase(Locale.ROOT);
+      logger.info("opName: {}", opName);
+      //  SqlReturnTypeInference returnType = operator.getReturnTypeInference().inferReturnType();
+      String returnType = "";
+      List<FunctionParameterInfo> parameterInfoList = new ArrayList<>();
+      SqlSyntax syntax = operator.getSyntax();
+      if (syntax.toString().equals("FUNCTION")) {
+        String signaturesString = "";
+        try {
+          // Get the function's signature, it will come like FUNCTION_NAME(<PARAM1_TYPE> <PARAM2_TYPE>)
+          signaturesString = operator.getAllowedSignatures();
+        } catch (Exception e) {
+          logger.warn("Failed to read Calcite {} function's allowed signatures, with exception {}. ", opName, e);
+        }
+        // Get a list of allowed signatures that come in a single string
+        String[] signatures = signaturesString.split("\\r?\\n");
+        for (String signature : signatures) {
+          // Get only the param's type for each signature
+          String[] ps = StringUtils.substringsBetween(signature, "<", ">");
+          if (ps != null) {
+            List<String> params = Arrays.asList(ps);
+            for (int i = 0; i < params.size() ; i++) {
+              // Based on the doc, operators have similar, straightforward strategies,
+              // such as to take the type of the first operand to be its return type
+              if  (i == 0) {
+                returnType = params.get(i).toLowerCase(Locale.ROOT);
+              }
+              parameterInfoList.add(new FunctionParameterInfo("param-" + i,
+                params.get(i).toLowerCase(Locale.ROOT),
+                false));
+            }
+          }
+          if (returnType.isEmpty()) {
+            returnType = "inferred at runtime";
+          }
+          SysTableFunctionsInfo toAdd = new SysTableFunctionsInfo(opName, returnType, parameterInfoList.toString());
+
+          // Avoid possible duplicates
+          if (!functionsInfoList.contains(toAdd)) {
+            functionsInfoList.add(toAdd);
+          }
+        }
+      }
+    }
+    return functionsInfoList;
   }
 }

@@ -18,6 +18,7 @@ package com.dremio.exec.store.pojo;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.sql.Timestamp;
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -61,6 +62,8 @@ public class PojoDataType extends RecordDataType {
         types.add(SqlTypeName.VARCHAR);
       } else if (type == Timestamp.class || type == DateTime.class) {
         types.add(SqlTypeName.TIMESTAMP);
+      } else if (type == List.class || type == Collection.class) {
+        types.add(SqlTypeName.ARRAY);
       } else {
         throw new RuntimeException(String.format("PojoDataType doesn't yet support conversions from type [%s].", type));
       }

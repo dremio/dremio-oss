@@ -18,6 +18,8 @@ package com.dremio.exec.store.sys;
 import java.util.Iterator;
 import java.util.stream.StreamSupport;
 
+import com.dremio.exec.store.sys.functions.FunctionsInfoIterator;
+import com.dremio.exec.store.sys.functions.SysTableFunctionsInfo;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.connector.metadata.DatasetHandle;
@@ -259,6 +261,14 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     @Override
     public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return sContext.getStatisticsListManagerProvider().get().getStatisticsInfos().iterator();
+    }
+  },
+
+  FUNCTIONS(false, SysTableFunctionsInfo.class, "functions") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sabotContext, final OperatorContext context) {
+      FunctionsInfoIterator iterator = new FunctionsInfoIterator(sabotContext);
+      return iterator;
     }
   };
 
