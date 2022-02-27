@@ -13,8 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dremio.service.flight;
 
+import java.nio.charset.StandardCharsets;
+
+import org.apache.arrow.flight.FlightDescriptor;
+import org.apache.arrow.flight.FlightInfo;
 import org.junit.BeforeClass;
 
 import com.dremio.service.flight.impl.FlightWorkManager;
@@ -36,5 +41,13 @@ public class TestFlightServerWithBasicAuth extends AbstractTestFlightServer {
   @Override
   protected String getAuthMode() {
     return DremioFlightService.FLIGHT_LEGACY_AUTH_MODE;
+  }
+
+  @Override
+  public FlightInfo getFlightInfo(String query) {
+    final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
+
+    final FlightDescriptor command = FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
+    return wrapper.getClient().getInfo(command);
   }
 }
