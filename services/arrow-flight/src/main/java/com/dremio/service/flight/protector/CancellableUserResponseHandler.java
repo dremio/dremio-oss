@@ -27,8 +27,12 @@ import org.apache.arrow.flight.CallStatus;
 import org.apache.arrow.flight.FlightRuntimeException;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.protector.UserResponseHandler;
+import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.flight.error.mapping.DremioFlightErrorMapper;
@@ -39,21 +43,62 @@ import com.dremio.service.flight.error.mapping.DremioFlightErrorMapper;
  *
  * @param <T> The response type.
  */
-public abstract class CancellableUserResponseHandler<T> implements UserResponseHandler {
+public class CancellableUserResponseHandler<T> implements UserResponseHandler {
   private final CompletableFuture<T> future = new CompletableFuture<>();
   private final Supplier<Boolean> isRequestCancelled;
   private final UserBitShared.ExternalId externalId;
   private final UserSession userSession;
   private final Provider<UserWorker> workerProvider;
+  private final Class<T> responseType;
 
   public CancellableUserResponseHandler(UserBitShared.ExternalId externalId,
                                         UserSession userSession,
                                         Provider<UserWorker> workerProvider,
-                                        Supplier<Boolean> isRequestCancelled) {
+                                        Supplier<Boolean> isRequestCancelled,
+                                        Class<T> responseType) {
     this.externalId = externalId;
     this.userSession = userSession;
     this.workerProvider = workerProvider;
     this.isRequestCancelled = isRequestCancelled;
+    this.responseType = responseType;
+  }
+
+  @Override
+  public final void sendData(RpcOutcomeListener<GeneralRPCProtos.Ack> outcomeListener, QueryWritableBatch result) {
+    throw new UnsupportedOperationException("A response sender based implementation should send no data to end users.");
+  }
+
+  @Override
+  public void completed(UserResult result) {
+    switch (result.getState()) {
+      case COMPLETED:
+        getCompletableFuture().complete(result.unwrap(responseType));
+        break;
+      case FAILED:
+        getCompletableFuture().completeExceptionally(
+          DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
+        break;
+      case CANCELED:
+        final Exception canceledException = result.getException();
+        getCompletableFuture().completeExceptionally(
+          CallStatus.CANCELLED
+            .withCause(canceledException)
+            .withDescription(canceledException.getMessage())
+            .toRuntimeException());
+        break;
+
+      case STARTING:
+      case RUNNING:
+      case NO_LONGER_USED_1:
+      case ENQUEUED:
+      default:
+        getCompletableFuture().completeExceptionally(
+          CallStatus.INTERNAL
+            .withCause(new IllegalStateException())
+            .withDescription("Internal Error: Invalid planning state.")
+            .toRuntimeException());
+        break;
+    }
   }
 
   public T get() {
@@ -104,4 +149,5 @@ public abstract class CancellableUserResponseHandler<T> implements UserResponseH
   protected CompletableFuture<T> getCompletableFuture() {
     return future;
   }
+
 }

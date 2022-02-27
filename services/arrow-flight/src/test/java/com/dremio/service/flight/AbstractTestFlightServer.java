@@ -18,16 +18,20 @@ package com.dremio.service.flight;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStatusCode;
 import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -198,25 +202,13 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
     }
   }
 
-  private static FlightDescriptor toFlightDescriptor(String query) {
-    return FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
-  }
-
-  private FlightInfo getFlightInfo(String query) {
-    final FlightClientUtils.FlightClientWrapper  wrapper = getFlightClientWrapper();
-    return (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(wrapper.getAuthMode()))?
-      wrapper.getClient().getInfo(toFlightDescriptor(query)):
-      wrapper.getClient().getInfo(toFlightDescriptor(query), wrapper.getTokenCallOption());
-  }
-
-  private FlightStream executeQuery(FlightClientUtils.FlightClientWrapper wrapper, String query) {
+  private FlightStream executeQuery(FlightClientUtils.FlightClientWrapper wrapper, String query) throws SQLException {
     // Assumption is that we have exactly one endpoint returned.
-    return (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(wrapper.getAuthMode()))?
-      wrapper.getClient().getStream(getFlightInfo(query).getEndpoints().get(0).getTicket()):
-      wrapper.getClient().getStream(getFlightInfo(query).getEndpoints().get(0).getTicket(), wrapper.getTokenCallOption());
+    Ticket ticket = getFlightInfo(query).getEndpoints().get(0).getTicket();
+    return wrapper.getClient().getStream(ticket, getCallOptions());
   }
 
-  private FlightStream executeQuery(String query) {
+  private FlightStream executeQuery(String query) throws SQLException {
     // Assumption is that we have exactly one endpoint returned.
     return executeQuery(getFlightClientWrapper(), query);
   }
@@ -242,5 +234,20 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
       stream.getRoot().clear();
       return actualStringResults;
     }
+  }
+
+  /**
+   * Return an array of {@link CallOption} used in all calls to Flight Server (getFlightInfo, getStream, etc.).
+   */
+  abstract CallOption[] getCallOptions();
+
+  /**
+   * Returns a FlightInfo for executing given query.
+   */
+  public FlightInfo getFlightInfo(String query) throws SQLException {
+    final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
+
+    final FlightDescriptor command = FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
+    return wrapper.getClient().getInfo(command, getCallOptions());
   }
 }

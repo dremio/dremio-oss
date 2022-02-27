@@ -16,19 +16,15 @@
 
 package com.dremio.service.flight;
 
-import java.nio.charset.StandardCharsets;
-
 import org.apache.arrow.flight.CallOption;
-import org.apache.arrow.flight.FlightDescriptor;
-import org.apache.arrow.flight.FlightInfo;
 import org.junit.BeforeClass;
 
 import com.dremio.service.flight.impl.FlightWorkManager;
 
 /**
- * Test FlightServer with bearer token authentication.
+ * Test FlightServer with bearer token authentication using FlightSql producer.
  */
-public class TestFlightServerWithTokenAuth extends AbstractTestFlightServer {
+public class TestFlightSqlServerWithTokenAuth extends AbstractTestFlightSqlServer {
   @BeforeClass
   public static void setup() throws Exception {
     setupBaseFlightQueryTest(
@@ -46,12 +42,6 @@ public class TestFlightServerWithTokenAuth extends AbstractTestFlightServer {
   @Override
   CallOption[] getCallOptions() {
     final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
-    return new CallOption[] { wrapper.getTokenCallOption() };
-  }
-
-  @Override
-  public FlightInfo getFlightInfo(String query) {
-    final FlightDescriptor command = FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
-    return getFlightClientWrapper().getClient().getInfo(command, getCallOptions());
+    return new CallOption[] {wrapper.getTokenCallOption()};
   }
 }
