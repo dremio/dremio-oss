@@ -83,9 +83,9 @@ public class TestNamespaceInternalKeyCompatibility {
 
 
     final byte[] terminator = NamespaceInternalKey.MAX_2_BYTES_UTF8_VALUE;
-    final byte[] lastTwoBytes = new byte[2];
-    System.arraycopy(actual, actual.length - 2, lastTwoBytes, 0, terminator.length);
-    assertThat(lastTwoBytes, is(equalTo(terminator)));
+    final byte[] lastFourBytes = new byte[4];
+    System.arraycopy(actual, actual.length - 4, lastFourBytes, 0, terminator.length);
+    assertThat(lastFourBytes, is(equalTo(terminator)));
   }
 
   @Test
