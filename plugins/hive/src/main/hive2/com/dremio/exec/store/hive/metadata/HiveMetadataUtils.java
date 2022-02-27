@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import java.lang.annotation.Annotation;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
@@ -145,6 +146,14 @@ public class HiveMetadataUtils {
   public static final String TABLE_TYPE = "table_type";
   public static final String ICEBERG = "iceberg";
   public static final String METADATA_LOCATION = "metadata_location";
+
+  private static boolean shouldUseFileSplitsFromInputFormat(InputFormat<?, ?> inputFormat)
+  {
+    return Arrays.stream(inputFormat.getClass().getAnnotations())
+      .map(Annotation::annotationType)
+      .map(Class::getSimpleName)
+      .anyMatch(name -> name.equals("UseFileSplitsFromInputFormat"));
+  }
 
   public static class SchemaComponents {
     private final String tableName;
@@ -472,7 +481,6 @@ public class HiveMetadataUtils {
                                                final int maxNestedLevels,
                                                final boolean includeComplexParquetCols,
                                                final HiveConf hiveConf) throws ConnectorException {
-
     try {
       final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
 
