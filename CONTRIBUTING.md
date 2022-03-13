@@ -35,7 +35,7 @@ Check https://community.dremio.com and https://github.com/dremio/dremio-oss/pull
 You will need to fork `dremio-oss` repository and clone it to your local machine. See
 [github help page](https://help.github.com/articles/fork-a-repo) for help.
 
-Instructions on how to build Dremio are available in the [README.md](https://github.com/dremio/dremio-oss/README.md) file at the root of the repository.
+Instructions on how to build Dremio are available in the [README.md](/README.md) file at the root of the repository.
 
 Make sure Dremio can still build and tests pass after your changes (Note: some tests might fail on your environment: please mention them in your pull request)
 
