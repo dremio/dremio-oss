@@ -68,7 +68,7 @@
     "jsplumb": "2.1.4",
     "jwt-decode": "^3.1.2",
     "linkifyjs": "^2.1.9",
-    "lodash": "4.17.19",
+    "lodash": "4.17.21",
     "marked": "^0.7.0",
     "material-ui-popup-state": "^1.9.3",
     "moize": "^6.1.0",

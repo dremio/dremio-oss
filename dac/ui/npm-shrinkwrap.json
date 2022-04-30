@@ -41,7 +41,7 @@
         "jsplumb": "2.1.4",
         "jwt-decode": "^3.1.2",
         "linkifyjs": "^2.1.9",
-        "lodash": "4.17.19",
+        "lodash": "4.17.21",
         "marked": "^0.7.0",
         "material-ui-popup-state": "^1.9.3",
         "moize": "^6.1.0",
@@ -2392,7 +2392,7 @@
         "cli-width": "^3.0.0",
         "external-editor": "^3.0.3",
         "figures": "^3.0.0",
-        "lodash": "^4.17.21",
+        "lodash": "4.17.21",
         "mute-stream": "0.0.8",
         "ora": "^5.4.1",
         "run-async": "^2.4.0",
@@ -2413,12 +2413,6 @@
       "engines": {
         "node": ">=8"
       }
-    },
-    "node_modules/@openapitools/openapi-generator-cli/node_modules/lodash": {
-      "version": "4.17.21",
-      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
-      "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==",
-      "dev": true
     },
     "node_modules/@openapitools/openapi-generator-cli/node_modules/mimic-fn": {
       "version": "2.1.0",
@@ -5543,7 +5537,7 @@
       "dependencies": {
         "chalk": "^4.1.0",
         "date-fns": "^2.16.1",
-        "lodash": "^4.17.21",
+        "lodash": "4.17.21",
         "rxjs": "^6.6.3",
         "spawn-command": "^0.0.2-1",
         "supports-color": "^8.1.0",
@@ -5661,12 +5655,6 @@
       "engines": {
         "node": ">=8"
       }
-    },
-    "node_modules/concurrently/node_modules/lodash": {
-      "version": "4.17.21",
-      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
-      "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==",
-      "dev": true
     },
     "node_modules/concurrently/node_modules/string-width": {
       "version": "4.2.3",
@@ -10995,8 +10983,9 @@
       }
     },
     "node_modules/lodash": {
-      "version": "4.17.19",
-      "integrity": "sha512-JNvd8XER9GQX0v2qJgsaN/mzFCNA5BRe/j8JN9d+tWyGLSodKQHKFicdwNYzWwI3wjRnaKPsGj1XkBjx/F96DQ=="
+      "version": "4.17.21",
+      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+      "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=="
     },
     "node_modules/lodash-es": {
       "version": "4.17.21",
@@ -17854,10 +17843,6 @@
         "node": ">=10"
       }
     },
-    "node_modules/yup/node_modules/lodash": {
-      "version": "4.17.21",
-      "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=="
-    },
     "node_modules/yup/node_modules/toposort": {
       "version": "2.0.2",
       "integrity": "sha1-riF2gXXRVZ1IvvNUILL0li8JwzA="
@@ -19527,7 +19512,7 @@
             "cli-width": "^3.0.0",
             "external-editor": "^3.0.3",
             "figures": "^3.0.0",
-            "lodash": "^4.17.21",
+            "lodash": "4.17.21",
             "mute-stream": "0.0.8",
             "ora": "^5.4.1",
             "run-async": "^2.4.0",
@@ -19541,12 +19526,6 @@
           "version": "3.0.0",
           "resolved": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-3.0.0.tgz",
           "integrity": "sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==",
-          "dev": true
-        },
-        "lodash": {
-          "version": "4.17.21",
-          "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
-          "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==",
           "dev": true
         },
         "mimic-fn": {
@@ -22080,7 +22059,7 @@
       "requires": {
         "chalk": "^4.1.0",
         "date-fns": "^2.16.1",
-        "lodash": "^4.17.21",
+        "lodash": "4.17.21",
         "rxjs": "^6.6.3",
         "spawn-command": "^0.0.2-1",
         "supports-color": "^8.1.0",
@@ -22166,12 +22145,6 @@
           "version": "3.0.0",
           "resolved": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-3.0.0.tgz",
           "integrity": "sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==",
-          "dev": true
-        },
-        "lodash": {
-          "version": "4.17.21",
-          "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
-          "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==",
           "dev": true
         },
         "string-width": {
@@ -26429,8 +26402,9 @@
       }
     },
     "lodash": {
-      "version": "4.17.19",
-      "integrity": "sha512-JNvd8XER9GQX0v2qJgsaN/mzFCNA5BRe/j8JN9d+tWyGLSodKQHKFicdwNYzWwI3wjRnaKPsGj1XkBjx/F96DQ=="
+      "version": "4.17.21",
+      "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+      "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=="
     },
     "lodash-es": {
       "version": "4.17.21",
@@ -31973,10 +31947,6 @@
         "toposort": "^2.0.2"
       },
       "dependencies": {
-        "lodash": {
-          "version": "4.17.21",
-          "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=="
-        },
         "toposort": {
           "version": "2.0.2",
           "integrity": "sha1-riF2gXXRVZ1IvvNUILL0li8JwzA="
