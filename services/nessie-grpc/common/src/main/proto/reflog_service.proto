@@ -1,0 +1,51 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.dremio.services.nessie.grpc.api";
+option java_outer_classname = "RefLogApiProto";
+
+package com.dremio.services.nessie.grpc.proto;
+
+service RefLogService {
+  rpc getRefLog (RefLogParams) returns (RefLogResponse) {};
+}
+
+message RefLogParams {
+  optional string startHash = 1;
+  optional string endHash = 2;
+  optional int32 maxRecords = 3;
+  optional string pageToken = 4;
+  optional string filter = 5;
+}
+
+message RefLogResponse {
+  repeated RefLogResponseEntry log_entries = 1;
+  bool has_more = 2;
+  optional string token = 3;
+}
+
+message RefLogResponseEntry {
+  string ref_log_id = 1;
+  string ref_name = 2;
+  string ref_type = 3;
+  string commit_hash = 4;
+  string parent_ref_log_id = 5;
+  int64 operation_time = 6;
+  string operation = 7;
+  repeated string source_hashes = 8;
+}

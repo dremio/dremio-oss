@@ -401,4 +401,9 @@ public class BasicJsonOutput implements JsonOutput {
   public void writeLargeVarBinary(FieldReader reader) throws IOException {
     throw new UnsupportedOperationException("LargeVarBinary not supported yet");
   }
+
+  @Override
+  public void writeIntervalMonthDayNano(FieldReader reader) throws IOException {
+    throw new UnsupportedOperationException("IntervalMonthDayNano not supported yet");
+  }
 }

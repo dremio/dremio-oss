@@ -43,8 +43,24 @@ public class GroupingTest extends BaseTestQuery {
       .baselineValues(   3,  5L, 0L)
       .baselineValues(   2,  5L, 0L)
       .baselineValues(   0,  5L, 0L)
-
         .go();
+  }
+
+  @Test  // Simple grouping with rollup
+  public void testGroupingWithRollupWithGroupingFirst() throws Exception {
+    String query = "select n_regionkey, GROUPING(n_regionkey), avg(n_nationkey) from cp.\"tpch/nation.parquet\" group by rollup (n_regionkey);";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("n_regionkey", "EXPR$1", "EXPR$2" )
+      .baselineValues(null, 1L, 12.0)
+      .baselineValues(   1,  0L, 9.4)
+      .baselineValues(   4,  0L, 11.6)
+      .baselineValues(   3,  0L, 15.4)
+      .baselineValues(   2,  0L, 13.6)
+      .baselineValues(   0,  0L, 10.0)
+      .go();
   }
 
   @Test  // Simple grouping without rollup
@@ -145,6 +161,21 @@ public class GroupingTest extends BaseTestQuery {
       .baselineValues(   3,  5L, 0L)
       .baselineValues(   2,  5L, 0L)
       .baselineValues(   0,  5L, 0L)
+      .go();
+  }
+
+  @Test
+  public void testGroupingOnMultipleColumns() throws Exception {
+    String inner = "select n_name, n_regionkey, count(*), GROUPING_ID(n_name, n_regionkey) as gp from cp.\"tpch/nation.parquet\" group by cube(n_name, n_regionkey)";
+    String query = String.format("select gp, count(*) as cnt from (%s) group by gp", inner);
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("gp", "cnt")
+      .baselineValues(3L, 1L)
+      .baselineValues(1L, 25L)
+      .baselineValues(2L, 5L)
+      .baselineValues(0L, 25L)
       .go();
   }
 }

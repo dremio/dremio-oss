@@ -29,6 +29,7 @@ import com.dremio.datastore.api.DocumentWriter;
  * Used in IndexedStore tests.
  */
 public class DoughnutDocumentConverter implements DocumentConverter<String, Doughnut> {
+  private Integer version = 0;
   @Override
   public void convert(DocumentWriter writer, String key, Doughnut record) {
     writer.write(NAME, record.getName());
@@ -37,4 +38,10 @@ public class DoughnutDocumentConverter implements DocumentConverter<String, Doug
     writer.write(THICKNESS, record.getThickness());
     writer.write(DIAMETER, record.getDiameter());
   }
+
+  @Override
+  public Integer getVersion() {
+    return version;
+  }
+
 }

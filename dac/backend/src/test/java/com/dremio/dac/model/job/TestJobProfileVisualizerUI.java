@@ -15,23 +15,66 @@
  */
 package com.dremio.dac.model.job;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.List;
 
-import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.service.jobAnalysis.proto.BaseMetrics;
+import com.dremio.service.jobAnalysis.proto.OperatorData;
 import com.dremio.service.jobAnalysis.proto.PhaseData;
 
 public class TestJobProfileVisualizerUI extends BaseTestServer {
 
+  UserBitShared.QueryProfile queryProfile;
+  JobProfileVisualizerUI jobProfileVisualizerUI;
+
+  @Before
+  public void setUp() throws Exception {
+    queryProfile = getTestProfile();
+    jobProfileVisualizerUI = new JobProfileVisualizerUI(queryProfile);
+  }
+
   @Test
   public void testGetJobProfileInfo() throws Exception {
-    UserBitShared.QueryProfile profile = getTestProfile();
-    JobProfileVisualizerUI jobProfileVisualizerUI = new JobProfileVisualizerUI(profile);
     List<PhaseData> phaseDataList = jobProfileVisualizerUI.getJobProfileInfo();
 
-    Assert.assertEquals("00", phaseDataList.get(0).getPhaseId());
+    //generic test cases
+    assertEquals("00", phaseDataList.get(0).getPhaseId());
+    assertTrue("ProcessingTime", phaseDataList.get(0).getProcessingTime() >= 0);
+    assertTrue("PeakMemory", phaseDataList.get(0).getPeakMemory() >= 0);
+    assertEquals("17", phaseDataList.get(0).getRecordsProcessed().toString());
+    assertEquals("-1", phaseDataList.get(0).getNumThreads().toString());
+
+    //test OperatorDataList
+    List<OperatorData> operatorData = phaseDataList.get(0).getOperatorDataList();
+
+    assertEquals(9, operatorData.size());
+    assertEquals(13, operatorData.get(0).getOperatorType().intValue());
+    assertEquals("SCREEN", operatorData.get(0).getOperatorName());
+    assertEquals("nodeId", operatorData.get(0).getFieldName(1));
+    assertEquals("", operatorData.get(0).getMergeNodeName());
+    assertEquals(2, operatorData.get(0).getFieldNumber("operatorName"));
+    assertEquals("00", operatorData.get(0).getNodeId());
+    assertEquals("SuccessorNodes{successorId=[00-01]}", operatorData.get(0).getSuccessorId().toString());
+
+    // //test  BaseMetrics
+    BaseMetrics baseMetrics = operatorData.get(0).getBaseMetrics();
+
+    assertEquals(3, baseMetrics.getFieldNumber("processingTime"));
+    assertEquals("ioWaitTime", baseMetrics.getFieldName(1));
+    assertEquals(1, baseMetrics.getRecordsProcessed().intValue());
+    assertTrue("ProcessingTime", baseMetrics.getProcessingTime().intValue() >= 0);
+    assertTrue("getPeakMemory", baseMetrics.getPeakMemory().intValue() >= 0);
+    assertEquals(-1, baseMetrics.getNumThreads().intValue());
+    assertTrue("tProcessingTime", baseMetrics.getProcessingTime().intValue() >= 0);
+    assertTrue("IoWaitTime", baseMetrics.getIoWaitTime().intValue() >= 0);
+    assertTrue("SetupTime", baseMetrics.getSetupTime().intValue() >= 0);
+    assertEquals(null, baseMetrics.getBytesProcessed());
   }
 }

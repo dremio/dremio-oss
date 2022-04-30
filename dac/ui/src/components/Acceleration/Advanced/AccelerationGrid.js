@@ -332,7 +332,7 @@ export class AccelerationGrid extends Component {
     return (
       <div
         className='AccelerationGrid grid-acceleration'
-        style={{ maxHeight: 'calc(100vh - 330px)'}}
+        style={{ maxHeight: 'calc(100vh - 376px)'}}
         ref={(wrap) => this.gridWrapper = wrap}
       >
         <AutoSizer>

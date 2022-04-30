@@ -76,4 +76,11 @@ public interface IndexedStore<K, V> extends KVStore<K, V> {
                                   BiFunction<String, V, TenantContext> documentToTenantConverter, FindOption... options) {
     throw new UnsupportedOperationException("Only applicable for MultiTenantKVstore");
   }
+
+  /**
+   * Version for the indicies.
+   *
+   *  @return version number.
+   */
+  Integer version();
 }

@@ -91,6 +91,7 @@ import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
 import com.dremio.exec.planner.sql.parser.SqlShowTables;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
+import com.dremio.exec.planner.sql.parser.SqlVersionBase;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementArrowReq;
@@ -323,7 +324,7 @@ public class CommandCreator {
         return direct.create(new CreateViewHandler(config));
 
       case DROP_TABLE:
-        return direct.create(new DropTableHandler(catalog));
+        return direct.create(new DropTableHandler(catalog, context.getSession()));
 
       case DROP_VIEW:
         return direct.create(new DropViewHandler(catalog));
@@ -339,7 +340,7 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlAlterTableDropColumn) {
           return direct.create(new DropColumnHandler(catalog, config));
         } else if (sqlNode instanceof SqlAlterTableToggleSchemaLearning) {
-            return direct.create(new SqlAlterTableToggleSchemaLearningHandler(catalog));
+            return direct.create(new SqlAlterTableToggleSchemaLearningHandler(catalog, config));
         }
 
       case INSERT:
@@ -382,6 +383,8 @@ public class CommandCreator {
           return direct.create(new AlterClearPlanCacheHandler(context));
         } else if (sqlNode instanceof SqlAnalyzeTableStatistics) {
           return direct.create(new AnalyzeTableStatisticsHandler(catalog, config, context.getStatisticsAdministrationFactory()));
+        } else if (sqlNode instanceof SqlVersionBase) {
+          return direct.create(((SqlVersionBase) sqlNode).toDirectHandler(context));
         }
 
         // fallthrough

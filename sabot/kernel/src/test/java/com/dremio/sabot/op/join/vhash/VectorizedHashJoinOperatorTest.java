@@ -20,12 +20,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyList;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -39,7 +39,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -54,8 +53,8 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.HashJoinPOP;
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
-import com.dremio.exec.planner.physical.filter.RuntimeFilterEntry;
 import com.dremio.exec.planner.physical.filter.RuntimeFilterInfo;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.CoordExecRPC.MajorFragmentAssignment;
@@ -73,6 +72,7 @@ import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.test.AllocatorRule;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
@@ -217,8 +217,10 @@ public class VectorizedHashJoinOperatorTest {
     @Test
     public void testTryPushRuntimeFilterNonPartitionColFlagDisabled1() throws Exception {
         FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
-        VectorizedHashJoinOperator joinOp = spy(newVecHashJoinOp(newRuntimeFilterInfo(true,
-                Lists.newArrayList("pCol1", "pCol2"), Lists.newArrayList("npCol1", "npCol2")), fh));
+        VectorizedHashJoinOperator joinOp = spy(newVecHashJoinOp(
+          newRuntimeFilterInfo(true,
+            Lists.newArrayList("pCol1", "pCol2"),
+            Lists.newArrayList("npCol1", "npCol2")), fh));
         when(joinOp.isRuntimeFilterEnabledForNonPartitionedCols()).thenReturn(false);
 
         ArgumentCaptor<RuntimeFilter> valCaptor = ArgumentCaptor.forClass(RuntimeFilter.class);
@@ -443,7 +445,7 @@ public class VectorizedHashJoinOperatorTest {
             AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.retain(3);
+            recvBuffer.getReferenceManager().retain(3);
             OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
             OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
             OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
@@ -519,7 +521,7 @@ public class VectorizedHashJoinOperatorTest {
             AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.retain(3);
+            recvBuffer.getReferenceManager().retain(3);
             OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
             OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
             OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
@@ -594,7 +596,7 @@ public class VectorizedHashJoinOperatorTest {
             AutoCloseables.close(valueListFilter1, valueListFilter2); // sendRuntimeFilterAtMergePoints is mocked, which would have closed these.
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.retain(3);
+            recvBuffer.getReferenceManager().retain(3);
             OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
             OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
             OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
@@ -665,7 +667,7 @@ public class VectorizedHashJoinOperatorTest {
             when(bloomFilter.isCrossingMaxFPP()).thenReturn(true); // To force drop
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.retain(3);
+            recvBuffer.getReferenceManager().retain(3);
             OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
             OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
             OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
@@ -703,7 +705,7 @@ public class VectorizedHashJoinOperatorTest {
         for (int sendingFragment = 2; sendingFragment <= 4; sendingFragment++) {
             OutOfBandMessage oobMsg = runtimeFilterOOBFromMinorFragment(sendingFragment, recvBuffer, "col1");
             joinOp.workOnOOB(oobMsg);
-            Arrays.stream(oobMsg.getBuffers()).forEach(ArrowBuf::release);
+            Arrays.stream(oobMsg.getBuffers()).forEach(ArrowBuf::close);
         }
         joinOp.tryPushRuntimeFilter();
 
@@ -754,7 +756,7 @@ public class VectorizedHashJoinOperatorTest {
 
             joinOp.setTable(joinTable);
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
-            recvBuffer.retain(3);
+            recvBuffer.getReferenceManager().retain(3);
             OutOfBandMessage oobMsg2 = utils.newOOB(11, 101, 2, partitionColNames, recvBuffer, valueListFilter3, valueListFilter4);
             OutOfBandMessage oobMsg3 = utils.newOOB(11, 101, 3, partitionColNames, recvBuffer, valueListFilter5, valueListFilter6);
             OutOfBandMessage oobMsg4 = utils.newOOB(11, 101, 4, partitionColNames, recvBuffer, valueListFilter7, valueListFilter8);
@@ -959,14 +961,17 @@ public class VectorizedHashJoinOperatorTest {
     }
 
     private RuntimeFilterInfo newRuntimeFilterInfo(boolean isBroadcast, List<String> partitionCols, List<String> nonPartitionCols) {
-        final List<RuntimeFilterEntry> partitionColEntries = partitionCols.stream()
-                .map(c -> new RuntimeFilterEntry(c + "_probe", c + "_build", 1, 101))
-                .collect(Collectors.toList());
-        final List<RuntimeFilterEntry> nonPartitionColEntries = nonPartitionCols.stream()
-                .map(c -> new RuntimeFilterEntry(c + "_probe", c + "_build", 1, 101))
-                .collect(Collectors.toList());
-        return new RuntimeFilterInfo.Builder().isBroadcastJoin(isBroadcast)
-                .partitionJoinColumns(partitionColEntries).nonPartitionJoinColumns(nonPartitionColEntries).build();
+      RuntimeFilterProbeTarget.Builder builder =
+        new RuntimeFilterProbeTarget.Builder(1, 101);
+      for(String partitionCol: partitionCols) {
+        builder.addPartitionKey(partitionCol + "_build", partitionCol + "_probe");
+      }
+      for(String nonPartitionCol: nonPartitionCols) {
+        builder.addNonPartitionKey(nonPartitionCol + "_build", nonPartitionCol + "_probe");
+      }
+      return new RuntimeFilterInfo.Builder().isBroadcastJoin(isBroadcast)
+          .setRuntimeFilterProbeTargets(ImmutableList.of(builder.build()))
+          .build();
     }
 
     private OperatorContext mockOpContext(FragmentHandle fragmentHandle) {

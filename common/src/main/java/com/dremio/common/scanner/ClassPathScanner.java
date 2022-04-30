@@ -28,14 +28,15 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.reflections.Reflections;
-import org.reflections.adapters.JavassistAdapter;
-import org.reflections.scanners.AbstractScanner;
+import org.reflections.scanners.Scanner;
 import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.FilterBuilder;
 
+import com.dremio.common.SuppressForbidden;
 import com.dremio.common.config.CommonConstants;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
@@ -84,7 +85,6 @@ import javassist.bytecode.annotation.StringMemberValue;
  */
 public final class ClassPathScanner {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ClassPathScanner.class);
-  private static final JavassistAdapter METADATA_ADAPTER = new JavassistAdapter();
 
   /** Configuration pathname to list of names of packages to scan for implementations. */
   private static final String IMPLEMENTATIONS_SCAN_PACKAGES = "dremio.classpath.scanning.packages";
@@ -101,7 +101,8 @@ public final class ClassPathScanner {
   /**
    * scans the inheritance tree
    */
-  private static class SubTypesScanner extends AbstractScanner {
+  @SuppressForbidden
+  private static class SubTypesScanner implements Scanner {
 
     private Multimap<String, ChildClassDescriptor> parentsChildren = HashMultimap.create();
     private Multimap<String, ChildClassDescriptor> children = HashMultimap.create();
@@ -113,8 +114,7 @@ public final class ClassPathScanner {
     }
 
     @Override
-    public void scan(final Object cls) {
-      final ClassFile classFile = (ClassFile)cls;
+    public List<Entry<String, String>> scan(final ClassFile classFile) {
       String className = classFile.getName();
       String superclass = classFile.getSuperclass();
       boolean isAbstract = (classFile.getAccessFlags() & (AccessFlag.INTERFACE | AccessFlag.ABSTRACT)) != 0;
@@ -125,6 +125,8 @@ public final class ClassPathScanner {
       for (String anInterface : classFile.getInterfaces()) {
         children.put(anInterface, scannedClass);
       }
+
+      return Collections.emptyList();
     }
 
     /**
@@ -153,8 +155,9 @@ public final class ClassPathScanner {
   /**
    * converts the annotation attribute value into a list of string to simplify
    */
+  @SuppressForbidden
   private static class ListingMemberValueVisitor implements MemberValueVisitor {
-    private final List<String> values;
+    protected final List<String> values;
 
     private ListingMemberValueVisitor(List<String> values) {
       this.values = values;
@@ -219,12 +222,7 @@ public final class ClassPathScanner {
     public void visitArrayMemberValue(ArrayMemberValue node) {
       MemberValue[] nestedValues = node.getValue();
       for (MemberValue v : nestedValues) {
-        v.accept(new ListingMemberValueVisitor(values) {
-          @Override
-          public void visitArrayMemberValue(ArrayMemberValue node) {
-            values.add(Arrays.toString(node.getValue()));
-          }
-        });
+        v.accept(new ListingInnerMemberValueVisitor(values));
       }
     }
 
@@ -234,11 +232,24 @@ public final class ClassPathScanner {
     }
   }
 
+  @SuppressForbidden
+  private static final class ListingInnerMemberValueVisitor extends ListingMemberValueVisitor {
+    private ListingInnerMemberValueVisitor(List<String> values) {
+      super(values);
+    }
+
+    @Override
+    public void visitArrayMemberValue(ArrayMemberValue node) {
+      values.add(Arrays.toString(node.getValue()));
+    }
+  }
+
   /**
    * scans functions annotated with configured annotations
    *  and keeps track of its annotations and fields
    */
-  private static final class AnnotationScanner extends AbstractScanner {
+  @SuppressForbidden
+  private static final class AnnotationScanner implements Scanner {
 
     private final List<AnnotatedClassDescriptor> functions = new ArrayList<>();
 
@@ -254,8 +265,7 @@ public final class ClassPathScanner {
     }
 
     @Override
-    public void scan(final Object cls) {
-      final ClassFile classFile = (ClassFile)cls;
+    public List<Entry<String, String>> scan(final ClassFile classFile) {
       AnnotationsAttribute annotations = ((AnnotationsAttribute)classFile.getAttribute(AnnotationsAttribute.visibleTag));
       if (annotations != null) {
         boolean isAnnotated = false;
@@ -279,6 +289,8 @@ public final class ClassPathScanner {
           functions.add(new AnnotatedClassDescriptor(classFile.getName(), classAnnotations, fieldDescriptors));
         }
       }
+
+      return Collections.emptyList();
     }
 
     private List<AnnotationDescriptor> getAnnotationDescriptors(AnnotationsAttribute annotationsAttr) {
@@ -392,11 +404,11 @@ public final class ClassPathScanner {
       if (packagePrefixes.size() > 0) {
         final FilterBuilder filter = new FilterBuilder();
         for (String prefix : packagePrefixes) {
-          filter.include(FilterBuilder.prefix(prefix));
+          filter.includePackage(prefix);
         }
         ConfigurationBuilder conf = new ConfigurationBuilder()
+            .setParallel(false) // our scanners are not thread-safe
             .setUrls(pathsToScan)
-            .setMetadataAdapter(METADATA_ADAPTER) // Scanners depend on this
             .filterInputsBy(filter)
             .setScanners(annotationScanner, subTypesScanner);
 

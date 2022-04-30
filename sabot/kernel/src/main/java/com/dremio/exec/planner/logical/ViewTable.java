@@ -24,6 +24,7 @@ import org.apache.calcite.schema.Schema.TableType;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
 
+import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
@@ -37,42 +38,32 @@ public class ViewTable implements DremioTable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ViewTable.class);
 
   private final View view;
-  private final String viewOwner;
+  private final CatalogIdentity viewOwner;
   private final NamespaceKey path;
   private final DatasetConfig config;
 
   private BatchSchema schema;
 
   public ViewTable(
-      NamespaceKey path,
-      View view,
-      String viewOwner,
-      BatchSchema schema
+    NamespaceKey path,
+    View view,
+    CatalogIdentity viewOwner,
+    BatchSchema schema
   ) {
     this(path, view, viewOwner, null, schema);
   }
 
   public ViewTable(
-      NamespaceKey path,
-      View view,
-      DatasetConfig config,
-      BatchSchema schema
-  ) {
-    this(path, view, config.getOwner(), config, schema);
-  }
-
-  private ViewTable(
-      NamespaceKey path,
-      View view,
-      String viewOwner,
-      DatasetConfig config,
-      BatchSchema schema
+    NamespaceKey path,
+    View view,
+    CatalogIdentity viewOwner,
+    DatasetConfig config,
+    BatchSchema schema
   ) {
     this.view = view;
     this.path = path;
     this.viewOwner = viewOwner;
     this.config = config;
-
     this.schema = schema;
   }
 
@@ -108,7 +99,7 @@ public class ViewTable implements DremioTable {
     return Statistics.UNKNOWN;
   }
 
-  public String getViewOwner() {
+  public CatalogIdentity getViewOwner() {
     return viewOwner;
   }
 

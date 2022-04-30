@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.sysflight;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,6 +47,7 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.JobResultInfoProvider;
@@ -174,7 +176,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
       final View view = Views.fieldTypesToView(jobId, getJobResultsQuery(info.getResultDatasetPath()),
         ViewFieldsHelper.getBatchSchemaFields(info.getBatchSchema()), null);
 
-      return new ViewTable(new NamespaceKey(tableSchemaPath), view, SystemUser.SYSTEM_USERNAME, info.getBatchSchema());
+      return new ViewTable(new NamespaceKey(tableSchemaPath), view, CatalogUser.from(SystemUser.SYSTEM_USERNAME), info.getBatchSchema());
     }).orElse(null);
   }
 
@@ -193,7 +195,7 @@ public class SysFlightStoragePlugin implements StoragePlugin, SupportsListingDat
   }
 
   @Override
-  public void start() { }
+  public void start() throws IOException { }
 
   @Override
   public void close() throws Exception {

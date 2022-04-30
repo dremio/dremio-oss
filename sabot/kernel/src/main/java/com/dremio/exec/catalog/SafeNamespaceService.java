@@ -120,8 +120,13 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public void deleteSourceChildren(NamespaceKey arg0, String arg1) throws NamespaceException {
-    runner.doSafe(() -> delegate.deleteSourceChildren(arg0, arg1));
+  public void deleteSourceWithCallBack(NamespaceKey arg0, String arg1, DeleteCallback arg2) throws NamespaceException {
+    runner.doSafe(() -> delegate.deleteSourceWithCallBack(arg0, arg1, arg2));
+  }
+
+  @Override
+  public void deleteSourceChildren(NamespaceKey arg0, String arg1, DeleteCallback arg2 ) throws NamespaceException {
+    runner.doSafe(() -> delegate.deleteSourceChildren(arg0, arg1, arg2));
   }
 
   @Override

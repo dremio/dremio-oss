@@ -24,6 +24,7 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.util.Arrays.asList;
 import static java.util.UUID.randomUUID;
 import static javax.ws.rs.client.Entity.entity;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -46,7 +47,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
@@ -120,8 +120,6 @@ import com.google.common.collect.ImmutableList;
  * Tests for job service.
  */
 public class TestJobService extends BaseTestServer {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
   private HybridJobsService jobsService;
@@ -223,8 +221,6 @@ public class TestJobService extends BaseTestServer {
   @Test
   public void testResourceAllocationError() throws Exception {
     final String testKey = TestingFunctionHelper.newKey(() -> {});
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Job has been cancelled");
 
     try {
       String controls = Controls.newBuilder()
@@ -235,11 +231,12 @@ public class TestJobService extends BaseTestServer {
 
       SqlQuery sqlQuery = new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey),
         null, DEFAULT_USERNAME);
-      submitJobAndWaitUntilCompletion(
-        JobRequest.newBuilder()
-          .setSqlQuery(sqlQuery)
-          .build()
-      );
+      assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
+          JobRequest.newBuilder()
+            .setSqlQuery(sqlQuery)
+            .build()
+        )).isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("Job has been cancelled");
     } finally {
       // reset, irrespective any exception, so that other test cases are not affected.
       ExecutionControls.setControlsOptionMapper(new ObjectMapper());
@@ -1302,11 +1299,11 @@ public class TestJobService extends BaseTestServer {
     UserBitShared.QueryProfile queryProfile = profileStore.get(AttemptIdUtils.fromString(JobsProtoUtil.getLastAttempt(jobDetails).getAttemptId()));
     assertEquals(null, queryProfile);
 
-    thrown.expect(JobNotFoundException.class);
     JobDetailsRequest request = JobDetailsRequest.newBuilder()
       .setJobId(jobDetails.getJobId())
       .build();
-    jobsService.getJobDetails(request);
+    assertThatThrownBy(() -> jobsService.getJobDetails(request))
+      .isInstanceOf(JobNotFoundException.class);
   }
 
   @Test
@@ -1556,7 +1553,7 @@ public class TestJobService extends BaseTestServer {
     UserBitShared.ExternalId externalId[] = new UserBitShared.ExternalId[4];
     JobId jobID[] = new JobId[4];
     for (int i = 0; i < 4; i++) {
-      final String query = String.format("Select 1");
+      final String query = "Select 1";
       jobID[i] = submitAndWaitUntilSubmitted(
         JobRequest.newBuilder()
           .setSqlQuery(new SqlQuery(query, com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME))

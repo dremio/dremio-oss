@@ -52,15 +52,15 @@ public class MinorDataPopulator extends AbstractPhysicalVisitor<PhysicalOperator
 
   @Override
   public PhysicalOperator visitExchange(Exchange exchange, MinorDataReader reader) throws ExecutionSetupException {
-    throw new ExecutionSetupException(String.format(
-      "Exchange type operator not expected in serialized plan, found " + exchange.getClass().getCanonicalName()));
+    throw new ExecutionSetupException(
+      "Exchange type operator not expected in serialized plan, found " + exchange.getClass().getCanonicalName());
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public PhysicalOperator visitGroupScan(@SuppressWarnings("rawtypes") GroupScan groupScan, MinorDataReader reader) throws ExecutionSetupException {
-    throw new ExecutionSetupException(String.format(
-      "GroupScan type operator not expected in serialized plan, found " + groupScan.getClass().getCanonicalName()));
+    throw new ExecutionSetupException(
+      "GroupScan type operator not expected in serialized plan, found " + groupScan.getClass().getCanonicalName());
   }
 
   @Override

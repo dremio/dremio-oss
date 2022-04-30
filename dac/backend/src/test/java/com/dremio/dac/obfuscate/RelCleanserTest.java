@@ -49,7 +49,7 @@ public class RelCleanserTest {
 
     String observedRelTree =
       RequestContext.current()
-      .with(SupportContext.CTX_KEY, new SupportContext("dummy", "dummy"))
+      .with(SupportContext.CTX_KEY, new SupportContext("dummy", "dummy", new String[]{ SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue() }))
       .call(() -> RelCleanser.redactRelTree(relTree));
       assertEquals("Obfuscating of relTree failed.", expectedRelTree, observedRelTree);
   }

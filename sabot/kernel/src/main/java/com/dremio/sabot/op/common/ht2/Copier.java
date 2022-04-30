@@ -15,48 +15,20 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import java.lang.reflect.Field;
-
-import com.dremio.common.SuppressForbidden;
-
 import io.netty.util.internal.PlatformDependent;
-import sun.misc.Unsafe;
 
-@SuppressForbidden
-@SuppressWarnings("restriction")
-public class Copier {
+public final class Copier {
 
-  private static final Unsafe UNSAFE;
-
-  static {
-    Unsafe localUnsafe = null;
-    try{
-      localUnsafe = getUnsafe();
-    }catch(Exception ex){
-      System.err.println("Failure getting unsafe.");
-      ex.printStackTrace(System.err);
-    }
-
-    UNSAFE = localUnsafe;
-  }
-
-  private static Unsafe getUnsafe() throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException {
-    Field instanceField = Unsafe.class.getDeclaredField("theUnsafe");
-    instanceField.setAccessible(true);
-    return (Unsafe) instanceField.get(null);
-  }
+  private Copier() {}
 
   public static void copy(long src, long dst, int len){
     handCopy2(src, dst, len);
   }
 
-  public static void unsafeCopy(final long src, final long dst, int len) {
-    UNSAFE.copyMemory(src, dst, len);
-  }
-
   public static void unsafeCopy1MB(final long src, final long dst, int len) {
     PlatformDependent.copyMemory(src, dst, len);
   }
+
   public static final void handCopy(final long src, final long dst, int len) {
     int n = len;
     long lPos = src;

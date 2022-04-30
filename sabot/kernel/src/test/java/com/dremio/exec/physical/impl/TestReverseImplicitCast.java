@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.arrow.vector.ValueVector;
 import org.junit.Test;
@@ -47,7 +48,9 @@ public class TestReverseImplicitCast extends PopUnitTestBase {
          DremioClient client = new DremioClient(DEFAULT_SABOT_CONFIG, clusterCoordinator)) {
       // run query.
       bit.run();
-      client.connect();
+      client.connect(new Properties(){{
+        put("user", "anonymous");
+      }});
       List<QueryDataBatch> results = client.runQuery(com.dremio.exec.proto.UserBitShared.QueryType.PHYSICAL,
           Files.toString(FileUtils.getResourceAsFile("/functions/cast/two_way_implicit_cast.json"), Charsets.UTF_8));
 

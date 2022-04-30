@@ -25,6 +25,7 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.GenerateSampleData;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -62,7 +63,7 @@ public class MockRecordReader extends AbstractRecordReader {
 
   private Field getVector(String name, MajorType type, int length) {
     assert context != null : "Context shouldn't be null.";
-    final Field f = new Field(name, true, getArrowTypeForMajorType(type), null);
+    final Field f = new Field(name, new FieldType(true, getArrowTypeForMajorType(type), null), null);
     return f;
   }
 

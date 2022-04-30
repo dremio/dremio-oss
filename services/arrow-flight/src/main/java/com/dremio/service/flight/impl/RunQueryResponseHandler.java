@@ -63,21 +63,24 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
   private final Provider<UserWorker> workerProvider;
   private final FlightProducer.ServerStreamListener clientListener;
   private final BufferAllocator allocator;
+  private final Runnable queryCompletionCallback;
   private RecordBatchLoader recordBatchLoader;
-  private volatile VectorSchemaRoot vectorSchemaRoot;
 
+  private volatile VectorSchemaRoot vectorSchemaRoot;
   private volatile boolean completed;
 
   RunQueryResponseHandler(UserBitShared.ExternalId runExternalId,
                           UserSession userSession,
                           Provider<UserWorker> workerProvider,
                           FlightProducer.ServerStreamListener clientListener,
-                          BufferAllocator allocator) {
+                          BufferAllocator allocator,
+                          Runnable queryCompletionCallback) {
     this.runExternalId = runExternalId;
     this.userSession = userSession;
     this.workerProvider = workerProvider;
     this.clientListener = clientListener;
     this.allocator = allocator;
+    this.queryCompletionCallback = queryCompletionCallback;
     this.recordBatchLoader = new RecordBatchLoader(allocator);
     this.completed = false;
   }
@@ -93,7 +96,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
 
     final ByteBuf[] buffers = result.getBuffers();
 
-    /**
+    /*
      * RecordBatchLoader cannot reassemble ValueVectors for types which propagate more than one NettyArrowBuffer
      * (such as DataBuffers [1] and OffsetBuffers [2]) in calls to UserResponseHandler#sendData.
      * Because of this limitation, when {@link com.dremio.service.flight.impl.RunQueryResponseHandler#sendData}
@@ -113,7 +116,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
       loadFromCopyOfEntireResult(result, def);
     } else {
       final ByteBuf byteBuf = buffers[0];
-      /**
+      /*
        * The most optimistic approach from a buffer copying perspective is to use buffers as they
        * are provided to this method directly. When a NettyArrowBuf is provided, the underlying
        * Arrow Buffer gets used directly. Other implementations will require copying the data into
@@ -258,6 +261,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
         }
         break;
       case COMPLETED:
+        queryCompletionCallback.run();
         clientListener.completed();
         break;
       default:
@@ -313,8 +317,8 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
 
     BasicResponseHandler(UserBitShared.ExternalId runExternalId, UserSession userSession,
                          Provider<UserWorker> workerProvider, FlightProducer.ServerStreamListener clientListener,
-                         BufferAllocator allocator) {
-      super(runExternalId, userSession, workerProvider, clientListener, allocator);
+                         BufferAllocator allocator, Runnable queryCompletionCallback) {
+      super(runExternalId, userSession, workerProvider, clientListener, allocator, queryCompletionCallback);
       this.clientListener = clientListener;
       this.clientListener.setOnCancelHandler(this::serverStreamListenerOnCancelledCallback);
     }
@@ -335,8 +339,9 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
 
     BackpressureHandlingResponseHandler(UserBitShared.ExternalId runExternalId, UserSession userSession,
                                         Provider<UserWorker> workerProvider,
-                                        FlightProducer.ServerStreamListener clientListener, BufferAllocator allocator) {
-      super(runExternalId, userSession, workerProvider, clientListener, allocator);
+                                        FlightProducer.ServerStreamListener clientListener, BufferAllocator allocator,
+                                        Runnable queryCompletionCallback) {
+      super(runExternalId, userSession, workerProvider, clientListener, allocator, queryCompletionCallback);
       this.runQueryBackpressureStrategy = new RunQueryBackpressureStrategy(this::serverStreamListenerOnCancelledCallback);
       runQueryBackpressureStrategy.register(clientListener);
       this.optionManager = workerProvider.get().getSystemOptions();

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.physical;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -30,9 +31,8 @@ import org.slf4j.Logger;
 
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.planner.physical.AggPrelBase.OperatorPhase;
+import com.dremio.exec.planner.physical.AggregatePrel.OperatorPhase;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 
 public class StreamAggPrule extends AggPruleBase {
   public static final RelOptRule INSTANCE = new StreamAggPrule();
@@ -212,7 +212,7 @@ public class StreamAggPrule extends AggPruleBase {
 
   private RelCollation getOutputCollation(AggregateRel rel){
 
-    List<RelFieldCollation> fields = Lists.newArrayList();
+    List<RelFieldCollation> fields = new ArrayList<>();
     for (int group = 0; group < rel.getGroupSet().cardinality(); group++) {
       fields.add(new RelFieldCollation(group));
     }
@@ -221,7 +221,7 @@ public class StreamAggPrule extends AggPruleBase {
 
   private RelCollation getInputCollation(AggregateRel rel){
 
-    List<RelFieldCollation> fields = Lists.newArrayList();
+    List<RelFieldCollation> fields = new ArrayList<>();
     for (int group : rel.getGroupSet()) {
       fields.add(new RelFieldCollation(group));
     }

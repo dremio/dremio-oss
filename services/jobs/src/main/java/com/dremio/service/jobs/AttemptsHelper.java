@@ -31,6 +31,7 @@ import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Helper methods for computing various metrics out of {@link JobAttempt}
@@ -223,6 +224,10 @@ public class AttemptsHelper {
       }
     }
     return null;
+  }
+
+  public List<AttemptEvent> getEvents() {
+    return ImmutableList.copyOf(events);
   }
 
   public Long getStateTimeStamp(AttemptEvent.State state) {

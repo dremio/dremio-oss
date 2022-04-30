@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.PlanFragmentStats;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
@@ -44,6 +45,7 @@ import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.work.foreman.ExecutionPlan;
+import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.google.common.annotations.VisibleForTesting;
@@ -63,10 +65,11 @@ import io.grpc.stub.StreamObserver;
  */
 class FragmentStarter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStarter.class);
-  private static final long RPC_WAIT_IN_MSECS_PER_FRAGMENT = 5000L;
+  private static long RPC_WAIT_IN_MSECS_PER_FRAGMENT = 5000L;
   private static final long RPC_MIN_WAIT_IN_MSECS = 30000L;
   private static final ControlsInjector injector =
     ControlsInjectorFactory.getInjector(FragmentStarter.class);
+  public OptionManager optionManager;
 
   @VisibleForTesting
   public static final String INJECTOR_BEFORE_START_FRAGMENTS_ERROR =
@@ -92,6 +95,10 @@ class FragmentStarter {
   public static final String INJECTOR_BEFORE_ACTIVATE_FRAGMENTS_PAUSE =
     "beforeActivateFragmentsPause";
 
+  @VisibleForTesting
+  public static final String INJECTOR_AFTER_ON_COMPLETED_PAUSE =
+    "afterOnCompletedPause";
+
   private final ExecutorServiceClientFactory executorServiceClientFactory;
   private final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
   private final ExecutionControls executionControls;
@@ -99,10 +106,11 @@ class FragmentStarter {
 
   public FragmentStarter(ExecutorServiceClientFactory executorServiceClientFactory,
                          ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
-                         ExecutionControls executionControls) {
+                         ExecutionControls executionControls,OptionManager optionManager) {
     this.executorServiceClientFactory = executorServiceClientFactory;
     this.resourceSchedulingDecisionInfo = resourceSchedulingDecisionInfo;
     this.executionControls = executionControls;
+    this.optionManager = optionManager;
   }
 
   public void start(ExecutionPlan plan, MaestroObserver observer) {
@@ -180,7 +188,7 @@ class FragmentStarter {
         endpointLatch, fragmentSubmitFailures, stats, fragmentSubmitSuccess);
     }
 
-    final long timeout = Long.max(RPC_WAIT_IN_MSECS_PER_FRAGMENT * numFragments, RPC_MIN_WAIT_IN_MSECS);
+    final long timeout = Long.max(RPC_WAIT_IN_MSECS_PER_FRAGMENT * numFragments, Long.max(RPC_MIN_WAIT_IN_MSECS, optionManager.getOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT)));
     if (numFragments > 0 && !endpointLatch.awaitUninterruptibly(timeout)){
       long numberRemaining = endpointLatch.getCount();
       StringBuilder sb = new StringBuilder();
@@ -415,6 +423,9 @@ class FragmentStarter {
 
     @Override
     public void onCompleted() {
+
+      injector.injectPause(executionControls, INJECTOR_AFTER_ON_COMPLETED_PAUSE, logger);
+
       if (latch != null && done.compareAndSet(false, true)) {
         fragmentSubmitSuccesses.addSuccess(endpoint);
         latch.countDown();

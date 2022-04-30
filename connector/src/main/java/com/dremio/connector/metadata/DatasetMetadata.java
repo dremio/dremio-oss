@@ -85,8 +85,11 @@ public interface DatasetMetadata extends Unwrappable {
   /**
    * Different sources support Iceberg datasets. This method will provide required Iceberg metadata
    * that helps in triggering Iceberg execution for all such datasets.
+   *
    * @return iceberg metadata. can be empty.
+   * @deprecated use {@link com.dremio.connector.metadata.extensions.SupportsIcebergMetadata}.
    */
+  @Deprecated // TODO(DX-43317): remove this method
   default byte[] getIcebergMetadata() {
     return new byte[0];
   }

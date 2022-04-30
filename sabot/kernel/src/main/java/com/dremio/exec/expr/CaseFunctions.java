@@ -28,7 +28,6 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.sabot.exec.context.OperatorContext;
 
@@ -156,8 +155,8 @@ public class CaseFunctions {
       for (int i = 0; i < holderExpr.args.size(); i++) {
         args.add(visitCodegenContext((CodeGenContext) holderExpr.args.get(i)));
       }
-      return CodeGenContext.buildWithCurrentCodegen(context, new FunctionHolderExpr(holderExpr.nameUsed,
-        (BaseFunctionHolder) holderExpr.getHolder(), args));
+      return CodeGenContext.buildWithCurrentCodegen(context,
+        ((AbstractFunctionHolder) holderExpr.getHolder()).getExpr(holderExpr.nameUsed, args));
     }
 
     @Override

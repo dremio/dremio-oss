@@ -21,6 +21,7 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
@@ -36,27 +37,24 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
 import org.apache.iceberg.types.Types;
+import org.awaitility.Awaitility;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.parser.SqlInsertTable;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.Sets;
 
 public class TestInsertIntoTable extends BaseTestQuery {
 
   private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
-
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -88,13 +86,13 @@ public class TestInsertIntoTable extends BaseTestQuery {
       test(createTableQuery);
 
       Thread.sleep(1001);
-
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage(String.format("Table [%s] not found", tblName));
       final String insertQuery = String.format("INSERT INTO %s SELECT n_nationkey id, n_regionkey CODE " +
           "from cp.\"tpch/nation.parquet\"",
         tblName);
-      test(insertQuery);
+      Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+        UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
+          .hasMessageContaining(String.format("Table [%s] not found", tblName));
+      });
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
@@ -370,9 +368,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
         "(col1 int)";
       test(table1);
       String insert = "insert into " + schema + "." + newTable + " select * from (values('abcd'))";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage(String.format("Table schema(col1::int32) doesn't match with query schema(EXPR$0::varchar"));
-      test(insert);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insert))
+        .hasMessageContaining("Table schema(col1::int32) doesn't match with query schema(EXPR$0::varchar");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable));
@@ -495,10 +492,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
 
       final String insertQuery = String.format("insert into %s.%s_1 select listcol2 from %s.%s_2",
         testSchema, newTable, testSchema, newTable);
-      expectedEx.expect(UserException.class);
       String expected = isComplexTypeSupport() ? "Table schema(listcol1::list<int64>) doesn't match with query schema(listcol2::list<int32>)" : "Table schema(listcol1::list<int64>) doesn't match with query schema(listcol1::list<int32>)";
-      expectedEx.expectMessage(String.format(expected));
-      test(insertQuery);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
+        .hasMessageContaining(expected);
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -581,10 +577,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
 
       final String insertQuery = String.format("insert into %s.%s_1 select structcol2 from %s.%s_2",
         testSchema, newTable, testSchema, newTable);
-      expectedEx.expect(UserException.class);
       String expected = isComplexTypeSupport() ? "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol2::struct<name::varchar, age::int32>)" : "schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol1::struct<name::varchar, age::int32>)";
-      expectedEx.expectMessage(String.format(expected));
-      test(insertQuery);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
+        .hasMessageContaining(expected);
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -622,10 +617,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
 
       final String insertQuery = String.format("insert into %s.%s_1 select %s_2.structcol2.name from %s.%s_2",
         testSchema, newTable, newTable, testSchema, newTable);
-      expectedEx.expect(UserException.class);
       String expected = isComplexTypeSupport() ? "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(name::varchar)" : "Table schema(structcol1::struct<name::varchar, age::int64>) doesn't match with query schema(structcol1::varchar)";
-      expectedEx.expectMessage(String.format(expected));
-      test(insertQuery);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertQuery))
+        .hasMessageContaining(expected);
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -791,9 +785,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromoting = "insert into " + schema + "." + newTable + "_2" +
         " select * from " + schema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col2::decimal(20,2)) doesn't match with query schema(zcol1::decimal(10,5))");
-      test(insertUppromoting);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
+        .hasMessageContaining("Table schema(col2::decimal(20,2)) doesn't match with query schema(zcol1::decimal(10,5))");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -825,9 +818,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromoting = "insert into " + schema + "." + newTable + "_2" +
         " select * from " + schema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col2::decimal(9,2)) doesn't match with query schema(zcol1::decimal(10,2))");
-      test(insertUppromoting);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
+        .hasMessageContaining("Table schema(col2::decimal(9,2)) doesn't match with query schema(zcol1::decimal(10,2))");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -859,9 +851,9 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromoting = "insert into " + schema + "." + newTable + "_2" +
         " select * from " + schema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col2::decimal(18,2)) doesn't match with query schema(zcol1::double)");
-      test(insertUppromoting);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
+        .hasMessageContaining("Table schema(col2::decimal(18,2)) doesn't match with query schema(zcol1::double)");
+
       Thread.sleep(1001);
 
       String table3 = "create table " + schema + "." + newTable + "_3" +
@@ -870,9 +862,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromotingFailure = "insert into " + schema + "." + newTable + "_3" +
         " select * from " + schema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col3::decimal(16,2)) doesn't match with query schema(zcol1::double)");
-      test(insertUppromotingFailure);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromotingFailure))
+        .hasMessageContaining("Table schema(col3::decimal(16,2)) doesn't match with query schema(zcol1::double)");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -905,9 +896,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromoting = "insert into " + schema + "." + newTable + "_2" +
         " select * from " + schema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col2::decimal(7,0)) doesn't match with query schema(zcol1::float)");
-      test(insertUppromoting);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
+        .hasMessageContaining("Table schema(col2::decimal(7,0)) doesn't match with query schema(zcol1::float)");
 
       String table3 = "create table " + schema + "." + newTable + "_3" +
         "(col3 decimal(7,1))";
@@ -915,9 +905,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromotingFailure = "insert into " + schema + "." + newTable + "_3" +
         " select * from " + schema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col3::decimal(7,1)) doesn't match with query schema(zcol1::float)");
-      test(insertUppromotingFailure);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromotingFailure))
+        .hasMessageContaining("Table schema(col3::decimal(7,1)) doesn't match with query schema(zcol1::float)");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -964,9 +953,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromotingFailure = "insert into " + schema + "." + newTable + "_3" +
         " select * from " + schema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col3::decimal(20,2)) doesn't match with query schema(zcol1::int64)");
-      test(insertUppromotingFailure);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromotingFailure))
+        .hasMessageContaining("Table schema(col3::decimal(20,2)) doesn't match with query schema(zcol1::int64)");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -1013,9 +1001,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromotingFailure = "insert into " + schema + "." + newTable + "_3" +
         " select * from " + schema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col3::decimal(11,2)) doesn't match with query schema(zcol1::int32)");
-      test(insertUppromotingFailure);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromotingFailure))
+        .hasMessageContaining("Table schema(col3::decimal(11,2)) doesn't match with query schema(zcol1::int32)");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -1162,9 +1149,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromoting = "insert into " + testSchema + "." + newTable + "_2" +
         " select * from " + testSchema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col2::int32) doesn't match with query schema(zcol1::int64)");
-      test(insertUppromoting);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
+        .hasMessageContaining("Table schema(col2::int32) doesn't match with query schema(zcol1::int64)");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));
@@ -1196,9 +1182,8 @@ public class TestInsertIntoTable extends BaseTestQuery {
       Thread.sleep(1001);
       String insertUppromoting = "insert into " + testSchema + "." + newTable + "_2" +
         " select * from " + testSchema + "." + newTable + "_1";
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage("Table schema(col2::float) doesn't match with query schema(zcol1::double)");
-      test(insertUppromoting);
+      UserExceptionAssert.assertThatThrownBy(() -> test(insertUppromoting))
+        .hasMessageContaining("Table schema(col2::float) doesn't match with query schema(zcol1::double)");
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTable + "_1"));

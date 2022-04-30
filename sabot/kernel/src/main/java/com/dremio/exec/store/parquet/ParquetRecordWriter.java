@@ -306,7 +306,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
     this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
     parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path), checkNotNull(schema), ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE,
-        MAX_PADDING_SIZE_DEFAULT, DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, true);
+        MAX_PADDING_SIZE_DEFAULT, DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, false);
     parquetFileWriter.start();
   }
 
@@ -363,7 +363,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       .withDictionaryEncoding(enableDictionary)
       .withAllocator(new ParquetDirectByteBufferAllocator(columnEncoderAllocator))
       .withPageSize(pageSize)
-      .withAddPageHeadersToMetadata(true)
+      .withAddPageHeadersToMetadata(false)
       .withEnableDictionarForBinaryType(enableDictionaryForBinary)
       .withPageRowCountLimit(Integer.MAX_VALUE) // Bug 16118
       .build();

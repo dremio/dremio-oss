@@ -21,6 +21,7 @@ describe('ResourceTree', () => {
   let minimalProps;
   let commonProps;
   let homeNode;
+  let instance;
   beforeEach(() => {
     minimalProps = {};
     commonProps = {
@@ -61,51 +62,15 @@ describe('ResourceTree', () => {
     });
   });
   describe('renderNode', () => {
-    let instance;
     let wrapper;
     beforeEach(() => {
       wrapper = shallow(<ResourceTree {...commonProps}/>);
       instance = wrapper.instance();
     });
-    it('should render expand arrow only if node is expandable', () => {
-      let renderedNode = shallow(instance.renderNode(homeNode));
-      expect(renderedNode.find('Art')).to.have.length(1);
-
-      const node = homeNode.set('type', 'VIRTUAL_DATASET');
-      renderedNode = shallow(instance.renderNode(node));
-      expect(renderedNode.find('Art')).to.have.length(0);
-    });
-    it('should render DatasetItemLabel only if node is dataset', () => {
-      const node = Immutable.fromJS({
-        fullPath: ['foo', 'bar'],
-        name: 'bar',
-        type: 'VIRTUAL_DATASET'
-      });
-      let renderedNode = shallow(instance.renderNode(node));
-      expect(renderedNode.find('DatasetItemLabel')).to.have.length(1);
-      expect(renderedNode.find('Art')).to.have.length(0);
-
-      renderedNode = shallow(instance.renderNode(homeNode));
-      expect(renderedNode.find('DatasetItemLabel')).to.have.length(0);
-      expect(renderedNode.find('Art')).to.have.length(1);
-    });
-    it('should render node with .active-node class only if it is selected', () => {
-      const node = Immutable.fromJS({
-        fullPath: ['foo', 'bar'],
-        name: 'bar',
-        type: 'VIRTUAL_DATASET'
-      });
-      let renderNode = shallow(instance.renderNode(node));
-      expect(renderNode.find('.active-node')).to.have.length(1);
-
-      renderNode = shallow(instance.renderNode(homeNode));
-      expect(renderNode.find('.active-node')).to.have.length(0);
-    });
   });
 
   describe('handleSelectedNodeChange', () => {
     let wrapper;
-    let instance;
     beforeEach(() => {
       sinon.spy(commonProps, 'formatIdFromNode');
       wrapper = shallow(<ResourceTree {...commonProps}/>);

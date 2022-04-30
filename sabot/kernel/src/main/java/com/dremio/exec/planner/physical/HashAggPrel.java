@@ -53,7 +53,7 @@ import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.google.common.collect.ImmutableList;
 
 @Options
-public class HashAggPrel extends AggPrelBase implements Prel{
+public class HashAggPrel extends AggregatePrel implements Prel{
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashAggPrel.class);
 
@@ -84,7 +84,7 @@ public class HashAggPrel extends AggPrelBase implements Prel{
                      List<ImmutableBitSet> groupSets,
                      List<AggregateCall> aggCalls,
                      OperatorPhase phase) throws InvalidRelException {
-    final RelTraitSet adjustedTraits = AggPrelBase.adjustTraits(traits, child, groupSet);
+    final RelTraitSet adjustedTraits = AggregatePrel.adjustTraits(traits, child, groupSet);
     return new HashAggPrel(cluster, adjustedTraits, child, groupSet, groupSets, aggCalls, phase);
   }
 

@@ -49,7 +49,6 @@ import com.dremio.sabot.exec.context.OperatorStats;
 public class SchemaDiscoveryIcebergCommitOpHelper extends IcebergCommitOpHelper {
     private VarBinaryVector schemaVector;
     private BatchSchema currentSchema;
-    private List<ManifestFile> icebergManifestFiles = new ArrayList<>();
     private List<DataFile> deletedDataFiles = new ArrayList<>();
     private List<String> partitionColumns;
     private final int implicitColSize;

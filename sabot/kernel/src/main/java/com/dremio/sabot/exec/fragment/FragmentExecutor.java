@@ -58,6 +58,7 @@ import com.dremio.sabot.exec.FragmentTicket;
 import com.dremio.sabot.exec.StateTransitionException;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.FragmentStats;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.receiver.IncomingBuffers;
@@ -157,11 +158,18 @@ public class FragmentExecutor {
 
   private final SharedResource allocatorLock;
 
+  // This is the weight assigned by the planner
+  private final long fragmentWeight;
+  // This is the weight assigned by the executor
+  private final int schedulingWeight;
+  private final boolean leafFragment;
+
   public FragmentExecutor(
       FragmentStatusReporter statusReporter,
       SabotConfig config,
       ExecutionControls executionControls,
       PlanFragmentFull fragment,
+      int schedulingWeight,
       ClusterCoordinator clusterCoordinator,
       CachedFragmentReader reader,
       SharedResourceManager sharedResources,
@@ -171,6 +179,7 @@ public class FragmentExecutor {
       OperatorContextCreator contextCreator,
       FunctionLookupContext functionLookupContext,
       FunctionLookupContext decimalFunctionLookupContext,
+      FileCursorManagerFactory fileCursorManagerFactory,
       TunnelProvider tunnelProvider,
       FlushableSendingAccountor flushable,
       OptionManager fragmentOptions,
@@ -184,6 +193,10 @@ public class FragmentExecutor {
     this.name = QueryIdHelper.getExecutorThreadName(fragment.getHandle());
     this.statusReporter = statusReporter;
     this.fragment = fragment;
+    this.fragmentWeight = fragment.getMajor().getFragmentExecWeight() <= 0 ?
+      1 : fragment.getMajor().getFragmentExecWeight();
+    this.schedulingWeight = schedulingWeight;
+    this.leafFragment = fragment.getMajor().getLeafFragment();
     this.clusterCoordinator = clusterCoordinator;
     this.reader = reader;
     this.sharedResources = sharedResources;
@@ -204,6 +217,7 @@ public class FragmentExecutor {
     this.workQueue = new FragmentWorkQueue(sharedResources.getGroup(WORK_QUEUE_RES_GRP));
     this.buffers = new IncomingBuffers(
       deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider,
+      fileCursorManagerFactory,
       fragment, allocator, config, executionControls, spillService, reader.getPlanFragmentsIndex());
     this.eventProvider = eventProvider;
     this.cancelled = SettableFuture.create();
@@ -333,6 +347,18 @@ public class FragmentExecutor {
       taskState == State.BLOCKED_ON_SHARED_RESOURCE, "Should only called when we were previously blocked.");
     Preconditions.checkArgument(sharedResources.isAvailable(), "Should only be called once at least one shared group is available: " + sharedResources.toString());
     taskState = State.RUNNABLE;
+  }
+
+  public long getSchedulingWeight() {
+    return (long) schedulingWeight;
+  }
+
+  public long getFragmentWeight() {
+    return fragmentWeight;
+  }
+
+  public boolean isLeafFragment() {
+    return leafFragment;
   }
 
   /**

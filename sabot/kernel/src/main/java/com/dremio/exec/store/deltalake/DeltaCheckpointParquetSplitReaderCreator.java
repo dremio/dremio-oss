@@ -213,9 +213,9 @@ public class DeltaCheckpointParquetSplitReaderCreator {
           // partitionValues field has different structure in json and checkpoint parquet, below we
           // modify partitionValues field to match type in checkpoint file
             Field addField = fullSchema.findField(DELTA_FIELD_ADD);
-            Field addFieldCopy = new Field(addField.getName(), addField.getFieldType(), addField.getChildren());
-            List<Field> children = addFieldCopy.getChildren();
-            children.removeIf(f -> f.getName().equals(SCHEMA_PARTITION_VALUES)); // struct
+          List<Field> children = addField.getChildren().stream()
+            .filter(f -> !f.getName().equals(SCHEMA_PARTITION_VALUES))
+            .collect(Collectors.toList()); // Field children are immutable, avoid USO; struct
 
             // get add.partitionValues field from parquet schema
           Type partitionValuesParquetField = footer.getFileMetaData()
@@ -233,7 +233,7 @@ public class DeltaCheckpointParquetSplitReaderCreator {
 
             List<Field> newFields = new ArrayList<>(fullSchema.getFields());
             newFields.removeIf(f -> f.getName().equals(DELTA_FIELD_ADD));
-            newFields.add(addFieldCopy);
+            newFields.add(new Field(addField.getName(), addField.getFieldType(), children));
 
             fullSchema = new BatchSchema(newFields);
         }

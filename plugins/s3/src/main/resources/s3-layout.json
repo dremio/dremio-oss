@@ -45,7 +45,7 @@
                       ],
                       "help": {
                         "position": "top",
-                        "text": "All or whitelisted (if specified) buckets associated with this access key or IAM role to assume (if specified) will be available. "
+                        "text": "All or allowlisted (if specified) buckets associated with this access key or IAM role to assume (if specified) will be available. "
                       }
                     }
                   },
@@ -63,7 +63,7 @@
                       ],
                       "help": {
                         "position": "top",
-                        "text": "All or whitelisted (if specified) buckets associated with the IAM role attached to EC2 or IAM role to assume (if specified) will be available."
+                        "text": "All or allowlisted (if specified) buckets associated with the IAM role attached to EC2 or IAM role to assume (if specified) will be available."
                       }
                     }
                   },
@@ -158,7 +158,7 @@
               {
                 "propName": "config.whitelistedBuckets[]",
                 "uiType": "value_list",
-                "emptyLabel": "No whitelisted buckets added",
+                "emptyLabel": "No allowlisted buckets added",
                 "addLabel": "Add bucket",
                 "validate": {
                   "isRequired": false

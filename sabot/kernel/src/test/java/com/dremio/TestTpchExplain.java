@@ -103,12 +103,12 @@ public class TestTpchExplain extends PlanTestBase {
   @Test
   public void tpch09() throws Exception{
     checkPlan("queries/tpch/09.sql",
-        new String[] {
-            "HashJoin",
-            "Scan.*lineitem.parquet.*",
-            "Filter.*LIKE\\(\\$1, \\'\\%yellow\\%\\'\\)",
-            "Scan.*part.parquet" },
-        null);
+      new String[]{
+        "HashJoin",
+        "TableFunction.*lineitem.parquet.*",
+        "Filter.*LIKE\\(\\$1, \\'\\%yellow\\%\\'\\)",
+        "TableFunction.*part.parquet"},
+      null);
   }
 
   @Test
@@ -125,7 +125,7 @@ public class TestTpchExplain extends PlanTestBase {
   public void tpch12() throws Exception{
     checkPlan("queries/tpch/12.sql",
         new String[] {
-            "HashJoin", "Project", "Scan.*orders.parquet", "Filter", "Scan.*lineitem.parquet" },
+            "HashJoin", "Project", "TableFunction.*orders.parquet", "Filter", "TableFunction.*lineitem.parquet" },
         new String[] {
             "HashToRandomExchange"
         });
@@ -137,8 +137,8 @@ public class TestTpchExplain extends PlanTestBase {
       checkPlan("queries/tpch/12.sql",
           new String[]{
               "HashJoin",
-              "Scan.*tpch/orders.parquet",
-              "Scan.*tpch/lineitem.parquet"},
+              "TableFunction.*tpch/orders.parquet",
+              "TableFunction.*tpch/lineitem.parquet"},
           null);
       } finally {
       test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
@@ -211,12 +211,12 @@ public class TestTpchExplain extends PlanTestBase {
   @Test
   public void tpch17() throws Exception{
     checkPlan("queries/tpch/17.sql",
-        new String[] {
-            "HashJoin",
-            "columns=\\[`l_partkey`, `l_quantity`, `l_extendedprice`\\]",
-            "columns=\\[`p_partkey`, `p_brand`, `p_container`\\]",
-            "columns=\\[`l_partkey`, `l_quantity`\\]"},
-        new String[] { "MergeJoin", "columns=\\[`\\*`\\]" });
+      new String[] {
+        "HashJoin",
+        "columns=\\[`l_partkey`, `l_quantity`, `l_extendedprice`\\]",
+        "columns=\\[`p_partkey`, `p_brand`, `p_container`\\]",
+        "columns=\\[`l_partkey`, `l_quantity`\\]"},
+      new String[] { "MergeJoin", "columns=\\[`\\*`\\]" });
   }
 
   @Test

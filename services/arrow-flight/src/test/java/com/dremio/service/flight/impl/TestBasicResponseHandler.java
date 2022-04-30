@@ -20,9 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.service.flight.impl.RunQueryResponseHandler.BasicResponseHandler;
@@ -34,16 +32,13 @@ public class TestBasicResponseHandler extends BaseTestRunQueryResponseHandler {
 
   protected RunQueryResponseHandler createHandler() {
     return new BasicResponseHandler(getExternalId(), getUserSession(), getWorkerProvider(),
-      getListener(), getAllocator());
+      getListener(), getAllocator(), () -> {});
   }
 
   @Before
   public void setUp() {
     super.setUp();
   }
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testClientIsReadyForDataWhenListenerIsNotReady() throws Exception {

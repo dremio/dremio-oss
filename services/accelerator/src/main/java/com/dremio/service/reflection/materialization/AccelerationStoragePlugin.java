@@ -23,9 +23,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.inject.Provider;
+
+import org.apache.iceberg.Table;
 
 import com.dremio.common.FSConstants;
 import com.dremio.common.exceptions.UserException;
@@ -45,6 +48,7 @@ import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
@@ -58,13 +62,18 @@ import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.iceberg.IcebergExecutionDatasetAccessor;
 import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.iceberg.IcebergFormatPlugin;
+import com.dremio.exec.store.iceberg.TableSnapshotProvider;
+import com.dremio.exec.store.iceberg.TimeTravelProcessors;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceKey;
@@ -78,6 +87,7 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -216,7 +226,7 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     boolean icebergDataset = isUsingIcebergDataset(materialization);
     final FileSelection selection = getFileSelection(refreshes, selectionRoot, icebergDataset);
 
-    final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns);
+    final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns, null, null, true);
     if (!icebergDataset) {
       FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getFileAttributesList().size(), getContext(), getConfig().isInternal());
     }
@@ -230,8 +240,20 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
 
   private Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, Integer fieldCount, boolean icebergDataset, FileSelection selection, PreviousDatasetInfo pdi) {
     if (icebergDataset) {
-      return Optional.of(new IcebergExecutionDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(),
-              icebergFormatPlugin, selection, this, new NamespaceKey(datasetPath.getComponents())));
+      final Supplier<Table> tableSupplier = Suppliers.memoize(
+          () -> {
+            final IcebergModel icebergModel = getIcebergModel();
+            final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(
+                icebergModel.getTableIdentifier(selection.getSelectionRoot()));
+            return icebergTableLoader.getIcebergTable();
+          }
+      );
+
+      // TODO: create a DX!
+      final TableSnapshotProvider tableSnapshotProvider =
+          TimeTravelProcessors.getTableSnapshotProvider(null, null);
+      return Optional.of(new IcebergExecutionDatasetAccessor(datasetPath, tableSupplier, getFsConfCopy(),
+          icebergFormatPlugin, getSystemUserFS(), tableSnapshotProvider, this));
     } else {
       return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
         this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, fieldCount));
@@ -285,6 +307,12 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     }
   }
 
+  public void deleteAccelerationRootPointer(String userName, String basePath) {
+    Path icebergTablePath = Path.of(getConfig().getPath().toString()).resolve(basePath);
+    super.deleteIcebergTableRootPointer(userName,icebergTablePath);
+  }
+
+
   @Override
   public DatasetMetadata getDatasetMetadata(
       DatasetHandle datasetHandle,
@@ -310,8 +338,8 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
   }
 
   @Override
-  public void dropTable(List<String> tableSchemaPath, boolean isLayered, SchemaConfig schemaConfig) {
-    final List<String> components = normalizeComponents(tableSchemaPath);
+  public void dropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+    final List<String> components = normalizeComponents(tableSchemaPath.getPathComponents());
     if (components == null) {
       throw UserException.validationError().message("Unable to find any materialization or associated refreshes.").build(logger);
     }
@@ -352,13 +380,19 @@ public class AccelerationStoragePlugin extends MayBeDistFileSystemPlugin<Acceler
     for (Refresh r : refreshes) {
       try {
         //TODO once DX-10850 is fixed we should no longer need to split the refresh path into separate components
-        final List<String> tableSchemaPath = ImmutableList.<String>builder()
+        final NamespaceKey tableSchemaPath = new NamespaceKey(ImmutableList.<String>builder()
           .add(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME)
           .addAll(PathUtils.toPathComponents(r.getPath()))
-          .build();
+          .build());
         logger.debug("deleting refresh {}", tableSchemaPath);
         boolean isLayered = r.getIsIcebergRefresh() != null && r.getIsIcebergRefresh();
-        super.dropTable(tableSchemaPath, isLayered, schemaConfig);
+        TableMutationOptions tableMutationOptions =  TableMutationOptions.newBuilder().setIsLayered(isLayered).build();
+        super.dropTable(tableSchemaPath, schemaConfig, tableMutationOptions);
+        if (isLayered) {
+          final List<String> path = super.resolveTableNameToValidPath(tableSchemaPath.getPathComponents());
+          final Path fsPath = PathUtils.toFSPath(path);
+          deleteAccelerationRootPointer(schemaConfig.getUserName(), fsPath.toString());
+        }
       } catch (Exception e) {
         logger.warn("Couldn't delete refresh {}", r.getId().getId(), e);
       } finally {

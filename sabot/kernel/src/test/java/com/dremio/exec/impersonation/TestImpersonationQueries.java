@@ -17,10 +17,8 @@ package com.dremio.exec.impersonation;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.common.TestProfileHelper.isMaprProfile;
-import static org.hamcrest.core.StringContains.containsString;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 import java.util.Map;
 
@@ -28,6 +26,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -218,17 +217,18 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
   public void testCreateTableDirectImpersonation_NoWritePermission() throws Exception {
     // Table lineitem is owned by "user0_1:group0_1" with permissions 750. Try to read the table as "user0_1"
     // and create a table under user2_1, which should fail
-    try {
-      updateClient(org1Users[0]);
-      test(String.format("CREATE TABLE %s AS SELECT * FROM %s ORDER BY l_orderkey LIMIT 1",
+    updateClient(org1Users[0]);
+    assertThatThrownBy(
+        () -> test(String.format("CREATE TABLE %s AS SELECT * FROM %s ORDER BY l_orderkey LIMIT 1",
           fullPath(org1Users[2], "copy_lineitem"),
-          fullPath(org1Users[0], "lineitem")));
-      fail("query is expected to fail");
-    } catch(UserRemoteException e) {
-      assertEquals(ErrorType.SYSTEM, e.getErrorType());
-      assertThat(e.getMessage(), containsString("Permission denied"));
-    }
+          fullPath(org1Users[0], "lineitem"))))
+      .isInstanceOf(UserRemoteException.class)
+      .hasMessageContaining("Permission denied")
+      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+      .extracting(UserRemoteException::getErrorType)
+      .isEqualTo(ErrorType.SYSTEM);
   }
+
   @Test
   public void testDirectImpersonation_HasGroupReadPermissions() throws Exception {
     // Table lineitem is owned by "user0_1:group0_1" with permissions 750. Try to read the table as "user1_1". We
@@ -239,16 +239,15 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
 
   @Test
   public void testDirectImpersonation_NoReadPermissions() throws Exception {
-    try {
       // Table lineitem is owned by "user0_1:group0_1" with permissions 750. Now try to read the table as "user2_1". We
       // should expect a permission denied error as "user2_1" is not part of the "group0_1"
       updateClient(org1Users[2]);
-      test(String.format("SELECT * FROM %s ORDER BY l_orderkey LIMIT 1", fullPath(org1Users[0], "lineitem")));
-      fail("query is expected to fail");
-    } catch(UserRemoteException e) {
-      assertEquals(ErrorType.PERMISSION, e.getErrorType());
-      assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset miniDfsPlugin.\"/user/user0_1/lineitem\""));
-    }
+      assertThatThrownBy(() -> test(String.format("SELECT * FROM %s ORDER BY l_orderkey LIMIT 1", fullPath(org1Users[0], "lineitem"))))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining("PERMISSION ERROR: Access denied reading dataset miniDfsPlugin.\"/user/user0_1/lineitem\"")
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .isEqualTo(ErrorType.PERMISSION);
   }
 
   @Test

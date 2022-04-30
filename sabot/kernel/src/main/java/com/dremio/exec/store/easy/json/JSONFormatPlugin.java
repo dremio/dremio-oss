@@ -62,7 +62,7 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
   @Override
   public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns, EasySubScan config) throws ExecutionSetupException {
     RecordReader inner = getRecordReader(context, dfs, splitAttributes, columns);
-    return new EasyCoercionReader(context, columns, inner, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null));
+    return new EasyCoercionReader(context, columns, inner, config.getFullSchema(), Iterables.getFirst(config.getReferencedTables(), null), config.getUserDefinedSchemaSettings());
   }
 
   @Override

@@ -35,6 +35,6 @@ public class DecimalFunctionImplementationRegistry extends FunctionImplementatio
     // order is important, first lookup java functions and then gandiva functions
     // if gandiva is preferred code generator, the function would be replaced later.
     primaryFunctionRegistries.add(functionRegistry);
-    primaryFunctionRegistries.add(new GandivaFunctionRegistry(isDecimalV2Enabled));
+    primaryFunctionRegistries.add(new GandivaFunctionRegistry(isDecimalV2Enabled, getOptionManager()));
   }
 }

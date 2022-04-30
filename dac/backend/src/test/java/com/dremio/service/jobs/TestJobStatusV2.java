@@ -521,16 +521,6 @@ public class TestJobStatusV2 extends BaseTestServer {
     injectProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR);
   }
 
-  @Test
-  public void testGetFullProfileFailedState() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_GET_FULL_PROFLE_ERROR,
-        RuntimeException.class)
-      .build();
-
-    injectProfileException(controls, AttemptManager.INJECTOR_GET_FULL_PROFLE_ERROR);
-  }
-
   private void injectAttemptCompletionException(String controls) throws Exception {
     JobId jobId = null;
     ControlsInjectionUtil.setControls(getRpcClient(), controls);

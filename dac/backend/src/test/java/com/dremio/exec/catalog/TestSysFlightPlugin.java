@@ -66,11 +66,17 @@ public class TestSysFlightPlugin extends BaseTestQuery {
       .sqlQuery("select * from sys.jobs")
       .unOrdered()
       .baselineColumns("job_id", "status", "query_type", "user_name", "queried_datasets", "scanned_datasets",
-        "submitted_ts", "metadata_retrieval_ts", "planning_start_ts", "query_enqueued_ts", "engine_start_ts",
-        "execution_planning_ts", "execution_start_ts", "final_state_ts", "rows_scanned", "rows_returned",
+        "attempt_count", "submitted_ts", "attempt_started_ts", "metadata_retrieval_ts", "planning_start_ts",
+        "query_enqueued_ts", "engine_start_ts", "execution_planning_ts", "execution_start_ts", "final_state_ts",
+        "submitted_epoch_millis", "attempt_started_epoch_millis", "metadata_retrieval_epoch_millis",
+        "planning_start_epoch_millis", "query_enqueued_epoch_millis", "engine_start_epoch_millis",
+        "execution_planning_epoch_millis", "execution_start_epoch_millis", "final_state_epoch_millis",
+        "planner_estimated_cost", "rows_scanned", "bytes_scanned", "rows_returned", "bytes_returned",
         "accelerated", "queue_name", "engine", "error_msg", "query")
-      .baselineValues("1", "RUNNING", "UI_RUN", "user", "", "", 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, false, "", "", "err", "")
-      .baselineValues("", "", "", "", "", "", 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, false, "", "", "", "")
+      .baselineValues("1", "RUNNING", "UI_RUN", "user", "", "", 0, dateTime, dateTime, dateTime, dateTime, dateTime,
+        dateTime, dateTime, dateTime, dateTime, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0.0d, 0L, 0L, 0L, 0L, false, "", "", "err", "")
+      .baselineValues("", "", "", "", "", "", 0, dateTime, dateTime, dateTime, dateTime, dateTime, dateTime, dateTime,
+        dateTime, dateTime, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0.0d, 0L, 0L, 0L, 0L, false, "", "", "", "")
       .build()
       .run();
   }
@@ -130,6 +136,7 @@ public class TestSysFlightPlugin extends BaseTestQuery {
       .unOrdered()
       .baselineColumns("reflection_id", "reflection_name", "type", "status", "dataset_id", "dataset_name", "dataset_type", "sort_columns", "partition_columns",
         "distribution_columns", "dimensions", "measures", "display_columns", "external_reflection", "num_failures", "arrow_cache")
+
       .baselineValues("", "", "", "", "", "", "", "", "", "", "", "", "", "", 0, false)
       .build()
       .run();

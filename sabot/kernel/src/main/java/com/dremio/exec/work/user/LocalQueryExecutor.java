@@ -17,6 +17,7 @@ package com.dremio.exec.work.user;
 
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
+import com.dremio.sabot.rpc.user.UserSession;
 
 /**
  * Will submit a query locally without going through the client
@@ -39,13 +40,15 @@ public interface LocalQueryExecutor {
    * @param prepare whether this is a prepared statement
    * @param config local execution config
    * @param runInSameThread if true, query will run in the same thread
+   * @param userSession current user session
    */
   void submitLocalQuery(
-      ExternalId externalId,
-      QueryObserver observer,
-      Object query,
-      boolean prepare,
-      LocalExecutionConfig config,
-      boolean runInSameThread);
+    ExternalId externalId,
+    QueryObserver observer,
+    Object query,
+    boolean prepare,
+    LocalExecutionConfig config,
+    boolean runInSameThread,
+    UserSession userSession);
 
 }

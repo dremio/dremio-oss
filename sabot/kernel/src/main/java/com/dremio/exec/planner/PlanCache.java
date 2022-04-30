@@ -16,17 +16,20 @@
 package com.dremio.exec.planner;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.logical.ViewTable;
-import com.dremio.exec.store.NamespaceTable;
+import com.dremio.exec.ops.QueryContext;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Multimap;
 
 public class PlanCache {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PlanCache.class);
 
   private final Cache<Long, CachedPlan> cachePlans;
   private static Multimap<String, Long> datasetMap;
@@ -44,14 +47,62 @@ public class PlanCache {
     return cachePlans;
   }
 
-  public void addCacheToDatasetMap(String datasetId, Long cacheId) {
+  private void addCacheToDatasetMap(String datasetId, Long cacheId) {
     synchronized (datasetMap) {
       datasetMap.put(datasetId, cacheId);
     }
   }
 
-  public static long generateCacheKey(String sql, String workLoadType, String defaultSchema) {
-    return sql.concat(workLoadType).concat(defaultSchema).hashCode();
+  public boolean addCacheToDatasetMap(Catalog catalog, long cachedKey) {
+    Preconditions.checkNotNull(catalog);
+
+    boolean addedCacheToDatasetMap = false;
+    Iterable<DremioTable> datasets = catalog.getAllRequestedTables();
+    for (DremioTable dataset : datasets) {
+      DatasetConfig datasetConfig;
+      try {
+        datasetConfig = dataset.getDatasetConfig();
+      } catch (IllegalStateException ignore) {
+        logger.debug(String.format("Dataset %s is ignored (no dataset config available).", dataset.getPath()), ignore);
+        continue;
+      }
+      if (datasetConfig == null) {
+        logger.debug(String.format("Dataset %s is ignored (no dataset config available).", dataset.getPath()));
+        continue;
+      }
+      if (datasetConfig.getPhysicalDataset() == null) {
+        logger.debug(String.format("Dataset %s is ignored (no physical dataset available).", dataset.getPath()));
+        continue;
+      }
+      addCacheToDatasetMap(datasetConfig.getId().getId(), cachedKey);
+      addedCacheToDatasetMap = true;
+    }
+    return addedCacheToDatasetMap;
+  }
+
+  public static long generateCacheKey(String sql, QueryContext context) {
+    long result = sql.concat(context.getWorkloadType().name())
+      .concat(context.getContextInformation().getCurrentDefaultSchema())
+      .hashCode();
+    result = 31 * result + generateQueryContextOptionsHash(context);
+    return result;
+  }
+
+  public static int generateQueryContextOptionsHash(QueryContext context) {
+    int result = Objects.hash(context.getOptions().getNonDefaultOptions()
+      .stream()
+      // A sanity filter in case an option with default value is put into non-default options
+      .filter(optionValue -> !context.getOptions().getDefaultOptions().contains(optionValue))
+      .sorted()
+      .collect(Collectors.toList()));
+
+    GroupResourceInformation resourceInformation = context.getGroupResourceInformation();
+    if (resourceInformation != null) {
+      result = 31 * result + Objects.hash(resourceInformation.getExecutorNodeCount());
+      result = 31 * result + Objects.hash(resourceInformation.getAverageExecutorCores(context.getOptions()));
+    }
+
+    return result;
   }
 
   public CachedPlan getIfPresentAndValid(Catalog catalog, long cacheId) {
@@ -62,13 +113,15 @@ public class PlanCache {
     if (cachedPlan != null) {
       Iterable<DremioTable> datasets = catalog.getAllRequestedTables();
       for (DremioTable dataset : datasets) {
-        if (dataset instanceof NamespaceTable || dataset instanceof ViewTable) {
+        try {
           DatasetConfig config = dataset.getDatasetConfig();
-          if (config.getLastModified() > cachedPlan.getCreationTime()) {
+          if (config != null && (config.getLastModified() > cachedPlan.getCreationTime())) {
             // for this case, we can only invalidate this cach entry, other cache entries may still be valid
             cachePlans.invalidate(cacheId);
             return null;
           }
+        } catch (IllegalStateException ignore) {
+          logger.debug(String.format("Dataset %s is ignored (no dataset config available).", dataset.getPath()), ignore);
         }
       }
     }

@@ -19,7 +19,10 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -34,13 +37,12 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
 
   @Override
   public PhysicalPlan getPlan(SqlHandlerConfig config, String sql, SqlNode sqlNode) throws Exception {
-    try {
       final SqlCreateTable sqlCreateTable = SqlNodeUtil.unwrap(sqlNode, SqlCreateTable.class);
       final Catalog catalog = config.getContext().getCatalog();
       final NamespaceKey path = catalog.resolveSingle(sqlCreateTable.getPath());
 
       // TODO: fix parser to disallow this
-      if (sqlCreateTable.isSingleWriter() && !sqlCreateTable.getPartitionColumns(catalog, path).isEmpty()) {
+      if (sqlCreateTable.isSingleWriter() && !sqlCreateTable.getPartitionColumns(null).isEmpty()) {
         throw UserException.unsupportedError()
           .message("Cannot partition data and write to a single file at the same time.")
           .build(logger);
@@ -48,13 +50,43 @@ public class CreateTableHandler extends DataAdditionCmdHandler {
 
       // this map has properties specified using 'STORE AS' in sql
       // will be null if 'STORE AS' is not in query
-      createStorageOptionsMap(sqlCreateTable.getFormatOptions());
-      validateCreateTableFormatOptions(catalog, path, config.getContext().getOptions());
-      return super.getPlan(catalog, path, config, sql, sqlNode, sqlCreateTable);
+    createStorageOptionsMap(sqlCreateTable.getFormatOptions());
+    if (CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)) {
+      return doVersionedCtas(config, path, catalog, sql, sqlCreateTable);
     }
-    catch(Exception ex){
-      throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
+    return doCtas(config, path, catalog, sql, sqlCreateTable);
+
+  }
+
+  private PhysicalPlan doVersionedCtas(SqlHandlerConfig config, NamespaceKey path, Catalog catalog, String sql, SqlCreateTable sqlCreateTable) throws Exception {
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+
+    try {
+      validateVersionedTableFormatOptions(catalog, path, config.getContext().getOptions());
+      checkExistenceValidity(path, getDremioTable(catalog, path));
+
+      return super.getPlan(catalog,path, config, sql, sqlCreateTable, version);
+    } catch (Exception e) {
+      throw SqlExceptionHelper.coerceException(logger, sql, e, true);
     }
+
+  }
+
+  private PhysicalPlan doCtas(SqlHandlerConfig config,
+                              NamespaceKey path,
+                              Catalog catalog,
+                              String sql,
+                              SqlCreateTable sqlCreateTable) throws Exception {
+    validateCreateTableFormatOptions(catalog, path, config.getContext().getOptions());
+    validateCreateTableLocation(catalog, path, sqlCreateTable);
+    try {
+      return super.getPlan(catalog, path, config, sql, sqlCreateTable, null);
+    } catch (Exception e) {
+      throw SqlExceptionHelper.coerceException(logger, sql, e, true);
+    }
+
   }
 
   @VisibleForTesting

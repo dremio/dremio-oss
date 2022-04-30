@@ -49,10 +49,12 @@ import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.dremio.sabot.op.common.hashtable.Comparator;
 import com.dremio.sabot.op.common.ht2.FieldVectorPair;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
+import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Pivots;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.vhash.HashJoinStats.Metric;
 import com.dremio.sabot.op.join.vhash.spill.partition.MultiPartition;
@@ -240,6 +242,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
       Long.MAX_VALUE);
     joinSetupParams = new JoinSetupParams(
       context.getOptions(),
+      context.getConfig(),
       context.getAllocator(),
       buildAllocator,
       pivotFixedBlock,
@@ -257,7 +260,7 @@ public class VectorizedSpillingHashJoinOperator implements DualInputOperator {
       probePivot,
       probeIncomingKeys,
       probeOutputs);
-    partition = new MultiPartition(joinSetupParams);
+    partition = new MultiPartition(joinSetupParams, CopierFactory.getInstance(context.getConfig(), context.getOptions()));
     state = State.CAN_CONSUME_R;
     return outgoing;
   }

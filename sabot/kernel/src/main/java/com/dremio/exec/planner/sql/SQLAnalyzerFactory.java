@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -66,7 +67,7 @@ public class SQLAnalyzerFactory {
                                               final List<String> context,
                                               final boolean createForSqlSuggestions,
                                               ProjectOptionManager projectOptionManager) {
-    final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(username);
+    final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(new CatalogUser(username));
     final OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
       .withOptionManager(new DefaultOptionManager(sabotContext.getOptionValidatorListing()))
       .withOptionManager(new EagerCachingOptionManager(projectOptionManager))
@@ -74,7 +75,7 @@ public class SQLAnalyzerFactory {
       .build();
     final NamespaceKey defaultSchemaPath = context == null ? null : new NamespaceKey(context);
 
-    final SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(username)
+    final SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(CatalogUser.from(username))
       .defaultSchema(defaultSchemaPath)
       .optionManager(optionManager)
       .setViewExpansionContext(viewExpansionContext)
@@ -94,8 +95,10 @@ public class SQLAnalyzerFactory {
     // Create the appropriate implementation depending on intended use of the validator.
     SqlValidatorWithHints validator =
       createForSqlSuggestions ?
-        new SqlAdvisorValidator(chainedOpTable, catalogReader, typeFactory, DremioSqlConformance.INSTANCE) :
-        SqlValidatorUtil.newValidator(chainedOpTable, catalogReader, typeFactory, DremioSqlConformance.INSTANCE);
+        new SqlAdvisorValidator(chainedOpTable, catalogReader, typeFactory,
+          SqlAdvisorValidator.Config.DEFAULT.withSqlConformance(DremioSqlConformance.INSTANCE)) :
+        SqlValidatorUtil.newValidator(chainedOpTable, catalogReader, typeFactory,
+          SqlAdvisorValidator.Config.DEFAULT.withSqlConformance(DremioSqlConformance.INSTANCE));
 
     return new SQLAnalyzer(validator);
   }

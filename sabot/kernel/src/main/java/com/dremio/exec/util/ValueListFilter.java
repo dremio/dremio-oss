@@ -337,7 +337,7 @@ public class ValueListFilter implements AutoCloseable {
      * Increases the ref count of the underlying buffer
      */
     public void retainRef() {
-        this.buf().retain();
+        this.buf().getReferenceManager().retain();
     }
 
     public ValueListFilter createCopy(BufferAllocator allocator) {

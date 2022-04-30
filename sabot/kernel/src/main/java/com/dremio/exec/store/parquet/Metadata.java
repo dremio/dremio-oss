@@ -198,7 +198,8 @@ public class Metadata {
     ArrayList<SchemaPath> ALL_COLS = new ArrayList<>();
     ALL_COLS.add(AbstractRecordReader.STAR_COLUMN);
     boolean autoCorrectCorruptDates = formatConfig.autoCorrectCorruptDates;
-    ParquetReaderUtility.DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(new MutableParquetMetadata(metadata), ALL_COLS, autoCorrectCorruptDates);
+    MutableParquetMetadata metaData = new MutableParquetMetadata(metadata, file.getPath().getName());
+    ParquetReaderUtility.DateCorruptionStatus containsCorruptDates = ParquetReaderUtility.detectCorruptDates(metaData, ALL_COLS, autoCorrectCorruptDates);
     if(logger.isDebugEnabled()){
       logger.debug(containsCorruptDates.toString());
     }

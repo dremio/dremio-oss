@@ -15,13 +15,16 @@
  */
 package com.dremio.dac.explore;
 
-import static org.mockito.Matchers.any;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.core.SecurityContext;
 
@@ -30,6 +33,7 @@ import org.junit.Test;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.History;
+import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.TransformType;
@@ -38,6 +42,7 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsVersionContext;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 
 /**
@@ -104,5 +109,23 @@ public class TestDatasetTool {
 
     History history = tool.getHistory(datasetPath, current, tip);
     Assert.assertEquals(1, history.getItems().size());
+  }
+
+  @Test
+  public void testSourceVersionMapping() {
+    final DatasetTool datasetTool = new DatasetTool(mock(DatasetVersionMutator.class), mock(JobsService.class),
+      mock(QueryExecutor.class), mock(SecurityContext.class));
+    Map<String, VersionContextReq> references = new HashMap<>();
+    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+
+    Map<String, JobsVersionContext> expectedSourceVersionMapping = new HashMap<>();
+    expectedSourceVersionMapping.put("source1", new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, "branch"));
+    expectedSourceVersionMapping.put("source2", new JobsVersionContext(JobsVersionContext.VersionContextType.TAG, "tag"));
+    expectedSourceVersionMapping.put("source3", new JobsVersionContext(JobsVersionContext.VersionContextType.BARE_COMMIT,
+      "d0628f078890fec234b98b873f9e1f3cd140988a"));
+
+    assertThat(datasetTool.createSourceVersionMapping(references)).usingRecursiveComparison().isEqualTo(expectedSourceVersionMapping);
   }
 }

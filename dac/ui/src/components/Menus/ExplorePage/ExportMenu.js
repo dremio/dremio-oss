@@ -26,6 +26,7 @@ import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
 import { APIV2Call } from '@app/core/APICall';
 import tokenUtils from '@inject/utils/tokenUtils';
 import config from 'dyn-load/utils/config';
+import { Cancel } from '@app/utils/CancelablePromise';
 import MenuItem from './MenuItem';
 import Menu from './Menu';
 
@@ -46,6 +47,7 @@ export class ExportMenu extends PureComponent {
     action: PropTypes.func,
     datasetColumns: PropTypes.array,
     datasetSql: PropTypes.string,
+    updateDownloading: PropTypes.func,
     intl: PropTypes.object.isRequired,
     //connected
     jobId: PropTypes.string,
@@ -54,7 +56,8 @@ export class ExportMenu extends PureComponent {
   };
 
   handleDatasetDownload = (type) => {
-    this.showNotification(type.label);
+    this.props.updateDownloading();
+
     tokenUtils.getTempToken({
       params: {
         'durationSeconds': 30,
@@ -71,7 +74,38 @@ export class ExportMenu extends PureComponent {
             'downloadFormat': type.name,
             '.token': data.token ? data.token : ''
           });
-        window.location.assign(apiCall.toString());
+        // window.location.assign(apiCall.toString());
+        fetch(apiCall.toString())
+          .then(response => {
+            response.blob()
+              .then(resObj => {
+
+                // MS Edge and IE don't allow using a blob object directly as link href, instead it is necessary to use msSaveOrOpenBlob
+                if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+                  window.navigator.msSaveOrOpenBlob(resObj);
+                } else {
+                // For other browsers: create a link pointing to the ObjectURL containing the blob.
+                  const objUrl = window.URL.createObjectURL(resObj);
+
+                  const link = document.createElement('a');
+                  link.href = objUrl;
+                  link.download = `${this.props.jobId}.${type.name}`.toLocaleLowerCase();
+                  link.click();
+
+                  // For Firefox it is necessary to delay revoking the ObjectURL.
+                  setTimeout(() => {
+                    window.URL.revokeObjectURL(objUrl);
+                  }, 250);
+                }
+                this.props.updateDownloading();
+                this.showNotification();
+              })
+              .catch((error) => {
+                this.props.updateDownloading();
+                if (error instanceof Cancel) return;
+                throw error;
+              });
+          });
       });
   };
 
@@ -92,8 +126,8 @@ export class ExportMenu extends PureComponent {
 
   showNotification(type) {
     const { intl } = this.props;
-    const notificationMessage = intl.formatMessage({ id: 'Download.Notification' }, {type});
-    const message = <span>{notificationMessage}</span>;
+    const notificationMessage = intl.formatMessage({ id: 'Download.Completed' }, {type});
+    const message = `${this.props.jobId} ${notificationMessage}`;
     this.props.addNotification(message, 'success', MSG_CLEAR_DELAY_SEC);
   }
 

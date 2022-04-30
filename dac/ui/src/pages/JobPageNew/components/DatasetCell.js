@@ -50,8 +50,11 @@ const DatasetCell = ({ job }) => {
   const datasetArray = job.get('queriedDatasets');
   const isInternalQuery = job.get('queryType') && job.get('queryType') === 'UI_INITIAL_PREVIEW';
 
+  if (!datasetArray) {
+    return null;
+  }
   return (
-    datasetArray && <div
+    <div
       className='jobsContent-dataset'
       ref={datasetRef}
       onMouseEnter={handleMouseEnter}

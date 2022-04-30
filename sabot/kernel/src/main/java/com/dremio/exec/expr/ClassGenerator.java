@@ -67,6 +67,9 @@ public class ClassGenerator<T> {
   public enum BlockType {SETUP, EVAL, RESET, CLEANUP}
 
   private static final int MAX_EXPRESSIONS_IN_FUNCTION = 50;
+  // It is impossible (and hence a safe limit) for a single expression to have 100000 functions and not hit
+  // code size limits
+  private static final int MAX_EXPECTED_FUNCTIONS_IN_SINGLE_EXPRESSION = 100000;
 
   private final SignatureHolder sig;
   private final EvaluationVisitor evaluationVisitor;
@@ -347,6 +350,8 @@ public class ClassGenerator<T> {
     if (expressionEvalInfos.isEmpty()) {
       return;
     }
+    Preconditions.checkArgument(count >= 0 && count < MAX_EXPECTED_FUNCTIONS_IN_SINGLE_EXPRESSION,
+      "Encountered unexpected function error count corruption");
     while (count > 0) {
       FunctionErrorContext errorContext = null;
       errorContext = FunctionErrorContextBuilder.builder()
@@ -358,7 +363,7 @@ public class ClassGenerator<T> {
   }
 
   public void lazyAddExp(LogicalExpression ex, BlockCreateMode mode, boolean allowInnerMethods) {
-    Preconditions.checkState(codeGenerator.getFunctionContext().getOptions().getOption(ExecConstants.LAZYEXPEVAL_ENABLED) == true,
+    Preconditions.checkState(codeGenerator.getFunctionContext().getOptions().getOption(ExecConstants.EXPRESSION_CODE_CACHE_ENABLED) == true,
       "Lazy Expression evaluation is set to false");
     isLazyExpressionsAddOn = true;
     ExpressionEvalInfo expressionEvalInfo = new ExpressionEvalInfo(ex, mode, allowInnerMethods);

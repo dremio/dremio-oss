@@ -193,8 +193,8 @@ export const isIntegerKey1LessThenKey2 = (key1, key2, label = key1 + ', ' + key2
       return isKey2IntegerResult;
     }
 
-    const key1Val = result(values, key1);
-    const key2Val = result(values, key2);
+    const key1Val = parseInt(result(values, key1), 10);
+    const key2Val = parseInt(result(values, key2), 10);
     if (key1Val < key2Val) {
       return set({}, key1, label);
     }

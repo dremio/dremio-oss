@@ -78,8 +78,8 @@ public class TestSingleValueFunctions extends BaseTestQuery {
 
   @Test
   public void testSingleValueWhereClauseDateMilli() throws Exception {
-    final String query = String.format("select to_date(a) as datemilli from (VALUES(123456)) as tbl(a) where to_date(a)" +
-      "= (select distinct (to_date(b)) from (VALUES(123456)) as tbl(b))");
+    final String query = "select to_date(a) as datemilli from (VALUES(123456)) as tbl(a) where to_date(a)" +
+      "= (select distinct (to_date(b)) from (VALUES(123456)) as tbl(b))";
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -90,8 +90,8 @@ public class TestSingleValueFunctions extends BaseTestQuery {
 
   @Test
   public void testSingleValueWhereClauseTimeStampMilli() throws Exception {
-    final String query = String.format("select cast(a as timestamp) ts from (VALUES(time '02:12:23')) as tbl(a) where cast(a as timestamp)" +
-      "= (select distinct (cast(b as timestamp)) from (VALUES(time '02:12:23')) as tbl(b))");
+    final String query = "select cast(a as timestamp) ts from (VALUES(time '02:12:23')) as tbl(a) where cast(a as timestamp)" +
+      "= (select distinct (cast(b as timestamp)) from (VALUES(time '02:12:23')) as tbl(b))";
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -160,16 +160,16 @@ public class TestSingleValueFunctions extends BaseTestQuery {
 
   @Test
   public void testSingleValueWhereClauseDateMilliNonScalar() throws Exception {
-    final String query = String.format("select to_date(a) as datemilli from (VALUES(123456)) as tbl(a) where to_date(a)" +
-      "= (select distinct (to_date(b)) from (VALUES(123456), (654321)) as tbl(b))");
+    final String query = "select to_date(a) as datemilli from (VALUES(123456)) as tbl(a) where to_date(a)" +
+      "= (select distinct (to_date(b)) from (VALUES(123456), (654321)) as tbl(b))";
 
     errorMsgTestHelper(query, NON_SCALAR_ERROR_MESSAGE);
   }
 
   @Test
   public void testSingleValueWhereClauseTimeStampMilliNonScalar() throws Exception {
-    final String query = String.format("select cast(a as timestamp) ts from (VALUES(time '02:12:23')) as tbl(a) where cast(a as timestamp)" +
-      "= (select distinct (cast(b as timestamp)) from (VALUES(time '02:12:23'), (time '03:13:24')) as tbl(b))");
+    final String query = "select cast(a as timestamp) ts from (VALUES(time '02:12:23')) as tbl(a) where cast(a as timestamp)" +
+      "= (select distinct (cast(b as timestamp)) from (VALUES(time '02:12:23'), (time '03:13:24')) as tbl(b))";
 
     errorMsgTestHelper(query, NON_SCALAR_ERROR_MESSAGE);
   }
@@ -247,7 +247,7 @@ public class TestSingleValueFunctions extends BaseTestQuery {
 
   @Test
   public void testSingleValueSelectClauseDateMilli() throws Exception {
-    final String query = String.format("select (select distinct (to_date(a)) from (VALUES(123456)) as tbl(a)) datemilli");
+    final String query = "select (select distinct (to_date(a)) from (VALUES(123456)) as tbl(a)) datemilli";
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -258,7 +258,7 @@ public class TestSingleValueFunctions extends BaseTestQuery {
 
   @Test
   public void testSingleValueSelectClauseTimeStampMilli() throws Exception {
-    final String query = String.format("select (select distinct (cast(a as timestamp)) from (VALUES(time '02:12:23')) as tbl(a)) ts");
+    final String query = "select (select distinct (cast(a as timestamp)) from (VALUES(time '02:12:23')) as tbl(a)) ts";
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -341,14 +341,14 @@ public class TestSingleValueFunctions extends BaseTestQuery {
 
   @Test
   public void testSingleValueSelectClauseDateMilliNonScalar() throws Exception {
-    final String query = String.format("select (select distinct (to_date(a)) from (VALUES(123456), (654321)) as tbl(a)) datemilli");
+    final String query = "select (select distinct (to_date(a)) from (VALUES(123456), (654321)) as tbl(a)) datemilli";
 
     errorMsgTestHelper(query, NON_SCALAR_ERROR_MESSAGE);
   }
 
   @Test
   public void testSingleValueSelectClauseTimeStampMilliNonScalar() throws Exception {
-    final String query = String.format("select (select distinct (cast(a as timestamp)) from (VALUES(time '02:12:23'), (time '03:13:24')) as tbl(a)) ts");
+    final String query = "select (select distinct (cast(a as timestamp)) from (VALUES(time '02:12:23'), (time '03:13:24')) as tbl(a)) ts";
 
     errorMsgTestHelper(query, NON_SCALAR_ERROR_MESSAGE);
   }

@@ -23,6 +23,8 @@ import { stopPropagation } from '@app/utils/reactEventUtils';
 import { setEntityActiveState } from '@app/reducers/home/pinnedEntities';
 import { isEntityPinned } from '@app/selectors/home';
 import FontIcon from 'components/Icon/FontIcon';
+import { Tooltip } from 'dremio-ui-lib';
+
 
 const mapStateToProps = (state, {
   entityId
@@ -61,14 +63,14 @@ export class ResourcePin extends PureComponent {
       <span
         className='pin-wrap'
         onClick={this.onPinClick}>
-        <span
-          className={pinClass}
-          style={[styles.pin, isPinned ? styles.activePin : null]}>
-          <FontIcon
-            type='Pin'
-            tooltip={la('Pin')}
-            theme={styles.iconStyle}/>
-        </span>
+        <Tooltip title={la('Pin')}>
+          <span
+            className={pinClass}
+            style={[styles.pin, isPinned ? styles.activePin : null]}
+          >
+            <FontIcon type='Pin' theme={styles.iconStyle} />
+          </span>
+        </Tooltip>
       </span>
     );
   }

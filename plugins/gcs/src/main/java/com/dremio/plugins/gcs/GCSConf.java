@@ -76,7 +76,7 @@ public class GCSConf extends FileSystemConf<GCSConf, GoogleStoragePlugin> {
 
   @Tag(7)
   @NotMetadataImpacting
-  @DisplayMetadata(label = "Whitelisted buckets")
+  @DisplayMetadata(label = "Allowlisted buckets")
   public List<String> bucketWhitelist;
 
   @Tag(9)

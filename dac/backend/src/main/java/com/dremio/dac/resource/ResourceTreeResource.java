@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.resource;
 
+import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
+
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 
@@ -99,10 +101,20 @@ public class ResourceTreeResource {
   @GET
   @Path("{rootPath}")
   @Produces(MediaType.APPLICATION_JSON)
-  public ResourceList getResources(@PathParam("rootPath") String rootPath, @QueryParam("showDatasets") boolean showDatasets)
+  public ResourceList getResources(
+      @PathParam("rootPath") String rootPath,
+      @QueryParam("showDatasets") boolean showDatasets,
+      @QueryParam("refType") String refType,
+      @QueryParam("refValue") String refValue)
     throws NamespaceException, UnsupportedEncodingException {
     final FolderPath folderPath = new FolderPath(rootPath);
-    return new ResourceList(listPath(folderPath.toNamespaceKey(), showDatasets));
+
+    return new ResourceList(
+      listPath(
+        folderPath.toNamespaceKey(),
+        showDatasets,
+        refType,
+        refValue));
   }
 
   @GET
@@ -181,7 +193,7 @@ public class ResourceTreeResource {
     // expand path starting from root entity.
     for (int i = 0; i < expandPathList.size() - 1; ++i) {
       NamespaceKey parentPath = new NamespaceKey(expandPathList.subList(0, i + 1));
-      List<ResourceTreeEntity> intermediateResources = listPath(parentPath, showDatasets);
+      List<ResourceTreeEntity> intermediateResources = listPath(parentPath, showDatasets, null, null);
       if (!intermediateResources.isEmpty()) {
         root.expand(intermediateResources);
         // reset root
@@ -202,20 +214,33 @@ public class ResourceTreeResource {
     }
     // expand last if its not a leaf.
     if (root.isListable()) {
-      root.expand(listPath(new NamespaceKey(expandPathList), showDatasets));
+      root.expand(listPath(new NamespaceKey(expandPathList), showDatasets, null, null));
     }
     return new ResourceList(resources);
   }
 
-  public List<ResourceTreeEntity> listPath(NamespaceKey root, boolean showDatasets) throws NamespaceException, UnsupportedEncodingException {
+  public List<ResourceTreeEntity> listPath(
+      NamespaceKey path,
+      boolean showDatasets,
+      String refType,
+      String refValue)
+      throws NamespaceException, UnsupportedEncodingException {
+    if (!path.getPathComponents().isEmpty()
+        && namespaceService.get().exists(new NamespaceKey(path.getRoot()), SOURCE)) {
+      // For SOURCE type, use source service directly
+      return sourceService.listPath(path, showDatasets, refType, refValue);
+    }
+
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
-    for (NameSpaceContainer container : namespaceService.get().list(root)) {
+
+    for (NameSpaceContainer container : namespaceService.get().list(path)) {
       if (container.getType() == Type.FOLDER) {
         resources.add(new ResourceTreeEntity(container.getFolder()));
       } else if (showDatasets && container.getType() == Type.DATASET) {
         resources.add(new ResourceTreeEntity(container.getDataset()));
       }
     }
+
     return resources;
   }
 

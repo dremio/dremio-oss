@@ -20,6 +20,7 @@ import static com.dremio.exec.planner.physical.PlannerSettings.ICEBERG_MANIFEST_
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -38,21 +39,20 @@ import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
 import com.dremio.exec.physical.config.TableFunctionConfig;
 import com.dremio.exec.physical.config.TableFunctionPOP;
 import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.physical.filter.RuntimeFilteredRel;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
-import com.google.common.base.Joiner;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Prel for TableFunction operator
  */
 @Options
-public class TableFunctionPrel extends SinglePrel {
+public class TableFunctionPrel extends SinglePrel implements RuntimeFilteredRel {
 
   public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.tablefunction.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.tablefunction.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
@@ -63,6 +63,7 @@ public class TableFunctionPrel extends SinglePrel {
   private final RelOptTable table;
   private final Long survivingRecords;
   final Function<RelMetadataQuery, Double> estimateRowCountFn;
+  private List<RuntimeFilteredRel.Info> runtimeFilters ;
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
                            TableMetadata tableMetadata,
@@ -70,7 +71,7 @@ public class TableFunctionPrel extends SinglePrel {
                            TableFunctionConfig functionConfig,
                            RelDataType rowType) {
     this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
-      null, null);
+      null, null, ImmutableList.of());
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
@@ -79,7 +80,7 @@ public class TableFunctionPrel extends SinglePrel {
                            TableFunctionConfig functionConfig,
                            RelDataType rowType,
                            Long survivingRecords) {
-    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType, null, survivingRecords);
+    this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType, null, survivingRecords, ImmutableList.of());
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
@@ -89,7 +90,7 @@ public class TableFunctionPrel extends SinglePrel {
                            RelDataType rowType,
                            Function<RelMetadataQuery, Double> estimateRowCountFn) {
     this(cluster, traits, table, child, tableMetadata, projectedColumns, functionConfig, rowType,
-      estimateRowCountFn, null);
+      estimateRowCountFn, null, ImmutableList.of());
   }
 
   public TableFunctionPrel(RelOptCluster cluster, RelTraitSet traits, RelOptTable table, RelNode child,
@@ -98,7 +99,8 @@ public class TableFunctionPrel extends SinglePrel {
                            TableFunctionConfig functionConfig,
                            RelDataType rowType,
                            Function<RelMetadataQuery, Double> estimateRowCountFn,
-                           Long survivingRecords) {
+                           Long survivingRecords,
+                           List<RuntimeFilteredRel.Info> runtimeFilteredRels) {
     super(cluster, traits, child);
     this.tableMetadata = tableMetadata;
     this.projectedColumns = projectedColumns;
@@ -108,6 +110,7 @@ public class TableFunctionPrel extends SinglePrel {
             mq -> defaultEstimateRowCount(functionConfig, mq) : estimateRowCountFn;
     this.table = table;
     this.survivingRecords = survivingRecords;
+    this.runtimeFilters = runtimeFilteredRels;
   }
 
   @Override
@@ -129,7 +132,7 @@ public class TableFunctionPrel extends SinglePrel {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new TableFunctionPrel(getCluster(), traitSet, table, sole(inputs), tableMetadata, projectedColumns,
-            functionConfig, rowType, estimateRowCountFn, survivingRecords);
+            functionConfig, rowType, estimateRowCountFn, survivingRecords, runtimeFilters);
   }
 
   @Override
@@ -139,12 +142,15 @@ public class TableFunctionPrel extends SinglePrel {
       pw.item("filters", functionConfig.getFunctionContext().getScanFilter().toString());
     }
     if(functionConfig.getFunctionContext().getColumns() != null){
-      pw.item("columns", FluentIterable.from(functionConfig.getFunctionContext().getColumns()).transform(new com.google.common.base.Function<SchemaPath, String>(){
-
-        @Override
-        public String apply(SchemaPath input) {
-          return input.toString();
-        }}).join(Joiner.on(", ")));
+      pw.item("columns",
+        functionConfig.getFunctionContext().getColumns().stream()
+          .map(Object::toString)
+          .collect(Collectors.joining(", ")));
+    }
+    if(!runtimeFilters.isEmpty()) {
+      pw.item("runtimeFilters", runtimeFilters.stream()
+        .map(Object::toString)
+        .collect(Collectors.joining(", ")));
     }
     return explainTableFunction(pw);
   }
@@ -226,5 +232,19 @@ public class TableFunctionPrel extends SinglePrel {
 
   public TableMetadata getTableMetadata() {
     return tableMetadata;
+  }
+
+  @Override
+  public List<RuntimeFilteredRel.Info> getRuntimeFilters() {
+    return runtimeFilters;
+  }
+
+  @Override
+  public void addRuntimeFilter(RuntimeFilteredRel.Info filterInfo) {
+    runtimeFilters = ImmutableList.<Info>builder()
+      .addAll(runtimeFilters)
+      .add(filterInfo)
+      .build();
+    recomputeDigest();
   }
 }

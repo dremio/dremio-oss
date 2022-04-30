@@ -33,10 +33,15 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 
 public class Stats {
-  private final ParallelizationInfoCollector collector = new ParallelizationInfoCollector();
-  private double maxCost = 0.0;
+  private final ParallelizationInfoCollector collector;
+  private double maxCost;
   private DistributionAffinity distributionAffinity = DistributionAffinity.NONE;
   private final IdentityHashMap<GroupScan, List<CompleteWork>> splitMap = new IdentityHashMap<>();
+
+  public Stats() {
+    maxCost = 0.0;
+    collector = new ParallelizationInfoCollector();
+  }
 
   public void addCost(double cost){
     maxCost = Math.max(maxCost, cost);

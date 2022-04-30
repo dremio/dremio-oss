@@ -18,15 +18,13 @@ package com.dremio.exec.hadoop;
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.exec.hadoop.FSErrorTestUtils.getDummyArguments;
 import static com.dremio.exec.hadoop.FSErrorTestUtils.newFSError;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 
@@ -42,8 +40,6 @@ import org.mockito.stubbing.Answer;
 import com.dremio.io.FSOutputStream;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-
-import javassist.Modifier;
 
 /**
  * Test to verify how {@code FSDataOutputStream} handle {@code FSError}
@@ -93,8 +89,8 @@ public class TestFSDataOutputStreamWrapper {
     try {
       method.invoke(fdosw, params);
     } catch(InvocationTargetException e) {
-      assertThat(e.getTargetException(), is(instanceOf(IOException.class)));
-      assertThat((IOException) e.getTargetException(), is(sameInstance(ioException)));
+      assertThat(e.getTargetException()).isInstanceOf(IOException.class);
+      assertThat((IOException) e.getTargetException()).isSameAs(ioException);
     }
   }
 }

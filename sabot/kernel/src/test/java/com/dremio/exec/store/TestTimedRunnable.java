@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store;
 
-import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.util.List;
@@ -77,29 +75,24 @@ public class TestTimedRunnable extends DremioTest {
   }
 
   @Test
-  public void withTasksExceedingTimeout() throws Exception {
-    UserException ex = null;
+  public void withTasksExceedingTimeout() {
+    List<TimedRunnable<Void>> tasks = Lists.newArrayList();
 
-    try {
-      List<TimedRunnable<Void>> tasks = Lists.newArrayList();
-
-      for (int i = 0; i < 100; i++) {
-        if ((i & (i + 1)) == 0) {
-          tasks.add(new TestTask(2000));
-        } else {
-          tasks.add(new TestTask(20000));
-        }
+    for (int i = 0; i < 100; i++) {
+      if ((i & (i + 1)) == 0) {
+        tasks.add(new TestTask(2000));
+      } else {
+        tasks.add(new TestTask(20000));
       }
-
-      TimedRunnable.run("Execution with some tasks triggering timeout", logger, tasks, 16);
-    } catch (UserException e) {
-      ex = e;
     }
 
-    assertNotNull("Expected a UserException", ex);
-    assertThat(ex.getMessage(),
-        containsString("Waited for 93750ms, but tasks for 'Execution with some tasks triggering timeout' are not " +
-            "complete. Total runnable size 100, parallelism 16."));
+    assertThatThrownBy(
+      () -> TimedRunnable.run("Execution with some tasks triggering timeout", logger, tasks, 16))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining(
+        "Waited for 93750ms, but tasks for 'Execution with some tasks triggering timeout' are not "
+          +
+          "complete. Total runnable size 100, parallelism 16.");
   }
 
   @Test

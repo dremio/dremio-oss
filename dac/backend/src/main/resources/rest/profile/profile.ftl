@@ -370,7 +370,7 @@
 
           <#assign reflectionHints = model.getAccelerationDetails().getHintsForLayoutId(layout.layoutId) >
           <#if reflectionHints?? >
-          </p> Matching Hints:
+          </p> Matching Hints: <#if model.getAccelerationDetails().isHintHiddenforLayoutId(layout.layoutId)>Not Shown (Too Far From Matching)</#if>
             <ul>
               <#list reflectionHints as reflectionHint>
                 <li>

@@ -25,6 +25,7 @@ import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.linq4j.tree.Primitive;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.CyclicMetadataException;
+import org.apache.calcite.rel.metadata.DelegatingMetadataRel;
 import org.apache.calcite.rel.metadata.NullSentinel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
@@ -50,6 +51,7 @@ class CacheGenerator {
   }
 
   public static void cachedMethod(StringBuilder buff, Method method, int methodIndex) {
+    String delRelClass = DelegatingMetadataRel.class.getName();
     buff.append("  public ")
         .append(method.getReturnType().getName())
         .append(" ")
@@ -62,7 +64,10 @@ class CacheGenerator {
         .append(RelMetadataQuery.class.getName())
         .append(" mq");
     paramList(buff, method, 2)
-        .append(") {\n");
+        .append(") {\n")
+        .append("    while (r instanceof ").append(delRelClass).append(") {\n")
+        .append("      r = ((").append(delRelClass).append(") r).getMetadataDelegateRel();\n")
+        .append("    }\n");
     buff.append("    final java.util.List key = ")
         .append(
             (method.getParameterTypes().length < 6

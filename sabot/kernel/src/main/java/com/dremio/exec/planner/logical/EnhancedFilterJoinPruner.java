@@ -45,12 +45,14 @@ public final class EnhancedFilterJoinPruner {
    * Prune if there is superset relationship among child nodes, e.x.:
    *  (a and b and c) or (a and b) -> a and b
    *  (a or b or c) and (a or b) -> a or b
+   * @param rexBuilder RexBuilder
    * @param rexNode RexNode to prune, should be canonicalized
    * @param toLeaf Whether to prune recursively to leaf nodes
-   * @param rexBuilder RexBuilder
    * @return Pruned RexNode
    */
-  public static RexNode pruneSuperset(RexNode rexNode, boolean toLeaf, RexBuilder rexBuilder) {
+  public static RexNode pruneSuperset(RexBuilder rexBuilder,
+    RexNode rexNode,
+    boolean toLeaf) {
     switch (rexNode.getKind()) {
       case AND:
       case OR: {
@@ -61,7 +63,7 @@ public final class EnhancedFilterJoinPruner {
         if (toLeaf) {
           childNodes = MoreRelOptUtil.conDisjunctions(rexNode)
             .stream()
-            .map(childNode -> pruneSuperset(childNode, toLeaf, rexBuilder))
+            .map(childNode -> pruneSuperset(rexBuilder, childNode, toLeaf))
             .collect(Collectors.toList());
         } else {
           childNodes = MoreRelOptUtil.conDisjunctions(rexNode);

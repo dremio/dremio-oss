@@ -1,0 +1,127 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "SIMPLE FROM CLAUSE"
+  input: "FROM EMP"
+  output:
+    '[EMP]':
+     -
+      name: "COMM"
+      sqlTypeName: "INTEGER"
+     -
+      name: "DEPTNO"
+      sqlTypeName: "INTEGER"
+     -
+      name: "EMPNO"
+      sqlTypeName: "INTEGER"
+     -
+      name: "ENAME"
+      sqlTypeName: "VARCHAR"
+     -
+      name: "HIREDATE"
+      sqlTypeName: "TIMESTAMP"
+     -
+      name: "JOB"
+      sqlTypeName: "VARCHAR"
+     -
+      name: "MGR"
+      sqlTypeName: "INTEGER"
+     -
+      name: "SAL"
+      sqlTypeName: "INTEGER"
+     -
+      name: "SLACKER"
+      sqlTypeName: "BOOLEAN"
+ -
+  description: "FROM CLAUSE WITH COMMAS"
+  input: "FROM EMP, DEPT"
+  output:
+    '[EMP]':
+     -
+      name: "COMM"
+      sqlTypeName: "INTEGER"
+     -
+      name: "DEPTNO"
+      sqlTypeName: "INTEGER"
+     -
+      name: "EMPNO"
+      sqlTypeName: "INTEGER"
+     -
+      name: "ENAME"
+      sqlTypeName: "VARCHAR"
+     -
+      name: "HIREDATE"
+      sqlTypeName: "TIMESTAMP"
+     -
+      name: "JOB"
+      sqlTypeName: "VARCHAR"
+     -
+      name: "MGR"
+      sqlTypeName: "INTEGER"
+     -
+      name: "SAL"
+      sqlTypeName: "INTEGER"
+     -
+      name: "SLACKER"
+      sqlTypeName: "BOOLEAN"
+    '[DEPT]':
+     -
+      name: "DEPTNO"
+      sqlTypeName: "INTEGER"
+     -
+      name: "NAME"
+      sqlTypeName: "VARCHAR"
+ -
+  description: "FROM CLAUSE WITH JOINS"
+  input: "FROM EMP JOIN DEPT ON EMP.DEPTNO = DEPT.DEPTNO"
+  output:
+    '[EMP]':
+     -
+      name: "COMM"
+      sqlTypeName: "INTEGER"
+     -
+      name: "DEPTNO"
+      sqlTypeName: "INTEGER"
+     -
+      name: "EMPNO"
+      sqlTypeName: "INTEGER"
+     -
+      name: "ENAME"
+      sqlTypeName: "VARCHAR"
+     -
+      name: "HIREDATE"
+      sqlTypeName: "TIMESTAMP"
+     -
+      name: "JOB"
+      sqlTypeName: "VARCHAR"
+     -
+      name: "MGR"
+      sqlTypeName: "INTEGER"
+     -
+      name: "SAL"
+      sqlTypeName: "INTEGER"
+     -
+      name: "SLACKER"
+      sqlTypeName: "BOOLEAN"
+    '[DEPT]':
+     -
+      name: "DEPTNO"
+      sqlTypeName: "INTEGER"
+     -
+      name: "NAME"
+      sqlTypeName: "VARCHAR"

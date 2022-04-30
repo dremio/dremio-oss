@@ -10,13 +10,42 @@ Documentation is available at https://docs.dremio.com.
 
 ### (a) Prerequisites
 
-* JDK 8 (OpenJDK or Oracle)
+* JDK 8 or 11 (OpenJDK or Oracle) as the default JDK (`JAVA_HOME` set to it)
+* JDK 8 (OpenJDK or Oracle) in Maven toolchain, required to run certain integration tests
 * (Optional) Maven 3.3.9 or later (using Homebrew: `brew install maven`)
 
 Run the following commands to verify that you have the correct versions of Maven and JDK installed:
 
     java -version
     mvn --version
+
+Add JDK 8 to the Maven toolchain, easiest to use `${HOME}/.m2/toolchains.xml`. Example:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<toolchains>
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>1.8</version>
+      <vendor>sun</vendor>
+    </provides>
+    <configuration>
+      <jdkHome>FULL_PATH_TO_YOUR_JAVA_8_HOME</jdkHome>
+    </configuration>
+  </toolchain>
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>11</version>
+      <vendor>sun</vendor>
+    </provides>
+    <configuration>
+      <jdkHome>FULL_PATH_TO_YOUR_JAVA_11_HOME</jdkHome>
+    </configuration>
+  </toolchain>
+</toolchains>
+```
 
 ### (b) Clone the Repository
 
@@ -69,4 +98,3 @@ The distribution directory will be `distribution/server/target/dremio-oss-{DREMI
 ## Questions?
 
 If you have questions, please post them on https://community.dremio.com.
-

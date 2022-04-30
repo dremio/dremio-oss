@@ -21,7 +21,6 @@ package com.dremio.datastore.api;
  * @param <K> The Key type to convert.
  * @param <V> The value type to convert.
  */
-@FunctionalInterface
 public interface DocumentConverter<K, V> {
   /**
    * Convert the key/value pair using the providing writer
@@ -31,5 +30,12 @@ public interface DocumentConverter<K, V> {
    * @param record the value of the document.
    */
   void convert(DocumentWriter writer, K key, V record);
+
+  /**
+   * Version of the Indices.
+   *
+   * @return version.
+   */
+  Integer getVersion();
 }
 

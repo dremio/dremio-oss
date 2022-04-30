@@ -24,13 +24,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.util.MemoryUtil;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.holders.DecimalHolder;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.SuppressForbidden;
@@ -139,7 +139,7 @@ public class ConstantColumnPopulators {
       vector = (${minor.class}Vector)output.getVector(pair.getName());
       if (vector == null) {
         <#if minor.class == "Decimal">
-        vector = output.addField(new Field(pair.getName(), true, new Decimal(value.precision, value.scale), null), DecimalVector.class);
+        vector = output.addField(new Field(pair.getName(), new FieldType(true, new Decimal(value.precision, value.scale), null) , null), DecimalVector.class);
         <#else>
         vector = output.addField(CompleteType.${completeType}.toField(pair.name), ${minor.class}Vector.class);
         </#if>
@@ -230,7 +230,7 @@ public class ConstantColumnPopulators {
       BaseFixedWidthVector baseFixedWidthVector = (BaseFixedWidthVector)vector;
       baseFixedWidthVector.loadFieldBuffers(arrowFieldNode, Lists.newArrayList(validityBuf, dataBuf));
       </#if>
-      arrowBuf.release();
+      arrowBuf.close();
       vector.setValueCount(count);
     }
 
@@ -305,24 +305,24 @@ public class ConstantColumnPopulators {
     <#case "Int" >
     <#case "TimeMilli" >
           byte[] arr = new byte[Integer.BYTES];
-          MemoryUtil.UNSAFE.putInt(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          PlatformDependent.putInt(arr, 0, value);
           return arr;
     <#break>
     <#case "BigInt" >
     <#case "DateMilli" >
     <#case "TimeStampMilli" >
           byte[] arr = new byte[Long.BYTES];
-          MemoryUtil.UNSAFE.putLong(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          PlatformDependent.putLong(arr, 0, value);
           return arr;
     <#break>
     <#case "Float4" >
-          byte[] arr = new byte[Float.BYTES];
-          MemoryUtil.UNSAFE.putFloat(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          byte[] arr = new byte[Integer.BYTES];
+          PlatformDependent.putInt(arr, 0, Float.floatToRawIntBits(value));
           return arr;
     <#break>
     <#case "Float8" >
-          byte[] arr = new byte[Double.BYTES];
-          MemoryUtil.UNSAFE.putDouble(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          byte[] arr = new byte[Long.BYTES];
+          PlatformDependent.putLong(arr, 0, Double.doubleToRawLongBits(value));
           return arr;
     <#break>
     <#case "Decimal" >

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import React, { Component } from 'react';
+import classnames from 'classnames';
 import spring from 'react-motion/lib/spring';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
@@ -31,14 +32,16 @@ export class AddButton extends Component {
     style: PropTypes.object,
     children: PropTypes.node,
     addIcon: PropTypes.bool,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    className: PropTypes.string
   };
 
   render() {
-    const {addIcon, addItem, style, children} = this.props;
+    const {addIcon, addItem, style, children, className } = this.props;
     const combinedStyle = {':hover': {}, ...styles.addButton, ...style}; // need Radium fakeout
     const icon = addIcon ? 'Add.svg' : 'AddHover.svg';
-    return <a key='addItem' className='add-item' onClick={addItem} style={combinedStyle}>
+    const btnClass = classnames('add-item', className);
+    return <a key='addItem' className={btnClass} onClick={addItem} style={combinedStyle}>
       <Art
         src={icon}
         alt={this.props.intl.formatMessage({id: 'Common.Add'})}

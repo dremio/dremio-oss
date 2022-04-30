@@ -53,6 +53,7 @@ import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.server.BufferAllocatorFactory;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
@@ -63,6 +64,7 @@ import com.dremio.dac.service.errors.SourceFolderNotFoundException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.ResourceUtil;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.ops.ReflectionContext;
@@ -141,7 +143,10 @@ public class SourceResource extends BaseResourceWithAllocator {
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public SourceUI getSource(@QueryParam("includeContents") @DefaultValue("true") boolean includeContents)
+  public SourceUI getSource(
+    @QueryParam("includeContents") @DefaultValue("true") boolean includeContents,
+    @QueryParam("refType") String refType,
+    @QueryParam("refValue") String refValue)
       throws Exception {
     try {
       final SourceConfig config = namespaceService.getSource(sourcePath.toNamespaceKey());
@@ -151,9 +156,9 @@ public class SourceResource extends BaseResourceWithAllocator {
       }
 
       final BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(config.getName()),
-          BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
+        BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
       final SourceUI source = newSource(config)
-          .setNumberOfDatasets(datasetCount.getCount());
+        .setNumberOfDatasets(datasetCount.getCount());
       source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
 
       source.setState(sourceState);
@@ -164,8 +169,13 @@ public class SourceResource extends BaseResourceWithAllocator {
         source.setAccelerationGracePeriod(settings.getGracePeriod());
       }
       if (includeContents) {
-        source.setContents(sourceService.listSource(sourcePath.getSourceName(),
-          namespaceService.getSource(sourcePath.toNamespaceKey()), securityContext.getUserPrincipal().getName()));
+        source.setContents(
+          sourceService.listSource(
+            sourcePath.getSourceName(),
+            namespaceService.getSource(sourcePath.toNamespaceKey()),
+            securityContext.getUserPrincipal().getName(),
+            refType,
+            refValue));
       }
       return source;
     } catch (NamespaceNotFoundException nfe) {
@@ -178,8 +188,9 @@ public class SourceResource extends BaseResourceWithAllocator {
   @Produces(MediaType.APPLICATION_JSON)
   public void deleteSource(@QueryParam("version") String version) throws NamespaceException, SourceNotFoundException {
     if (version == null) {
-      throw new ClientErrorException("missing version parameter");
+      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
+
     try {
       SourceConfig config = namespaceService.getSource(new SourcePath(sourceName).toNamespaceKey());
       if(!Objects.equals(config.getTag(), version)) {
@@ -197,11 +208,21 @@ public class SourceResource extends BaseResourceWithAllocator {
   @GET
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public Folder getFolder(@PathParam("path") String path, @QueryParam("includeContents") @DefaultValue("true") boolean includeContents)
+  public Folder getFolder(
+      @PathParam("path") String path,
+      @QueryParam("includeContents") @DefaultValue("true") boolean includeContents,
+      @QueryParam("refType") String refType,
+      @QueryParam("refValue") String refValue)
       throws NamespaceException, IOException, SourceFolderNotFoundException, PhysicalDatasetNotFoundException, SourceNotFoundException {
     sourceService.checkSourceExists(sourceName);
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    return sourceService.getFolder(sourceName, folderPath, includeContents, securityContext.getUserPrincipal().getName());
+    return sourceService.getFolder(
+      sourceName,
+      folderPath,
+      includeContents,
+      securityContext.getUserPrincipal().getName(),
+      refType,
+      refValue);
   }
 
   @GET
@@ -335,11 +356,11 @@ public class SourceResource extends BaseResourceWithAllocator {
                                @QueryParam("version") String version) throws PhysicalDatasetNotFoundException {
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     if (version == null) {
-      throw new ClientErrorException("missing version parameter");
+      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
 
     try {
-      sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(filePath), version);
+      sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(filePath), version, CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
     } catch (ConcurrentModificationException e) {
       throw ResourceUtil.correctBadVersionErrorMessage(e, "file format", path);
     }
@@ -397,12 +418,12 @@ public class SourceResource extends BaseResourceWithAllocator {
   public void deleteFolderFormat(@PathParam("path") String path,
                                  @QueryParam("version") String version) throws PhysicalDatasetNotFoundException {
     if (version == null) {
-      throw new ClientErrorException("missing version parameter");
+      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
 
     try {
       SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-      sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(folderPath), version);
+      sourceService.deletePhysicalDataset(sourceName, new PhysicalDatasetPath(folderPath), version, CatalogUtil.getDeleteCallback(context.get().getOrphanageFactory().get()));
     } catch (ConcurrentModificationException e) {
       throw ResourceUtil.correctBadVersionErrorMessage(e, "folder format", path);
     }

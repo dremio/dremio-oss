@@ -36,7 +36,7 @@ FormikSelect.propTypes = {
   label: PropTypes.string,
   multiple: PropTypes.bool,
   options: PropTypes.arrayOf(PropTypes.shape({
-    label: PropTypes.string,
+    label: PropTypes.node,
     value: PropTypes.string
   })).isRequired,
   style: PropTypes.object

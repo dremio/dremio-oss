@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.compile;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.Test;
 
 import com.dremio.exec.expr.fn.FunctionInitializer;
@@ -30,8 +30,8 @@ public class TestMethodToLabel {
   public void testMethodToLabelledStatement() {
     FunctionInitializer initializer = new FunctionInitializer(TEST_CLAZZ_FQN);
     final String expectedLabel = TEST_CLAZZ_NAME + "_eval:";
-    Assert.assertThat(initializer.getMethod("eval"), Matchers.containsString(expectedLabel));
+    assertThat(initializer.getMethod("eval")).contains(expectedLabel);
     final String expectedLabel1 = TEST_CLAZZ_NAME + "_setup:";
-    Assert.assertThat(initializer.getMethod("setup"), Matchers.containsString(expectedLabel1));
+    assertThat(initializer.getMethod("setup")).contains(expectedLabel1);
   }
 }

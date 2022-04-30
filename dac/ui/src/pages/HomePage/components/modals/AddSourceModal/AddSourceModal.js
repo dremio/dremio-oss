@@ -121,11 +121,12 @@ export class AddSourceModal extends Component {
     this.props.hide(...args);
   };
 
-  getTitle(isExternalSource) {
+  getTitle(isExternalSource, isDataplaneSource) {
     const { intl } = this.props;
+    /*eslint no-nested-ternary: "off"*/
     return this.state.isTypeSelected
       ? intl.formatMessage({ id: 'Source.NewSourceStep2'}, {sourceLabel: this.state.selectedFormType.label})
-      : intl.formatMessage({ id: isExternalSource ? 'Source.AddExternalSource' : 'Source.AddDataLake' });
+      : intl.formatMessage({ id: isExternalSource ? 'Source.AddExternalSource' : isDataplaneSource ? 'Source.AddDataPlane' : 'Source.AddDataLake' });
   }
 
   handleSelectSource = (source) => {
@@ -195,7 +196,7 @@ export class AddSourceModal extends Component {
 
   render() {
     const { isOpen, updateFormDirtyState, location, initialFormValues} = this.props;
-    const { state: {isExternalSource} = {} } = location;
+    const { state: {isExternalSource, isDataPlaneSource} = {} } = location;
     const {
       isAddingSampleSource,
       errorMessage,
@@ -209,13 +210,14 @@ export class AddSourceModal extends Component {
     return (
       <Modal
         size='large'
-        title={this.getTitle(isExternalSource)}
+        title={this.getTitle(isExternalSource, isDataPlaneSource)}
         isOpen={isOpen}
         confirm={this.state.isTypeSelected && this.confirm}
         hide={this.hide}>
         <ViewStateWrapper viewState={viewState}>
           {!this.state.isTypeSelected
             ? <SelectSourceType isExternalSource={isExternalSource} sourceTypes={this.state.sourceTypes}
+              isDataPlaneSource={isDataPlaneSource}
               onSelectSource={this.handleSelectSource}/>
             : <ConfigurableSourceForm sourceFormConfig={this.state.selectedFormType}
               ref='form'

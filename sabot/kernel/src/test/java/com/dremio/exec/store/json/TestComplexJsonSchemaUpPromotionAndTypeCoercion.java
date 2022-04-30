@@ -22,18 +22,14 @@ import static com.dremio.ArrowDsUtil.wrapDoubleListInList;
 import static com.dremio.ArrowDsUtil.wrapListInStruct;
 import static com.dremio.ArrowDsUtil.wrapStructInList;
 import static com.dremio.ArrowDsUtil.wrapStructInStruct;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -86,6 +82,7 @@ public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBas
       .baselineColumns("col2")
       .baselineValues(doubleList(1.1, 2.2))
       .go();
+    java.nio.file.Files.delete(jsonDir.resolve("empty_list.json"));
     Path nonEmptyListFilePath = Paths.get("json/schema_changes/no_mixed_types/complex/array_double_bigint/array_bigint_double.json");
     URL resource = Resources.getResource(nonEmptyListFilePath.toString());
     java.nio.file.Files.write(jsonDir.resolve("array_bigint_double.json"), Resources.toByteArray(resource));
@@ -96,14 +93,13 @@ public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBas
       .unOrdered()
       .baselineColumns("col1", "col2")
       .baselineValues(longList(1L, 2L), doubleList(1.1, 2.2))
-      .baselineValues(longList(), doubleList(1.1, 2.2))
       .go();
   }
 
   @Test
   public void testEmptyListWithOneNonEmptyRow() throws Exception {
     Path jsonDir = copyFiles("large_empty_list");
-    Assert.assertThat(runDescribeQuery(jsonDir), allOf(containsString("col1"), containsString("col2")));
+    assertThat(runDescribeQuery(jsonDir)).contains("col1").contains("col2");
   }
 
   @Test
@@ -177,16 +173,15 @@ public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBas
     Path jsonDir = createTempDirWithName("invalid_array").toPath();
     writeDir(jsonDir, "invalid_array");
     String query = String.format("SELECT * FROM dfs.\"%s\"", jsonDir);
-    try {
-      testRunAndReturn(UserBitShared.QueryType.SQL, query);
-      fail("Expected Exception");
-    } catch (Exception e) {
-      assertThat(e.getCause(), instanceOf(UserException.class));
-      assertThat(e.getCause().getMessage(), containsString("Unable to coerce from the file's data type \"varchar\" to the column's data type \"list<varchar>\" in table"));
-      assertThat(e.getCause().getMessage(), containsString("invalid_array"));
-      assertThat(e.getCause().getMessage(), containsString(", column \"x\" and file"));
-      assertThat(e.getCause().getMessage(), containsString("invalid_array.json"));
-    }
+    assertThatExceptionOfType(Exception.class)
+      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+      .havingCause()
+      .isInstanceOf(UserException.class)
+      .withMessageContaining("Unable to coerce from the file's data type \"varchar\" to the column's data type \"list<varchar>\" in table")
+      .withMessageContaining("invalid_array")
+      .withMessageContaining(", column \"x\" and file")
+      .withMessageContaining("invalid_array.json");
+
   }
 
   private void writeDir(Path dest, String srcDirName) {
@@ -211,13 +206,11 @@ public class TestComplexJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBas
 
   private void triggerSchemaLearning(Path jsonDir) {
     String query = "SELECT * from dfs.\"" + jsonDir + "\"";
-    try {
-      testRunAndReturn(UserBitShared.QueryType.SQL, query);
-      fail("Expected UserRemoteException");
-    } catch (Exception e) {
-      assertThat(e.getCause(), instanceOf(UserRemoteException.class));
-      assertThat(e.getCause().getMessage(), containsString("New schema found"));
-    }
+    assertThatExceptionOfType(Exception.class)
+      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+      .havingCause()
+      .isInstanceOf(UserRemoteException.class)
+      .withMessageContaining("New schema found");
   }
 
   private void verifyCountStar(Path jsonDir, long result) throws Exception {

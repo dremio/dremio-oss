@@ -16,6 +16,7 @@
 package com.dremio.datastore.adapter;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -26,9 +27,7 @@ import java.util.ConcurrentModificationException;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -70,9 +69,6 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
     });
   }
 
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
-
   protected abstract LegacyKVStoreProvider createProvider() throws Exception;
 
   @Before
@@ -95,8 +91,8 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
 
     //Attempt to extend a version that doesn't exist
     final K newKey = gen.newKey();
-    exception.expect(ConcurrentModificationException.class);
-    kvStore.put(newKey, value);
+    assertThatThrownBy(() -> kvStore.put(newKey, value))
+      .isInstanceOf(ConcurrentModificationException.class);
   }
 
   @Test
@@ -128,6 +124,20 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
     assertFalse(Strings.isNullOrEmpty(tag3));
     assertNotEquals(tag1, tag3);
     assertNotEquals(tag2, tag3);
+  }
+
+  @Test
+  public void testPrecommit() {
+    final K key = gen.newKey();
+    final V value = gen.newVal();
+
+    kvStore.put(key, value);
+    final String tag = versionExtractor.getTag(value);
+    assertFalse(Strings.isNullOrEmpty(tag));
+    V updatedValue = kvStore.get(key);
+    // Make sure the in-memory value and kvstore value match.
+    assertEquals(value, updatedValue);
+    assertEquals(tag, versionExtractor.getTag(updatedValue));
   }
 
   @Test
@@ -186,7 +196,7 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
     assertNotEquals(initialTag, updateTag);
 
     //Attempt to delete with previous tag.
-    exception.expect(ConcurrentModificationException.class);
-    kvStore.delete(key, initialTag);
+    assertThatThrownBy(() -> kvStore.delete(key, initialTag))
+      .isInstanceOf(ConcurrentModificationException.class);
   }
 }

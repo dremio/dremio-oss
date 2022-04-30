@@ -52,14 +52,13 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitIdentity;
-import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.op.scan.OutputMutator;
 
@@ -70,7 +69,6 @@ public class IcebergManifestListRecordReader implements RecordReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergManifestListRecordReader.class);
 
   private final BatchSchema schema;
-  private final EasyProtobuf.EasyDatasetSplitXAttr splitAttributes;
   private final List<String> dataset;
   private OutputMutator output;
   private Iterator<ManifestFile> manifestFileIterator;
@@ -87,25 +85,30 @@ public class IcebergManifestListRecordReader implements RecordReader {
   private boolean emptyTable;
   private final String datasourcePluginUID;
   private Expression icebergFilterExpression;
+  private final String path;
   private Map<Integer, PartitionSpec> partitionSpecMap;
 
   public IcebergManifestListRecordReader(OperatorContext context,
-                                         FileSystem fileSystem,
-                                         EasyProtobuf.EasyDatasetSplitXAttr splitAttributes,
+                                         String path,
                                          SupportsIcebergRootPointer pluginForIceberg,
-                                         EasySubScan config) {
-    this.splitAttributes = splitAttributes;
+                                         List<String> dataset,
+                                         String dataSourcePluginId,
+                                         BatchSchema fullSchema,
+                                         OpProps props,
+                                         List<String> partitionCols,
+                                         IcebergExtendedProp icebergExtendedProp) {
+    this.path = path;
     this.context = context;
     this.pluginForIceberg = pluginForIceberg;
-    this.dataset = config.getReferencedTables() != null ? config.getReferencedTables().iterator().next() : null;
-    this.datasourcePluginUID = config.getDatasourcePluginId().getName();
-    this.schema = config.getFullSchema();
-    this.props = config.getProps();
-    this.partitionCols = config.getPartitionColumns();
+    this.dataset = dataset;
+    this.datasourcePluginUID = dataSourcePluginId;
+    this.schema = fullSchema;
+    this.props = props;
+    this.partitionCols =partitionCols;
     this.partColToKeyMap = partitionCols != null ? IntStream.range(0, partitionCols.size())
       .boxed()
       .collect(Collectors.toMap(i -> partitionCols.get(i).toLowerCase(), i -> i)) : null;
-    icebergExtendedProp = config.getIcebergExtendedProp();
+    this.icebergExtendedProp = icebergExtendedProp;
     try {
       this.icebergFilterExpression = IcebergSerDe.deserializeFromByteArray(icebergExtendedProp.getIcebergExpression());
     } catch (IOException e) {
@@ -115,12 +118,21 @@ public class IcebergManifestListRecordReader implements RecordReader {
     }
   }
 
-  private Map<Integer, PartitionSpec> getPartitionSpecMap(IcebergExtendedProp icebergExtendedProp, TableMetadata tableMetadata ) {
-    if (icebergExtendedProp == null ||
-      icebergExtendedProp.getPartitionSpecs() == null) {
-      return tableMetadata.specs().stream().collect(Collectors.toMap(f-> f.specId(), f->f));
+  private Map<Integer, PartitionSpec> getPartitionSpecMap(IcebergExtendedProp icebergExtendedProp, TableMetadata tableMetadata) {
+    Map<Integer, PartitionSpec> partitionSpecMap = null;
+    if (icebergExtendedProp != null && icebergExtendedProp.getPartitionSpecs() != null) {
+      partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(icebergExtendedProp.getPartitionSpecs().toByteArray());
     }
-    return IcebergSerDe.deserializePartitionSpecMap(icebergExtendedProp.getPartitionSpecs().toByteArray());
+    if(partitionSpecMap == null) {
+      partitionSpecMap = tableMetadata.specs().stream().collect(Collectors.toMap(f -> f.specId(), f -> f));
+      if(IcebergUtils.isTransformedOrPartitionSpecEvolved(partitionSpecMap)) {
+        throw UserException
+                .unsupportedError()
+                .message("Please refresh the iceberg dataset to enable iceberg partition transform and evolution feature")
+                .buildSilently();
+      }
+    }
+    return partitionSpecMap;
   }
 
   @Override
@@ -128,23 +140,34 @@ public class IcebergManifestListRecordReader implements RecordReader {
     this.output = output;
     FileSystem fs;
     try {
-      fs = pluginForIceberg.createFSWithAsyncOptions(splitAttributes.getPath(), props.getUserName(), context);
+      fs = pluginForIceberg.createFSWithAsyncOptions(this.path, props.getUserName(), context);
     } catch (IOException e) {
       throw new RuntimeException("Failed creating filesystem", e);
     }
     TableMetadata tableMetadata = TableMetadataParser.read(new DremioFileIO(
-            fs, context, dataset, datasourcePluginUID, null, pluginForIceberg.getFsConfCopy()),
-            splitAttributes.getPath());
+            fs, context, dataset, datasourcePluginUID, null, pluginForIceberg.getFsConfCopy(), (MutablePlugin) pluginForIceberg),
+            this.path);
     if (!context.getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION)) {
       checkForPartitionSpecEvolution(tableMetadata);
     }
     partitionSpecMap = getPartitionSpecMap(icebergExtendedProp, tableMetadata);
     icebergTableSchema = tableMetadata.schema();
-    Snapshot snapshot = tableMetadata.currentSnapshot();
+    final long snapshotId = icebergExtendedProp.getSnapshotId();
+    final Snapshot snapshot = snapshotId == -1 ? tableMetadata.currentSnapshot() : tableMetadata.snapshot(snapshotId);
     if (snapshot == null) {
       emptyTable = true;
       return;
     }
+
+    // DX-41522, throw exception when DeleteFiles are present.
+    // TODO: remove this throw when we get full support for handling the deletes correctly.
+    if (tableMetadata.formatVersion() > 1) {
+      long numDeleteFiles = Long.parseLong(snapshot.summary().getOrDefault("total-delete-files", "0"));
+      if (numDeleteFiles > 0) {
+        throw UserException.unsupportedError().message("Iceberg V2 tables with delete files are not supported").buildSilently();
+      }
+    }
+
     List<ManifestFile> manifestFileList = snapshot.dataManifests();
     manifestFileList = filterManifestFiles(manifestFileList);
     manifestFileIterator = manifestFileList.iterator();
@@ -238,16 +261,12 @@ public class IcebergManifestListRecordReader implements RecordReader {
               .buildSilently();
     }
 
-    if (checkNonIdentityTransform(tableMetadata.spec())) {
+    if (IcebergUtils.checkNonIdentityTransform(tableMetadata.spec())) {
       throw UserException
               .unsupportedError()
               .message("Iceberg tables with Non-identity partition transforms are not supported")
               .buildSilently();
     }
-  }
-
-  private boolean checkNonIdentityTransform(PartitionSpec partitionSpec) {
-    return partitionSpec.fields().stream().anyMatch(partitionField -> !partitionField.transform().isIdentity());
   }
 
   @Override

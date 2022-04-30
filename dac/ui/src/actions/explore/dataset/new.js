@@ -70,12 +70,13 @@ export const newUntitledSqlActionTypes = [
 /**
  * common helper for different table operations
  */
-export function postNewUntitledSql(href, sql, queryContext, viewId) {
+export function postNewUntitledSql(href, sql, queryContext, viewId, references) {
   const meta = { viewId };
 
   const body = {
     context: queryContext,
-    sql
+    sql,
+    references
   };
   updateBody(body);
 
@@ -96,18 +97,18 @@ export function postNewUntitledSql(href, sql, queryContext, viewId) {
   };
 }
 
-export function newUntitledSql(sql, queryContext, viewId) {
+export function newUntitledSql(sql, queryContext, viewId, references) {
   return (dispatch) => {
     const newVersion = exploreUtils.getNewDatasetVersion();
     const href = exploreUtils.getUntitledSqlHref({newVersion});
-    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId, false));
+    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId, references));
   };
 }
 
-export function newUntitledSqlAndRun(sql, queryContext, viewId) {
+export function newUntitledSqlAndRun(sql, queryContext, viewId, references) {
   return (dispatch) => {
     const newVersion = exploreUtils.getNewDatasetVersion();
     const href = exploreUtils.getUntitledSqlAndRunHref({newVersion});
-    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId, true));
+    return dispatch(postNewUntitledSql(href, sql, queryContext, viewId, references));
   };
 }

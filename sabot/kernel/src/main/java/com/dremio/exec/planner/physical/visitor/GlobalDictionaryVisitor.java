@@ -15,12 +15,15 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
@@ -36,7 +39,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.planner.physical.AggPrelBase;
+import com.dremio.exec.planner.physical.AggregatePrel;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.FilterPrel;
@@ -59,11 +62,7 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.DictionaryEncod
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetXAttr;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileType;
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
@@ -109,12 +108,9 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
         distributionFields = ((HashToRandomExchangePrel) exchangePrel).getFields();
       }
       // decode used inputs by this filter
-      newInput = newInput.decodeFields(Lists.transform(distributionFields, new Function<DistributionField, Integer>() {
-        @Override
-        public Integer apply(DistributionField input) {
-          return input.getFieldId();
-        }
-      }));
+      newInput = newInput.decodeFields(distributionFields.stream()
+        .map(DistributionField::getFieldId)
+        .collect(Collectors.toList()));
     }
     // pass thr rest of exchanges, exchange uses child input's row data type.
     return new PrelWithDictionaryInfo(
@@ -133,9 +129,9 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
       return new PrelWithDictionaryInfo(joinPrel);
     }
 
-    final Set<Integer> fieldsUsed = Sets.newHashSet();
-    final Set<Integer> leftFieldsUsed = Sets.newHashSet();
-    final Set<Integer> rightFieldsUsed = Sets.newHashSet();
+    final Set<Integer> fieldsUsed = new HashSet<>();
+    final Set<Integer> leftFieldsUsed = new HashSet<>();
+    final Set<Integer> rightFieldsUsed = new HashSet<>();
 
     final InputReferenceRexVisitor visitor = new InputReferenceRexVisitor(fieldsUsed);
     final int leftFieldCount = leftInput.getFields().length;
@@ -169,7 +165,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
       reorderedFields[leftFieldCount + i] = rightInput.getGlobalDictionaryFieldInfo(i);
     }
     return new PrelWithDictionaryInfo((Prel)joinPrel.copy(joinPrel.getTraitSet(),
-      Lists.<RelNode>newArrayList(leftInput.getPrel(), rightInput.getPrel())), reorderedFields);
+      ImmutableList.of(leftInput.getPrel(), rightInput.getPrel())), reorderedFields);
   }
 
   @Override
@@ -182,9 +178,9 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
       return new PrelWithDictionaryInfo(projectPrel);
     }
 
-    final Set<Integer> fieldsUsed = Sets.newHashSet();
+    final Set<Integer> fieldsUsed = new HashSet<>();
     final InputReferenceRexVisitor visitor = new InputReferenceRexVisitor(fieldsUsed);
-    final Map<Integer, Integer> fieldsToInputMap = Maps.newHashMap();
+    final Map<Integer, Integer> fieldsToInputMap = new HashMap<>();
 
     for (int i = 0; i < projectPrel.getProjects().size(); ++i) {
       final RexNode expr = projectPrel.getProjects().get(i);
@@ -200,8 +196,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
 
     // create a new row data type for project
     final GlobalDictionaryFieldInfo[] reorderedFields = new GlobalDictionaryFieldInfo[projectPrel.getRowType().getFieldCount()];
-    final List<RelDataTypeField> newFields = Lists.newArrayList();
-    final Set<Integer> dictionaryEncodedPassThroughFields = Sets.newHashSet();
+    final List<RelDataTypeField> newFields = new ArrayList<>();
 
     for (RelDataTypeField field : projectPrel.getRowType().getFieldList()) {
       // set data type to int for columns which are still dictionary encoded , other wise keep the original type.
@@ -211,7 +206,6 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
           newFields.add(new RelDataTypeFieldImpl(field.getName(), field.getIndex(), dictionaryDataType));
           // Project may change field name, copy field names into reordered fields
           reorderedFields[field.getIndex()] = newInput.getGlobalDictionaryFieldInfo(inputIndex).withName(field.getName());
-          dictionaryEncodedPassThroughFields.add(inputIndex);
         } else {
           newFields.add(field);
           reorderedFields[field.getIndex()] = null;
@@ -222,7 +216,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
       }
     }
     final RelDataType rowDataType = PrelWithDictionaryInfo.toRowDataType(newFields, projectPrel.getCluster().getTypeFactory());
-    final List<RexNode> newExprs = Lists.newArrayList();
+    final List<RexNode> newExprs = new ArrayList<>();
     int exprIndex = 0;
     for (RexNode expr : projectPrel.getProjects()) {
       if (expr instanceof RexInputRef) {
@@ -239,19 +233,8 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
 
   @Override
   public PrelWithDictionaryInfo visitPrel(Prel prel, Void value) throws RuntimeException {
-    if (prel instanceof AggPrelBase) {
-      return visitAggregation((AggPrelBase) prel, value);
-    }
 
-    if (prel instanceof FilterPrel) {
-      return visitFilter((FilterPrel)prel, value);
-    }
-
-    if (prel instanceof LimitPrel) {
-      return visitLimit((LimitPrel)prel, value);
-    }
-
-    final List<RelNode> inputs = Lists.newArrayList();
+    final List<RelNode> inputs = new ArrayList<>();
 
     boolean changed = false;
     for (Prel input : prel) {
@@ -277,7 +260,8 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
     return SqlKind.COUNT != sqlKind;
   }
 
-  private PrelWithDictionaryInfo visitAggregation(AggPrelBase aggPrel, Void value) throws RuntimeException {
+  @Override
+  public PrelWithDictionaryInfo visitAggregate(AggregatePrel aggPrel, Void value) throws RuntimeException {
     assert aggPrel.getInputs().size() == 1;
     PrelWithDictionaryInfo newInput = ((Prel)aggPrel.getInput()).accept(this, value);
 
@@ -286,7 +270,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
     }
 
     // Get list of input fields which are used
-    final Set<Integer> fieldsUsed = Sets.newHashSet();
+    final Set<Integer> fieldsUsed = new HashSet<>();
     for (AggregateCall call : aggPrel.getAggCallList()) {
       if (needsValue(call.getAggregation().getKind())) {
         fieldsUsed.addAll(call.getArgList());
@@ -316,7 +300,8 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
       reorderedFields);
   }
 
-  private PrelWithDictionaryInfo visitFilter(FilterPrel filterPrel, Void value) {
+  @Override
+  public PrelWithDictionaryInfo visitFilter(FilterPrel filterPrel, Void value) {
     assert filterPrel.getInputs().size() == 1;
 
     PrelWithDictionaryInfo newInput = ((Prel)filterPrel.getInput()).accept(this, value);
@@ -325,7 +310,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
       return new PrelWithDictionaryInfo(filterPrel); // none of fields are encoded
     }
 
-    final Set<Integer> fieldsUsed = Sets.newHashSet();
+    final Set<Integer> fieldsUsed = new HashSet<>();
     final InputReferenceRexVisitor visitor = new InputReferenceRexVisitor(fieldsUsed);
     filterPrel.getCondition().accept(visitor);
 
@@ -337,7 +322,8 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
   }
 
   // Pass through do not decode.
-  private PrelWithDictionaryInfo visitLimit(LimitPrel limitPrel, Void value) {
+  @Override
+  public PrelWithDictionaryInfo visitLimit(LimitPrel limitPrel, Void value) {
     final PrelWithDictionaryInfo newInput = ((Prel)limitPrel.getInput()).accept(this, value);
     if (limitPrel.getInput() == newInput.getPrel()) {
       return new PrelWithDictionaryInfo(limitPrel);
@@ -363,11 +349,12 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
     // Make sure we don't apply global dictionary on columns that have conditions pushed into the scan
     final Set<String> columnsPushedToScan = new HashSet<>();
     if (parquetScanPrel.getFilter() != null) {
-      Iterables.addAll(columnsPushedToScan,
-          Iterables.transform(parquetScanPrel.getFilter().getConditions(), ParquetFilterCondition.EXTRACT_COLUMN_NAME));
+        parquetScanPrel.getFilter().getConditions().stream()
+          .map(ParquetFilterCondition.EXTRACT_COLUMN_NAME)
+          .forEach(columnsPushedToScan::add);
     }
 
-    final Map<String, String> dictionaryEncodedColumnsToDictionaryFilePath = Maps.newHashMap();
+    final Map<String, String> dictionaryEncodedColumnsToDictionaryFilePath = new HashMap<>();
     long dictionaryVersion = -1;
 
     ParquetDatasetXAttr xAttr = null;
@@ -417,9 +404,9 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
 
     final StoragePluginId storagePluginId = parquetScanPrel.getPluginId();
     boolean encodedColumns = false;
-    final List<RelDataTypeField> newFields = Lists.newArrayList();
+    final List<RelDataTypeField> newFields = new ArrayList<>();
     final GlobalDictionaryFieldInfo[] fieldInfos = new GlobalDictionaryFieldInfo[parquetScanPrel.getRowType().getFieldCount()];
-    final List<GlobalDictionaryFieldInfo> globalDictionaryColumns = Lists.newArrayList();
+    final List<GlobalDictionaryFieldInfo> globalDictionaryColumns = new ArrayList<>();
 
     for (int i = 0; i < parquetScanPrel.getRowType().getFieldCount(); ++i) {
       final RelDataTypeField field = parquetScanPrel.getRowType().getFieldList().get(i);

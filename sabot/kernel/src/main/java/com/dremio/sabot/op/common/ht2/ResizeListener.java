@@ -87,4 +87,8 @@ public interface ResizeListener {
   default long getAccumCompactionTime(TimeUnit unit) {
     return 0;
   }
+
+  default int getMaxVarLenKeySize() {
+    return 0;
+  }
 }

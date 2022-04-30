@@ -15,50 +15,38 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
-import java.util.List;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.TableOperations;
 
-import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.io.file.FileSystem;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.service.nessieapi.ContentsApiGrpc;
-import com.dremio.service.nessieapi.TreeApiGrpc;
 
 /**
  * Iceberg Nessie catalog
  */
 class IcebergNessieCommand extends IcebergBaseCommand {
-    private final IcebergNessieTableIdentifier nessieTableIdentifier;
-    private final NessieGrpcClient client;
-    private final OperatorStats operatorStats;
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergNessieCommand.class);
+  private final IcebergNessieTableOperations nessieTableOperations;
 
-    public IcebergNessieCommand(IcebergTableIdentifier tableIdentifier,
-                                Configuration configuration,
-                                ContentsApiGrpc.ContentsApiBlockingStub nessieContentsApiBlockingStub,
-                                TreeApiGrpc.TreeApiBlockingStub treeApiBlockingStub,
-                                FileSystem fs, OperatorContext context, List<String> dataset) {
-        super(configuration, ((IcebergNessieTableIdentifier) tableIdentifier).getTableFolder(), fs, context, dataset);
-        nessieTableIdentifier = ((IcebergNessieTableIdentifier) tableIdentifier);
-        this.client = new NessieGrpcClient(nessieContentsApiBlockingStub, treeApiBlockingStub);
-        this.operatorStats = context == null ? null : context.getStats();
-    }
+  public IcebergNessieCommand(IcebergTableIdentifier tableIdentifier,
+                              Configuration configuration,
+                              FileSystem fs,
+                              IcebergNessieTableOperations tableOperations) {
+    super(configuration, ((IcebergNessieTableIdentifier) tableIdentifier).getTableFolder(), fs, tableOperations
+    );
+    this.nessieTableOperations = tableOperations;
+  }
 
-    @Override
-    public TableOperations getTableOperations() {
-        return new IcebergNessieTableOperations(operatorStats, client,
-                new DremioFileIO(fs, context, dataset, null, null, configuration),
-                nessieTableIdentifier);
-    }
+  public void deleteTable() {
+    super.deleteTable();
+    nessieTableOperations.deleteKey();
+  }
 
-    public void deleteRootPointerStoreKey () {
-      IcebergNessieTableOperations icebergNessieTableOperations = new IcebergNessieTableOperations(operatorStats, client,
-        new DremioFileIO(fs, context, dataset, null, null, configuration),
-        nessieTableIdentifier);
-      icebergNessieTableOperations.deleteKey();
-    }
+
+  @Override
+  public void deleteTableRootPointer(){
+    nessieTableOperations.deleteKey();
+  }
+
+
 }

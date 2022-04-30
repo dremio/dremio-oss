@@ -156,7 +156,7 @@ public class UserRequest {
 
     case GET_SERVER_META: {
       GetServerMetaReq req = unwrap(GetServerMetaReq.class);
-      return String.format("[Get Server Meta]");
+      return "[Get Server Meta]";
     }
 
     case RUN_QUERY:

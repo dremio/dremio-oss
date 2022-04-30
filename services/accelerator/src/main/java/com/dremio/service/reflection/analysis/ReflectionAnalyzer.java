@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.utils.SqlUtils;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -188,7 +189,7 @@ public class ReflectionAnalyzer {
 
   public RelDataType getRowType(final NamespaceKey path) {
     DremioTable table = catalogService.getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()))
+        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()))
         .getTable(path);
     Preconditions.checkNotNull(table, "Unknown dataset %s", path);
     return table.getRowType(JavaTypeFactoryImpl.INSTANCE);

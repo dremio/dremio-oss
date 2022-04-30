@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <artifactId>dremio-awsglue-plugin</artifactId>
@@ -118,7 +118,6 @@
     <dependency>
       <groupId>io.findify</groupId>
       <artifactId>s3mock_2.12</artifactId>
-      <version>0.2.4</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -132,6 +131,11 @@
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -162,9 +166,7 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.1.2</version>
         <executions>
           <execution>
             <id>copy</id>
@@ -190,26 +192,14 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M3</version>
         <configuration>
-          <argLine>
-            -Xms512M
-            -Xmx3G
-            -Xss2048k
-            -XX:MaxDirectMemorySize=5120M
-            -XX:+CMSClassUnloadingEnabled
-            -Ddremio.plugins.path=${dremio.plugins.path}
-            @{argLine}
-          </argLine>
           <systemPropertyVariables>
             <s3mock.reserved.port>${s3mock.reserved.port}</s3mock.reserved.port>
           </systemPropertyVariables>
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
         <executions>
           <execution>
@@ -223,11 +213,6 @@
         <configuration>
           <reportNameSuffix>awsglue</reportNameSuffix>
           <forkCount>1</forkCount>
-          <trimStackTrace>false</trimStackTrace>
-          <argLine>-Ddremio.plugins.path=${dremio.plugins.path}</argLine>
-          <systemPropertyVariables>
-            <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
-          </systemPropertyVariables>
           <classpathDependencyExcludes>
             <classpathDependencyExclude>com.dremio.contrib:dremio-hive2-exec-shaded*</classpathDependencyExclude>
           </classpathDependencyExcludes>
@@ -237,5 +222,33 @@
   </build>
 
   <profiles>
+    <profile>
+      <id>jdk9-or-higher</id>
+      <activation>
+        <jdk>[9,)</jdk>
+      </activation>
+
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.0.0-M5</version>
+            <configuration>
+              <!-- Need to run with Java 8, because `GuavaPatcher` runs too late, and
+               `com.google.common.base.Stopwatch` has already been loaded. GuavaPatcher
+                tries to re-define the Stopwatch class in the same classloader, but Java
+                Java 11 no longer allows this. The existing workaround with that
+                `GuavaPatcherRunner` runs into the same issue. A proper solution would be
+                to implement a Java agent, which _is_ allowed to re-define classes.
+                -->
+              <jdkToolchain>
+                <version>1.8</version>
+              </jdkToolchain>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
   </profiles>
 </project>

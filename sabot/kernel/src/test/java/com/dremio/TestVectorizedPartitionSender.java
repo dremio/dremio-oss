@@ -162,8 +162,24 @@ public class TestVectorizedPartitionSender extends BaseTestQuery {
 
   @Test
   public void testDisableMux() throws Exception {
+    final String query = getFile("queries/tpch/17.sql").replace(";", " ");
     try (AutoCloseable o = withOption(PlannerSettings.MUX_EXCHANGE, false)) {
-      testDistributed("queries/tpch/17.sql");
+      testBuilder()
+        .unOrdered()
+        .optionSettingQueriesForBaseline("SET \"exec.operator.partitioner.vectorize\" = false")
+        .sqlBaselineQuery(query)
+        .optionSettingQueriesForTestQuery("SET \"exec.operator.partitioner.vectorize\" = true")
+        .sqlQuery(query)
+        .go();
+      try (AutoCloseable ac = withOption(HashSenderCalculator.ENABLE_ADAPTIVE, true)) {
+        testBuilder()
+          .unOrdered()
+          .optionSettingQueriesForBaseline("SET \"exec.operator.partitioner.vectorize\" = false")
+          .sqlBaselineQuery(query)
+          .optionSettingQueriesForTestQuery("SET \"exec.operator.partitioner.vectorize\" = true")
+          .sqlQuery(query)
+          .go();
+      }
     }
   }
 

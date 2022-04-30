@@ -35,13 +35,13 @@ Apache Avro Copyright 2010-2019 The Apache Software Foundation
 
 Apache Calcite -- Avatica Copyright 2012-2021 The Apache Software Foundation
 
-Apache Calcite Copyright 2012-2021 The Apache Software Foundation
+Apache Calcite Copyright 2012-2017 The Apache Software Foundation
 
 Apache Commons BeanUtils Copyright 2000-2019 The Apache Software Foundation  This product includes software developed at The Apache Software Foundation (http://www.apache.org/).
 
 Apache Commons Collections Copyright 2001-2019 The Apache Software Foundation  This product includes software developed at The Apache Software Foundation (http://www.apache.org/).
 
-Apache Commons Compress Copyright 2002-2021 The Apache Software Foundation
+Apache Commons Compress Copyright 2002-2020 The Apache Software Foundation  This product includes software developed at The Apache Software Foundation (https://www.apache.org/).
 
 Apache Commons IO Copyright 2002-2012 The Apache Software Foundation This product includes software developed by The Apache Software Foundation (http://www.apache.org/).
 
@@ -179,13 +179,9 @@ Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>
 
 Copyright (c) 2011, Christopher Finke All rights reserved.
 
-Copyright (c) 2011, abego Software GmbH, Germany (http://www.abego.org) All rights reserved.
-
 Copyright (c) 2011-2013 Phillip Clark
 
 Copyright (c) 2011-2013 Terence Parr
-
-Copyright (c) 2011-2013 Terence Parr All rights reserved.
 
 Copyright (c) 2011-2018, Christopher Jeffrey (https://github.com/chjj/)
 
@@ -198,8 +194,6 @@ Copyright (c) 2012 Einar Otto Stangvik &lt;einaros@gmail.com&gt;
 Copyright (c) 2012 Google Inc.
 
 Copyright (c) 2012 Nicholas Fisher
-
-Copyright (c) 2012, 2013, 2014 Gil Tene
 
 Copyright (c) 2012, 2018 Oracle and/or its affiliates. All rights reserved. This program and the accompanying materials are made available under the terms of the Eclipse Public License v. 2.0, which is available at http://www.eclipse.org/legal/epl-2.0. This Source Code may also be made available under the following Secondary Licenses when the conditions for such availability set forth in the Eclipse Public License v. 2.0 are satisfied: GNU General Public License, version 2 with the GNU Classpath Exception, which is available at https://www.gnu.org/software/classpath/license.html. SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 
@@ -271,8 +265,6 @@ Copyright (c) 2014, 2015, 2016, 2017, 2018 Simon Lydell
 
 Copyright (c) 2014, Chris Lohfink All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:  * Redistributions of source code must retain the above copyright notice, this   list of conditions and the following disclaimer.  * Redistributions in binary form must reproduce the above copyright notice, this   list of conditions and the following disclaimer in the documentation and/or   other materials provided with the distribution.  * Neither the name of the {organization} nor the names of its   contributors may be used to endorse or promote products derived from   this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Copyright (c) 2014, Facebook, Inc. All rights reserved.
-
 Copyright (c) 2014-2015, Felix Boehm <me@feedic.com>
 
 Copyright (c) 2014-2016 GitHub, Inc.
@@ -284,6 +276,8 @@ Copyright (c) 2014-2017 Sebastian McKenzie <sebmck@gmail.com>
 Copyright (c) 2014-2017, Jon Schlinkert.
 
 Copyright (c) 2014-2019 Denis Pushkarev
+
+Copyright (c) 2014-2021 HackerOne Inc and individual contributors
 
 Copyright (c) 2014-present Sebastian McKenzie and other contributors
 
@@ -302,6 +296,8 @@ Copyright (c) 2015 Andres Suarez <zertosh@gmail.com>
 Copyright (c) 2015 Andrey Okonetchnikov
 
 Copyright (c) 2015 Auth0, Inc. <support@auth0.com> (http://auth0.com)
+
+Copyright (c) 2015 Bodymovin
 
 Copyright (c) 2015 Brian Vaughn
 
@@ -330,6 +326,8 @@ Copyright (c) 2015 Matt Andrews
 Copyright (c) 2015 Next Step Webs, Inc.
 
 Copyright (c) 2015 Nick Williams Copyright (c) 2011 Heather Arthur <fayearthur@gmail.com>
+
+Copyright (c) 2015 Ravindra Marella
 
 Copyright (c) 2015 React Motion authors
 
@@ -375,8 +373,6 @@ Copyright (c) 2016 Eugene Rodionov
 
 Copyright (c) 2016 HolidayCheck
 
-Copyright (c) 2016 Jed Watson
-
 Copyright (c) 2016 Jerry Bendy
 
 Copyright (c) 2016 Jordan Harband
@@ -391,6 +387,8 @@ Copyright (c) 2016 Nik Butenko
 
 Copyright (c) 2016 Tony Quetano
 
+Copyright (c) 2016 Your Name. <name@emailprovider.io>
+
 Copyright (c) 2016, Andres Suarez All rights reserved.
 
 Copyright (c) 2016, Claudéric Demers
@@ -400,6 +398,8 @@ Copyright (c) 2016, James Salter All rights reserved.
 Copyright (c) 2016, Schrodinger, Inc. All rights reserved.
 
 Copyright (c) 2016, gRPC EcosystemAll rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:  * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.  * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.  * Neither the name of grpc-opentracing nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Copyright (c) 2016-present Andy Edwards
 
 Copyright (c) 2016-present Leon Shi
 
@@ -413,8 +413,6 @@ Copyright (c) 2017 ECMAScript Shims
 
 Copyright (c) 2017 Evgeny Poberezkin
 
-Copyright (c) 2017 Jed Watson
-
 Copyright (c) 2017 Michel Weststrate
 
 Copyright (c) 2017 Ryan Florence
@@ -427,19 +425,23 @@ Copyright (c) 2017 sudodoki <smd.deluzion@gmail.com>
 
 Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:    - Redistributions of source code must retain the above copyright     notice, this list of conditions and the following disclaimer.    - Redistributions in binary form must reproduce the above copyright     notice, this list of conditions and the following disclaimer in the     documentation and/or other materials provided with the distribution.    - Neither the name of the Eclipse Foundation, Inc. nor the names of its     contributors may be used to endorse or promote products derived     from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+Copyright (c) 2017, Baidu Inc. All rights reserved.
+
 Copyright (c) 2017, Gajus Kuizinas (http://gajus.com/) All rights reserved.
 
 Copyright (c) 2017, Tim Radvan (tjvr) All rights reserved.
 
 Copyright (c) 2017-2018 Fredrik Nicol
 
-Copyright (c) 2017-Present VMware, Inc. All Rights Reserved.
-
 Copyright (c) 2017-present James Kyle <me@thejameskyle.com>
 
 Copyright (c) 2018 4Catalyzer
 
+Copyright (c) 2018 Diogo Cunha
+
 Copyright (c) 2018 Formidable Labs Copyright (c) 2017 Evgeny Poberezkin
+
+Copyright (c) 2018 Jed Watson
 
 Copyright (c) 2018 Jordan Harband
 
@@ -457,15 +459,21 @@ Copyright (c) 2018 Tony Quetano
 
 Copyright (c) 2018, React Community Forked from React (https://github.com/facebook/react) Copyright 2013-present, Facebook, Inc. All rights reserved.
 
-Copyright (c) 2018-present, Vitali Zaidman <vzaidman@gmail.com>
+Copyright (c) 2018-present, Rimeto, LLC.
 
 Copyright (c) 2019 Alexander Reardon
 
 Copyright (c) 2019 Choko (choko@curioswitch.org)
 
+Copyright (c) 2019 Federico Zivolo
+
+Copyright (c) 2019 FormatJS
+
 Copyright (c) 2019, Sentry All rights reserved.
 
 Copyright (c) 2021 FormatJS
+
+Copyright (c) 2021 Sasha Koss and Lesha Koss https://kossnocorp.mit-license.org
 
 Copyright (c) 2021, Oath Inc.
 
@@ -485,7 +493,11 @@ Copyright 2008 Google Inc.
 
 Copyright 2008 Google Inc.  All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:      * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.     * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.     * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  Code generated by the Protocol Buffer compiler is owned by the owner of the input file used when generating it.  This code is not standalone and requires a support library to be linked with it.  This support library is itself covered by the above license.
 
+Copyright 2008, Google Inc. All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:  * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.  * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.  * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 Copyright 2008-2011 Google Inc.
+
+Copyright 2008-present MongoDB, Inc.
 
 Copyright 2009 Stefan Groschupf
 
@@ -515,9 +527,9 @@ Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/> Based on Un
 
 Copyright 2013 Yahoo! Inc. All rights reserved.
 
-Copyright 2014 Google Inc.
+Copyright 2013-2021 Immutables Authors and Contributors
 
-Copyright 2014 The Netty Project
+Copyright 2014 Google Inc.
 
 Copyright 2014 The gRPC Authors
 
@@ -531,19 +543,13 @@ Copyright 2014-2016 Benjamin Tan <https://demoneaux.github.io/> Copyright 2011-2
 
 Copyright 2014-2018 Chronicle Software Ltd
 
-Copyright 2014-2021 Real Logic Limited.
-
 Copyright 2015, Dustin Diaz (the Original Author) All rights reserved.
 
 Copyright 2015, Google Inc. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:            * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.            * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.            * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Copyright 2015-2017 Dremio Corporation
-
 Copyright 2015-2019 The Jaeger Project Authors
 
 Copyright 2015-2020 Ping Identity Corporation
-
-Copyright 2016 Peloton Interactive, Inc.
 
 Copyright 2016 The Android Open Source Project Licensed under the Apache License, Version 2.0 (the License); you may not use this file except in compliance with the License. You may obtain a copy of the License at      http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License. ----------------------------------------------------------------------- This product contains a modified portion of `Netty`, a configurable network stack in Java, which can be obtained at:   * LICENSE:     * licenses/LICENSE.netty.txt (Apache License 2.0)   * HOMEPAGE:     * http://netty.io/ This product contains a modified portion of `Apache Harmony`, modular Java runtime, which can be obtained at:   * LICENSE:     * licenses/LICENSE.harmony.txt (Apache License 2.0)   * HOMEPAGE:     * https://harmony.apache.org/
 
@@ -558,6 +564,8 @@ Copyright 2016-2019 The OpenTracing Authors
 Copyright 2017 Google Inc.  All Rights Reserved.
 
 Copyright 2019 Carl Mastrangelo  Licensed under the Apache License, Version 2.0 (the License); you may not use this file except in compliance with the License. You may obtain a copy of the License at      http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.  -----------------------------------------------------------------------  This product contains a modified portion of 'Catapult', an open source Trace Event viewer for Chome, Linux, and Android applications, which can be obtained at:    * LICENSE:     * traceviewer/src/main/resources/io/perfmark/traceviewer/third_party/catapult/LICENSE (New BSD License)   * HOMEPAGE:     * https://github.com/catapult-project/catapult
+
+Copyright 2019 Eric Mantooth
 
 Copyright 2019 Oath Inc. All rights reserved.
 
@@ -591,6 +599,8 @@ Copyright © 2001-2009 The Apache Software Foundation.
 
 Copyright © 2012-2016 Faisal Salman <<fyzlman@gmail.com>>
 
+Copyright © 2015 Kiko Beats
+
 Copyright © 2015 Studio B12 GmbH
 
 Copyright © 2016 Federico Zivolo and contributors
@@ -619,7 +629,7 @@ Jetty Web Container Copyright 1995-2017 Mort Bay Consulting Pty Ltd.
 
 LICENSE ISSUES   ==============    The OpenSSL toolkit stays under a double license, i.e. both the conditions of   the OpenSSL License and the original SSLeay license apply to the toolkit.   See below for the actual license texts.    OpenSSL License   ---------------  /* ====================================================================  * Copyright (c) 1998-2019 The OpenSSL Project.  All rights reserved.  *  * Redistribution and use in source and binary forms, with or without  * modification, are permitted provided that the following conditions  * are met:  *  * 1. Redistributions of source code must retain the above copyright  *    notice, this list of conditions and the following disclaimer.  *  * 2. Redistributions in binary form must reproduce the above copyright  *    notice, this list of conditions and the following disclaimer in  *    the documentation and/or other materials provided with the  *    distribution.  *  * 3. All advertising materials mentioning features or use of this  *    software must display the following acknowledgment:  *    This product includes software developed by the OpenSSL Project  *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)  *  * 4. The names OpenSSL Toolkit and OpenSSL Project must not be used to  *    endorse or promote products derived from this software without  *    prior written permission. For written permission, please contact  *    openssl-core@openssl.org.  *  * 5. Products derived from this software may not be called OpenSSL  *    nor may OpenSSL appear in their names without prior written  *    permission of the OpenSSL Project.  *  * 6. Redistributions of any form whatsoever must retain the following  *    acknowledgment:  *    This product includes software developed by the OpenSSL Project  *    for use in the OpenSSL Toolkit (http://www.openssl.org/)  *  * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY  * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR  * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR  * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,  * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED  * OF THE POSSIBILITY OF SUCH DAMAGE.  * ====================================================================  *  * This product includes cryptographic software written by Eric Young  * (eay@cryptsoft.com).  This product includes software written by Tim  * Hudson (tjh@cryptsoft.com).  *  */   Original SSLeay License  -----------------------  /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)  * All rights reserved.  *  * This package is an SSL implementation written  * by Eric Young (eay@cryptsoft.com).  * The implementation was written so as to conform with Netscapes SSL.  *  * This library is free for commercial and non-commercial use as long as  * the following conditions are aheared to.  The following conditions  * apply to all code found in this distribution, be it the RC4, RSA,  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation  * included with this distribution is covered by the same copyright terms  * except that the holder is Tim Hudson (tjh@cryptsoft.com).  *  * Copyright remains Eric Young's, and as such any Copyright notices in  * the code are not to be removed.  * If this package is used in a product, Eric Young should be given attribution  * as the author of the parts of the library used.  * This can be in the form of a textual message at program startup or  * in documentation (online or textual) provided with the package.  *  * Redistribution and use in source and binary forms, with or without  * modification, are permitted provided that the following conditions  * are met:  * 1. Redistributions of source code must retain the copyright  *    notice, this list of conditions and the following disclaimer.  * 2. Redistributions in binary form must reproduce the above copyright  *    notice, this list of conditions and the following disclaimer in the  *    documentation and/or other materials provided with the distribution.  * 3. All advertising materials mentioning features or use of this software  *    must display the following acknowledgement:  *    This product includes cryptographic software written by  *     Eric Young (eay@cryptsoft.com)  *    The word 'cryptographic' can be left out if the rouines from the library  *    being used are not cryptographic related :-).  * 4. If you include any Windows specific code (or a derivative thereof) from  *    the apps directory (application code) you must include an acknowledgement:  *    This product includes software written by Tim Hudson (tjh@cryptsoft.com)  *  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF  * SUCH DAMAGE.  *  * The licence and distribution terms for any publically available version or  * derivative of this code cannot be changed.  i.e. this code cannot simply be  * copied and put under another distribution licence  * [including the GNU Public Licence.]  */
 
-Logback: the reliable, generic, fast and flexible logging framework. Copyright (C) 1999-2015, QOS.ch. All rights reserved.
+Logback: the reliable, generic, fast and flexible logging framework. Copyright (C) 1999-2017, QOS.ch. All rights reserved.
 
 MIT License  Copyright (c) Microsoft Corporation  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 

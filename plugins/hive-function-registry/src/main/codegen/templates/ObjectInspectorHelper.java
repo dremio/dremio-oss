@@ -198,7 +198,8 @@ public class ObjectInspectorHelper {
                 .invoke("setBytes").arg(JExpr.lit(0)).arg(data));
             jnullif._else().assign(returnValueHolder.ref("start"), JExpr.lit(0));
             jnullif._else().assign(returnValueHolder.ref("end"), data.ref("length"));
-            jnullif._else().add(returnValueHolder.ref("buffer").invoke("setIndex").arg(JExpr.lit(0)).arg(data.ref("length")));
+            jnullif._else().add(returnValueHolder.ref("buffer").invoke("readerIndex").arg(JExpr.lit(0)));
+            jnullif._else().add(returnValueHolder.ref("buffer").invoke("writerIndex").arg(data.ref("length")));
 
           <#elseif entry.hiveType == "TIMESTAMP">
             JVar tsVar = jc._else().decl(m.directClass(java.sql.Timestamp.class.getCanonicalName()), "ts",

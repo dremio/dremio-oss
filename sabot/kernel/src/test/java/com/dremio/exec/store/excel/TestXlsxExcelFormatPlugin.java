@@ -15,8 +15,7 @@
  */
 package com.dremio.exec.store.excel;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -75,7 +74,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xlsx";
     String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+    assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
 
   @Test
@@ -91,7 +90,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xlsx";
     String query = String.format("SELECT COUNT(1) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+    assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
 
   @Test
@@ -99,7 +98,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xlsx";
     String query = String.format("SELECT COUNT(*),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), "|"), containsString("9|"));
+    assertThat(getResultString(testSqlWithResults(query), "|")).contains("9|");
   }
 
   @Test
@@ -107,7 +106,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xlsx";
     String query = String.format("SELECT COUNT(1),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), "|"), containsString("9|"));
+    assertThat(getResultString(testSqlWithResults(query), "|")).contains("9|");
   }
 
   @Test
@@ -115,7 +114,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xlsx";
     String query = String.format("SELECT COUNT(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+    assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
 
   @Test
@@ -123,7 +122,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xls";
     String query = String.format("SELECT COUNT(*) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+    assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
 
   @Test
@@ -131,7 +130,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xls";
     String query = String.format("SELECT COUNT(1) FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+    assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
 
   @Test
@@ -147,7 +146,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xls";
     String query = String.format("SELECT COUNT(*),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), "|"), containsString("9|"));
+    assertThat(getResultString(testSqlWithResults(query), "|")).contains("9|");
   }
 
   @Test
@@ -155,7 +154,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xls";
     String query = String.format("SELECT COUNT(1),AVG(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), "|"), containsString("9|"));
+    assertThat(getResultString(testSqlWithResults(query), "|")).contains("9|");
   }
 
   @Test
@@ -163,7 +162,7 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     String filePath = getExcelDir() + "simple.xls";
     String query = String.format("SELECT COUNT(\"Age\") FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => true))", filePath);
 
-    assertThat(getResultString(testSqlWithResults(query), ""), containsString("9"));
+    assertThat(getResultString(testSqlWithResults(query), "")).contains("9");
   }
 
   @Test

@@ -34,6 +34,12 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionVal
  * Index dataset splits.
  */
 public class PartitionChunkConverter implements DocumentConverter<PartitionChunkId, PartitionChunk> {
+  private Integer version = 0;
+
+  @Override
+  public Integer getVersion() {
+    return version;
+  }
 
   private static final int LARGE_VALUE_CUTOFF = 512;
 

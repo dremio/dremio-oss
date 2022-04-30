@@ -17,13 +17,13 @@ import { Component } from 'react';
 import { connect }   from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import domHelpers  from 'dom-helpers';
-import FontIcon from 'components/Icon/FontIcon';
 
 import { setResizeProgressState, updateSqlPartSize, toggleExploreSql } from './../../../actions/explore/ui';
 
+import './TopSplitterContent.less';
+import SqlEditorController from './SqlEditor/SqlEditorController';
+
 const MIN_SQL_HEIGHT = 80;
-const BOTTOM_OFFSET = 175; // a space reserved for table part
 
 @Radium
 export class TopSplitterContent extends Component {
@@ -38,7 +38,12 @@ export class TopSplitterContent extends Component {
     children: PropTypes.oneOfType([PropTypes.node, PropTypes.array]),
     resizeLineTop: PropTypes.number,
     sqlState: PropTypes.bool.isRequired,
-    sqlSize: PropTypes.number.isRequired
+    sqlSize: PropTypes.number.isRequired,
+    dataset: PropTypes.instanceOf(Immutable.Map),
+    dragType: PropTypes.string,
+    exploreViewState: PropTypes.instanceOf(Immutable.Map),
+    handleSidebarCollapse: PropTypes.func,
+    sidebarCollapsed: PropTypes.bool
   };
 
   constructor(props) {
@@ -48,9 +53,12 @@ export class TopSplitterContent extends Component {
     this.doDrag = this.doDrag.bind(this);
     this.state = {
       resizeLineTop: props.sqlSize,
-      isDragInProgress: false
+      isDragInProgress: false,
+      maxHeight: 0
     };
   }
+
+  topSplitterContentRef = null;
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.sqlSize !== this.props.sqlSize) {
@@ -87,19 +95,25 @@ export class TopSplitterContent extends Component {
     const moveInPx = e.pageY - this.startTop;
     const nextHeight = prevSqlHeight + moveInPx;
 
+    // Get the document's height,
+    // subtract the header element's height,
+    // and allow the editor the resize up to 70% of the content area
+    const maxHeight = (document.body.offsetHeight - 180) * 0.7;
+
+    if (nextHeight >= maxHeight) {
+      return this.setState({
+        resizeLineTop: maxHeight
+      });
+    }
+
     this.setState({
       resizeLineTop: Math.max(nextHeight, MIN_SQL_HEIGHT)
     });
   }
 
   stopDrag() {
-    const documentHeight = domHelpers.ownerWindow().innerHeight;
-    const maxHeight = (documentHeight - BOTTOM_OFFSET);
-    let height = this.state.resizeLineTop;
+    const height = this.state.resizeLineTop;
 
-    if (this.state.resizeLineTop > maxHeight) {
-      height = maxHeight;
-    }
     if (!this.state.isDragInProgress) {
       return;
     }
@@ -109,9 +123,7 @@ export class TopSplitterContent extends Component {
       resizeLineTop: height <= MIN_SQL_HEIGHT ? this.props.sqlSize : height
     });
 
-    if (height <= MIN_SQL_HEIGHT) {
-      this.props.toggleExploreSql();
-    } else {
+    if (height >= MIN_SQL_HEIGHT) {
       this.props.updateSqlPartSize(height);
     }
     this.props.setResizeProgressState(false);
@@ -127,23 +139,24 @@ export class TopSplitterContent extends Component {
   }
 
   render() {
-    const { sqlState, sqlSize } = this.props;
     const { isDragInProgress, resizeLineTop } = this.state;
-    const height = this.getHeight(sqlState, sqlSize);
-    const hideDragBar = !sqlState || isDragInProgress;
+    const { dataset, dragType, exploreViewState, handleSidebarCollapse, sqlState, sqlSize, sidebarCollapsed } = this.props;
 
     return (
-      <div className='top-splitter-content' ref='topSplitter'
-        style={[ styles.base, {
-          height,
-          overflow: sqlState ? null : 'hidden' // needed to not let resizer flow out of the component
-        }]}>
-        {this.props.children}
-        <div style={[styles.separatorLine, {display: isDragInProgress ? 'block' : 'none', top: resizeLineTop + 12}]}></div>
-        <div style={[styles.separatorBase, {visibility: hideDragBar ? 'hidden' : 'visible', top: resizeLineTop}]}
-          onMouseDown={this.startDrag}>
-          <FontIcon type='Bars' theme={styles.separator}/>
-        </div>
+      <div className='topContent' ref='topSplitter'>
+        <SqlEditorController
+          dataset={dataset}
+          dragType={dragType}
+          sqlState={sqlState}
+          sqlSize={sqlSize}
+          exploreViewState={exploreViewState}
+          handleSidebarCollapse={handleSidebarCollapse}
+          sidebarCollapsed={sidebarCollapsed}
+          ref={(ref) => this.topSplitterContentRef = ref}
+        >
+          <div className='resizeEditor' onMouseDown={this.startDrag}></div>
+        </SqlEditorController>
+        <div style={[styles.separatorLine, {display: isDragInProgress ? 'block' : 'none', top: resizeLineTop}]}></div>
       </div>
     );
   }
@@ -153,7 +166,7 @@ export default connect(null, {
   updateSqlPartSize,
   setResizeProgressState,
   toggleExploreSql
-})(TopSplitterContent);
+}, null, { forwardRef: true })(TopSplitterContent);
 
 const styles = {
   base: {
@@ -161,14 +174,6 @@ const styles = {
     minHeight: 0,
     backgroundColor: '#F5FCFF',
     flexShrink: 0 // do not allow to reduce a height
-  },
-  separatorBase: {
-    position: 'absolute',
-    left: '50%',
-    zIndex: 10,
-    width: 18,
-    height: 18,
-    display: 'inline-block'
   },
   separatorLine: {
     position: 'absolute',

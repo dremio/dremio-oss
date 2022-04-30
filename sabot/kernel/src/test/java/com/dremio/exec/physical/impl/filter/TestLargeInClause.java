@@ -15,19 +15,15 @@
  */
 package com.dremio.exec.physical.impl.filter;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.SYSTEM;
+
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestLargeInClause extends BaseTestQuery {
-
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
 
   private static String getInIntList(int size){
     StringBuffer sb = new StringBuffer();
@@ -142,16 +138,15 @@ public class TestLargeInClause extends BaseTestQuery {
   }
 
   @Test
-  public void testExtractedColIncompatibleTypesInList() throws Exception {
-    exception.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-      "VALIDATION ERROR: Values in expression list must have compatible types"));
-
+  public void testExtractedColIncompatibleTypesInList() {
     String query = "SELECT int_list_col[1] AS int_list_col_1, bool_col\n" +
         "FROM cp.\"flatten/all_types_dremio.json\"\n" +
         "WHERE int_list_col[1] IN ('a',2,'hello','',4,-5,'world',-7,8,-9,10,-11,12,-13,14,-15.3,16.1," +
         "-9223372036854775808,9223372036854775807,2147483648,-2147483649,2147483647,-2147483648)";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasErrorType(SYSTEM)
+      .hasMessageContaining("SYSTEM ERROR: GandivaException: Failed to cast the string a to int64_t");
   }
 
   @Ignore("DX-6574 - Decimal not supported")

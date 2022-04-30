@@ -134,28 +134,28 @@ describe('jobsUtils', () => {
     });
 
     it('should return ~ number with unit M if if bigger 1000 000', () => {
-      expect(jobsUtils.getFormattedNumber(907525561)).to.be.eql('907.526M');
+      expect(jobsUtils.getFormattedNumber(907525561)).to.be.eql('907.5M');
       expect(jobsUtils.getFormattedNumber(981100018)).to.be.eql('981.1M');
     });
 
     it('should return ~ number with unit B if if bigger 1000 000 000', () => {
-      expect(jobsUtils.getFormattedNumber(4289559013)).to.be.eql('4.29B');
-      expect(jobsUtils.getFormattedNumber(5289559013)).to.be.eql('5.29B');
+      expect(jobsUtils.getFormattedNumber(4289559013)).to.be.eql('4.3B');
+      expect(jobsUtils.getFormattedNumber(5289559013)).to.be.eql('5.3B');
     });
 
     it('should return ~ number with unit T if if bigger 1000 000 000 000', () => {
       expect(jobsUtils.getFormattedNumber(1000000000000)).to.be.eql('1T');
-      expect(jobsUtils.getFormattedNumber(572191587726634)).to.be.eql('572.192T');
+      expect(jobsUtils.getFormattedNumber(572191587726634)).to.be.eql('572.2T');
     });
 
     it('should return ~ number with unit P if if bigger 1000 000 000 000 000', () => {
       expect(jobsUtils.getFormattedNumber(1000000000000000)).to.be.eql('1P');
-      expect(jobsUtils.getFormattedNumber(672191587726634123)).to.be.eql('672.192P');
+      expect(jobsUtils.getFormattedNumber(672191587726634123)).to.be.eql('672.2P');
     });
 
     it('should return ~ number with unit E if if bigger 1000 000 000 000 000 000', () => {
       expect(jobsUtils.getFormattedNumber(1000000000000000000)).to.be.eql('1E');
-      expect(jobsUtils.getFormattedNumber(772191587726634123000)).to.be.eql('772.192E');
+      expect(jobsUtils.getFormattedNumber(772191587726634123000)).to.be.eql('772.2E');
     });
 
   });

@@ -131,7 +131,7 @@ public class SchemaMerger {
       final List<MergeField> fields = mergeFields(newParent, declaredField.getChildren(), observedType.getChildren(), forceDoublePrecision);
       return new MergeField(parent, declaredField, fields);
     } else {
-      return new MergeField(parent, declaredField, observedType, false);
+      return new MergeField(parent, declaredField, observedType, forceDoublePrecision);
     }
 
   }
@@ -139,7 +139,7 @@ public class SchemaMerger {
   private MergeField mergeUnion(SchemaPath parent, ElasticField declaredField, CompleteType observedType, boolean forceDoublePrecision){
 
     // Force the actual elasticfield type to Double if flag forceDoublePrecision is enabled.
-    if (forceDoublePrecision) {
+    if (forceDoublePrecision && declaredField.getType() == Type.FLOAT) {
       return new MergeField(parent, declaredField, CompleteType.DOUBLE, true);
     }
 
@@ -218,7 +218,8 @@ public class SchemaMerger {
       this.actualField = actualType.toField(elasticField.getName());
       this.children = ImmutableList.of();
 
-      if (!CompleteType.fromField(elasticField.toArrowField()).equals(actualType) && !forceDoublePrecision) {
+      if (!CompleteType.fromField(elasticField.toArrowField()).equals(actualType) &&
+          !(forceDoublePrecision && elasticField.getType() == Type.FLOAT && CompleteType.DOUBLE.equals(actualType))) {
           // check for type match, set to unknown if fails
           elasticField.setTypeUnknown();
       }

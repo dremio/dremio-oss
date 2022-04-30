@@ -16,8 +16,10 @@
 package com.dremio.exec.planner.common;
 
 import static com.dremio.exec.planner.common.ScanRelBase.getRowTypeFromProjectedColumns;
+import static org.apache.calcite.sql.type.SqlTypeName.INTERVAL_TYPES;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -43,6 +45,7 @@ import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Filter;
@@ -78,6 +81,7 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -105,6 +109,8 @@ import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 
 /**
  * Utility class that is a subset of the RelOptUtil class and is a placeholder for Dremio specific
@@ -278,6 +284,77 @@ public final class MoreRelOptUtil {
     return true;
   }
 
+  /**
+   * Verifies that two data types match without requiring any cast
+   *
+   * @param dataType1 data type for comparison
+   * @param dataType2 data type for comparison
+   * @return boolean indicating that data types are equivalent
+   */
+  public static boolean areDataTypesEqualWithoutRequiringCast(
+    RelDataType dataType1,
+    RelDataType dataType2) {
+    return
+      // The types are equal
+      areDataTypesEqual(dataType1, dataType2, true) ||
+      // They fall in the same type bucket without requiring a cast
+      (getTypeBucket(dataType1.getSqlTypeName()) == getTypeBucket(dataType2.getSqlTypeName()));
+  }
+
+  public static int getTypeBucket(SqlTypeName typeName) {
+    // Groups of types which don't require a cast if compared.
+    switch (typeName) {
+      case BOOLEAN:
+        return 1;
+      case TINYINT:
+      case SMALLINT:
+      case INTEGER:
+      case BIGINT:
+        return 2;
+      case DECIMAL:
+        return 3;
+      case FLOAT:
+        return 4;
+      case REAL:
+        return 5;
+      case DOUBLE:
+        return 6;
+      case DATE:
+        return 7;
+      case TIME:
+      case TIME_WITH_LOCAL_TIME_ZONE:
+        return 8;
+      case TIMESTAMP:
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+        return 9;
+      case INTERVAL_YEAR:
+      case INTERVAL_YEAR_MONTH:
+      case INTERVAL_MONTH:
+      case INTERVAL_DAY:
+      case INTERVAL_DAY_HOUR:
+      case INTERVAL_DAY_MINUTE:
+      case INTERVAL_DAY_SECOND:
+      case INTERVAL_HOUR:
+      case INTERVAL_HOUR_MINUTE:
+      case INTERVAL_HOUR_SECOND:
+      case INTERVAL_MINUTE:
+      case INTERVAL_MINUTE_SECOND:
+      case INTERVAL_SECOND:
+        return 10;
+      case CHAR:
+      case VARCHAR:
+        return 11;
+      case BINARY:
+      case VARBINARY:
+        return 12;
+      case NULL:
+        return 13;
+      case ANY:
+        return 14;
+      default:
+        return -1;
+    }
+  }
 
   /**
    * Verifies that two data types match.
@@ -975,13 +1052,24 @@ public final class MoreRelOptUtil {
     return null;
   }
 
+  public static List<RexNode> identityProjects(RelDataType type) {
+    List<RexNode> projects = new ArrayList<>();
+    List<RelDataTypeField> fieldList = type.getFieldList();
+    for (int i = 0; i < type.getFieldCount(); i++) {
+      RelDataTypeField field = fieldList.get(i);
+      projects.add(new RexInputRef(i, field.getType()));
+    }
+    return projects;
+  }
+
   public static List<RexNode> identityProjects(RelDataType type, ImmutableBitSet selectedColumns) {
     List<RexNode> projects = new ArrayList<>();
-    if (selectedColumns == null) {
-      selectedColumns = ImmutableBitSet.range(type.getFieldCount());
-    }
-    for (Pair<Integer,RelDataTypeField> pair : Pair.zip(selectedColumns, type.getFieldList())) {
-      projects.add(new RexInputRef(pair.left, pair.right.getType()));
+    List<RelDataTypeField> fieldList = type.getFieldList();
+    for (int i = 0; i < type.getFieldCount(); i++) {
+      if(selectedColumns.get(i)) {
+        RelDataTypeField field = fieldList.get(i);
+        projects.add(new RexInputRef(i, field.getType()));
+      }
     }
     return projects;
   }
@@ -1345,4 +1433,73 @@ public final class MoreRelOptUtil {
     }
     return rexNodes;
   }
+
+  /* If the call was to datetime - interval. */
+  public static boolean isDatetimeMinusInterval(RexCall call) {
+    return ((call.getOperator() == SqlStdOperatorTable.MINUS_DATE)
+            && (call.getOperands().size() == 2)
+            && (INTERVAL_TYPES.contains(call.getOperands().get(1).getType().getSqlTypeName())));
+  }
+
+  /* If the call was to datetime +/- interval. */
+  public static boolean isDatetimeIntervalArithmetic(RexCall call) {
+    return ((call.getOperator() == SqlStdOperatorTable.DATETIME_PLUS)
+            || isDatetimeMinusInterval(call));
+  }
+
+  /**
+   * TODO we might be able to replace this deepEquals/deepHashcode in CALCITE-4129
+   * @param relNode
+   * @return
+   */
+  public static long longHashCode(RelNode relNode) {
+    Hasher hasher = Hashing.sha256().newHasher();
+    relNode.explain(new RelWriter() {
+      @Override public void explain(RelNode rel, List<Pair<String, Object>> valueList) {
+        for(Pair<String, Object> pair: valueList) {
+          item(pair.left, pair.right);
+        }
+        done(relNode);
+      }
+
+      @Override public SqlExplainLevel getDetailLevel() {
+        return SqlExplainLevel.DIGEST_ATTRIBUTES;
+      }
+
+      @Override public RelWriter input(String term, RelNode input) {
+        hasher.putString(term, StandardCharsets.UTF_8);
+        input.explain(this);
+        return this;
+      }
+
+      @Override public RelWriter item(String term, Object value) {
+        if(value instanceof RelNode) {
+          input(term, (RelNode) value);
+        } else {
+          hasher.putString(term, StandardCharsets.UTF_8)
+            .putString(value.toString(), StandardCharsets.UTF_8);
+        }
+        return this;
+      }
+
+      @Override public RelWriter itemIf(String term, Object value, boolean condition) {
+        if(condition) {
+          return item(term, value);
+        } else {
+          return this;
+        }
+      }
+
+      @Override public RelWriter done(RelNode node) {
+        hasher.putString(node.getClass().toString(), StandardCharsets.UTF_8);
+        return this;
+      }
+
+      @Override public boolean nest() {
+        return true;
+      }
+    });
+    return hasher.hash().asLong();
+  }
+
 }

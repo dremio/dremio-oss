@@ -19,44 +19,22 @@ import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_1_PASSWORD;
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_2;
 import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_2_PASSWORD;
-import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Properties;
 
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.users.UserService;
-import com.google.inject.AbstractModule;
 
 public class TestCustomUserAuthenticator extends BaseTestQuery {
-
-  @BeforeClass
-  public static void setupDefaultTestCluster() throws Exception {
-    // Create a test implementation of UserService
-    // and inject it in SabotNode.
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(UserService.class).toInstance(new UserServiceTestImpl());
-      }
-    });
-
-    BaseTestQuery.setupDefaultTestCluster();
-  }
-
   @Test
   public void positiveUserAuth() throws Exception {
     runTest(TEST_USER_1, TEST_USER_1_PASSWORD);
     runTest(TEST_USER_2, TEST_USER_2_PASSWORD);
   }
-
 
   @Test
   public void negativeUserAuth() throws Exception {
@@ -73,17 +51,10 @@ public class TestCustomUserAuthenticator extends BaseTestQuery {
   }
 
   private static void negativeAuthHelper(final String user, final String password) throws Exception {
-    RpcException negativeAuthEx = null;
-    try {
-      runTest(user, password);
-    } catch (RpcException e) {
-      negativeAuthEx = e;
-    }
-
-    assertNotNull("Expected RpcException.", negativeAuthEx);
-    final String exMsg = negativeAuthEx.getMessage();
-    assertThat(exMsg, containsString("HANDSHAKE_VALIDATION : Status: AUTH_FAILED"));
-    assertThat(exMsg, containsString("Invalid credentials"));
+    assertThatThrownBy(() -> runTest(user, password))
+      .isInstanceOf(RpcException.class)
+      .hasMessageContaining("HANDSHAKE_VALIDATION : Status: AUTH_FAILED")
+      .hasMessageContaining("Invalid credentials");
   }
 
   private static void runTest(final String user, final String password) throws Exception {

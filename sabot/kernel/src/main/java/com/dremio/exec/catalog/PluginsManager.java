@@ -53,6 +53,7 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
+import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.Schedule;
@@ -84,6 +85,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   protected final CatalogServiceMonitor monitor;
   private Cancellable refresher;
   protected final NamespaceService systemNamespace;
+  private final Orphanage orphanage;
   protected final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider;
   private final Predicate<String> influxSourcePred;
   protected final ModifiableSchedulerService modifiableScheduler;
@@ -91,6 +93,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   public PluginsManager(
     SabotContext context,
     NamespaceService systemNamespace,
+    Orphanage orphanage,
     DatasetListingService datasetListingService,
     OptionManager optionManager,
     DremioConfig config,
@@ -109,6 +112,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     this.reader = reader;
     this.sourceDataStore = sourceDataStore;
     this.systemNamespace = systemNamespace;
+    this.orphanage = orphanage;
     this.scheduler = scheduler;
     this.datasetListing = datasetListingService;
     this.startupWait = VM.isDebugEnabled() ? TimeUnit.DAYS.toMillis(365) : optionManager.getOption(CatalogOptions.STARTUP_WAIT_MAX);
@@ -275,6 +279,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
       isVirtualMaster,
       modifiableScheduler,
       systemNamespace,
+      orphanage,
       sourceDataStore,
       config,
       optionManager,

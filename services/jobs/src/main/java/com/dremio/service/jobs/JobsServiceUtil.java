@@ -80,6 +80,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
 
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
@@ -468,7 +469,8 @@ public final class JobsServiceUtil {
       .setSpilled(lastJobAttemptInfo.getSpillJobDetails() != null)
       .setSql(lastJobAttemptInfo.getSql())
       .setNumAttempts(job.getAttempts().size())
-      .setRecordCount(job.getRecordCount());
+      .setRecordCount(job.getRecordCount())
+      .setJobCompleted(job.isCompleted());
 
     if(lastJobAttemptInfo.getParentsList() != null && lastJobAttemptInfo.getParentsList().size() > 0) {
       jobSummaryBuilder.addAllParents(parentsList);
@@ -564,41 +566,61 @@ public final class JobsServiceUtil {
       .setUserName(firstJobAttemptInfo.getUser())
       .setQueryType(JobsProtoUtil.toBuf(lastJobAttemptInfo.getQueryType()).toString())
       .setAccelerated(lastJobAttemptInfo.getAcceleration() != null)
-      .setQuery(lastJobAttemptInfo.getSql());
+      .setQuery(lastJobAttemptInfo.getSql())
+      .setAttemptCount(job.getAttempts().size());
 
     if (firstJobAttemptInfo.getStartTime() != null) {
-      builder.setSubmittedTs(firstJobAttemptInfo.getStartTime());
+      builder.setSubmittedEpochMillis(firstJobAttemptInfo.getStartTime());
+      builder.setSubmittedTs(Timestamp.newBuilder().setSeconds(firstJobAttemptInfo.getStartTime()).build());
     }
 
     AttemptsHelper helper = new AttemptsHelper(lastJobAttempt);
+    if (helper.getStateTimeStamp(State.PENDING) != null) {
+      builder.setAttemptStartedEpochMillis(helper.getStateTimeStamp(State.PENDING));
+      builder.setAttemptStartedTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.PENDING)).build());
+    }
     if (helper.getStateTimeStamp(State.METADATA_RETRIEVAL) != null) {
-      builder.setMetadataRetrievalTs(helper.getStateTimeStamp(State.METADATA_RETRIEVAL));
+      builder.setMetadataRetrievalEpochMillis(helper.getStateTimeStamp(State.METADATA_RETRIEVAL));
+      builder.setMetadataRetrievalTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.METADATA_RETRIEVAL)).build());
     }
     if (helper.getStateTimeStamp(State.PLANNING) != null) {
-      builder.setPlanningStartTs(helper.getStateTimeStamp(State.PLANNING));
+      builder.setPlanningStartEpochMillis(helper.getStateTimeStamp(State.PLANNING));
+      builder.setPlanningStartTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.PLANNING)).build());
     }
     if (helper.getStateTimeStamp(State.QUEUED) != null) {
-      builder.setQueryEnqueuedTs(helper.getStateTimeStamp(State.QUEUED));
+      builder.setQueryEnqueuedEpochMillis(helper.getStateTimeStamp(State.QUEUED));
+      builder.setQueryEnqueuedTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.QUEUED)).build());
     }
     if (helper.getStateTimeStamp(State.ENGINE_START) != null) {
-      builder.setEngineStartTs(helper.getStateTimeStamp(State.ENGINE_START));
+      builder.setEngineStartEpochMillis(helper.getStateTimeStamp(State.ENGINE_START));
+      builder.setEngineStartTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.ENGINE_START)).build());
     }
     if (helper.getStateTimeStamp(State.EXECUTION_PLANNING) != null) {
-      builder.setExecutionPlanningTs(helper.getStateTimeStamp(State.EXECUTION_PLANNING));
+      builder.setExecutionPlanningEpochMillis(helper.getStateTimeStamp(State.EXECUTION_PLANNING));
+      builder.setExecutionPlanningTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.EXECUTION_PLANNING)).build());
     }
     if (helper.getStateTimeStamp(State.RUNNING) != null) {
-      builder.setExecutionStartTs(helper.getStateTimeStamp(State.RUNNING));
+      builder.setExecutionStartEpochMillis(helper.getStateTimeStamp(State.RUNNING));
+      builder.setExecutionStartTs(Timestamp.newBuilder().setSeconds(helper.getStateTimeStamp(State.RUNNING)).build());
     }
 
     if (lastJobAttempt.getStats() != null) {
       if (lastJobAttempt.getStats().getInputRecords() != null) {
         builder.setRowsScanned(lastJobAttempt.getStats().getInputRecords());
       }
+      if (lastJobAttempt.getStats().getInputBytes() != null) {
+        builder.setBytesScanned(lastJobAttempt.getStats().getInputBytes());
+      }
 
       if (lastJobAttempt.getStats().getOutputRecords() != null) {
         builder.setRowsReturned(lastJobAttempt.getStats().getOutputRecords());
       }
+      if (lastJobAttempt.getStats().getOutputBytes() != null) {
+        builder.setBytesReturned(lastJobAttempt.getStats().getOutputBytes());
+      }
     }
+
+    builder.setPlannerEstimatedCost(lastJobAttemptInfo.getOriginalCost());
 
     if (lastJobAttemptInfo.getParentsList() != null && lastJobAttemptInfo.getDatasetPathList() != null) {
       builder.setQueriedDatasets(getQueriedDatasets(lastJobAttemptInfo.getParentsList(), lastJobAttemptInfo.getDatasetPathList()));

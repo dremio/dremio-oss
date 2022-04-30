@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.elastic;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
@@ -40,24 +41,24 @@ public class TestRegionName extends DremioTest {
   public void testWrongRegionNameInEndpoint() {
     final String endpoint = "vpc-dremio-es63-test.us-west-.es.amazonaws.com";
     // We don't want to assert the exception message as it is thrown by a third party library.
-    thrownException.expect(IllegalArgumentException.class);
-    ElasticsearchAuthentication.getRegionName("", endpoint);
+    assertThatThrownBy(() -> ElasticsearchAuthentication.getRegionName("", endpoint))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void testWrongRegionName() {
     final String endpoint = "vpc-dremio-es63-test.us-west-2.es.amazonaws.com";
     // We don't want to assert the exception message as it is thrown by a third party library.
-    thrownException.expect(IllegalArgumentException.class);
-    ElasticsearchAuthentication.getRegionName("us-west", endpoint);
+    assertThatThrownBy(() -> ElasticsearchAuthentication.getRegionName("us-west", endpoint))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void testNoRegionName() {
     final String endpoint = "es.amazonaws.com";
-    thrownException.expect(IllegalArgumentException.class);
-    thrownException.expectMessage("Failure creating Amazon Elasticsearch Service connection. " +
-      "You must provide hostname like *.[region name].es.amazonaws.com");
-    ElasticsearchAuthentication.getRegionName("", endpoint);
+    assertThatThrownBy(() -> ElasticsearchAuthentication.getRegionName("", endpoint))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("Failure creating Amazon Elasticsearch Service connection. " +
+        "You must provide hostname like *.[region name].es.amazonaws.com");
   }
 }

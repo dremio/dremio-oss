@@ -18,7 +18,8 @@ import { Link, withRouter } from 'react-router';
 import { compose } from 'redux';
 import { injectIntl } from 'react-intl';
 import datasetPathUtils from '@app/utils/resourcePathUtils/dataset';
-import JobsUtils, { JobState } from '@app/utils/jobsUtils';
+import jobsUtils, { JobState } from '@app/utils/jobsUtils';
+import { getTabs, getIconName } from 'dyn-load/utils/jobsUtils';
 import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
 import Button from '@app/components/Buttons/Button';
 import { constructFullPathAndEncode, constructResourcePath } from '@app/utils/pathUtils';
@@ -26,14 +27,18 @@ import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import JobStateIcon from '@app/pages/JobPage/components/JobStateIcon';
 import Art from '@app/components/Art';
+import TopPanelTab from './TopPanelTab.js';
 import './TopPanel.less';
 
-const renderIcon = (iconName, className) => {
+const renderIcon = (iconName, className, selected) => {
   return (<Art
     src={iconName}
     alt='icon'
-    title='icon'
-    className={classNames('topPanel__icons', className)}
+    className={classNames(
+      'topPanel__icons',
+      className,
+      { '--lightBlue': selected })
+    }
   />);
 };
 
@@ -55,7 +60,7 @@ export const TopPanel = (props) => {
 
   const renderOpenResults = () => {
 
-    if (JobsUtils.getRunning(jobStatus) || jobStatus === JobState.ENQUEUED
+    if (jobsUtils.getRunning(jobStatus) || jobStatus === JobState.ENQUEUED
       || jobStatus === JobState.PLANNING) {
       return (
         <Button
@@ -82,27 +87,31 @@ export const TopPanel = (props) => {
     }
     const resourcePath = constructResourcePath(fullPath);
     const nextLocation = {
-      pathname: datasetFullPath ? datasetPathUtils.toHref(resourcePath) : 'tmp/UNTITLED',
-      query: { jobId, version: jobDetails.get('datasetVersion') }
+      pathname: datasetFullPath && datasetFullPath.size > 0 ? datasetPathUtils.toHref(resourcePath) : 'tmp/UNTITLED',
+      query: { jobId, version: jobDetails.get('datasetVersion'), openResults: 'true' }
     };
 
     if (QueriedDataset.get('datasetPathsList')) {
       nextLocation.query.mode = 'edit';
     }
 
-    return <>
-      {renderIcon('VirtualDataset.svg', 'topPanel__openResults__virtualDatasetIcon')}
+    return (
       <Link data-qa='open-results-link' to={nextLocation}>
         {formatMessage({ id: 'Job.OpenResults' })} »
       </Link>
-    </>;
+    );
   };
 
   const [selectedTab, setSelectedTab] = useState('Overview');
 
-  const onTabClick = (tab) => {
-    setComponent(tab);
-    setSelectedTab(tab);
+  const onTabClick = (tab, moreAttempts) => {
+    if (tab === 'Profile' && !moreAttempts) {
+      setSelectedTab(tab);
+      isSingleProfile ? showJobProfile(profileUrl) : onTabClick('Profile', true);
+    } else {
+      setComponent(tab);
+      setSelectedTab(tab);
+    }
   };
 
   const changePages = () => {
@@ -118,6 +127,7 @@ export const TopPanel = (props) => {
   const attemptDetails = jobDetails && jobDetails.get('attemptDetails');
   const profileUrl = attemptDetails && attemptDetails.getIn([0, 'profileUrl']);
   const isSingleProfile = attemptDetails && attemptDetails.size === 1;
+  const tabs = getTabs();
   return (
     <div className='topPanel'>
       <div className='topPanel__navigationWrapper'>
@@ -128,79 +138,22 @@ export const TopPanel = (props) => {
           <div className='gutter-top--half'>
             <JobStateIcon state={jobStatus} />
           </div>
-          <div data-qa='top-panel-jobId'>{jobId}</div>
+          <div data-qa='top-panel-jobId' className='topPanel__jobId'>{jobId}</div>
         </div>
-        <div
-          className='topPanel__overview'
-          onClick={() => onTabClick('Overview')}
-        >
-          <div className={classNames(
-            'topPanel__overview__content',
-            { 'topPanel__border': selectedTab === 'Overview' }
-          )}>
-            {selectedTab === 'Overview' ?
-              renderIcon('Shape_lite.svg', 'topPanel__overview__overviewIcon')
-              :
-              renderIcon('Shape_lite.svg')
-            }
-            <div className={
-              selectedTab === 'Overview'
-                ?
-                'topPanel__overview__headerLite'
-                :
-                'topPanel__overview__header'
-            }>
-              {formatMessage({ id: 'TopPanel.Overview' })}
-            </div>
-          </div>
-        </div>
+        {
+          tabs.map((tab, index) => {
 
-        <div className='topPanel__sql'
-          data-qa='toppanel-sql'
-          onClick={() => onTabClick('SQL')}>
-          <div className={classNames(
-            'topPanel__sql__content',
-            { 'topPanel__border': selectedTab === 'SQL' }
-          )}>
-            {selectedTab === 'SQL' ?
-              renderIcon('Union.svg', 'topPanel__sql__sqlIcon')
-              :
-              renderIcon('Union.svg')
-            }
-            <div className={
-              selectedTab === 'SQL'
-                ?
-                'topPanel__overview__headerLite'
-                :
-                'topPanel__overview__header'
-            }>{formatMessage({ id: 'TopPanel.SQL' })}</div>
-          </div>
-        </div>
-
-        <div
-          className='topPanel__rawProfile'
-          onClick={() => isSingleProfile ? showJobProfile(profileUrl) : onTabClick('Profile')}
-        >
-          <div className={classNames(
-            'topPanel__rawProfile__content',
-            { 'topPanel__border': selectedTab === 'Profile' }
-          )}>
-            {selectedTab === 'Profile' ?
-              renderIcon('RawProfile.svg', 'topPanel__rawProfile__rawProfileSelectedIcon')
-              :
-              renderIcon('RawProfile.svg', 'topPanel__rawProfile__rawProfileIcon')
-            }
-            <div className={
-              selectedTab === 'Profile'
-                ?
-                'topPanel__rawProfile__headerLite'
-                :
-                'topPanel__rawProfile__header'
-            }>
-              {formatMessage({ id: 'TopPanel.Rawprofile' })}
-            </div>
-          </div>
-        </div>
+            return (
+              <TopPanelTab
+                tabName={tab}
+                onTabClick={onTabClick}
+                selectedTab={selectedTab}
+                iconName={getIconName(tab)}
+                key={`${tab}-${index}`}
+              />
+            );
+          })
+        }
       </div>
       <span className='topPanel__openResults'>
         {renderOpenResults()}
@@ -225,3 +178,4 @@ TopPanel.propTypes = {
 export default compose(
   withRouter,
   injectIntl)(TopPanel);
+

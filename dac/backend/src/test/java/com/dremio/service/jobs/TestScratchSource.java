@@ -27,14 +27,13 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionAssert;
 
 /**
  * Test scratch source.
@@ -43,9 +42,6 @@ public class TestScratchSource extends BaseTestServer {
 
   @Rule
   public final TemporarySystemProperties properties = new TemporarySystemProperties();
-
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
 
   @Before
   public void setup() throws Exception {
@@ -120,12 +116,11 @@ public class TestScratchSource extends BaseTestServer {
 
   @Test
   @Ignore("DX-34314")
-  public void testIcebergCreate() throws Exception {
+  public void testIcebergCreate() {
     assumeFalse(isMultinode()); // when multinode, scratch plugin uses file://
     final String createIceberg = "CREATE TABLE \"$scratch\".\"createonpdfs\"(id int, code decimal(18, 3))";
-    expectedEx.expect(UserException.class);
-    expectedEx.expectMessage("Source [$scratch] does not support CREATE TABLE");
-    runWithIcebergEnabled(createIceberg);
+    UserExceptionAssert.assertThatThrownBy(() -> runWithIcebergEnabled(createIceberg))
+      .hasMessageContaining("Source [$scratch] does not support CREATE TABLE");
   }
 
   private void runWithIcebergEnabled(String createIceberg) {

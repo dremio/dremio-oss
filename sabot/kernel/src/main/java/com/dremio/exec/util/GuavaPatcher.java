@@ -17,6 +17,8 @@ package com.dremio.exec.util;
 
 import java.lang.reflect.Modifier;
 
+import com.dremio.common.SuppressForbidden;
+
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtConstructor;
@@ -24,6 +26,7 @@ import javassist.CtMethod;
 import javassist.CtNewMethod;
 import javassist.LoaderClassPath;
 
+@SuppressForbidden
 public class GuavaPatcher {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GuavaPatcher.class);
 
@@ -61,6 +64,8 @@ public class GuavaPatcher {
   private static void patchGuava(ClassPool pool) throws Exception {
     CtClass stopwatchClass = pool.get("com.google.common.base.Stopwatch");
 
+    stopwatchClass.defrost();
+
     // Expose the constructor for Stopwatch for old libraries who use the pattern new Stopwatch().start().
     for (CtConstructor c : stopwatchClass.getConstructors()) {
       if (!Modifier.isStatic(c.getModifiers())) {
@@ -79,6 +84,8 @@ public class GuavaPatcher {
     logger.debug("Google's Stopwatch patched for old HBase Guava version.");
 
     CtClass closeablesClass = pool.get("com.google.common.io.Closeables");
+
+    closeablesClass.defrost();
 
     // Add back the Closeables.closeQuietly() method for old consumers.
     CtMethod closeQuietlyMethod = CtNewMethod.make(

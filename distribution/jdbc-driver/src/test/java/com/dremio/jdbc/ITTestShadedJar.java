@@ -15,8 +15,8 @@
  */
 package com.dremio.jdbc;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -33,7 +33,6 @@ import java.util.Properties;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -120,13 +119,11 @@ public class ITTestShadedJar {
   @Test
   public void executeFaultyQuery() throws Exception {
     try (Connection c = createConnection();
-         Statement stmt = c.createStatement()) {
+      Statement stmt = c.createStatement()) {
       // Only catching exception during executeQuery (and not while trying to connect/create a statement)
-      try {
-        stmt.executeQuery("SELECT INVALID QUERY");
-      } catch (SQLException e) {
-        assertThat(e.getMessage(), CoreMatchers.containsString("Column 'INVALID' not found in any table"));
-      }
+      assertThatThrownBy(() -> stmt.executeQuery("SELECT INVALID QUERY"))
+        .isInstanceOf(SQLException.class)
+        .hasMessageContaining("Column 'INVALID' not found in any table");
     }
   }
 

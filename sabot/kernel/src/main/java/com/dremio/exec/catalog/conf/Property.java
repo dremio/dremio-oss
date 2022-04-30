@@ -38,4 +38,12 @@ public class Property {
     this.name = name;
     this.value = value;
   }
+
+  @Override
+  public String toString() {
+    return "Property{" +
+      "name='" + name + '\'' +
+      ", value='" + value + '\'' +
+      '}';
+  }
 }

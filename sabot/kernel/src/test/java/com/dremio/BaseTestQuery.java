@@ -15,11 +15,15 @@
  */
 package com.dremio;
 
+import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.DEFAULT_PASSWORD;
 import static com.dremio.exec.store.iceberg.IcebergModelCreator.DREMIO_NESSIE_DEFAULT_NAMESPACE;
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_SCHEMA_FALLBACK_DISABLED;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -30,6 +34,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Paths;
@@ -42,6 +47,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.apache.arrow.vector.ValueVector;
@@ -49,13 +55,16 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
-import org.hamcrest.CoreMatchers;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.ObjectAssert;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.ExternalResource;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -66,6 +75,7 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -79,6 +89,7 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
+import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.iceberg.hadoop.IcebergHadoopModel;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
@@ -106,6 +117,7 @@ import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -222,8 +234,25 @@ public class BaseTestQuery extends ExecTest {
   @BeforeClass
   public static void setupDefaultTestCluster() throws Exception {
     config = SabotConfig.create(TEST_CONFIGURATIONS);
+
+    SimpleJobRunner internalRefreshQueryRunner = (query, userName, queryType) -> {
+      try {
+        runSQL(query); // queries we get here are inner 'refresh dataset' queries
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+    };
+
+    SABOT_NODE_RULE.register(new AbstractModule() {
+      @Override
+      protected void configure() {
+        bind(SimpleJobRunner.class).toInstance(internalRefreshQueryRunner);
+      }
+    });
+
     openClient();
     localFs = HadoopFileSystem.getLocal(new Configuration());
+
     // turns on the verbose errors in tests
     // sever side stacktraces are added to the message before sending back to the client
     setSessionOption(ExecConstants.ENABLE_VERBOSE_ERRORS_KEY, "true");
@@ -315,6 +344,11 @@ public class BaseTestQuery extends ExecTest {
     runSQL("ALTER SYSTEM SET " + SqlUtils.QUOTE + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + SqlUtils.QUOTE + " = " + enabled);
   }
 
+  protected static void disablePlanCache() throws Exception {
+    final String alterSessionSetSql = "ALTER SESSION SET planner.query_plan_cache_enabled = false";
+    runSQL(alterSessionSetSql);
+  }
+
 
   private static void closeCurrentClient() {
       Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
@@ -341,7 +375,7 @@ public class BaseTestQuery extends ExecTest {
    * @param user
    */
   public static void updateClient(String user) throws Exception {
-    updateClient(user, null);
+    updateClient(user, DEFAULT_PASSWORD);
   }
 
   /*
@@ -551,18 +585,9 @@ public class BaseTestQuery extends ExecTest {
    * @param expectedErrorMsg Expected error message.
    */
   protected static void errorMsgTestHelper(final String testSqlQuery, final String expectedErrorMsg) {
-    try {
-      test(testSqlQuery);
-      fail("Expected a UserException when running " + testSqlQuery);
-    } catch (final Exception actualException) {
-      try {
-        Assert.assertTrue("UserRemoteException expected", actualException instanceof UserRemoteException);
-        Assert.assertThat(actualException.getMessage(), CoreMatchers.containsString(expectedErrorMsg));
-      } catch (AssertionError e) {
-        e.addSuppressed(actualException);
-        throw e;
-      }
-    }
+      assertThatThrownBy(() -> test(testSqlQuery))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining(expectedErrorMsg);
   }
 
   /**
@@ -582,19 +607,20 @@ public class BaseTestQuery extends ExecTest {
    * @param expectedErrorType Expected error type
    * @param expectedErrorMsg Expected error message.
    */
-  protected static void errorMsgWithTypeTestHelper(final String testSqlQuery, final ErrorType expectedErrorType,
-      final String expectedErrorMsg) {
-    try {
-      test(testSqlQuery);
-      fail("Query expected to fail");
-    } catch (Exception ex) {
-      Assert.assertTrue("UserRemoteException expected", ex instanceof UserRemoteException);
-      UserRemoteException uex = ((UserRemoteException) ex);
-      Assert.assertEquals(String.format("Invalid ErrorType. Expected [%s] but got [%s]", expectedErrorType, uex.getErrorType()),
-          expectedErrorType, uex.getErrorType());
-      Assert.assertTrue(String.format("Expected message to contain [%s] but was [%s] instead", expectedErrorMsg,
-          uex.getOriginalMessage()), uex.getOriginalMessage().contains(expectedErrorMsg));
-    }
+  protected static void errorMsgWithTypeTestHelper(final String testSqlQuery,
+    final ErrorType expectedErrorType,
+    final String expectedErrorMsg) {
+    ObjectAssert<UserRemoteException> ure = assertThatThrownBy(
+      () -> test(testSqlQuery))
+      .isInstanceOf(UserRemoteException.class)
+      .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class));
+
+    ure.extracting(UserRemoteException::getErrorType)
+      .isEqualTo(expectedErrorType);
+
+    ure.extracting(UserRemoteException::getOriginalMessage)
+      .asInstanceOf(InstanceOfAssertFactories.STRING)
+      .contains(expectedErrorMsg);
   }
 
   public static String getFile(String resource) throws IOException{
@@ -670,6 +696,19 @@ public class BaseTestQuery extends ExecTest {
     return file;
   }
 
+  /**
+   * Create a temp directory with name {@code dirName} in dfs_test.
+   *
+   * @param dirName
+   * @return Full path including temp parent directory and given directory name.
+   */
+  public static File createDfsTestTableDirWithName(String dirName) {
+    File file = new File(getDfsTestTmpSchemaLocation(), dirName);
+    file.mkdirs();
+    file.deleteOnExit();
+    return file;
+  }
+
   protected static void resetSessionOption(final OptionValidator option) {
     resetSessionOption(option.getOptionName());
   }
@@ -739,6 +778,14 @@ public class BaseTestQuery extends ExecTest {
     };
   }
 
+  protected static AutoCloseable disableIcebergFlag() {
+    setSystemOption(ExecConstants.ENABLE_ICEBERG, "false");
+    return () -> {
+      setSystemOption(ExecConstants.ENABLE_ICEBERG,
+        ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+    };
+  }
+
   protected static AutoCloseable enableIcebergTablesNoCTAS() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
     setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG, "false");
@@ -773,6 +820,18 @@ public class BaseTestQuery extends ExecTest {
     };
   }
 
+  protected static AutoCloseable disableUnlimitedSplitsAndIcebergSupportFlags() {
+    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "false");
+    setSystemOption(ExecConstants.ENABLE_ICEBERG, "false");
+
+    return () -> {
+      setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT,
+              PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
+      setSystemOption(ExecConstants.ENABLE_ICEBERG,
+              ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+    };
+  }
+
   protected static AutoCloseable enableUnlimitedSplitsSupportFlags() {
     setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT, "true");
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
@@ -782,6 +841,15 @@ public class BaseTestQuery extends ExecTest {
         PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+    };
+  }
+
+  protected static AutoCloseable enableIcebergDmlSupportFlag() {
+    setSystemOption(ExecConstants.ENABLE_ICEBERG_DML, "true");
+
+    return () -> {
+      setSystemOption(ExecConstants.ENABLE_ICEBERG_DML,
+        ExecConstants.ENABLE_ICEBERG_DML.getDefault().getBoolVal().toString());
     };
   }
 
@@ -855,7 +923,16 @@ public class BaseTestQuery extends ExecTest {
 
     runSQL(setOptionQuery);
     return () ->
-      runSQL(unSetOptionQuery);
+            runSQL(unSetOptionQuery);
+  }
+
+  protected static AutoCloseable enableTableOptionWithUnlimitedSplitsDisabled(String table, String optionName) throws Exception {
+    String setOptionQuery = setTableOptionQuery(table, optionName, "true");
+    String unSetOptionQuery = setTableOptionQuery(table, optionName, "false");
+
+    runSQL(setOptionQuery);
+    AutoCloseable disableUnlimitedSplits = disableUnlimitedSplitsSupportFlags();
+    return AutoCloseables.all(Arrays.asList(() -> runSQL(unSetOptionQuery), disableUnlimitedSplits));
   }
 
   protected static AutoCloseable setSystemOptionWithAutoReset(final String option, final String value ) {
@@ -1088,24 +1165,24 @@ public class BaseTestQuery extends ExecTest {
   }
 
   public static void checkFirstRecordContains(String query, String column, String expected) throws Exception {
-    Assert.assertThat(getValueInFirstRecord(query, column), CoreMatchers.containsString(expected));
+    assertThat(getValueInFirstRecord(query, column)).contains(expected);
   }
 
   protected static IcebergModel getIcebergModel(File tableRoot, IcebergCatalogType catalogType) {
-    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    FileSystemPlugin fileSystemPlugin = getMockedFileSystemPlugin();
     IcebergModel icebergModel = null;
     switch (catalogType) {
       case UNKNOWN:
         break;
       case NESSIE:
         icebergModel = new IcebergNessieModel(DREMIO_NESSIE_DEFAULT_NAMESPACE, new Configuration(),
-                getSabotContext().getNessieContentsApiBlockingStub(), getSabotContext().getNessieTreeApiBlockingStub(),
-                null, null, null, new DatasetCatalogGrpcClient(getSabotContext().getDatasetCatalogBlockingStub().get()));
+                getSabotContext().getNessieClientProvider().get(),
+                null, null, new DatasetCatalogGrpcClient(getSabotContext().getDatasetCatalogBlockingStub().get()), fileSystemPlugin);
 
         when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);
         break;
       case HADOOP:
-        icebergModel = new IcebergHadoopModel(new Configuration());
+        icebergModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
         when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergModel);
         break;
     }
@@ -1119,5 +1196,42 @@ public class BaseTestQuery extends ExecTest {
 
   public static Table getIcebergTable(File tableRoot) {
     return getIcebergTable(tableRoot, IcebergCatalogType.NESSIE);
+  }
+
+  public static FileSystemPlugin getMockedFileSystemPlugin() {
+    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    when(fileSystemPlugin.getHadoopFsSupplier(any(String.class), any(Configuration.class), any(String.class))).
+      thenAnswer(
+        new Answer<Object>() {
+          @Override
+          public Object answer(InvocationOnMock invocation) throws Throwable {
+            Object[] args = invocation.getArguments();
+            Supplier<org.apache.hadoop.fs.FileSystem> fileSystemSupplier = getFileSystemSupplier(DremioHadoopUtils.toHadoopPath((String) args[0]).toUri(), (Configuration) args[1], (String) args[2]);
+            return fileSystemSupplier;
+          }
+        });
+
+    when(fileSystemPlugin.getHadoopFsSupplier(any(String.class), any(Configuration.class))).
+      thenAnswer(
+        new Answer<Object>() {
+          @Override
+          public Object answer(InvocationOnMock invocation) throws Throwable {
+            Object[] args = invocation.getArguments();
+            Supplier<org.apache.hadoop.fs.FileSystem> fileSystemSupplier = getFileSystemSupplier(DremioHadoopUtils.toHadoopPath((String) args[0]).toUri(), (Configuration) args[1], SystemUser.SYSTEM_USERNAME);
+
+            return fileSystemSupplier;
+          }
+        });
+    return fileSystemPlugin;
+  }
+
+  private static Supplier<org.apache.hadoop.fs.FileSystem> getFileSystemSupplier(final URI uri, final Configuration conf, String user) {
+    return () -> {
+      try {
+        return org.apache.hadoop.fs.FileSystem.get(uri, conf, user);
+      } catch (IOException | InterruptedException e) {
+        throw new RuntimeException();
+      }
+    };
   }
 }

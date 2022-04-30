@@ -33,7 +33,7 @@ public class QueryDataBatch implements AutoCloseable {
     this.header = header;
     this.data = data;
     if (this.data != null) {
-      data.retain(1);
+      data.getReferenceManager().retain(1);
     }
   }
 
@@ -55,7 +55,7 @@ public class QueryDataBatch implements AutoCloseable {
     }
 
     if (data != null) {
-      data.release(1);
+      data.getReferenceManager().release(1);
     }
   }
 

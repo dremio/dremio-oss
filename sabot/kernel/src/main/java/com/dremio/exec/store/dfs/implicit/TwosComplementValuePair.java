@@ -20,6 +20,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
@@ -89,7 +90,8 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
     public void setup(OutputMutator output){
       vector = (DecimalVector)output.getVector(name);
       if (vector == null) {
-        vector = output.addField(new Field(name, true, new Decimal(precision, scale), null), DecimalVector.class);
+        vector = output.addField(new Field(name, new FieldType(true,
+          new Decimal(precision, scale, 128), null), null), DecimalVector.class);
       }
     }
 

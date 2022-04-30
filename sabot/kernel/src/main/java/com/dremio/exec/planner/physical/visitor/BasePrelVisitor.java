@@ -15,13 +15,17 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
+import com.dremio.exec.planner.physical.AggregatePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
+import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.LeafPrel;
+import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.planner.physical.UnionPrel;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 
@@ -64,6 +68,26 @@ public class BasePrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> implements 
 
   @Override
   public RETURN visitWriterCommitter(WriterCommitterPrel prel, EXTRA value) throws EXCEP {
+    return visitPrel(prel, value);
+  }
+
+  @Override
+  public RETURN visitUnion(UnionPrel prel, EXTRA value) throws EXCEP {
+    return visitPrel(prel, value);
+  }
+
+  @Override
+  public RETURN visitAggregate(AggregatePrel prel, EXTRA value) throws EXCEP {
+    return visitPrel(prel, value);
+  }
+
+  @Override
+  public RETURN visitLimit(LimitPrel prel, EXTRA value) throws EXCEP {
+    return visitPrel(prel, value);
+  }
+
+  @Override
+  public RETURN visitFilter(FilterPrel prel, EXTRA value) throws EXCEP {
     return visitPrel(prel, value);
   }
 

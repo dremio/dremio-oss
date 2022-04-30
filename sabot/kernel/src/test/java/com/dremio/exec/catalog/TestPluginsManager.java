@@ -19,9 +19,9 @@ import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -81,6 +81,7 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
+import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
@@ -101,6 +102,7 @@ public class TestPluginsManager {
   private SchedulerService schedulerService;
   private ModifiableSchedulerService modifiableSchedulerService;
   private NamespaceService mockNamespaceService;
+  private Orphanage mockOrphanage;
   private List<Cancellable> scheduledTasks = new ArrayList<>();
 
   @Before
@@ -109,7 +111,8 @@ public class TestPluginsManager {
         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
     mockNamespaceService = mock(NamespaceService.class);
-    when(mockNamespaceService.getAllDatasets(Mockito.anyObject())).thenReturn(Collections.emptyList());
+    mockOrphanage = mock(Orphanage.class);
+    when(mockNamespaceService.getAllDatasets(Mockito.any())).thenReturn(Collections.emptyList());
 
     final DatasetListingService mockDatasetListingService = mock(DatasetListingService.class);
     final DremioConfig dremioConfig = DremioConfig.create();
@@ -161,7 +164,7 @@ public class TestPluginsManager {
 
     PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
     modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
-      option, optionManager) {
+      option, () -> optionManager) {
       public Cancellable schedule(Schedule schedule, Runnable task) {
         Cancellable wakeupTask = super.schedule(schedule, task);
         scheduledTasks.add(wakeupTask);
@@ -169,7 +172,7 @@ public class TestPluginsManager {
       }
     };
 
-    plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, dremioConfig,
+    plugins = new PluginsManager(sabotContext, mockNamespaceService, mockOrphanage, mockDatasetListingService, optionManager, dremioConfig,
         sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), CatalogServiceMonitor.DEFAULT, () -> broadcaster,null, modifiableSchedulerService);
     plugins.start();
@@ -354,7 +357,7 @@ public class TestPluginsManager {
     // Ensure for an incomplete datasetConfig, validity is not checked even if option to disable validity is set
     final MetadataRequestOptions metadataRequestOptions = ImmutableMetadataRequestOptions.newBuilder()
       .setNewerThan(0L)
-      .setSchemaConfig(SchemaConfig.newBuilder("dremio").build())
+      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from("dremio")).build())
       .setCheckValidity(false)
       .build();
     assertFalse(pluginWithValidityCheck.isCompleteAndValid(incompleteDatasetConfig, metadataRequestOptions, mockNamespaceService));

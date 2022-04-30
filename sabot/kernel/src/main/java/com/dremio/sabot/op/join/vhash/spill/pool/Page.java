@@ -64,7 +64,7 @@ public class Page implements AutoCloseable {
       throw new IllegalArgumentException(String.format("Attempting to slice beyond limit. Desired size: %d, available space: %d.", size, pageSize - offset));
     }
     final ArrowBuf buf = memory.slice(offset, size);
-    memory.retain();
+    memory.getReferenceManager().retain();
     offset += size;
     return buf;
   }
@@ -78,7 +78,7 @@ public class Page implements AutoCloseable {
    */
   public void deadSlice(int size) {
     checkHasReferences();
-    slice(size).release();
+    slice(size).close();
   }
 
   public int getRemainingBytes() {
@@ -106,7 +106,7 @@ public class Page implements AutoCloseable {
    */
   void deallocate() {
     checkNoReferences();
-    memory.release();
+    memory.close();
   }
 
   /**

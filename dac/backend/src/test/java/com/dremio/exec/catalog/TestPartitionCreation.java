@@ -21,11 +21,13 @@ import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.AutoCloseables;
 import com.dremio.dac.service.flight.FlightCloseableBindableService;
 import com.dremio.exec.ExecConstants;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
@@ -39,6 +41,8 @@ import com.google.inject.AbstractModule;
 public class TestPartitionCreation extends BaseTestQuery {
   @ClassRule
   public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();
+
+  private static AutoCloseable disableUnlimitedSplitsSupportFlags;
 
   @BeforeClass
   public static final void setupDefaultTestCluster() throws Exception {
@@ -58,6 +62,12 @@ public class TestPartitionCreation extends BaseTestQuery {
     });
     BaseTestQuery.setupDefaultTestCluster();
     TestSysFlightResource.addSysFlightPlugin(nodes[0]);
+    disableUnlimitedSplitsSupportFlags = disableUnlimitedSplitsSupportFlags();
+  }
+
+  @AfterClass
+  public static void resetFlags() throws Exception {
+    AutoCloseables.close(disableUnlimitedSplitsSupportFlags);
   }
 
   @Test

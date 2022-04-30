@@ -27,6 +27,7 @@ import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.commons.lang3.text.StrTokenizer;
 
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
@@ -78,7 +79,7 @@ public class WriterPathUpdater extends BasePrelVisitor<Prel, CreateTableEntry, R
 
     // store table as system user.
     final CreateTableEntry createTableEntry = context.getCatalog()
-      .resolveCatalog(SystemUser.SYSTEM_USERNAME)
+      .resolveCatalog(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
       .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions, true);
     final FileSystemCreateTableEntry fileEntry = (FileSystemCreateTableEntry) createTableEntry;
 

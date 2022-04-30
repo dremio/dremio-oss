@@ -32,7 +32,10 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.PartitionNotFoundException;
+import com.dremio.exec.store.ReferenceConflictException;
+import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.service.catalog.Schema;
@@ -145,18 +148,18 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema) {
-    return delegate.resolveCatalog(username, newDefaultSchema);
+  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema) {
+    return delegate.resolveCatalog(subject, newDefaultSchema);
   }
 
   @Override
-  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity) {
-    return delegate.resolveCatalog(username, newDefaultSchema, checkValidity);
+  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    return delegate.resolveCatalog(subject, newDefaultSchema, checkValidity);
   }
 
   @Override
-  public Catalog resolveCatalog(String username) {
-    return delegate.resolveCatalog(username);
+  public Catalog resolveCatalog(CatalogIdentity subject) {
+    return delegate.resolveCatalog(subject);
   }
 
   @Override
@@ -203,8 +206,8 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void dropTable(NamespaceKey key) {
-    delegate.dropTable(key);
+  public void dropTable(NamespaceKey key, TableMutationOptions tableMutationOptions) {
+    delegate.dropTable(key, tableMutationOptions);
   }
 
   @Override
@@ -213,23 +216,28 @@ public abstract class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void truncateTable(NamespaceKey key) {
-    delegate.truncateTable(key);
+  public void truncateTable(NamespaceKey key, TableMutationOptions tableMutationOptions) {
+    delegate.truncateTable(key, tableMutationOptions);
   }
 
   @Override
-  public void addColumns(NamespaceKey table, List<Field> colsToAdd) {
-    delegate.addColumns(table, colsToAdd);
+  public void addColumns(NamespaceKey table, List<Field> colsToAdd, TableMutationOptions tableMutationOptions) {
+    delegate.addColumns(table, colsToAdd, tableMutationOptions);
   }
 
   @Override
-  public void dropColumn(NamespaceKey table, String columnToDrop) {
-    delegate.dropColumn(table, columnToDrop);
+  public void dropColumn(NamespaceKey table, String columnToDrop, TableMutationOptions tableMutationOptions) {
+    delegate.dropColumn(table, columnToDrop, tableMutationOptions);
   }
 
   @Override
-  public void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration) {
-    delegate.changeColumn(table, columnToChange, fieldFromSqlColDeclaration);
+  public void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration, TableMutationOptions tableMutationOptions) {
+    delegate.changeColumn(table, columnToChange, fieldFromSqlColDeclaration, tableMutationOptions);
+  }
+
+  @Override
+  public boolean toggleSchemaLearning(NamespaceKey table, boolean enableSchemaLearning) {
+      return delegate.toggleSchemaLearning(table, enableSchemaLearning);
   }
 
   @Override
@@ -321,5 +329,10 @@ public abstract class DelegatingCatalog implements Catalog {
   @Override
   public Iterator<TableSchema> listTableSchemata(SearchQuery searchQuery) {
     return delegate.listTableSchemata(searchQuery);
+  }
+
+  @Override
+  public ResolvedVersionContext resolveVersionContext(String sourceName, VersionContext versionContext) throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
+    return delegate.resolveVersionContext(sourceName, versionContext);
   }
 }

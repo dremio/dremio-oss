@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
@@ -30,7 +31,7 @@ import com.dremio.exec.planner.sql.CalciteArrowHelper;
  */
 public class BatchSchemaField extends Field {
   public BatchSchemaField(String name, boolean nullable, ArrowType type, List<Field> children) {
-    super(name, nullable, type, children);
+    super(name, new FieldType(nullable, type, null), children);
   }
 
   public String toString() {

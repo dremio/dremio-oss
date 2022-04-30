@@ -14,50 +14,26 @@
  * limitations under the License.
  */
 
-import {useIntl} from 'react-intl';
 import PropTypes from 'prop-types';
 import { compose } from 'redux';
-import { withRouter, Link } from 'react-router';
-import classNames from 'classnames';
-
+import { withRouter } from 'react-router';
 import '@app/components/IconFont/css/DremioIcons.css';
 import '@app/components/SideNav/SideNav.less';
-import {DEFAULT_ICON_COLOR, ACTIVE_ICON_COLOR} from '@app/components/SideNav/SideNavConstants';
+import {isActive} from '@app/components/SideNav/SideNavUtils';
+import {TopAction} from '@app/components/SideNav/components/TopAction';
+
+
 
 const SideNavAdmin = (props) => {
-  const {wideNarrowWidth, displayTooltip, displayLabel, location} = props;
-  const intl = useIntl();
-
-  const isAdminActive = location.pathname.startsWith('/admin') ? ' --active' : '';
-  let activeStyle = {color: DEFAULT_ICON_COLOR};
-  if (location.pathname === '/admin/nodeActivity') {
-    activeStyle = {color: ACTIVE_ICON_COLOR};
-  }
+  const {location} = props;
+  const loc = location.pathname;
 
   return (
-    <div className={'sideNav-item' + wideNarrowWidth + isAdminActive}>
-      <div className={'sideNav-item__link' + wideNarrowWidth + isAdminActive}>
-        <Link to='/admin'  onClick={(e) => e.stopPropagation()} style={{...activeStyle}}>
-          <div className={classNames('sideNav-items', wideNarrowWidth)}>
-            <div className='sideNav-item__icon'>
-              <div className={classNames('sideNav-item__dropdownIcon', wideNarrowWidth)} title={displayTooltip ? intl.formatMessage({id: 'SideNav.Admin'}) : ''}>
-                <span className={'sideNav-item__iconType --resourceIcon dremioIcon-SideNavResources'}></span>
-              </div>
-            </div>
-            <div className={'sideNav-item__labelNext' + displayLabel}>
-              {intl.formatMessage({id: 'SideNav.Admin'})}
-            </div>
-          </div>
-        </Link>
-      </div>
-    </div>
+    <TopAction active={isActive({ name: '/admin', loc, admin: true})} url='/admin' icon='SideNav-gear.svg' alt='SideNav.Admin' />
   );
 };
 
 SideNavAdmin.propTypes = {
-  wideNarrowWidth: PropTypes.string,
-  displayLabel: PropTypes.string,
-  displayTooltip: PropTypes.bool,
   location: PropTypes.object,
   router: PropTypes.shape({
     isActive: PropTypes.func,

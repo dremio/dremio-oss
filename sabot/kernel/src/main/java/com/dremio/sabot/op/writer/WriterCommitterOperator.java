@@ -40,12 +40,16 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.iceberg.manifestwriter.IcebergCommitOpHelper;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
@@ -69,10 +73,15 @@ public class WriterCommitterOperator implements SingleInputOperator {
   }
 
   protected static final Logger logger = LoggerFactory.getLogger(WriterCommitterOperator.class);
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(WriterCommitterOperator.class);
+
+  @VisibleForTesting
+  public static final String INJECTOR_AFTER_NO_MORETO_CONSUME_ERROR = "error-between-noMoreToConsume-and-icebergeCommit";
 
   private final WriterCommitterPOP config;
   private final OperatorContext context;
   private FileSystem fs;
+  private final ExecutionControls executionControls;
 
   private long recordCount;
   private ProjectOperator project;
@@ -85,6 +94,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
     this.config = config;
     this.context = context;
     this.icebergCommitHelper = IcebergCommitOpHelper.getInstance(context, config);
+    this.executionControls = context.getExecutionControls();
   }
 
   @Override
@@ -148,7 +158,10 @@ public class WriterCommitterOperator implements SingleInputOperator {
   public void close() throws Exception {
     try {
       cleanUpFiles();
-    } finally {
+    } catch (Exception e) {
+      logger.warn("Cleanup of files in writer committer failed.", e);
+    }
+    finally {
       AutoCloseables.close(project, fs, icebergCommitHelper);
     }
   }
@@ -162,6 +175,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
       }
     }
     project.noMoreToConsume();
+    injector.injectChecked(executionControls, INJECTOR_AFTER_NO_MORETO_CONSUME_ERROR, UnsupportedOperationException.class);
     icebergCommitHelper.commit();
     success = true;
   }

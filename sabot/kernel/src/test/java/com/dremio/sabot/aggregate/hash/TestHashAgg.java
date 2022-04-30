@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.aggregate.hash;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.FUNCTION;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
@@ -36,7 +37,6 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.HashAggregate;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
@@ -47,7 +47,7 @@ import com.dremio.sabot.Generator;
 import com.dremio.sabot.op.aggregate.hash.HashAggOperator;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.op.aggregate.vectorized.nospill.VectorizedHashAggOperatorNoSpill;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
@@ -938,10 +938,13 @@ public class TestHashAgg extends BaseTestOperator {
       validateSingle(vanillaConf, HashAggOperator.class, inputData, expected);
     }
 
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.FUNCTION, "low-cardinality aggregations"));
-    try (AutoCloseable options = with(HashAggOperator.HASHAGG_MINMAX_CARDINALITY_LIMIT, 1)) {
-      HashAggregate vanillaConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, false, conf.getCardinality());
-      validateSingle(vanillaConf, HashAggOperator.class, inputData, expected);
-    }
+    UserExceptionAssert.assertThatThrownBy(() -> {
+      try (AutoCloseable options = with(HashAggOperator.HASHAGG_MINMAX_CARDINALITY_LIMIT, 1)) {
+        HashAggregate vanillaConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, false, conf.getCardinality());
+        validateSingle(vanillaConf, HashAggOperator.class, inputData, expected);
+      }
+    })
+      .hasErrorType(FUNCTION)
+      .hasMessageContaining("low-cardinality aggregations");
   }
 }

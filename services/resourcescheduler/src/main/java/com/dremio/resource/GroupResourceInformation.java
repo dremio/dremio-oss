@@ -16,6 +16,7 @@
 package com.dremio.resource;
 
 import com.dremio.options.OptionResolver;
+import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.Service;
 
@@ -23,11 +24,20 @@ import com.dremio.service.Service;
  * Resource information about executors. These are approximate/average, and can be used
  * for planning purposes.
  */
+@Options
 public interface GroupResourceInformation extends Service {
-  // duplicate of name in ExecConstants. Taking a dependency on sabot-kernel will cause
-  // circular dependency.
-  TypeValidators.LongValidator MAX_WIDTH_PER_NODE_KEY =
-      new TypeValidators.LongValidator("planner.width.max_per_node", 0L);
+  /**
+   * Limits the maximum level of parallelization to this factor time the number of Nodes.
+   * The default value is internally computed based on number of cores per executor, using MAX_WIDTH_PER_NODE_FRACTION_KEY.
+   * The default value mentioned here is meaningless and is only used to ascertain if user has explicitly set the value
+   * or not.
+   */
+  String MAX_WIDTH_PER_NODE_KEY = "planner.width.max_per_node";
+  TypeValidators.PositiveLongValidator MAX_WIDTH_PER_NODE = new TypeValidators.PositiveLongValidator(MAX_WIDTH_PER_NODE_KEY, Integer.MAX_VALUE, 0);
+
+  String MAX_WIDTH_PER_NODE_FRACTION_KEY = "planner.width.max_per_node_fraction";
+  TypeValidators.RangeDoubleValidator MAX_WIDTH_PER_NODE_FRACTION = new TypeValidators.RangeDoubleValidator(MAX_WIDTH_PER_NODE_FRACTION_KEY, 0.1, 2.0, 0.75);
+
 
   /**
    * Get the average maximum direct memory of executors in the cluster.
@@ -49,4 +59,21 @@ public interface GroupResourceInformation extends Service {
    * @return average number of executor cores
    */
   long getAverageExecutorCores(final OptionResolver optionManager);
+
+  /**
+   * Compute the number o cores available for dremio execution.
+   *
+   * @param coresPerNode total cores reported by the executor node.
+   * @param optionManager options
+   * @return number of cores to be used by dremio for execution.
+   */
+  static long computeCoresAvailableForExecutor(int coresPerNode, OptionResolver optionManager) {
+    // If the MAX_WIDTH_PER_NODE_KEY is set to a non-zero value, that takes precedence.
+    long configuredMaxWidthPerNode = optionManager.getOption(MAX_WIDTH_PER_NODE);
+    if (configuredMaxWidthPerNode != 0) {
+      return configuredMaxWidthPerNode;
+    }
+
+    return Math.round(coresPerNode * optionManager.getOption(MAX_WIDTH_PER_NODE_FRACTION));
+  }
 }

@@ -18,9 +18,12 @@ package com.dremio.service.nessie;
 import static org.projectnessie.versioned.persist.adapter.spi.DatabaseAdapterUtil.hashCollisionDetected;
 import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.protoToCommitLogEntry;
 import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.protoToKeyList;
+import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.protoToRefLog;
+import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.protoToRepoDescription;
 import static org.projectnessie.versioned.persist.serialize.ProtoSerialization.toProto;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -33,15 +36,19 @@ import java.util.stream.Stream;
 
 import org.projectnessie.versioned.Hash;
 import org.projectnessie.versioned.ReferenceConflictException;
+import org.projectnessie.versioned.persist.adapter.CommitAttempt;
 import org.projectnessie.versioned.persist.adapter.CommitLogEntry;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
 import org.projectnessie.versioned.persist.adapter.KeyListEntity;
 import org.projectnessie.versioned.persist.adapter.KeyWithType;
+import org.projectnessie.versioned.persist.adapter.RefLog;
+import org.projectnessie.versioned.persist.adapter.RepoDescription;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapter;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
 import org.projectnessie.versioned.persist.nontx.NonTransactionalOperationContext;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStateLogEntry;
 import org.projectnessie.versioned.persist.serialize.AdapterTypes.GlobalStatePointer;
+import org.projectnessie.versioned.persist.serialize.AdapterTypes.RefLogEntry;
 import org.projectnessie.versioned.persist.serialize.ProtoSerialization;
 
 import com.dremio.datastore.api.Document;
@@ -62,7 +69,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
     super(config);
     Objects.requireNonNull(dbInstance);
     this.db = dbInstance;
-    this.keyPrefix = config.getKeyPrefix();
+    this.keyPrefix = config.getRepositoryId();
     this.globalPointerKey = keyPrefix;
   }
 
@@ -92,21 +99,6 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   @Override
   protected int entitySize(KeyWithType entry) {
     return toProto(entry).getSerializedSize();
-  }
-
-  /**
-   * Forces a repository to be re-initialized.
-   *
-   * @param defaultBranchName
-   */
-  @Override
-  public void reinitializeRepo(String defaultBranchName) {
-    try {
-      db.getGlobalPointer().delete(globalPointerKey);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-    super.initializeRepo(defaultBranchName);
   }
 
   /**
@@ -270,7 +262,7 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
    */
   @Override
   protected void cleanUpCommitCas(NonTransactionalOperationContext ctx, Hash globalId,
-                                  Set<Hash> branchCommits, Set<Hash> newKeyLists) {
+                                  Set<Hash> branchCommits, Set<Hash> newKeyLists, Hash refLogId) {
     Lock lock = db.getLock().writeLock();
     lock.lock();
     try {
@@ -377,6 +369,45 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
   }
 
   @Override
+  protected RefLog fetchFromRefLog(
+    NonTransactionalOperationContext ctx, Hash refLogId) {
+    try {
+      Document<String, byte[]> entry = db.getRefLog().get(dbKey(refLogId));
+      return protoToRefLog(entry != null ? entry.getValue() : null);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  protected List<RefLog> fetchPageFromRefLog(
+    NonTransactionalOperationContext ctx, List<Hash> hashes) {
+    return fetchPage(db.getRefLog(), hashes, ProtoSerialization::protoToRefLog);
+  }
+
+  @Override
+  protected void writeRefLog(
+    NonTransactionalOperationContext ctx,
+    RefLogEntry entry) throws ReferenceConflictException {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+
+    try {
+      String key = dbKey(entry.getRefLogId());
+      Document<String, byte[]> commitEntry = db.getCommitLog().get(key);
+      if (commitEntry != null) {
+        throw hashCollisionDetected();
+      } else {
+        db.getRefLog().put(key, entry.toByteArray(), KVStore.PutOption.CREATE);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
   protected Stream<KeyListEntity> fetchKeyLists(NonTransactionalOperationContext ctx, List<Hash> keyListsIds) {
     try {
       KVStore<String, byte[]> store = db.getKeyList();
@@ -391,6 +422,64 @@ public class DatastoreDatabaseAdapter extends NonTransactionalDatabaseAdapter<No
           });
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public void eraseRepo() {
+    try {
+      Stream.of(
+          db.getGlobalPointer(),
+          db.getGlobalLog(),
+          db.getCommitLog(),
+          db.getRepoDescription(),
+          db.getKeyList(),
+          db.getRefLog())
+        .forEach(
+          cf -> {
+            List<String> deletes = new ArrayList<>();
+            for (Document<String, byte[]> doc : cf.find()) {
+              if (doc.getKey().startsWith(keyPrefix)) {
+                deletes.add(doc.getKey());
+              }
+            }
+            deletes.forEach(cf::delete);
+          }
+        );
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  protected RepoDescription fetchRepositoryDescription(NonTransactionalOperationContext ctx) {
+    try {
+      Document<String, byte[]> entry = db.getRepoDescription().get(globalPointerKey);
+      return entry != null ? protoToRepoDescription(entry.getValue()) : null;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  protected boolean tryUpdateRepositoryDescription(
+    NonTransactionalOperationContext ctx, RepoDescription expected, RepoDescription updateTo) {
+    Lock lock = db.getLock().writeLock();
+    lock.lock();
+    try {
+      Document<String, byte[]> entry = db.getRepoDescription().get(globalPointerKey);
+      byte[] bytes = entry != null ? entry.getValue() : null;
+      byte[] updatedBytes = toProto(updateTo).toByteArray();
+      if ((bytes == null && expected == null)
+        || (bytes != null && Arrays.equals(bytes, toProto(expected).toByteArray()))) {
+        db.getRepoDescription().put(globalPointerKey, updatedBytes);
+        return true;
+      }
+      return false;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
     }
   }
 }

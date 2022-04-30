@@ -34,6 +34,7 @@ class ProgressTracker implements AutoCloseable {
   private final MaestroObserver observer;
   private final CountDownLatch responseLatch = new CountDownLatch(1);
   private volatile long prevRecordsProcessed = -1;
+  private volatile long prevOutputRecords = -1;
 
   private volatile StreamObserver<GetQueryProgressMetricsRequest> requestObserver;
 
@@ -52,9 +53,14 @@ class ProgressTracker implements AutoCloseable {
       @Override
       public void onNext(GetQueryProgressMetricsResponse metricsResponse) {
         long recordsProcessed = metricsResponse.getMetrics().getRowsProcessed();
+        long outputRecordsCount = metricsResponse.getMetrics().getOutputRecords();
         if (recordsProcessed > prevRecordsProcessed) {
           observer.recordsProcessed(recordsProcessed);
           prevRecordsProcessed = recordsProcessed;
+        }
+        if (outputRecordsCount > prevOutputRecords) {
+          observer.recordsOutput(recordsProcessed);
+          prevOutputRecords = outputRecordsCount;
         }
       }
 

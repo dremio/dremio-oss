@@ -14,6 +14,7 @@
  * limitations under the License.
  */
  @import '~@app/components/colors.less';
+ @import "~@app/uiTheme/less/color-schema.less";
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
     
   .ReactModalPortal {
@@ -146,6 +147,51 @@
   }
 
   .modal-header {
-    background-color: @brand-color
+    border: 1px solid @solitude;
+    border-radius: 3px 3px 0 0;
+  }
+
+  .confirm-cancel-footer {
+    padding: 8px;
+  }
+
+  .--newModalStyles {
+    background: @WHITE;
+    inset: 10% 40px;
+    position: absolute;
+    max-width: 600px;
+     
+    .modal-header {
+      background: @WHITE;
+      border-bottom: 1px solid @solitude;
+      height: 55px !important;
+
+      .EllipsedText {
+        color: #060607 !important;
+        font-size: 16px !important;
+        line-height: 24px;
+        font-weight: 600 !important;
+      }
+    }
+
+    .modal-form-wrapper {
+      max-width: 600px;
+    }
+
+    .field {
+      width: 100%;
+    }
+
+    .confirm-cancel-footer {
+      height: 56px !important;
+      padding: 12px 16px !important;
+
+      [data-qa="cancel"] {
+        margin-right: 8px !important;
+      }
+      [data-qa="confirm"] {
+        margin-right: 0 !important;
+      }
+    }
   }
 }

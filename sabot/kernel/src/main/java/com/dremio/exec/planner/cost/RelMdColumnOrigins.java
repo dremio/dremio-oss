@@ -17,8 +17,8 @@ package com.dremio.exec.planner.cost;
 
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.volcano.RelSubset;
@@ -48,7 +48,7 @@ import com.dremio.exec.planner.physical.DictionaryLookupPrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
-import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
+import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPrel;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -76,9 +76,11 @@ public class RelMdColumnOrigins implements MetadataHandler<BuiltInMetadata.Colum
   }
 
   public Set<RelColumnOrigin> getColumnOrigins(ConvertFromJsonPrel rel, RelMetadataQuery mq, int iOutputColumn) {
-    final List<ConversionColumn> conversions = rel.getConversions();
-    if (iOutputColumn < conversions.size()) {
-      return null; // just return null for now, it should work for ConvertFromJsonConverter
+    Set<String> inputFields = rel.getConversions().stream()
+      .map(ConvertFromJsonPOP.ConversionColumn::getInputField).collect(Collectors.toSet());
+
+    if (inputFields.contains(rel.getRowType().getFieldNames().get(iOutputColumn))) {
+      return null;
     }
     return mq.getColumnOrigins(rel.getInput(), iOutputColumn);
   }

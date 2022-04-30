@@ -25,7 +25,6 @@ import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import { makeStyles } from '@material-ui/core/styles';
 
-import { ReactComponent as ExpandMoreIcon } from '../../art/ArrowDown.svg';
 import { ReactComponent as XIcon } from '../../art/XLarge.svg';
 
 import Label from '../Label';
@@ -76,12 +75,12 @@ const SearchableMultiSelect = (props) => {
   const hasError = get(touched, name) && get(errors, name);
   const rootClass = clsx(
     'SearchableMultiSelect',
-    { '--disabled': disabled },
     { [classes.root]: classes.root }
   );
   const valueClass = clsx(
     'SearchableMultiSelect__value',
     { '--error': hasError },
+    { '--disabled': disabled },
     { [classes.value]: classes.value }
   );
 
@@ -192,11 +191,15 @@ const SearchableMultiSelect = (props) => {
         <div className='SearchableMultiSelect__inputContainer'>
           {visibleValues.map((selectedVal) => (
             <Chip
-              classes={{ root: 'margin-right margin-top' }}
+              classes={{
+                root: 'multiSelect__chip',
+                icon: 'icon --md multiSelect__chip__icon'
+              }}
               key={selectedVal.value}
               label={selectedVal.label}
               onClick={handleChipClick}
               onDelete={(ev) => handleDelete(ev, selectedVal.value)}
+              deleteIcon={<XIcon />}
             />
           ))}
           {
@@ -224,9 +227,6 @@ const SearchableMultiSelect = (props) => {
           >
             <XIcon/>
           </span>}
-          <span className='SearchableMultiSelect__dropdownIcon'>
-            <ExpandMoreIcon />
-          </span>
         </div>
       </div>
     );

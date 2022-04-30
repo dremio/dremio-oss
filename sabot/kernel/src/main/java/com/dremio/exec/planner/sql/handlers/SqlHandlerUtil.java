@@ -38,17 +38,23 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.commons.lang3.text.StrTokenizer;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUser;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.StarColumnHelper;
@@ -60,12 +66,19 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult;
+import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
+import com.dremio.exec.planner.sql.parser.SqlArrayTypeSpec;
 import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
+import com.dremio.exec.planner.sql.parser.SqlComplexDataTypeSpec;
+import com.dremio.exec.planner.sql.parser.SqlRowTypeSpec;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
+import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
@@ -303,7 +316,7 @@ public class SqlHandlerUtil {
 
     // store table as system user.
     final CreateTableEntry createTableEntry = context.getCatalog()
-        .resolveCatalog(SystemUser.SYSTEM_USERNAME)
+        .resolveCatalog(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
         .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions, true /** results table */);
 
     final RelTraitSet traits = inputRel.getCluster().traitSet().plus(Rel.LOGICAL);
@@ -317,20 +330,45 @@ public class SqlHandlerUtil {
    */
   public static void checkForDuplicateColumns(List<SqlColumnDeclaration> newColumsDeclaration, BatchSchema existingSchema, String sql) {
     Set<String> existingColumns = existingSchema.getFields().stream().map(Field::getName).map(String::toUpperCase)
-        .collect(Collectors.toSet());
+      .collect(Collectors.toSet());
     Set<String> newColumns = new HashSet<>();
     String column;
     for (SqlColumnDeclaration columnDecl : newColumsDeclaration) {
       column = columnDecl.getName().getSimple().toUpperCase();
+      SqlIdentifier type = columnDecl.getDataType().getTypeName();
       if (existingColumns.contains(column)) {
         throw SqlExceptionHelper.parseError(String.format("Column [%s] already in the table.", column), sql,
-            columnDecl.getParserPosition()).buildSilently();
+          columnDecl.getParserPosition()).buildSilently();
       }
-      if (newColumns.contains(column)) {
-        throw SqlExceptionHelper.parseError(String.format("Column [%s] specified multiple times.", column), sql,
-            columnDecl.getParserPosition()).buildSilently();
-      }
-      newColumns.add(column);
+      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, type, columnDecl.getParserPosition());
+    }
+  }
+
+  private static void checkIfSpecifiedMultipleTimesAndAddColumn(String sql, Set<String> newColumns, String column, SqlIdentifier type, SqlParserPos parserPosition) {
+    if (newColumns.contains(column)) {
+      throw SqlExceptionHelper.parseError(String.format("Column [%s] specified multiple times.", column), sql,
+        parserPosition).buildSilently();
+    }
+    checkNestedFieldsForDuplicateNameDeclarations(sql, type);
+    newColumns.add(column);
+  }
+
+  public static void checkNestedFieldsForDuplicateNameDeclarations(String sql, SqlIdentifier type) {
+    if (type instanceof SqlRowTypeSpec) {
+      checkForDuplicateColumnsInStruct((SqlRowTypeSpec) type, sql);
+    } else if (type instanceof SqlArrayTypeSpec) {
+      checkNestedFieldsForDuplicateNameDeclarations(sql, ((SqlArrayTypeSpec) type).getSpec().getTypeName());
+    }
+  }
+
+  private static void checkForDuplicateColumnsInStruct(SqlRowTypeSpec rowTypeSpec, String sql) {
+    List<SqlComplexDataTypeSpec> fieldTypes = rowTypeSpec.getFieldTypes();
+    List<SqlIdentifier> fieldNames = rowTypeSpec.getFieldNames();
+    Set<String> newColumns = new HashSet<>();
+    for (int i = 0; i < fieldNames.size(); i++) {
+      String column = fieldNames.get(i).getSimple().toUpperCase();
+      SqlIdentifier type = fieldTypes.get(i).getTypeName();
+      checkIfSpecifiedMultipleTimesAndAddColumn(sql, newColumns, column, type, rowTypeSpec.getParserPosition());
     }
   }
 
@@ -393,5 +431,53 @@ public class SqlHandlerUtil {
       }
     }
     return columnDeclarations;
+  }
+
+  public static SimpleCommandResult validateSupportForDDLOperations(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, DremioTable table) {
+    Optional<SimpleCommandResult> validate = Optional.empty();
+
+    if (table == null) {
+      throw UserException.validationError()
+        .message("Table [%s] not found", path)
+        .buildSilently();
+    }
+
+    if (table.getJdbcTableType() != org.apache.calcite.schema.Schema.TableType.TABLE) {
+      throw UserException.validationError()
+        .message("[%s] is a %s", path, table.getJdbcTableType())
+        .buildSilently();
+    }
+
+    if (table.getDatasetConfig() == null) {
+      throw UserException.validationError()
+        .message("Table [%s] not found", path)
+        .buildSilently();
+    }
+
+    if (DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig())) {
+      if (!(config.getContext().getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA))) {
+        throw UserException.unsupportedError()
+          .message("Please contact customer support for steps to enable " +
+            "user managed schema feature.")
+          .buildSilently();
+      }
+      if (DatasetHelper.isInternalIcebergTable(table.getDatasetConfig())) {
+        if (!DataAdditionCmdHandler.isIcebergFeatureEnabled(config.getContext().getOptions(), null)) {
+          throw UserException.unsupportedError()
+            .message("Please contact customer support for steps to enable " +
+              "the iceberg tables feature.")
+            .buildSilently();
+        }
+        if (!config.getContext().getOptions().getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT)) {
+          throw UserException.unsupportedError()
+            .message("Please contact customer support for steps to enable " +
+              "the unlimited splits feature.")
+            .buildSilently();
+        }
+      }
+    } else {
+      validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, false);
+    }
+    return validate.isPresent() ? validate.get() : new SimpleCommandResult(true, "");
   }
 }

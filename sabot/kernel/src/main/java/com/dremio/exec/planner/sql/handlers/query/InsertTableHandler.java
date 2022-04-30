@@ -19,6 +19,9 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -39,17 +42,17 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
       final NamespaceKey path = catalog.resolveSingle(sqlInsertTable.getPath());
 
       // TODO: fix parser to disallow this
-      if (sqlInsertTable.isSingleWriter() && !sqlInsertTable.getPartitionColumns(catalog, path).isEmpty()) {
+      if (sqlInsertTable.isSingleWriter() &&
+        !sqlInsertTable.getPartitionColumns(super.getDremioTable(catalog, path)).isEmpty()) {
         throw UserException.unsupportedError()
           .message("Cannot partition data and write to a single file at the same time.")
           .build(logger);
       }
-
-      validateInsertTableFormatOptions(catalog, config, path);
-      PhysicalPlan plan = super.getPlan(catalog, path, config, sql, sqlNode, sqlInsertTable);
-
-      super.validateIcebergSchemaForInsertCommand(sqlInsertTable.getFieldNames());
-      return plan;
+      if (CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog)) {
+        return doVersionedInsert(catalog, config, path, sql, sqlNode, sqlInsertTable);
+      } else {
+        return doInsert(catalog, config, path, sql, sqlNode, sqlInsertTable);
+      }
     }
     catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
@@ -60,6 +63,27 @@ public class InsertTableHandler extends DataAdditionCmdHandler {
   public void validateInsertTableFormatOptions(Catalog catalog, SqlHandlerConfig config, NamespaceKey path) {
     validateTableFormatOptions(catalog, path, config.getContext().getOptions());
     IcebergUtils.checkTableExistenceAndMutability(catalog, config, path, false);
+  }
+
+  private PhysicalPlan doInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, SqlNode sqlNode, SqlInsertTable sqlInsertTable) throws Exception {
+    validateInsertTableFormatOptions(catalog, config, path);
+    PhysicalPlan plan = super.getPlan(catalog, path, config, sql, sqlInsertTable, null);
+    super.validateIcebergSchemaForInsertCommand(sqlInsertTable.getFieldNames());
+    return plan;
+  }
+
+  private PhysicalPlan doVersionedInsert(Catalog catalog, SqlHandlerConfig config, NamespaceKey path, String sql, SqlNode sqlNode, SqlInsertTable sqlInsertTable) throws Exception {
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    final ResolvedVersionContext version = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    try {
+      validateVersionedTableFormatOptions(catalog, path, config.getContext().getOptions());
+      checkExistenceValidity(path, getDremioTable(catalog, path));
+      return super.getPlan(catalog, path, config, sql, sqlInsertTable, version);
+    } catch (Exception e) {
+      throw SqlExceptionHelper.coerceException(logger, sql, e, true);
+    }
+
   }
 
   @Override

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -43,10 +43,6 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-nessie-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-datastore</artifactId>
     </dependency>
     <dependency>
@@ -56,34 +52,38 @@
     <dependency>
       <groupId>org.projectnessie</groupId>
       <artifactId>nessie-rest-services</artifactId>
-      <version>${nessie.version}</version>
     </dependency>
     <dependency>
       <groupId>org.projectnessie</groupId>
       <artifactId>nessie-server-store</artifactId>
-      <version>${nessie.version}</version>
     </dependency>
     <dependency>
       <groupId>org.projectnessie</groupId>
       <artifactId>nessie-versioned-persist-store</artifactId>
-      <version>${nessie.version}</version>
     </dependency>
     <dependency>
       <groupId>org.projectnessie</groupId>
       <artifactId>nessie-versioned-persist-in-memory</artifactId>
-      <version>${nessie.version}</version>
     </dependency>
     <dependency>
       <groupId>org.projectnessie</groupId>
       <artifactId>nessie-versioned-tests</artifactId>
-      <version>${nessie.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.projectnessie</groupId>
       <artifactId>nessie-versioned-persist-tests</artifactId>
-      <version>${nessie.version}</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-grpc-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-grpc-server</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 
@@ -95,11 +95,24 @@
         <configuration>
           <effort>MAX</effort>
           <xmlOutput>true</xmlOutput>
+          <excludeFilterFile>src/main/spotbugs/excludes.xml</excludeFilterFile>
         </configuration>
         <executions>
           <execution>
             <goals>
               <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
             </goals>
           </execution>
         </executions>

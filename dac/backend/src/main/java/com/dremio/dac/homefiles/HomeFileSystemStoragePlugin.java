@@ -38,6 +38,7 @@ import com.dremio.connector.metadata.DatasetNotFoundException;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
@@ -144,7 +145,7 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
     DatasetRetrievalOptions retrievalOptions = DatasetRetrievalOptions.of(options);
 
     FileConfig fileConfig = FileConfigOption.getFileConfig(options);
-    PreviousDatasetInfo oldConfig = new PreviousDatasetInfo(fileConfig, CurrentSchemaOption.getSchema(options), SortColumnsOption.getSortColumns(options));
+    PreviousDatasetInfo oldConfig = new PreviousDatasetInfo(fileConfig, CurrentSchemaOption.getSchema(options), SortColumnsOption.getSortColumns(options), null, null, true);
     FormatPluginConfig pluginConfig = null;
     try {
       final FileSystem fs = getSystemUserFS();
@@ -160,7 +161,8 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
 
       pluginConfig = PhysicalDatasetUtils.toFormatPlugin(fileConfig, Collections.<String>emptyList());
       final FormatPlugin formatPlugin = formatCreator.newFormatPlugin(pluginConfig);
-      return Optional.ofNullable(getDataset(namespaceKey, oldConfig, formatPlugin, fs, fileConfig, retrievalOptions.maxMetadataLeafColumns()));
+      return Optional.ofNullable(getDataset(namespaceKey, oldConfig, formatPlugin, fs, fileConfig,
+          retrievalOptions.maxMetadataLeafColumns(), retrievalOptions.getTimeTravelRequest()));
     } catch (NamespaceNotFoundException nfe) {
       return Optional.empty();
     } catch (NamespaceException | IOException e) {
@@ -180,7 +182,8 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
 
       final FormatPlugin formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
 
-      return getDataset(datasetPath, oldConfig, formatPlugin, fs, datasetConfig.getPhysicalDataset().getFormatSettings(), retrievalOptions.maxMetadataLeafColumns());
+      return getDataset(datasetPath, oldConfig, formatPlugin, fs, datasetConfig.getPhysicalDataset().getFormatSettings(),
+          retrievalOptions.maxMetadataLeafColumns(), retrievalOptions.getTimeTravelRequest());
     } catch (NamespaceNotFoundException nfe){
       if(formatPluginConfig == null) {
         // a home file can only be read from the namespace or using a format options. Without either, it is invalid, return nothing.
@@ -225,7 +228,8 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
       FormatPlugin formatPlugin,
       FileSystem fs,
       FileConfig fileConfig,
-      int maxLeafColumns
+      int maxLeafColumns,
+      TimeTravelOption.TimeTravelRequest travelRequest
   ) throws IOException {
 
     final FileUpdateKey.Builder updateKey = FileUpdateKey.newBuilder();
@@ -262,7 +266,7 @@ public class HomeFileSystemStoragePlugin extends MayBeDistFileSystemPlugin<HomeF
     FileDatasetHandle.checkMaxFiles(datasetPath.getName(), fileSelectionWithoutDir.getFileAttributesList().size(), getContext(),
       getConfig().isInternal());
     return formatPlugin.getDatasetAccessor(DatasetType.PHYSICAL_DATASET_HOME_FILE, oldConfig, fs,
-      fileSelectionWithoutDir, this, datasetPath, updateKey.build(), maxLeafColumns);
+        fileSelectionWithoutDir, this, datasetPath, updateKey.build(), maxLeafColumns, travelRequest);
   }
 
   protected FileProtobuf.FileSystemCachedEntity fromFileAttributes(FileAttributes attributes) {

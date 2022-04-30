@@ -15,12 +15,8 @@
  */
 package com.dremio.jdbc;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -30,105 +26,81 @@ import org.junit.Test;
 
 
 public class DremioResultSetTest extends JdbcWithServerTestBase {
+
   @Test
-  public void test_next_blocksFurtherAccessAfterEnd()
-      throws SQLException
-  {
+  public void test_next_blocksFurtherAccessAfterEnd() throws SQLException {
     Statement statement = getConnection().createStatement();
     ResultSet resultSet =
-        statement.executeQuery( "SELECT 1 AS x \n" +
-                                "FROM cp.\"donuts.json\" \n" +
-                                "LIMIT 2" );
+      statement.executeQuery("SELECT 1 AS x FROM cp.\"donuts.json\" LIMIT 2");
 
     // Advance to first row; confirm can access data.
-    assertThat( resultSet.next(), is( true ) );
-    assertThat( resultSet.getInt( 1 ), is ( 1 ) );
+    assertThat(resultSet.next()).isTrue();
+    assertThat(resultSet.getInt(1)).isEqualTo(1);
 
     // Advance from first to second (last) row, confirming data access.
-    assertThat( resultSet.next(), is( true ) );
-    assertThat( resultSet.getInt( 1 ), is ( 1 ) );
+    assertThat(resultSet.next()).isTrue();
+    assertThat(resultSet.getInt(1)).isEqualTo(1);
 
     // Now advance past last row.
-    assertThat( resultSet.next(), is( false ) );
+    assertThat(resultSet.next()).isFalse();
 
     // Main check:  That row data access methods now throw SQLException.
-    try {
-      resultSet.getInt( 1 );
-      fail( "Didn't get expected SQLException." );
-    }
-    catch ( SQLException e ) {
-      // Expect something like current InvalidCursorStateSqlException saying
-      // "Result set cursor is already positioned past all rows."
-      assertThat( e, instanceOf( InvalidCursorStateSqlException.class ) );
-      assertThat( e.toString(), containsString( "past" ) );
-    }
-    // (Any other exception is unexpected result.)
+    assertThatThrownBy(() -> resultSet.getInt(1))
+      .isInstanceOf(InvalidCursorStateSqlException.class)
+      .hasMessageContaining("past");
 
-    assertThat( resultSet.next(), is( false ) );
+    assertThat(resultSet.next()).isFalse();
 
     // TODO:  Ideally, test all other accessor methods.
   }
 
   @Test
-  public void test_next_blocksFurtherAccessWhenNoRows()
-    throws Exception
-  {
+  public void test_next_blocksFurtherAccessWhenNoRows() throws Exception {
     Statement statement = getConnection().createStatement();
     ResultSet resultSet =
-        statement.executeQuery( "SELECT 'Hi' AS x \n" +
-                                "FROM cp.\"donuts.json\" \n" +
-                                "WHERE false" );
+      statement.executeQuery("SELECT 'Hi' AS x FROM cp.\"donuts.json\" WHERE false");
 
     // Do initial next(). (Advance from before results to next possible
     // position (after the set of zero rows).
-    assertThat( resultSet.next(), is( false ) );
+    assertThat(resultSet.next()).isFalse();
 
     // Main check:  That row data access methods throw SQLException.
-    try {
-      resultSet.getString( 1 );
-      fail( "Didn't get expected SQLException." );
-    }
-    catch ( SQLException e ) {
-      // Expect something like current InvalidRowSQLException saying
-      // "Result set cursor is already positioned past all rows."
-      assertThat( e, instanceOf( InvalidCursorStateSqlException.class ) );
-      assertThat( e.toString(), containsString( "past" ) );
-      assertThat( e.toString(), containsString( "rows" ) );
-    }
-    // (Any non-SQLException exception is unexpected result.)
+    // "Result set cursor is already positioned past all rows."
+    assertThatThrownBy(() -> resultSet.getString(1))
+      .isInstanceOf(InvalidCursorStateSqlException.class)
+      .hasMessageContaining("past")
+      .hasMessageContaining("rows");
 
-    assertThat( resultSet.next(), is( false ) );
+    assertThat(resultSet.next()).isFalse();
 
     // TODO:  Ideally, test all other accessor methods.
   }
 
   @Test
-  public void test_getRow_isOneBased()
-    throws Exception
-  {
+  public void test_getRow_isOneBased() throws Exception {
     Statement statement = getConnection().createStatement();
     ResultSet resultSet =
-        statement.executeQuery( "VALUES (1), (2)" );
+      statement.executeQuery("VALUES (1), (2)");
 
     // Expect 0 when before first row:
-    assertThat( "getRow() before first next()", resultSet.getRow(), equalTo( 0 ) );
+    assertThat(resultSet.getRow()).isEqualTo(0);
 
     resultSet.next();
 
     // Expect 1 at first row:
-    assertThat( "getRow() at first row", resultSet.getRow(), equalTo( 1 ) );
+    assertThat(resultSet.getRow()).isEqualTo(1);
 
     resultSet.next();
 
     // Expect 2 at second row:
-    assertThat( "getRow() at second row", resultSet.getRow(), equalTo( 2 ) );
+    assertThat(resultSet.getRow()).isEqualTo(2);
 
     resultSet.next();
 
     // Expect 0 again when after last row:
-    assertThat( "getRow() after last row", resultSet.getRow(), equalTo( 0 ) );
+    assertThat(resultSet.getRow()).isEqualTo(0);
     resultSet.next();
-    assertThat( "getRow() after last row", resultSet.getRow(), equalTo( 0 ) );
+    assertThat(resultSet.getRow()).isEqualTo(0);
   }
 
   // TODO:  Ideally, test other methods.

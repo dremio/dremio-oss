@@ -21,8 +21,10 @@ import { getDuration } from 'utils/jobListUtils';
 import { ScansForFilter } from '@app/constants/Constants';
 import jobsUtils from '@app/utils/jobsUtils';
 import FileUtils from '@app/utils/FileUtils';
+import { getQueueInfo } from '@inject/pages/JobDetailsPageNew/utils';
+
 import JobDetailsErrorInfo from '../OverView/JobDetailsErrorInfo';
-import { getFormatMessageIdForQueryType } from '../../Utils';
+import { getFormatMessageIdForQueryType } from '../../utils';
 import JobSummary from '../Summary/Summary';
 import TotalExecutionTime from '../TotalExecutionTime/TotalExecutionTime';
 import HelpSection from '../../../JobPage/components/JobDetails/HelpSection';
@@ -75,6 +77,8 @@ const OverView = (props) => {
 
   const jobSummaryData = [
     { label: 'Job.Status', content: jobDetails.get('jobStatus') },
+    { label: 'Job.TotalMemory', content: FileUtils.getFormattedBytes(jobDetails.get('totalMemory')) },
+    { label: 'Job.CpuUsed', content: jobsUtils.formatJobDurationWithMS(jobDetails.get('cpuUsed')) },
     { label: 'Job.QueryType', content: formatMessage({ id: getFormatMessageIdForQueryType(jobDetails) }) },
     {
       label: 'Job.StartTime',
@@ -90,7 +94,7 @@ const OverView = (props) => {
     },
     { label: 'Job.Summary.WaitOnClient', content: `${jobsUtils.formatJobDuration(jobDetails.get('waitInClient'))}` },
     { label: 'Common.User', content: jobDetails.get('queryUser') },
-    { label: 'Common.Queue', content: jobDetails.get('wlmQueue') },
+    getQueueInfo(jobDetails),
     {
       label: 'Job.Summary.Input',
       content: `${FileUtils.getFormattedBytes(jobDetails.get('inputBytes'))} / ${jobsUtils.getFormattedNumber(jobDetails.get('inputRecords'))} Records`
@@ -175,6 +179,6 @@ OverView.propTypes = {
   downloadJobFile: PropTypes.func,
   isContrast: PropTypes.bool,
   onClick: PropTypes.func,
-  location: PropTypes.object.isRequired
+  location: PropTypes.object
 };
 export default injectIntl(OverView);

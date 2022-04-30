@@ -79,7 +79,7 @@ describe('explore selectors', () => {
         expect(newDataset.get('displayFullPath').toJS()).to.eql(['tmp', 'New Query']);
         expect(newDataset.get('context').toJS()).to.eql(['a', 'b']);
         expect(newDataset.get('sql')).to.equal('');
-        expect(newDataset.get('datasetType')).to.equal('VIRTUAL_DATASET');
+        expect(newDataset.get('datasetType')).to.equal('SCRIPT');
         expect(newDataset.get('apiLinks').get('self')).to.equal('/dataset/tmp/UNTITLED/new_untitled_sql');
         expect(newDataset.get('needsLoad')).to.equal(false);
       });

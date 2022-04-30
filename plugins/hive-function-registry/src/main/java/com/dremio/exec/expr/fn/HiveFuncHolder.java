@@ -246,7 +246,7 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
     JVar exVar = udfInitCatch.param("ex");
     udfInitCatch.body()
       ._throw(JExpr._new(m.directClass(RuntimeException.class.getCanonicalName()))
-        .arg(JExpr.lit(String.format("Failed to initialize GenericUDF"))).arg(exVar));
+        .arg(JExpr.lit("Failed to initialize GenericUDF")).arg(exVar));
 
     sub.add(ObjectInspectorHelper.initReturnValueHolder(g, m, workspaceJVars[4], returnOI, returnType.toMinorType()));
 
@@ -290,7 +290,7 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
     JVar exVar = udfEvalCatch.param("ex");
     udfEvalCatch.body()
       ._throw(JExpr._new(m.directClass(RuntimeException.class.getCanonicalName()))
-        .arg(JExpr.lit(String.format("GenericUDF.evaluate method failed"))).arg(exVar));
+        .arg(JExpr.lit("GenericUDF.evaluate method failed")).arg(exVar));
 
     // get the ValueHolder from retVal and return ObjectInspector
     sub.add(ObjectInspectorHelper.getObject(m, returnOI, workspaceJVars[0], workspaceJVars[4], retVal));

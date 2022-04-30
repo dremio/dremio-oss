@@ -20,7 +20,9 @@ import java.util.Optional;
 
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.Location;
+import org.apache.arrow.flight.client.ClientCookieMiddleware;
 import org.apache.arrow.flight.grpc.CredentialCallOption;
+import org.apache.arrow.flight.sql.FlightSqlClient;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
@@ -34,17 +36,23 @@ public final class FlightClientUtils {
    * Container class for holding a FlightClient and its associated allocator.
    */
   public static final class FlightClientWrapper implements AutoCloseable {
-    private BufferAllocator allocator;
-    private FlightClient client;
-    private String authMode;
+    private final BufferAllocator allocator;
+    private final FlightClient client;
+    private final FlightSqlClient sqlClient;
+    private final String authMode;
     private CredentialCallOption tokenCallOption;
 
     public FlightClientWrapper(BufferAllocator allocator, FlightClient client,
                                String authMode) {
       this.allocator = allocator;
       this.client = client;
+      this.sqlClient = new FlightSqlClient(this.client);
       this.authMode = authMode;
       this.tokenCallOption = null;
+    }
+
+    public FlightSqlClient getSqlClient() {
+      return sqlClient;
     }
 
     public BufferAllocator getAllocator() {
@@ -71,9 +79,7 @@ public final class FlightClientUtils {
     public void close() throws Exception {
       // Note - client must close first as it creates a child allocator from
       // the input allocator.
-      AutoCloseables.close(client, allocator);
-      client = null;
-      allocator = null;
+      AutoCloseables.close(sqlClient, allocator);
       tokenCallOption = null;
     }
   }
@@ -81,9 +87,13 @@ public final class FlightClientUtils {
   public static FlightClientWrapper openFlightClient(int port, String user, String password,
                                                      SabotContext context, String authMode) throws Exception {
     final BufferAllocator allocator = context.getAllocator().newChildAllocator("flight-client-allocator", 0, Long.MAX_VALUE);
-    final FlightClient.Builder builder = FlightClient.builder()
+    FlightClient.Builder builder = FlightClient.builder()
       .allocator(allocator)
       .location(Location.forGrpcInsecure("localhost", port));
+
+    if (DremioFlightService.FLIGHT_AUTH2_AUTH_MODE.equals(authMode)) {
+      builder.intercept(new ClientCookieMiddleware.Factory());
+    }
 
     final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode);
 
@@ -115,6 +125,10 @@ public final class FlightClientUtils {
 
     if (trustedCerts != null) {
       builder.trustedCertificates(trustedCerts);
+    }
+
+    if (DremioFlightService.FLIGHT_AUTH2_AUTH_MODE.equals(authMode)) {
+      builder.intercept(new ClientCookieMiddleware.Factory());
     }
 
     final FlightClientWrapper wrapper = new FlightClientWrapper(allocator, builder.build(), authMode);

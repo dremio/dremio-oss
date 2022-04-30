@@ -16,6 +16,7 @@
 package com.dremio.dac.service;
 
 import static java.util.Arrays.asList;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -25,9 +26,7 @@ import java.util.Set;
 import org.apache.calcite.util.Pair;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
@@ -41,7 +40,6 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
-import com.dremio.exec.catalog.TestOptions;
 import com.dremio.file.FilePath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -52,21 +50,12 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.Lists;
 
 /**
  * Tests the dataset service
  */
 public class TestDatasetService extends BaseTestServer {
-
-  /**
-   * Rule for tests that verify {@link com.dremio.common.exceptions.UserException} type and message. See
-   * {@link UserExceptionMatcher} and e.g. {@link TestOptions#checkValidationException}.
-   * Tests that do not use this rule are not affected.
-   */
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
 
   @Before
   public void setup() throws Exception {
@@ -216,8 +205,8 @@ public class TestDatasetService extends BaseTestServer {
 
   @Test
   public void testVersionDatasetKeyFail() {
-    thrownException.expect(IllegalArgumentException.class);
-    DatasetVersionMutator.VersionDatasetKey versionDatasetKey = new DatasetVersionMutator.VersionDatasetKey("path1");
-    Assert.assertNotEquals(new DatasetPath("path1"), versionDatasetKey.getPath());
+    assertThatThrownBy(() -> new DatasetVersionMutator.VersionDatasetKey("path1"))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("version dataset key should include path and version");
   }
 }

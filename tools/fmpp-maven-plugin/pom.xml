@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.tools</groupId>
     <artifactId>dremio-tools-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <groupId>com.dremio.tools</groupId>
@@ -32,6 +32,10 @@
 
   <dependencies>
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+    <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>2.4</version>
@@ -40,6 +44,7 @@
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-core</artifactId>
       <version>3.3.3</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <artifactId>commons-logging</artifactId>
@@ -51,6 +56,7 @@
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-plugin-api</artifactId>
       <version>3.3.3</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>net.sourceforge.fmpp</groupId>

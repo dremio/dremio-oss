@@ -21,8 +21,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -75,9 +75,8 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
-import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.iceberg.IcebergFormatConfig;
+import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.IcebergUtils;
@@ -216,6 +215,52 @@ public class TestManifestRecordWriter extends BaseTestQuery {
   }
 
   @Test
+  public void testWriterWithAbort() throws Exception {
+    VectorContainer incomingVector = null;
+    String tempFolderLoc = null;
+    try {
+      tempFolderLoc = TestUtilities.createTempDir();
+      ManifestFileRecordWriter manifestFileRecordWriter = getNewManifestWriter(tempFolderLoc);
+      RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
+      RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
+      incomingVector = getIncomingVector(allocator, getTestPartitionSpec());
+
+      ArgumentCaptor<Long> recordWrittenCaptor = ArgumentCaptor.forClass(long.class);
+      ArgumentCaptor<Long> fileSizeCaptor = ArgumentCaptor.forClass(long.class);
+      ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
+      ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
+      ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
+
+      manifestFileRecordWriter.setup(incomingVector, outputEntryListener, writeStatsListener);
+      manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
+      verify(outputEntryListener, times(0)).recordsWritten(recordWrittenCaptor.capture(),
+        fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
+        partitionCaptor.capture(), icebergMetadataCaptor.capture(), any(), any());
+
+      refillIncomingVector(incomingVector, 1500, getTestPartitionSpec(), 0);
+      for (int i = 0; i < 60; i++) {
+        manifestFileRecordWriter.writeBatch(0, incomingVector.getRecordCount());
+      }
+      manifestFileRecordWriter.close();
+      File metadataFolder = new File(tempFolderLoc, "metadata");
+      assertTrue(metadataFolder.exists()); // metadata folder
+      File[] files = metadataFolder.listFiles();
+      List<File> maniFiles = Arrays.stream(files).filter(e -> e.getName().endsWith(".avro") && !e.getName().startsWith("dremio-")).collect(Collectors.toList());
+      assertEquals(2, maniFiles.size());
+      manifestFileRecordWriter.abort();
+      files = metadataFolder.listFiles();
+      maniFiles = Arrays.stream(files).filter(e -> e.getName().endsWith(".avro") && !e.getName().startsWith("dremio-")).collect(Collectors.toList());
+      assertEquals(0, maniFiles.size());
+    } finally {
+      FileUtils.deleteQuietly(new File(tempFolderLoc));
+      if (incomingVector != null) {
+        incomingVector.close();
+      }
+    }
+  }
+
+  @Test
   public void testManifestFileOverwrite() throws Exception {
     VectorContainer incomingVector = null;
     String tempFolderLoc = null;
@@ -322,13 +367,13 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     OptionManager options = mock(OptionManager.class);
     when(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)).thenReturn(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getNumVal());
     when(operatorContext.getOptions()).thenReturn(options);
-    EasyWriter easyWriter = getEasyWriter(metadataLocation, false);
+    IcebergManifestWriterPOP manifestWriterPOP = getManifestWriter(metadataLocation, false);
     IcebergFormatConfig icebergFormatConfig = new IcebergFormatConfig();
 
-    ManifestFileRecordWriter manifestFileRecordWriter = new ManifestFileRecordWriter(operatorContext, easyWriter, icebergFormatConfig) {
+    ManifestFileRecordWriter manifestFileRecordWriter = new ManifestFileRecordWriter(operatorContext, manifestWriterPOP) {
       @Override
-      ManifestWritesHelper getManifestWritesHelper(EasyWriter writer, IcebergFormatConfig formatConfig, int columnLimit) {
-        return new ManifestWritesHelper(writer, formatConfig) {
+      ManifestWritesHelper getManifestWritesHelper(IcebergManifestWriterPOP writer, int columnLimit) {
+        return new ManifestWritesHelper(writer) {
           @Override
           public PartitionSpec getPartitionSpec(WriterOptions writerOptions) {
             return getTestPartitionSpec();
@@ -780,10 +825,10 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     OptionManager options = mock(OptionManager.class);
     when(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)).thenReturn(CatalogOptions.METADATA_LEAF_COLUMN_MAX.getDefault().getNumVal());
     when(operatorContext.getOptions()).thenReturn(options);
-    EasyWriter easyWriter = getEasyWriter(metadataLocation, true);
+    IcebergManifestWriterPOP manifestWriterPOP = getManifestWriter(metadataLocation, true);
     IcebergFormatConfig icebergFormatConfig = new IcebergFormatConfig();
 
-    ManifestFileRecordWriter manifestFileRecordWriter = new ManifestFileRecordWriter(operatorContext, easyWriter, icebergFormatConfig);
+    ManifestFileRecordWriter manifestFileRecordWriter = new ManifestFileRecordWriter(operatorContext, manifestWriterPOP);
     manifestFileRecordWriter = spy(manifestFileRecordWriter);
     doAnswer((i) -> null).when(manifestFileRecordWriter).updateStats(anyLong(), anyLong());
 
@@ -791,19 +836,17 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     return manifestFileRecordWriter;
   }
 
-  private EasyWriter getEasyWriter(String metadataLocation, boolean detectSchema) throws IOException {
-    EasyWriter easyWriter = mock(EasyWriter.class);
-    EasyFormatPlugin easyFormatPlugin = mock(EasyFormatPlugin.class);
-    when(easyWriter.getFormatPlugin()).thenReturn(easyFormatPlugin);
-    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
-    when(easyFormatPlugin.getFsPlugin()).thenReturn(fileSystemPlugin);
+  private IcebergManifestWriterPOP getManifestWriter(String metadataLocation, boolean detectSchema) throws IOException {
+    IcebergManifestWriterPOP manifestWriterPOP = mock(IcebergManifestWriterPOP.class);
+    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     Configuration configuration = new Configuration();
     when(fileSystemPlugin.getFsConfCopy()).thenReturn(configuration);
     final FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     when(fileSystemPlugin.getSystemUserFS()).thenReturn(fs);
-    when(easyWriter.getLocation()).thenReturn(metadataLocation + "/queryID");
+    when(manifestWriterPOP.getLocation()).thenReturn(metadataLocation + "/queryID");
+    when(manifestWriterPOP.getPlugin()).thenReturn(fileSystemPlugin);
     WriterOptions writerOptions = mock(WriterOptions.class);
-    when(easyWriter.getOptions()).thenReturn(writerOptions);
+    when(manifestWriterPOP.getOptions()).thenReturn(writerOptions);
     IcebergTableProps icebergTableProps = mock(IcebergTableProps.class);
     when(icebergTableProps.getTableLocation()).thenReturn(metadataLocation);
     when(icebergTableProps.getFullSchema()).thenReturn(BatchSchema.EMPTY);
@@ -813,6 +856,6 @@ public class TestManifestRecordWriter extends BaseTestQuery {
     when(icebergTableProps.getFullSchema()).thenReturn(BatchSchema.of(Field.nullable("id", new ArrowType.Int(32, false))));
     when(writerOptions.getIcebergTableProps()).thenReturn(icebergTableProps);
     when(writerOptions.getExtendedProperty()).thenReturn(null);
-    return easyWriter;
+    return manifestWriterPOP;
   }
 }

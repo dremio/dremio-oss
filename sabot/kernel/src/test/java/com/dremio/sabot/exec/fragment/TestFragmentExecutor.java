@@ -16,7 +16,7 @@
 package com.dremio.sabot.exec.fragment;
 
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -126,6 +126,7 @@ public class TestFragmentExecutor {
                 config,
                 executionControls,
                 fragment,
+                1,
                 clusterCoordinator,
                 reader,
                 sharedResources,
@@ -135,6 +136,7 @@ public class TestFragmentExecutor {
                 contextCreator,
                 functionLookupContext,
                 decimalFunctionLookupContext,
+                null,
                 tunnelProvider,
                 flushable,
                 fragmentOptions,

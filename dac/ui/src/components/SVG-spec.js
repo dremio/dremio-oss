@@ -41,17 +41,6 @@ describe('SVG-spec', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with <img> by default', () => {
-    const wrapper = shallow(<SVG {...commonProps} />);
-    expect(wrapper.find('img')).to.have.length(1);
-    expect(wrapper.find('img').props().title).to.equal('tooltip');
-  });
-
-  it('should render title=true with the aria-label', () => {
-    const wrapper = shallow(<SVG {...commonProps} title/>);
-    expect(wrapper.find('img').props().title).to.equal('some text');
-  });
-
 // todo: enable test when we have such an image
 //   it('should render inline without exploding', () => {
 //     const wrapper = shallow(<SVG {...commonProps} />);

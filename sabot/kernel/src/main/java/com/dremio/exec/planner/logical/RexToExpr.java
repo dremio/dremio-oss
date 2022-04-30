@@ -77,6 +77,7 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.planner.StarColumnHelper;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.work.ExecErrorConstants;
 import com.google.common.base.Preconditions;
@@ -365,7 +366,7 @@ public class RexToExpr {
           return dtPlus;
         }
 
-        if (call.getOperator() == SqlStdOperatorTable.DATETIME_MINUS) {
+        if (MoreRelOptUtil.isDatetimeMinusInterval(call)) {
           return doFunction(call, "-");
         }
 

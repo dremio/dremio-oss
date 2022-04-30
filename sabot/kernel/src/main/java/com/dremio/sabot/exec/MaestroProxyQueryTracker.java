@@ -17,6 +17,7 @@ package com.dremio.sabot.exec;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,12 +37,15 @@ import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
 import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactoryImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
@@ -68,6 +72,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
   private final ClusterCoordinator clusterCoordinator;
   private final Map<FragmentHandle, FragmentStatus> lastFragmentStatuses = new HashMap<>();
   private final ForemanDeathListener foremanDeathListener = new ForemanDeathListener();
+  private final FileCursorManagerFactory fileCursorManagerFactory = new FileCursorManagerFactoryImpl();
 
   private State state = State.INVALID;
   private boolean cancelled;
@@ -83,6 +88,8 @@ class MaestroProxyQueryTracker implements QueryTracker {
   private volatile boolean foremanDead;
   private AtomicInteger pendingMessages = new AtomicInteger(0);
   private Set<FragmentHandle> pendingFragments = null;
+  private Set<FragmentHandle> notStartedFragments = null;
+  private boolean notifyFileCursorManagerDone;
 
   /**
    * Initialize with the set of fragment handles for the query before
@@ -94,6 +101,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
     Preconditions.checkState(pendingFragments != null && pendingFragments.size() > 0, "Pending " +
       "fragments should be non empty.");
     this.pendingFragments = pendingFragments;
+    this.notStartedFragments = new HashSet<>(pendingFragments);
   }
 
   enum State {
@@ -178,12 +186,17 @@ class MaestroProxyQueryTracker implements QueryTracker {
     return state == FragmentState.FAILED
       || state == FragmentState.FINISHED
       || state == FragmentState.CANCELLED;
+  }
 
+  static private boolean isRunningOrTerminal(FragmentState state) {
+    return state == FragmentState.RUNNING || isTerminal(state);
   }
 
   @Override
   public synchronized void refreshFragmentStatus(FragmentStatus fragmentStatus) {
     final FragmentHandle handle = fragmentStatus.getHandle();
+    checkAndRemoveFromUnstartedFragments(handle, fragmentStatus.getProfile().getState());
+
     FragmentStatus prevStatus = lastFragmentStatuses.get(handle);
     if (prevStatus != null && isTerminal(prevStatus.getProfile().getState())) {
       // can happen if there is a race between fragment completion and status reporter.
@@ -224,16 +237,39 @@ class MaestroProxyQueryTracker implements QueryTracker {
 
   static private QueryProgressMetrics buildProgressMetrics(List<FragmentStatus> fragmentStatuses) {
     long recordCount = 0;
+    long outputRecordCount = -1;
     for (FragmentStatus fragmentStatus : fragmentStatuses) {
       for (OperatorProfile operatorProfile : fragmentStatus.getProfile().getOperatorProfileList()) {
         for (StreamProfile streamProfile : operatorProfile.getInputProfileList()) {
           recordCount += streamProfile.getRecords();
+          if (isOutputOperator(CoreOperatorType.valueOf(operatorProfile.getOperatorType()))) {
+            if (outputRecordCount == -1) {
+              outputRecordCount = streamProfile.getRecords();
+            } else {
+              outputRecordCount += streamProfile.getRecords();
+            }
+          }
         }
       }
     }
     return QueryProgressMetrics.newBuilder()
       .setRowsProcessed(recordCount)
+      .setOutputRecords(outputRecordCount)
       .build();
+  }
+
+  // derived from QueryProfileParser.java, all operators which produce output to client except SCREEN.
+  static private boolean isOutputOperator(CoreOperatorType type) {
+    switch (type) {
+      case ARROW_WRITER:
+      case PARQUET_WRITER:
+      case TEXT_WRITER:
+      case JSON_WRITER:
+        return true;
+
+      default:
+        return false;
+    }
   }
 
   /**
@@ -252,6 +288,24 @@ class MaestroProxyQueryTracker implements QueryTracker {
     return newFragmentStatus;
   }
 
+  private void checkAndRemoveFromUnstartedFragments(FragmentHandle handle, FragmentState state) {
+    if (notifyFileCursorManagerDone || !isRunningOrTerminal(state)) {
+      return;
+    }
+
+    boolean mustNotify = false;
+    synchronized (this) {
+      notStartedFragments.remove(handle);
+      if (notStartedFragments.isEmpty()) {
+        mustNotify = true;
+      }
+    }
+    if (mustNotify) {
+      fileCursorManagerFactory.notifyAllRegistrationsDone();
+      notifyFileCursorManagerDone = true;
+    }
+  }
+
   /**
    * Handle the status change of one fragment.
    *
@@ -264,6 +318,7 @@ class MaestroProxyQueryTracker implements QueryTracker {
 
     final FragmentHandle handle = fragmentStatus.getHandle();
     final MinorFragmentProfile profile = fragmentStatus.getProfile();
+    checkAndRemoveFromUnstartedFragments(handle, profile.getState());
 
     NodeQueryFirstError firstError = null;
     NodeQueryScreenCompletion screenCompletion = null;
@@ -473,6 +528,11 @@ class MaestroProxyQueryTracker implements QueryTracker {
     if (pendingMessages.decrementAndGet() == 0) {
       clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).removeNodeStatusListener(foremanDeathListener);
     }
+  }
+
+  @Override
+  public FileCursorManagerFactory getFileCursorManagerFactory() {
+    return fileCursorManagerFactory;
   }
 
   private class ForemanDeathListener implements NodeStatusListener {

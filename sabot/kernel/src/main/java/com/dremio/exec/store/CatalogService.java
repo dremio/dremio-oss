@@ -25,7 +25,6 @@ import org.apache.calcite.tools.RuleSet;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.MetadataRequestOptions;
-import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.service.Service;
@@ -39,7 +38,7 @@ import com.google.common.annotations.VisibleForTesting;
  * Manages metadata for sources and datasets under these sources.
  */
 @ThreadSafe
-public interface CatalogService extends AutoCloseable, Service {
+public interface CatalogService extends AutoCloseable, Service, StoragePluginResolver {
 
   long DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.HOURS);
   long DEFAULT_EXPIRE_MILLIS = TimeUnit.MILLISECONDS.convert(3, TimeUnit.HOURS);
@@ -110,21 +109,6 @@ public interface CatalogService extends AutoCloseable, Service {
    * @throws ConcurrentModificationException
    */
   boolean createSourceIfMissingWithThrow(SourceConfig config) throws ConcurrentModificationException;
-
-  /**
-   * Get a StoragePlugin according to the provided StoragePluginId. StoragePluginId is used as the
-   * key when moving from planning to execution and will generally be exposed by Tables returned by
-   * Catalog. Typically, a CatalogService consumer should never create a StoragePluginId.
-   * <p>
-   * This method will update the storage plugin if the config is newer than the one held locally.
-   * This method will not check the kvstore for additional updates, simply trusting the provided
-   * PluginId as a canonical source of truth. If the provided StoragePluginId has an older version
-   * of configuration than the one currently active on this node, an exception will be thrown.
-   *
-   * @param pluginId
-   * @return A StoragePlugin casted to the expected output.
-   */
-  <T extends StoragePlugin> T getSource(StoragePluginId pluginId);
 
 
   /**

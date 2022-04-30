@@ -51,4 +51,10 @@ public interface CoreIndexedStore<K, V> extends CoreKVStore<K, V> {
    */
    int reindex();
 
+  /**
+   * Version for the indicies.
+   *
+   *  @return version number.
+   */
+  Integer version();
 }

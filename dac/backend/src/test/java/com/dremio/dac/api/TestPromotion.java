@@ -39,7 +39,7 @@ import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
-import com.dremio.service.namespace.file.proto.TextFileConfig;
+import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 
 /**
  * Test dataset promotion.
@@ -219,9 +219,8 @@ public class TestPromotion extends BaseTestServer {
         new GenericType<Folder>() {}
     );
 
-    TextFileConfig textFileConfig = new TextFileConfig();
-    textFileConfig.setLineDelimiter("\n");
-    Dataset dataset = createPDS(folder.getPath(), textFileConfig);
+    ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
+    Dataset dataset = createPDS(folder.getPath(), parquetFileConfig);
 
     dataset = expectSuccess(
         getBuilder(getPublicAPI(3)

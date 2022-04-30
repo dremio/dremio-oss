@@ -15,9 +15,7 @@
  */
 package com.dremio.jdbc;
 
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,11 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarFile;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.Matcher;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -58,30 +52,19 @@ public class ITValidateShadedJar {
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = Timeout.builder().withTimeout(2, TimeUnit.MINUTES).build();
 
-
-
-  private static List<String> ALLOWED_PREFIXES = Collections.unmodifiableList(Arrays.asList(
+  private static final List<String> ALLOWED_PREFIXES = Collections.unmodifiableList(Arrays.asList(
       "com/dremio/jdbc/",
       "cdjd/",
       "org/slf4j/",
       "META-INF/"));
 
-  private static List<String> ALLOWED_FILES = Collections.unmodifiableList(Arrays.asList(
+  private static final List<String> ALLOWED_FILES = Collections.unmodifiableList(Arrays.asList(
       "CDJDLog4j-charsets.properties",
       "git.properties",
       "dremio-jdbc.properties",
       "dremio-reference.conf",
       "sabot-default.conf",
       "sabot-module.conf"));
-
-  /*
-   * Matcher checking if the file either starts with a valid prefix, or is one of the allowed files
-   */
-  private static Matcher<String> ANY_ALLOWED_FILES = anyOf(
-      Stream.concat(
-          ALLOWED_PREFIXES.stream().map(CoreMatchers::startsWith),
-          ALLOWED_FILES.stream().map(CoreMatchers::equalTo))
-      .collect(Collectors.toList()));
 
   @Test
   public void validateShadedJar() throws IOException {
@@ -92,8 +75,10 @@ public class ITValidateShadedJar {
           // skip directories
           return;
         }
-        assertThat(entry.getName(), is(ANY_ALLOWED_FILES));
-
+        assertThat(entry.getName())
+          .satisfiesAnyOf(
+            name -> assertThat(ALLOWED_PREFIXES).anySatisfy(x -> assertThat(name).startsWith(x)),
+            name -> assertThat(ALLOWED_FILES).anySatisfy(x -> assertThat(name).isEqualTo(x)));
       });
     }
   }

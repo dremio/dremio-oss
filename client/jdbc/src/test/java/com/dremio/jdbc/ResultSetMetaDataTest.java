@@ -15,10 +15,7 @@
  */
 package com.dremio.jdbc;
 
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -32,7 +29,6 @@ import java.sql.Timestamp;
 import java.sql.Types;
 
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -133,9 +129,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
     // Create temporary test-columns view:
     util = stmt.executeQuery( "USE \"" + VIEW_SCHEMA + "\"" );
-    assertTrue( util.next() );
-    assertTrue( "Error setting schema for test: " + util.getString( 2 ),
-                util.getBoolean( 1 ) );
+    assertThat(util.next()).isTrue();
+    assertThat(util.getBoolean(1)).as("Error setting schema for test: " + util.getString(2))
+      .isTrue();
 
     columnCount = 0;
     final StringBuilder buf = new StringBuilder();
@@ -229,9 +225,10 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
     final String query = buf.toString();
     util = stmt.executeQuery( query );
-    assertTrue( util.next() );
-    assertTrue( "Error creating temporary test-columns view " + VIEW_NAME + ": "
-                + util.getString( 2 ), util.getBoolean( 1 ) );
+    assertThat(util.next()).isTrue();
+    assertThat(util.getBoolean(1)).as(
+      "Error creating temporary test-columns view " + VIEW_NAME + ": "
+        + util.getString(2)).isTrue();
 
     viewRow = stmt.executeQuery( "SELECT * FROM " + VIEW_NAME + " LIMIT 1 " );
     viewRow.next();
@@ -243,9 +240,10 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
   public static void tearDownConnection() throws SQLException {
     final ResultSet util =
         connection.createStatement().executeQuery( "DROP VIEW " + VIEW_NAME + "" );
-    assertTrue( util.next() );
-    assertTrue( "Error dropping temporary test-columns view " + VIEW_NAME + ": "
-                + util.getString( 2 ), util.getBoolean( 1 ) );
+    assertThat(util.next()).isTrue();
+    assertThat(util.getBoolean(1)).as(
+      "Error dropping temporary test-columns view " + VIEW_NAME + ": "
+        + util.getString(2)).isTrue();
     connection.close();
   }
 
@@ -259,10 +257,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnCount() throws SQLException {
-    assertThat( "column count",
-                rowMetadata.getColumnCount(), equalTo( columnCount ) );
+    assertThat(rowMetadata.getColumnCount()).isEqualTo(columnCount);
   }
-
 
   ////////////////////////////////////////////////////////////
   // isAutoIncrement(...):
@@ -270,9 +266,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isAutoIncrement_returnsFalse() throws SQLException {
-    assertThat( rowMetadata.isAutoIncrement( ordOptBOOLEAN ), equalTo( false ) );
+    assertThat(rowMetadata.isAutoIncrement(ordOptBOOLEAN)).isFalse();
   }
-
 
   ////////////////////////////////////////////////////////////
   // isCaseSensitive(...):
@@ -282,9 +277,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isCaseSensitive_nameThisNonSpecific() throws SQLException {
-    assertThat( rowMetadata.isCaseSensitive( ordOptBOOLEAN ), equalTo( false ) );
+    assertThat(rowMetadata.isCaseSensitive(ordOptBOOLEAN)).isFalse();
   }
-
 
   ////////////////////////////////////////////////////////////
   // isSearchable(...):
@@ -294,9 +288,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isSearchable_returnsTrue() throws SQLException {
-    assertThat( rowMetadata.isSearchable( ordOptBOOLEAN ), equalTo( true ) );
+    assertThat(rowMetadata.isSearchable(ordOptBOOLEAN)).isTrue();
   }
-
 
   ////////////////////////////////////////////////////////////
   // isCurrency(...):
@@ -304,7 +297,7 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isCurrency_returnsFalse() throws SQLException {
-    assertThat( rowMetadata.isCurrency( ordOptBOOLEAN ), equalTo( false ) );
+    assertThat(rowMetadata.isCurrency(ordOptBOOLEAN)).isFalse();
   }
 
   ////////////////////////////////////////////////////////////
@@ -313,10 +306,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isNullable_forNullable() throws SQLException {
-    assertThat( rowMetadata.isNullable( ordOptBOOLEAN ),
-                equalTo( ResultSetMetaData.columnNullable) );
+    assertThat(rowMetadata.isNullable(ordOptBOOLEAN)).isEqualTo(ResultSetMetaData.columnNullable);
   }
-
 
   ////////////////////////////////////////////////////////////
   // isSigned(...):
@@ -325,57 +316,56 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isSigned_forBOOLEAN() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordOptBOOLEAN ), equalTo( false ) );
+    assertThat(rowMetadata.isSigned(ordOptBOOLEAN)).isFalse();
   }
 
   @Test
   public void test_isSigned_forINTEGER() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordReqINTEGER ), equalTo( true ) );
+    assertThat(rowMetadata.isSigned(ordReqINTEGER)).isTrue();
   }
 
   @Test
   public void test_isSigned_forDOUBLE() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordReqDOUBLE ), equalTo( true ) );
+    assertThat(rowMetadata.isSigned(ordReqDOUBLE)).isTrue();
   }
 
   @Test
   public void test_isSigned_forDECIMAL_5_3() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordReqDECIMAL_5_3 ), equalTo( true ) );
+    assertThat(rowMetadata.isSigned(ordReqDECIMAL_5_3)).isTrue();
   }
 
   @Test
   public void test_isSigned_forVARCHAR() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordReqVARCHAR_10 ), equalTo( false ) );
+    assertThat(rowMetadata.isSigned(ordReqVARCHAR_10)).isFalse();
   }
 
   @Test
-  @Ignore( "TODO(DRILL-3368): unignore when VARBINARY is implemented enough" )
+  @Ignore("TODO(DRILL-3368): unignore when VARBINARY is implemented enough")
   public void test_isSigned_forBINARY_1048576() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordOptBINARY_1048576 ), equalTo( false ) );
+    assertThat(rowMetadata.isSigned(ordOptBINARY_1048576)).isFalse();
   }
 
   @Test
   public void test_isSigned_forDate() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordReqDATE ), equalTo( false ) );
+    assertThat(rowMetadata.isSigned(ordReqDATE)).isFalse();
   }
 
   @Test
   public void test_isSigned_forTIME_2() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordReqTIME_2 ), equalTo( false ) );
+    assertThat(rowMetadata.isSigned(ordReqTIME_2)).isFalse();
   }
 
   @Test
   public void test_isSigned_forTIMESTAMP_4() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordReqTIMESTAMP_4 ), equalTo( false ) );
+    assertThat(rowMetadata.isSigned(ordReqTIMESTAMP_4)).isFalse();
   }
 
   @Test
   public void test_isSigned_forINTERVAL_Y() throws SQLException {
-    assertThat( rowMetadata.isSigned( ordReqINTERVAL_Y ), equalTo( true ) );
+    assertThat(rowMetadata.isSigned(ordReqINTERVAL_Y)).isTrue();
   }
 
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.
-
 
   ////////////////////////////////////////////////////////////
   // getColumnDisplaySize(...):
@@ -386,13 +376,11 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnDisplaySize_forBOOLEAN() throws SQLException {
-    assertThat( rowMetadata.getColumnDisplaySize( ordOptBOOLEAN ),
-                equalTo( 1 ) );
+    assertThat(rowMetadata.getColumnDisplaySize(ordOptBOOLEAN)).isEqualTo(1);
   }
 
   // TODO(DRILL-3355):  Do more types when metadata is available.
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.
-
 
   ////////////////////////////////////////////////////////////
   // getColumnLabel(...):
@@ -404,10 +392,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnLabel_getsName() throws SQLException {
-    assertThat( rowMetadata.getColumnLabel( ordOptBOOLEAN ),
-                equalTo( "mdrOptBOOLEAN" ) );
+    assertThat(rowMetadata.getColumnLabel(ordOptBOOLEAN)).isEqualTo("mdrOptBOOLEAN");
   }
-
 
   ////////////////////////////////////////////////////////////
   // getColumnName(...):
@@ -415,10 +401,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnName_getsName() throws SQLException {
-    assertThat( rowMetadata.getColumnName( ordOptBOOLEAN ),
-                equalTo( "mdrOptBOOLEAN" ) );
+    assertThat(rowMetadata.getColumnName(ordOptBOOLEAN)).isEqualTo("mdrOptBOOLEAN");
   }
-
 
   ////////////////////////////////////////////////////////////
   // getSchemaName(...):
@@ -429,11 +413,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getSchemaName_forViewGetsName() throws SQLException {
-    assertThat( rowMetadata.getSchemaName( ordOptBOOLEAN ),
-                anyOf( equalTo( VIEW_SCHEMA ),
-                       equalTo( "" ) ) );
+    assertThat(rowMetadata.getSchemaName(ordOptBOOLEAN))
+      .satisfiesAnyOf(s -> assertThat(s).isEqualTo(VIEW_NAME), s -> assertThat(s).isEmpty());
   }
-
 
   ////////////////////////////////////////////////////////////
   // getPrecision(...):
@@ -455,42 +437,41 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getPrecision_forBOOLEAN() throws SQLException {
-    assertThat( rowMetadata.getPrecision( ordOptBOOLEAN ), equalTo( 0 ) );
+    assertThat(rowMetadata.getPrecision(ordOptBOOLEAN)).isEqualTo(0);
   }
 
-  @Ignore( "TODO(DRILL-3355): unignore when getPrecision(...) implemented" )
+  @Ignore("TODO(DRILL-3355): unignore when getPrecision(...) implemented")
   @Test
   public void test_getPrecision_forINTEGER() throws SQLException {
     // Is it actual nodes?:
-    assertThat( rowMetadata.getPrecision( ordReqINTEGER ), equalTo( 32 ) );
+    assertThat(rowMetadata.getPrecision(ordReqINTEGER)).isEqualTo(32);
     // Is it number of possible decimal digits?
-    assertThat( rowMetadata.getPrecision( ordReqINTEGER ), equalTo( 10 ) );
+    assertThat(rowMetadata.getPrecision(ordReqINTEGER)).isEqualTo(10);
     // Is it minimum guaranteed decimal digits?
-    assertThat( rowMetadata.getPrecision( ordReqINTEGER ), equalTo( 9 ) );
+    assertThat(rowMetadata.getPrecision(ordReqINTEGER)).isEqualTo(9);
   }
 
-  @Ignore( "TODO(DRILL-3355): unignore when getPrecision(...) implemented" )
+  @Ignore("TODO(DRILL-3355): unignore when getPrecision(...) implemented")
   @Test
   public void test_getPrecision_forDOUBLE() throws SQLException {
     // Is it actual nodes?:
-    assertThat( rowMetadata.getPrecision( ordReqDOUBLE ), equalTo( 53 ) );
+    assertThat(rowMetadata.getPrecision(ordReqDOUBLE)).isEqualTo(53);
     // Is it number of possible decimal digits?
-    assertThat( rowMetadata.getPrecision( ordReqINTEGER ), equalTo( 7 ) );
+    assertThat(rowMetadata.getPrecision(ordReqINTEGER)).isEqualTo(7);
     // Is it minimum guaranteed decimal digits?
-    assertThat( rowMetadata.getPrecision( ordReqDOUBLE ), equalTo( 6 ) );
+    assertThat(rowMetadata.getPrecision(ordReqDOUBLE)).isEqualTo(6);
   }
 
-  @Ignore( "TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE" )
+  @Ignore("TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE")
   @Test
   public void test_getPrecision_forDECIMAL_5_3() throws SQLException {
-    assertThat( rowMetadata.getPrecision( ordReqDECIMAL_5_3 ), equalTo( 5 ) );
+    assertThat(rowMetadata.getPrecision(ordReqDECIMAL_5_3)).isEqualTo(5);
   }
 
   // TODO(DRILL-3355):  Do more types when metadata is available.
   // - Copy in tests for DatabaseMetaData.getColumns(...)'s COLUMN_SIZE (since
   //   ResultSetMetaData.getPrecision(...) seems to be defined the same.
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.
-
 
   ////////////////////////////////////////////////////////////
   // getScale(...):
@@ -501,24 +482,23 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getScale_forBOOLEAN() throws SQLException {
-    assertThat( rowMetadata.getScale( ordOptBOOLEAN ), equalTo( 0 ) );
+    assertThat(rowMetadata.getScale(ordOptBOOLEAN)).isEqualTo(0);
   }
 
   @Test
   public void test_getScale_forINTEGER() throws SQLException {
-    assertThat( rowMetadata.getScale( ordReqINTEGER ), equalTo( 0 ) );
+    assertThat(rowMetadata.getScale(ordReqINTEGER)).isEqualTo(0);
   }
 
-  @Ignore( "TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE" )
+  @Ignore("TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE")
   @Test
   public void test_getScale_forDECIMAL_5_3() throws SQLException {
-    assertThat( rowMetadata.getScale( ordReqDECIMAL_5_3 ), equalTo( 3 ) );
+    assertThat(rowMetadata.getScale(ordReqDECIMAL_5_3)).isEqualTo(3);
   }
 
   // TODO(DRILL-3355):  Do more types when metadata is available.
   // - especially TIME and INTERVAL cases.
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.
-
 
   ////////////////////////////////////////////////////////////
   // getTableName(...):
@@ -528,11 +508,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getTableName_forViewGetsName() throws SQLException {
-    assertThat( rowMetadata.getTableName( ordOptBOOLEAN ),
-                anyOf( equalTo( VIEW_NAME ),
-                       equalTo( "" ) ) );
+    assertThat(rowMetadata.getTableName(ordOptBOOLEAN))
+      .satisfiesAnyOf(s -> assertThat(s).isEqualTo(VIEW_NAME), s -> assertThat(s).isEmpty());
   }
-
 
   ////////////////////////////////////////////////////////////
   // getCatalogName(...):
@@ -545,10 +523,9 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getCatalogName_getsCatalogName() throws SQLException {
-    assertThat( rowMetadata.getCatalogName( ordOptBOOLEAN ),
-                anyOf( equalTo( "DREMIO" ), equalTo( "" ) ) );
+    assertThat(rowMetadata.getCatalogName(ordOptBOOLEAN))
+      .satisfiesAnyOf(s -> assertThat(s).isEqualTo("DREMIO"), s -> assertThat(s).isEmpty());
   }
-
 
   ////////////////////////////////////////////////////////////
   // getColumnType(...):
@@ -558,126 +535,106 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnType_forBOOLEAN() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordOptBOOLEAN ),
-                equalTo( Types.BOOLEAN ) );
+    assertThat(rowMetadata.getColumnType(ordOptBOOLEAN)).isEqualTo(Types.BOOLEAN);
   }
 
-  @Ignore( "TODO(DRILL-2470): unignore when SMALLINT is implemented" )
+  @Ignore("TODO(DRILL-2470): unignore when SMALLINT is implemented")
   @Test
   public void test_getColumnType_forSMALLINT() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqSMALLINT ),
-                equalTo( Types.SMALLINT ) );
+    assertThat(rowMetadata.getColumnType(ordReqSMALLINT)).isEqualTo(Types.SMALLINT);
   }
 
   @Test
   public void test_getColumnType_forINTEGER() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqINTEGER ),
-                equalTo( Types.INTEGER ) );
+    assertThat(rowMetadata.getColumnType(ordReqINTEGER)).isEqualTo(Types.INTEGER);
   }
 
   @Test
   public void test_getColumnType_forBIGINT() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqBIGINT ),
-                equalTo( Types.BIGINT ) );
+    assertThat(rowMetadata.getColumnType(ordReqBIGINT)).isEqualTo(Types.BIGINT);
   }
 
-  @Ignore( "TODO(DRILL-2683): unignore when REAL is implemented" )
+  @Ignore("TODO(DRILL-2683): unignore when REAL is implemented")
   @Test
   public void test_getColumnType_forREAL() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqREAL ),
-                equalTo( Types.REAL ) );
+    assertThat(rowMetadata.getColumnType(ordReqREAL)).isEqualTo(Types.REAL);
   }
 
   @Test
   public void test_getColumnType_forFLOAT() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqFLOAT ),
-                equalTo( Types.FLOAT ) );
+    assertThat(rowMetadata.getColumnType(ordReqFLOAT)).isEqualTo(Types.FLOAT);
   }
 
   @Test
   public void test_getColumnType_forDOUBLE() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqDOUBLE ),
-                equalTo( Types.DOUBLE ) );
+    assertThat(rowMetadata.getColumnType(ordReqDOUBLE)).isEqualTo(Types.DOUBLE);
   }
 
-  @Ignore( "TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE" )
+  @Ignore("TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE")
   @Test
   public void test_getColumnType_forDECIMAL_5_3() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqDECIMAL_5_3 ),
-                equalTo( Types.DECIMAL ) );
+    assertThat(rowMetadata.getColumnType(ordReqDECIMAL_5_3)).isEqualTo(Types.DECIMAL);
   }
 
   @Test
   public void test_getColumnType_forVARCHAR_10() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqVARCHAR_10 ),
-                equalTo( Types.VARCHAR ) );
+    assertThat(rowMetadata.getColumnType(ordReqVARCHAR_10)).isEqualTo(Types.VARCHAR);
   }
 
   @Test
   public void test_getColumnType_forVARCHAR() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordOptVARCHAR ),
-                equalTo( Types.VARCHAR ) );
+    assertThat(rowMetadata.getColumnType(ordOptVARCHAR)).isEqualTo(Types.VARCHAR);
   }
 
-  @Ignore( "TODO(DRILL-3369): unignore when CHAR is no longer VARCHAR" )
+  @Ignore("TODO(DRILL-3369): unignore when CHAR is no longer VARCHAR")
   @Test
   public void test_getColumnType_forCHAR_5() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqCHAR_5 ),
-                equalTo( Types.CHAR ) );
+    assertThat(rowMetadata.getColumnType(ordReqCHAR_5)).isEqualTo(Types.CHAR);
   }
 
-  @Ignore( "TODO(DRILL-3368): unignore when VARBINARY is implemented enough" )
+  @Ignore("TODO(DRILL-3368): unignore when VARBINARY is implemented enough")
   @Test
   public void test_getColumnType_forVARBINARY_16() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordOptVARBINARY_16 ),
-                equalTo( Types.VARBINARY ) );
+    assertThat(rowMetadata.getColumnType(ordOptVARBINARY_16)).isEqualTo(Types.VARBINARY);
   }
 
-  @Ignore( "TODO(DRILL-3368): unignore when BINARY is implemented enough" )
+  @Ignore("TODO(DRILL-3368): unignore when BINARY is implemented enough")
   @Test
   public void test_getColumnType_forBINARY_1048576CHECK() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordOptBINARY_1048576 ),
-                equalTo( Types.VARBINARY ) );
+    assertThat(rowMetadata.getColumnType(ordOptBINARY_1048576)).isEqualTo(Types.VARBINARY);
   }
 
   @Test
   public void test_getColumnType_forDATE() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqDATE ),
-                equalTo( Types.DATE ) );
+    assertThat(rowMetadata.getColumnType(ordReqDATE)).isEqualTo(Types.DATE);
   }
 
   @Test
   public void test_getColumnType_forTIME_2() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqTIME_2 ),
-                equalTo( Types.TIME ) );
+    assertThat(rowMetadata.getColumnType(ordReqTIME_2)).isEqualTo(Types.TIME);
   }
 
   @Test
   public void test_getColumnType_forTIME_7() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordOptTIME_7 ),
-                equalTo( Types.TIME ) );
+    assertThat(rowMetadata.getColumnType(ordOptTIME_7)).isEqualTo(Types.TIME);
   }
 
   @Test
   public void test_getColumnType_forTIMESTAMP_4() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqTIMESTAMP_4 ),
-                equalTo( Types.TIMESTAMP ) );
+    assertThat(rowMetadata.getColumnType(ordReqTIMESTAMP_4)).isEqualTo(Types.TIMESTAMP);
   }
 
   @Test
   public void test_getColumnType_forINTERVAL_Y() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqINTERVAL_Y ),
-                equalTo( Types.OTHER ) );
+    assertThat(rowMetadata.getColumnType(ordReqINTERVAL_Y)).isEqualTo(Types.OTHER);
   }
 
   @Test
   public void test_getColumnType_forINTERVAL_H_S3() throws SQLException {
-    assertThat( rowMetadata.getColumnType( ordReqINTERVAL_3H_S1 ),
-                equalTo( Types.OTHER ) );
+    assertThat(rowMetadata.getColumnType(ordReqINTERVAL_3H_S1)).isEqualTo(Types.OTHER);
   }
 
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.
-
 
   ////////////////////////////////////////////////////////////
   // getColumnTypeName(...):
@@ -688,114 +645,97 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnTypeName_forBOOLEAN() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordOptBOOLEAN ),
-                equalTo( "BOOLEAN" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordOptBOOLEAN)).isEqualTo("BOOLEAN");
   }
 
-  @Ignore( "TODO(DRILL-2470): unignore when SMALLINT is implemented" )
+  @Ignore("TODO(DRILL-2470): unignore when SMALLINT is implemented")
   @Test
   public void test_getColumnTypeName_forSMALLINT() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqSMALLINT ),
-                equalTo( "SMALLINT" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqSMALLINT)).isEqualTo("SMALLINT");
   }
 
   @Test
   public void test_getColumnTypeName_forINTEGER() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqINTEGER ),
-                equalTo( "INTEGER" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqINTEGER)).isEqualTo("INTEGER");
   }
 
   @Test
   public void test_getColumnTypeName_forBIGINT() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqBIGINT ),
-                equalTo( "BIGINT" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqBIGINT)).isEqualTo("BIGINT");
   }
 
-  @Ignore( "TODO(DRILL-2683): unignore when REAL is implemented" )
+  @Ignore("TODO(DRILL-2683): unignore when REAL is implemented")
   @Test
   public void test_getColumnTypeName_forREAL() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqREAL ),
-                equalTo( "REAL" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqREAL)).isEqualTo("REAL");
   }
 
   @Test
   public void test_getColumnTypeName_forFLOAT() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqFLOAT ),
-                equalTo( "FLOAT" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqFLOAT)).isEqualTo("FLOAT");
   }
 
   @Test
   public void test_getColumnTypeName_forDOUBLE() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqDOUBLE ),
-                equalTo( "DOUBLE" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqDOUBLE)).isEqualTo("DOUBLE");
   }
 
-  @Ignore( "TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE" )
+  @Ignore("TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE")
   @Test
   public void test_getColumnTypeName_forDECIMAL_5_3() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqDECIMAL_5_3 ),
-                equalTo( "DECIMAL" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqDECIMAL_5_3)).isEqualTo("DECIMAL");
   }
 
   @Test
   public void test_getColumnTypeName_forVARCHAR() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordOptVARCHAR ),
-                equalTo( "CHARACTER VARYING" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordOptVARCHAR)).isEqualTo("CHARACTER VARYING");
   }
 
-  @Ignore( "TODO(DRILL-3369): unignore when CHAR is no longer VARCHAR" )
+  @Ignore("TODO(DRILL-3369): unignore when CHAR is no longer VARCHAR")
   @Test
   public void test_getColumnTypeName_forCHAR() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqCHAR_5 ),
-                equalTo( "CHARACTER" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqCHAR_5)).isEqualTo("CHARACTER");
   }
 
-  @Ignore( "TODO(DRILL-3368): unignore when VARBINARY is implemented enough" )
+  @Ignore("TODO(DRILL-3368): unignore when VARBINARY is implemented enough")
   @Test
   public void test_getColumnTypeName_forVARBINARY() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordOptVARBINARY_16 ),
-                equalTo( "BINARY VARYING" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordOptVARBINARY_16)).isEqualTo("BINARY VARYING");
   }
 
-  @Ignore( "TODO(DRILL-3368): unignore when BINARY is implemented enough" )
+  @Ignore("TODO(DRILL-3368): unignore when BINARY is implemented enough")
   @Test
   public void test_getColumnTypeName_forBINARY() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordOptBINARY_1048576 ),
-                equalTo( "BINARY" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordOptBINARY_1048576)).isEqualTo("BINARY");
   }
 
   @Test
   public void test_getColumnTypeName_forDATE() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqDATE ),
-                equalTo( "DATE" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqDATE)).isEqualTo("DATE");
   }
 
   @Test
   public void test_getColumnTypeName_forTIME_2() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqTIME_2 ),
-                equalTo( "TIME" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqTIME_2)).isEqualTo("TIME");
   }
 
   @Test
   public void test_getColumnTypeName_forTIMESTAMP_4() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqTIMESTAMP_4 ),
-                equalTo( "TIMESTAMP" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqTIMESTAMP_4)).isEqualTo("TIMESTAMP");
   }
 
   @Test
   public void test_getColumnTypeName_forINTERVAL_Y() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqINTERVAL_Y ),
-                equalTo( "INTERVAL YEAR TO MONTH" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqINTERVAL_Y)).isEqualTo("INTERVAL YEAR TO MONTH");
   }
 
   @Test
   public void test_getColumnTypeName_forINTERVAL_D() throws SQLException {
-    assertThat( rowMetadata.getColumnTypeName( ordReqINTERVAL_4D_H ),
-                equalTo( "INTERVAL DAY TO SECOND" ) );
+    assertThat(rowMetadata.getColumnTypeName(ordReqINTERVAL_4D_H)).isEqualTo(
+      "INTERVAL DAY TO SECOND");
   }
 
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.
-
 
   ////////////////////////////////////////////////////////////
   // isReadOnly(...):
@@ -805,9 +745,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isReadOnly_nameThisNonSpecific() throws SQLException {
-    assertThat( rowMetadata.isReadOnly( ordOptBOOLEAN ), equalTo( true ) );
+    assertThat(rowMetadata.isReadOnly(ordOptBOOLEAN)).isTrue();
   }
-
 
   ////////////////////////////////////////////////////////////
   // isWritable(...):
@@ -818,9 +757,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isWritable_nameThisNonSpecific() throws SQLException {
-    assertThat( rowMetadata.isWritable( ordOptBOOLEAN ), equalTo( false ) );
+    assertThat(rowMetadata.isWritable(ordOptBOOLEAN)).isFalse();
   }
-
 
   ////////////////////////////////////////////////////////////
   // isDefinitelyWritable(...):
@@ -831,10 +769,8 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_isDefinitelyWritable_nameThisNonSpecific() throws SQLException {
-    assertThat( rowMetadata.isDefinitelyWritable( ordOptBOOLEAN ),
-                equalTo( false ) );
+    assertThat(rowMetadata.isDefinitelyWritable(ordOptBOOLEAN)).isFalse();
   }
-
 
   ////////////////////////////////////////////////////////////
   // getColumnClassName(...):
@@ -848,156 +784,139 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forBOOLEAN_isBoolean() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordOptBOOLEAN ),
-                equalTo( Boolean.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordOptBOOLEAN)).isEqualTo(Boolean.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forBOOLEAN_matches() throws SQLException {
     assertThat(
-        rowMetadata.getColumnClassName( ordReqBOOLEAN ),
-        // (equalTo because Boolean is final)
-        equalTo( viewRow.getObject( ordReqBOOLEAN ).getClass().getName() ) );
+      rowMetadata.getColumnClassName(ordReqBOOLEAN)
+      // (equalTo because Boolean is final)
+    ).isEqualTo(viewRow.getObject(ordReqBOOLEAN).getClass().getName());
   }
 
   // SMALLINT:
 
-  @Ignore( "TODO(DRILL-2470): unignore when SMALLINT is implemented" )
+  @Ignore("TODO(DRILL-2470): unignore when SMALLINT is implemented")
   @Test
   public void test_getColumnClassName_forSMALLINT_isShort() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqSMALLINT ),
-                equalTo( Short.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqSMALLINT)).isEqualTo(Short.class.getName());
   }
 
-  @Ignore( "TODO(DRILL-2470): unignore when SMALLINT is implemented" )
+  @Ignore("TODO(DRILL-2470): unignore when SMALLINT is implemented")
   @Test
   public void test_getColumnClassName_forSMALLINT_matches() throws SQLException {
     assertThat(
-        rowMetadata.getColumnClassName( ordReqSMALLINT ),
-        // (equalTo because Short is final)
-        equalTo( viewRow.getObject( ordReqSMALLINT ).getClass().getName() ) );
+      rowMetadata.getColumnClassName(ordReqSMALLINT)      // (equalTo because Short is final)
+    ).isEqualTo(viewRow.getObject(ordReqSMALLINT).getClass().getName());
   }
 
   // INTEGER:
 
   @Test
   public void test_getColumnClassName_forINTEGER_isInteger() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqINTEGER ),
-                equalTo( Integer.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqINTEGER)).isEqualTo(Integer.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forINTEGER_matches() throws SQLException {
     assertThat(
-        rowMetadata.getColumnClassName( ordReqINTEGER ),
-        // (equalTo because Integer is final)
-        equalTo( viewRow.getObject( ordReqINTEGER ).getClass().getName() ) );
+      rowMetadata.getColumnClassName(ordReqINTEGER)      // (equalTo because Integer is final)
+    ).isEqualTo(viewRow.getObject(ordReqINTEGER).getClass().getName());
   }
 
   // BIGINT:
 
   @Test
   public void test_getColumnClassName_forBIGINT_isLong() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqBIGINT ),
-                equalTo( Long.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqBIGINT)).isEqualTo(Long.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forBIGINT_matches() throws SQLException {
     assertThat(
-        rowMetadata.getColumnClassName( ordReqBIGINT ),
-        // (equalTo because Long is final)
-        equalTo( viewRow.getObject( ordReqBIGINT ).getClass().getName() ) );
+      rowMetadata.getColumnClassName(ordReqBIGINT)      // (equalTo because Long is final)
+    ).isEqualTo(viewRow.getObject(ordReqBIGINT).getClass().getName());
   }
 
   // REAL:
 
-  @Ignore( "TODO(DRILL-2683): unignore when REAL is implemented" )
+  @Ignore("TODO(DRILL-2683): unignore when REAL is implemented")
   @Test
   public void test_getColumnClassName_forREAL_isFloat() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqREAL ),
-                equalTo( Float.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqREAL)).isEqualTo(Float.class.getName());
   }
 
-  @Ignore( "TODO(DRILL-2683): unignore when REAL is implemented" )
+  @Ignore("TODO(DRILL-2683): unignore when REAL is implemented")
   @Test
   public void test_getColumnClassName_forREAL_matches() throws SQLException {
     assertThat(
-        rowMetadata.getColumnClassName( ordReqREAL ),
-        // (equalTo because Float is final)
-        equalTo( viewRow.getObject( ordReqREAL ).getClass().getName() ) );
+      rowMetadata.getColumnClassName(ordReqREAL)      // (equalTo because Float is final)
+    ).isEqualTo(viewRow.getObject(ordReqREAL).getClass().getName());
   }
 
   // FLOAT:
 
   @Test
   public void test_getColumnClassName_forFLOAT_isFloat() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqFLOAT ),
-                anyOf( equalTo( Float.class.getName() ),
-                       equalTo( Double.class.getName() ) ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqFLOAT))
+      .satisfiesAnyOf(x -> assertThat(x).isEqualTo(Float.class.getName()),
+        x -> assertThat(x).isEqualTo(Double.class.getName()));
   }
 
   @Test
   public void test_getColumnClassName_forFLOAT_matches() throws SQLException {
     assertThat(
-        rowMetadata.getColumnClassName( ordReqFLOAT ),
-        // (equalTo because Float is final)
-        equalTo( viewRow.getObject( ordReqFLOAT ).getClass().getName() ) );
+      rowMetadata.getColumnClassName(ordReqFLOAT)      // (equalTo because Float is final)
+    ).isEqualTo(viewRow.getObject(ordReqFLOAT).getClass().getName());
   }
 
   // DOUBLE:
 
   @Test
   public void test_getColumnClassName_forDOUBLE_isDouble() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqDOUBLE ),
-                equalTo( Double.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqDOUBLE)).isEqualTo(Double.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forDOUBLE_matches() throws SQLException {
     assertThat(
-        rowMetadata.getColumnClassName( ordReqDOUBLE ),
-        // (equalTo because Double is final)
-        equalTo( viewRow.getObject( ordReqDOUBLE ).getClass().getName() ) );
+      rowMetadata.getColumnClassName(ordReqDOUBLE)      // (equalTo because Double is final)
+    ).isEqualTo(viewRow.getObject(ordReqDOUBLE).getClass().getName());
   }
 
   // DECIMAL_5_3:
 
-  @Ignore( "TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE" )
+  @Ignore("TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE")
   @Test
   public void test_getColumnClassName_forDECIMAL_5_3_isBigDecimal() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqDECIMAL_5_3 ),
-                equalTo( BigDecimal.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqDECIMAL_5_3)).isEqualTo(
+      BigDecimal.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forDECIMAL_5_3_matches()
-      throws SQLException, ClassNotFoundException {
+    throws SQLException, ClassNotFoundException {
     final Class<?> requiredClass =
-        Class.forName( rowMetadata.getColumnClassName( ordReqDECIMAL_5_3 ) );
-    final Class<?> actualClass = viewRow.getObject( ordReqDECIMAL_5_3 ).getClass();
-    assertTrue( "actual class " + actualClass.getName()
-                + " is not assignable to required class " + requiredClass,
-                requiredClass.isAssignableFrom( actualClass ) );
+      Class.forName(rowMetadata.getColumnClassName(ordReqDECIMAL_5_3));
+    final Class<?> actualClass = viewRow.getObject(ordReqDECIMAL_5_3).getClass();
+    assertThat(requiredClass).isAssignableFrom(actualClass);
   }
 
   // VARCHAR_10:
 
   @Test
   public void test_getColumnClassName_forVARCHAR_10_isString() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqVARCHAR_10 ),
-                equalTo( String.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqVARCHAR_10)).isEqualTo(String.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forVARCHAR_10_matches()
-      throws SQLException, ClassNotFoundException {
+    throws SQLException, ClassNotFoundException {
     final Class<?> requiredClass =
-        Class.forName( rowMetadata.getColumnClassName( ordReqVARCHAR_10 ) );
-    final Class<?> actualClass = viewRow.getObject( ordReqVARCHAR_10 ).getClass();
-    assertTrue( "actual class " + actualClass.getName()
-                + " is not assignable to required class " + requiredClass,
-                requiredClass.isAssignableFrom( actualClass ) );
+      Class.forName(rowMetadata.getColumnClassName(ordReqVARCHAR_10));
+    final Class<?> actualClass = viewRow.getObject(ordReqVARCHAR_10).getClass();
+    assertThat(requiredClass).isAssignableFrom(actualClass);
   }
 
   // TODO(DRILL-3369):  Add test when CHAR is no longer VARCHAR:
@@ -1011,40 +930,32 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forDATE_isDate() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqDATE ),
-                equalTo( Date.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqDATE)).isEqualTo(Date.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forDATE_matches()
-      throws SQLException, ClassNotFoundException {
+    throws SQLException, ClassNotFoundException {
     final Class<?> requiredClass =
-        Class.forName( rowMetadata.getColumnClassName( ordReqDATE ) );
-     final Class<?> actualClass = viewRow.getObject( ordReqDATE ).getClass();
-     assertTrue(
-        "actual class " + actualClass.getName()
-        + " is not assignable to required class " + requiredClass,
-        requiredClass.isAssignableFrom( actualClass ) );
+      Class.forName(rowMetadata.getColumnClassName(ordReqDATE));
+    final Class<?> actualClass = viewRow.getObject(ordReqDATE).getClass();
+    assertThat(requiredClass).isAssignableFrom(actualClass);
   }
 
   // TIME:
 
   @Test
   public void test_getColumnClassName_forTIME_2_isTime() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqTIME_2 ),
-                equalTo( Time.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqTIME_2)).isEqualTo(Time.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forTIME_2_matches()
-      throws SQLException, ClassNotFoundException {
+    throws SQLException, ClassNotFoundException {
     final Class<?> requiredClass =
-        Class.forName( rowMetadata.getColumnClassName( ordReqTIME_2 ) );
-    final Class<?> actualClass = viewRow.getObject( ordReqTIME_2 ).getClass();
-    assertTrue(
-        "actual class " + actualClass.getName()
-        + " is not assignable to required class " + requiredClass,
-        requiredClass.isAssignableFrom( actualClass ) );
+      Class.forName(rowMetadata.getColumnClassName(ordReqTIME_2));
+    final Class<?> actualClass = viewRow.getObject(ordReqTIME_2).getClass();
+    assertThat(requiredClass).isAssignableFrom(actualClass);
   }
 
   // TIME_7:
@@ -1053,21 +964,18 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forTIMESTAMP_4_isDate() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqTIMESTAMP_4 ),
-                equalTo( Timestamp.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqTIMESTAMP_4)).isEqualTo(
+      Timestamp.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forTIMESTAMP_4_matches()
-      throws SQLException, ClassNotFoundException {
+    throws SQLException, ClassNotFoundException {
     final Class<?> requiredClass =
-        Class.forName( rowMetadata.getColumnClassName( ordReqTIMESTAMP_4 ) );
+      Class.forName(rowMetadata.getColumnClassName(ordReqTIMESTAMP_4));
     final Class<?> actualClass =
-        viewRow.getObject( ordReqTIMESTAMP_4 ).getClass();
-    assertTrue(
-        "actual class " + actualClass.getName()
-        + " is not assignable to required class " + requiredClass,
-        requiredClass.isAssignableFrom( actualClass ) );
+      viewRow.getObject(ordReqTIMESTAMP_4).getClass();
+    assertThat(requiredClass).isAssignableFrom(actualClass);
   }
 
   // No "... WITH TIME ZONE" in Dremio.
@@ -1080,20 +988,18 @@ public class ResultSetMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getColumnClassName_forINTERVAL_10Y_Mo_isJodaPeriod() throws SQLException {
-    assertThat( rowMetadata.getColumnClassName( ordReqINTERVAL_10Y_Mo ),
-                equalTo( String.class.getName() ) );
+    assertThat(rowMetadata.getColumnClassName(ordReqINTERVAL_10Y_Mo)).isEqualTo(
+      String.class.getName());
   }
 
   @Test
   public void test_getColumnClassName_forINTERVAL_10Y_Mo_matches()
-      throws SQLException, ClassNotFoundException {
+    throws SQLException, ClassNotFoundException {
     final Class<?> requiredClass =
-        Class.forName( rowMetadata.getColumnClassName( ordReqINTERVAL_10Y_Mo ) );
+      Class.forName(rowMetadata.getColumnClassName(ordReqINTERVAL_10Y_Mo));
     final Class<?> actualClass =
-        viewRow.getObject( ordReqINTERVAL_10Y_Mo ).getClass();
-    assertTrue( "actual class " + actualClass.getName()
-                + " is not assignable to required class " + requiredClass,
-                requiredClass.isAssignableFrom( actualClass ) );
+      viewRow.getObject(ordReqINTERVAL_10Y_Mo).getClass();
+    assertThat(requiredClass).isAssignableFrom(actualClass);
   }
 
   // TODO(DRILL-3253):  Do more types when we have all-types test storage plugin.

@@ -19,8 +19,7 @@ import java.util.List;
 
 import org.apache.calcite.sql.SqlNode;
 
-import com.dremio.exec.catalog.DatasetCatalog;
-import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.exec.catalog.DremioTable;
 
 /**
  * Data addition commands (CTAS, INSERT) implement this interface
@@ -30,7 +29,7 @@ public interface DataAdditionCmdCall {
   /**
    * @return list partition column names
    */
-  List<String> getPartitionColumns(DatasetCatalog datasetCatalog, NamespaceKey key);
+  List<String> getPartitionColumns(DremioTable dremioTable);
 
   /**
    * @return list of sort column names

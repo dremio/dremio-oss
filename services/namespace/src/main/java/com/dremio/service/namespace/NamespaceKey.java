@@ -118,6 +118,11 @@ public class NamespaceKey {
   }
 
   @JsonIgnore
+  public List<String> getPathWithoutRoot() {
+    return pathComponents.subList(1, pathComponents.size());
+  }
+
+  @JsonIgnore
   public NamespaceKey getParent() {
     return new NamespaceKey(pathComponents.subList(0, pathComponents.size() - 1));
   }

@@ -30,13 +30,13 @@ function AccelerationFormMixin(input) {
       return (
         <div>
           <div style={{float: 'right', display: 'flex', marginTop: '5px'}}>
-            {mode === 'ADVANCED' && <Button disableSubmit onClick={this.clearReflections} type='CUSTOM' text={la('Remove All Reflections')} />}
+            {mode === 'ADVANCED' && <Button disableSubmit onClick={this.clearReflections} type='CUSTOM' text={la('Remove All Reflections')} style={{ fontSize: 10 }} />}
             <EllipsedText text={hoverTextForButton} children={<Button
               disable={mode === 'ADVANCED' && this.getMustBeInAdvancedMode()}
               disableSubmit
               onClick={this.toggleMode}
               type='CUSTOM'
-              style={{ marginLeft: 10, width: '120px' }}
+              style={{ fontSize: 10, marginLeft: 10 }}
               text={switchModeText}
             />} />
           </div>

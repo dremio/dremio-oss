@@ -41,5 +41,6 @@ public interface OptimizerRulesContext extends FunctionContext {
    */
   public PlannerSettings getPlannerSettings();
 
+  // TODO(DX-43968): Rework to not expose catalog service; optimization is contextualized to Catalog
   public CatalogService getCatalogService();
 }

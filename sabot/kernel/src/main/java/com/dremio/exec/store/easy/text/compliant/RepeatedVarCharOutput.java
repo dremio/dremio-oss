@@ -28,6 +28,7 @@ import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -244,7 +245,7 @@ class RepeatedVarCharOutput extends TextOutput {
     String [] out = new String [retSize];
 
     try {
-      ListVector listVector = output.addField(new Field(COL_NAME, true, MinorType.LIST.getType(), null), ListVector.class);
+      ListVector listVector = output.addField(new Field(COL_NAME, new FieldType(true, MinorType.LIST.getType(), null), null), ListVector.class);
       List outputlist = (List) listVector.getObject((int)(recordCount-1));
 
       for (int i=0; i<retSize; i++){

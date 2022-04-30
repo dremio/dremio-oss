@@ -183,6 +183,11 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
   }
 
   @Override
+  public Integer version() {
+    return converter != null ? converter.getVersion() : null;
+  }
+
+  @Override
   public KVStoreTuple<K> newKey() {
     return base.newKey();
   }

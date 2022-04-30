@@ -17,27 +17,21 @@ import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
-import { FormattedMessage } from 'react-intl';
 
 import PropTypes from 'prop-types';
 
-import SimpleButton from 'components/Buttons/SimpleButton';
 import { getExploreState } from '@app/selectors/explore';
 
 import { editOriginalSql } from 'actions/explore/dataset/reapply';
 import { setCurrentSql, setQueryContext } from 'actions/explore/view';
 
 import { PALE_BLUE, EXPLORE_SQL_BUTTON_COLOR } from 'uiTheme/radium/colors.js';
-import {  MARGIN_PANEL } from 'uiTheme/radium/sizes.js';
-import { bodySmall } from 'uiTheme/radium/typography';
 import { constructFullPath } from 'utils/pathUtils';
-import { sqlEditorButton } from 'uiTheme/radium/buttons';
 import { replace } from 'react-router-redux';
-import { withDatasetChanges } from '@app/pages/ExplorePage/DatasetChanges';
 import { showUnsavedChangesConfirmDialog } from '@app/actions/confirmation';
 
-import DatasetsPanel from './DatasetsPanel';
-import SqlToggle from './SqlToggle';
+import { compose } from 'redux';
+import { getActiveScript } from '@app/selectors/scripts';
 import SqlAutoComplete from './SqlAutoComplete';
 import FunctionsHelpPanel from './FunctionsHelpPanel';
 
@@ -52,14 +46,16 @@ export class SqlEditorController extends PureComponent {
     sqlState: PropTypes.bool,
     type: PropTypes.string,
     dragType: PropTypes.string,
+    handleSidebarCollapse: PropTypes.func,
+    sidebarCollapsed: PropTypes.bool,
+    children: PropTypes.any,
 
     //connected by redux connect
     currentSql: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
     focusKey: PropTypes.number,
+    activeScript: PropTypes.object,
     //---------------------------
-    // provided by withDatasetChanges
-    getDatasetChangeDetails: PropTypes.func.isRequired,
 
     // actions
     setCurrentSql: PropTypes.func,
@@ -69,10 +65,13 @@ export class SqlEditorController extends PureComponent {
     showUnsavedChangesConfirmDialog: PropTypes.func
   };
 
+  sqlEditorControllerRef = null;
+
   constructor(props) {
     super(props);
     this.insertFunc = this.insertFunc.bind(this);
     this.insertFullPathAtCursor = this.insertFullPathAtCursor.bind(this);
+    this.toggleFunctionsHelpPanel = this.toggleFunctionsHelpPanel.bind(this);
     this.state = {
       funcHelpPanel: false,
       datasetsPanel: !!(props.dataset && props.dataset.get('isNewQuery'))
@@ -85,17 +84,43 @@ export class SqlEditorController extends PureComponent {
   }
 
   componentDidUpdate(prevProps) {
+    const { activeScript } = this.props;
     const isNewQueryClick = this.props.dataset.get('isNewQuery')
       && this.props.currentSql === null
       && (!prevProps.dataset.get('isNewQuery') || this.props.exploreViewState !== prevProps.exploreViewState);
     // refocus the SQL editor if you click New Query again
     // but otherwise do not yank focus due to other changes
     if (isNewQueryClick || this.props.focusKey && prevProps.focusKey !== this.props.focusKey) { //focus input is focus key is changed
-      this.refs.editor.focus();
+      this.sqlEditorControllerRef.focus();
     }
     // open right datasets panel after new query click
     if (isNewQueryClick) { //TODO: is there a cleaner way?
       this.setState({datasetsPanel: true}); // eslint-disable-line react/no-did-update-set-state
+    }
+
+    const controller = this.getMonacoEditor();
+    if (activeScript.id && prevProps.activeScript.id !== activeScript.id && controller) {
+      this.props.setCurrentSql({ sql: activeScript.content });
+      controller.setValue(activeScript.content);
+
+      this.props.setQueryContext({ context: Immutable.fromJS(activeScript.context) });
+    }
+
+    if (activeScript.id === undefined && prevProps.activeScript.id && controller) {
+      setCurrentSql({ sql: '' });
+      controller.setValue('');
+    }
+
+    if (prevProps.currentSql !== '' && this.props.currentSql === '' && controller) {
+      // setValue('') makes the editor's lineNumber value null
+      // when using SqlAutoComplete's insertAtRanges function, it breaks since lineNumber is null
+      const range = controller.getModel().getFullModelRange();
+      controller.setSelection(range);
+      controller.executeEdits('dremio', [{
+        identifier: 'dremio-reset',
+        range: controller.getSelection(),
+        text: ''
+      }]);
     }
   }
 
@@ -107,15 +132,15 @@ export class SqlEditorController extends PureComponent {
     // Normally this is picked up when defaultValue changes in CodeMirror.js. However there is an edge case for
     // new query => new query. In this case, defaultValue1 == defaultValue2 == '', So need to detect it here, when
     // currentSql is reset to null.
-    if (nextProps.currentSql === null && oldProps.currentSql !== null && this.refs.editor) {
-      this.refs.editor.resetValue();
+    if (nextProps.currentSql === null && oldProps.currentSql !== null && this.sqlEditorControllerRef) {
+      this.sqlEditorControllerRef.resetValue();
     }
     if ((dataset && constructFullPath(dataset.get('context'))) !== constructFullPath(nextDataset.get('context'))) {
       nextProps.setQueryContext({ context: nextDataset.get('context') });
       //if context was changed, put cursor back to an editor.
       // This case has place also in case of new query
-      if (this.refs.editor) {
-        this.refs.editor.focus();
+      if (this.sqlEditorControllerRef) {
+        this.sqlEditorControllerRef.focus();
       }
     }
   }
@@ -127,12 +152,17 @@ export class SqlEditorController extends PureComponent {
       (exploreViewState.get('isFailed') && !dataset.get('datasetVersion') && !dataset.get('isNewQuery')));
   }
 
+  getMonacoEditor() {
+    const editorRef = this.sqlEditorControllerRef;
+    return editorRef && editorRef.getMonacoEditorInstance && editorRef.getMonacoEditorInstance();
+  }
+
   insertFullPathAtCursor(id) {
-    this.refs.editor.insertFullPath(id);
+    this.sqlEditorControllerRef.insertFullPath(id);
   }
 
   insertFunc(functionName, args) {
-    this.refs.editor.insertFunction(functionName, args);
+    this.sqlEditorControllerRef.insertFunction(functionName, args);
   }
 
   toggleDatasetPanel = () => this.setState({
@@ -140,66 +170,19 @@ export class SqlEditorController extends PureComponent {
     funcHelpPanel: false
   });
 
-  toggleFunctionsHelpPanel = () => this.setState({
-    funcHelpPanel: !this.state.funcHelpPanel,
-    datasetsPanel: false
-  });
-
-  handleSqlChange = (sql) => this.props.setCurrentSql({ sql });
-
-  handleContextChange = (context) => this.props.setQueryContext({ context });
-
-  handleEditOriginal = () => {
-    const {
-      dataset,
-      editOriginalSql: editSql,
-      datasetSummary,
-      replaceUrlAction,
-      getDatasetChangeDetails,
-      showUnsavedChangesConfirmDialog: showConfirm
-    } = this.props;
-
-    const reapply = () => {
-      editSql(dataset.get('id'), dataset.getIn(['apiLinks', 'self']));
-    };
-
-    if (this.isDatasetReadyForReapply()) {
-      const {
-        sqlChanged,
-        historyChanged
-      } = getDatasetChangeDetails();
-
-      if (sqlChanged || historyChanged) {
-        showConfirm({
-          confirm: reapply
-        });
-      } else {
-        reapply();
-      }
-    } else {
-      replaceUrlAction(datasetSummary.links.edit);
-    }
-  };
-
-  isDatasetReadyForReapply = () => {
-    const {dataset, sqlState } = this.props;
-    return sqlState && dataset.get('canReapply');
+  toggleFunctionsHelpPanel() {
+    this.setState({
+      funcHelpPanel: !this.state.funcHelpPanel,
+      datasetsPanel: false
+    });
   }
 
-  renderEditOriginalButton() {
-    const { datasetSummary } = this.props;
-    if (this.isDatasetReadyForReapply() || datasetSummary) {
-      return (
-        <SimpleButton
-          type='button'
-          buttonStyle='secondary'
-          style={{...sqlEditorButton, lineHeight: '24px', marginTop: '5px', marginLeft: '10px'}}
-          onClick={this.handleEditOriginal}
-        >
-          <FormattedMessage id='SQL.EditOriginal'/>
-        </SimpleButton>
-      );
-    }
+  handleSqlChange = (sql) => {
+    this.props.setCurrentSql({ sql });
+  }
+
+  handleContextChange = (context) => {
+    this.props.setQueryContext({ context });
   }
 
   onAutoCompleteEnabledChanged = () => {
@@ -211,44 +194,19 @@ export class SqlEditorController extends PureComponent {
   }
 
   renderSqlBlocks() {
-    const isActiveFuncs = this.state.funcHelpPanel;
-    const isActiveDatasets = this.state.datasetsPanel;
-    if (this.props.sqlState) {
-      return (
-        <div className='sql-btn' style={[styles.btn]}>
-          <button
-            style={[styles.helpers, bodySmall, isActiveDatasets ? styles.helpersHovered : {}]}
-            onClick={this.toggleDatasetPanel}
-            key='datasets'>
-            <FormattedMessage id='Dataset.Datasets'/>
-          </button>
-          <DatasetsPanel
-            dataset={this.props.dataset}
-            height={this.props.sqlSize - MARGIN_PANEL}
-            isVisible={this.state.datasetsPanel}
-            dragType={this.props.dragType}
-            viewState={this.props.exploreViewState}
-            addFullPathToSqlEditor={this.insertFullPathAtCursor}/>
-          <button
-            style={[styles.helpers, bodySmall, isActiveFuncs ? styles.helpersHovered : {}]}
-            onClick={this.toggleFunctionsHelpPanel}
-            key='functions'>
-            <FormattedMessage id='Common.Functions'/>
-          </button>
-          <FunctionsHelpPanel
-            height={this.props.sqlSize - MARGIN_PANEL}
-            isVisible={this.state.funcHelpPanel}
-            dragType={this.props.dragType}
-            addFuncToSqlEditor={this.insertFunc}/>
-        </div>
-      );
-    }
+    return (
+      <div className='sql-btn' style={[styles.btn]}>
+        <FunctionsHelpPanel
+          height={this.props.sqlSize}
+          isVisible={this.state.funcHelpPanel}
+          dragType={this.props.dragType}
+          handleSidebarCollapse={this.props.handleSidebarCollapse}
+          addFuncToSqlEditor={this.insertFunc}/>
+      </div>
+    );
   }
 
   render() {
-    // Keep SqlAutoComplete in the DOM even when hidden to maintain any SQL changes user has made
-    const sqlStyle = this.props.sqlState ? {} : {height: 0, overflow: 'hidden'};
-
     let errors;
     if (this.props.exploreViewState.getIn(['error', 'message', 'code']) === 'INVALID_QUERY') {
       errors = this.props.exploreViewState.getIn(['error', 'message', 'details', 'errors']);
@@ -261,36 +219,31 @@ export class SqlEditorController extends PureComponent {
         isGrayed={this.shouldSqlBoxBeGrayedOut()}
         context={this.props.queryContext}
         changeQueryContext={this.handleContextChange}
-        ref='editor'
+        ref={(ref) => this.sqlEditorControllerRef = ref}
         onChange={this.handleSqlChange}
+        onFunctionChange={this.toggleFunctionsHelpPanel.bind(this)}
         defaultValue={this.props.dataset.get('sql')}
         sqlSize={this.props.sqlSize - toolbarHeight}
+        sidebarCollapsed={this.props.sidebarCollapsed}
         datasetsPanel={this.state.datasetsPanel}
         funcHelpPanel={this.state.funcHelpPanel}
         dragType={this.props.dragType}
         errors={errors}
         autoCompleteEnabled={false}
-      />
+      >
+        {this.props.children}
+      </SqlAutoComplete>
     );
-    const toggleButton = this.props.sqlState
-      ? (
-        <SqlToggle dataset={this.props.dataset} sqlState={this.props.sqlState}/>
-      )
-      : <div />;
     return (
       <div style={{width: '100%'}}>
         <div
           className='sql-part'
           onClick={this.hideDropDown}
-          style={[styles.base, {height: this.props.sqlSize}]}>
-          <div className='sql-control' style={[styles.sqlControls]}>
-            <div style={{display: 'flex'}}>
-              {toggleButton}
-              {this.renderEditOriginalButton()}
-            </div>
+          style={[styles.base]}>
+          <div className='sql-functions'>
             {this.renderSqlBlocks()}
           </div>
-          <div style={[styles.sqlAutoCompleteWrap, sqlStyle]}>
+          <div>
             {sqlBlock}
           </div>
         </div>
@@ -305,28 +258,31 @@ function mapStateToProps(state) {
     currentSql: explorePageState.view.currentSql,
     queryContext: explorePageState.view.queryContext,
     focusKey: explorePageState.view.sqlEditorFocusKey,
-    datasetSummary: state.resources.entities.get('datasetSummary')
+    datasetSummary: state.resources.entities.get('datasetSummary'),
+    activeScript: getActiveScript(state)
   };
 }
 
-export default connect(mapStateToProps, {
-  setCurrentSql,
-  setQueryContext,
-  editOriginalSql,
-  replaceUrlAction: replace,
-  showUnsavedChangesConfirmDialog
-})(withDatasetChanges(SqlEditorController));
+export default compose(
+  connect(mapStateToProps, {
+    setCurrentSql,
+    setQueryContext,
+    editOriginalSql,
+    replaceUrlAction: replace,
+    showUnsavedChangesConfirmDialog
+  }, null, { forwardRef: true })
+)(SqlEditorController);
 
 const styles = {
   base: {
     paddingBottom: 0,
-    minHeight: 171,
     position: 'relative'
   },
   btn: {
     display: 'flex',
     alignItems: 'center',
-    marginRight: 10
+    marginRight: 10,
+    position: 'relative'
   },
   helpers: {
     width: 64,
@@ -351,9 +307,5 @@ const styles = {
     alignItems: 'center',
     width: '100%',
     backgroundColor: PALE_BLUE
-  },
-  sqlAutoCompleteWrap: {
-    backgroundColor: PALE_BLUE,
-    padding: '0 40px 0 0'
   }
 };

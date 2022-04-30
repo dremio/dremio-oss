@@ -57,7 +57,7 @@ public class InformationSchemaServiceImpl extends InformationSchemaServiceGrpc.I
   }
 
   private static MetadataRequestOptions createRequestOptions(String username) {
-    return MetadataRequestOptions.of(SchemaConfig.newBuilder(username).build());
+    return MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(username)).build());
   }
 
   @Override

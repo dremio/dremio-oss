@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24" height="25" viewBox="0 0 24 25" fill="#000000" xmlns="http://www.w3.org/2000/svg">
+  <path d="M7.75 12.5C7.75 12.7298 7.70474 12.9574 7.61679 13.1697C7.52884 13.382 7.39994 13.5749 7.23744 13.7374C7.07493 13.8999 6.88202 14.0288 6.6697 14.1168C6.45738 14.2047 6.22981 14.25 6 14.25C5.77019 14.25 5.54262 14.2047 5.3303 14.1168C5.11798 14.0288 4.92507 13.8999 4.76256 13.7374C4.60006 13.5749 4.47116 13.382 4.38321 13.1697C4.29526 12.9574 4.25 12.7298 4.25 12.5C4.25 12.0359 4.43437 11.5908 4.76256 11.2626C5.09075 10.9344 5.53587 10.75 6 10.75C6.46413 10.75 6.90925 10.9344 7.23744 11.2626C7.56563 11.5908 7.75 12.0359 7.75 12.5Z" fill="#505862"/>
+  <path d="M13.75 12.5C13.75 12.9641 13.5656 13.4092 13.2374 13.7374C12.9092 14.0656 12.4641 14.25 12 14.25C11.5359 14.25 11.0908 14.0656 10.7626 13.7374C10.4344 13.4092 10.25 12.9641 10.25 12.5C10.25 12.0359 10.4344 11.5908 10.7626 11.2626C11.0908 10.9344 11.5359 10.75 12 10.75C12.4641 10.75 12.9092 10.9344 13.2374 11.2626C13.5656 11.5908 13.75 12.0359 13.75 12.5Z" fill="#505862"/>
+  <path d="M18 14.25C18.4641 14.25 18.9092 14.0656 19.2374 13.7374C19.5656 13.4092 19.75 12.9641 19.75 12.5C19.75 12.0359 19.5656 11.5908 19.2374 11.2626C18.9092 10.9344 18.4641 10.75 18 10.75C17.5359 10.75 17.0908 10.9344 16.7626 11.2626C16.4344 11.5908 16.25 12.0359 16.25 12.5C16.25 12.9641 16.4344 13.4092 16.7626 13.7374C17.0908 14.0656 17.5359 14.25 18 14.25Z" fill="#505862"/>
+</svg>

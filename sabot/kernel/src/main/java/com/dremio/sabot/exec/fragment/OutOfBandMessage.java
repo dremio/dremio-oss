@@ -164,7 +164,7 @@ public class OutOfBandMessage {
 
     // Caller is expected to release its own copy
     if (this.buffers != null && this.buffers.length > 0) {
-      Arrays.stream(this.buffers).forEach(ArrowBuf::retain);
+      Arrays.stream(this.buffers).forEach(arrowBuf -> arrowBuf.getReferenceManager().retain());
     } else {
       this.buffers = new ArrowBuf[0];
     }

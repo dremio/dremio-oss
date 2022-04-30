@@ -48,13 +48,15 @@ export default function getTooltipStyles(type) {
     inner: {
       textAlign: 'left',
       backgroundColor: bgColor,
+      boxShadow: '0 0 8px 0 rgba(0,0,0,0.1)',
       width: 180,
       borderRadius: 5,
       padding: '9px 10px',
       ...(type === 'status' ? bodyWhite : null),
       height: 'auto',
       maxHeight: '800px',
-      overflowY: 'auto'
+      overflowY: 'auto',
+      ...(type === 'status' ? bodyWhite : null)
     },
 
     arrow: {

@@ -1,0 +1,132 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@import "~@app/uiTheme/less/color-schema.less";
+
+:global {
+  .new-branch-dialog {
+    .MuiDialog-paper {
+      width: 600px;
+
+      .MuiDialogTitle-root,
+      .MuiDialogActions-root {
+        height: 55px;
+      }
+
+      .MuiDialogContent-root {
+        height: 150px;
+        padding-left: 16px;
+        padding-top: 24px;
+      }
+    }
+
+    &-header {
+      border-bottom: 1px solid @SECONDARY_200;
+      padding: 0 !important;
+
+      .MuiTypography-h6 {
+        display: flex;
+        height: 55px;
+        align-items: center;
+      }
+
+      &-title {
+        display: flex;
+        align-items: center;
+        margin-left: 16px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .MuiButtonBase-root {
+        margin-left: auto;
+        margin-right: 10px;
+        height: fit-content;
+      }
+    }
+
+    &-body {
+      .MuiDialogContentText-root {
+        margin-bottom: 4px;
+        font-size: 14px;
+        font-weight: 400;
+        color: @BLACK;
+      }
+
+      .MuiFormControl-fullWidth {
+        margin-top: 0;
+
+        .MuiOutlinedInput-root {
+          height: 32px;
+          font-size: 14px;
+
+          .MuiOutlinedInput-input {
+            padding-left: 8px;
+          }
+        }
+
+        .MuiFormLabel-root {
+          font-size: 14px;
+          transform: translate(8px, 9px);
+        }
+
+        .MuiInputLabel-outlined.MuiInputLabel-shrink {
+          transform: translate(14px, -6px) scale(0.75) !important;
+        }
+
+        .MuiFormHelperText-root {
+          font-size: 12px;
+          margin-left: 8px;
+        }
+      }
+    }
+
+    &-actions {
+      border-top: 1px solid @SECONDARY_200;
+
+      .cancel-button,
+      .add-button {
+        width: 120px;
+        height: 32px;
+        font-size: 14px;
+        font-weight: 500;
+        text-transform: capitalize;
+        padding: 0;
+
+        .MuiButton-label {
+          height: 32px;
+        }
+      }
+
+      .cancel-button {
+        .MuiButton-label {
+          color: @TROUT;
+          border: 1px solid @DISABLED_COLUMN_INDEX_TEXT_COLOR;
+          border-radius: 4px;
+        }
+      }
+
+      .add-button {
+        .MuiButton-label {
+          color: @WHITE;
+          background-color: @PRIMARY_600;
+          border: 1px solid @PRIMARY_600;
+          border-radius: 4px;
+        }
+      }
+    }
+  }
+}

@@ -533,12 +533,14 @@ public class MaxAccumulators {
   public static class VarLenMaxAccumulator extends BaseVarBinaryAccumulator {
     NullableVarCharHolder holder = new NullableVarCharHolder();
 
-    public VarLenMaxAccumulator(FieldVector input, FieldVector output, FieldVector transferVector,
-                                int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
-                                int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent,
-                                BaseVariableWidthVector tempAccumulatorHolder) {
+    public VarLenMaxAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
+                                BufferAllocator computationVectorAllocator, int estimatedVariableWidthKeySize,
+                                int maxVariableWidthKeySize, int maxVarWidthVecUsagePercent,
+                                int accumIndex, BaseVariableWidthVector tempAccumulatorHolder,
+                                VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
       super(input, transferVector, AccumulatorBuilder.AccumulatorType.MAX, maxValuesPerBatch,
-        computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
+        computationVectorAllocator, estimatedVariableWidthKeySize, maxVariableWidthKeySize,
+        maxVarWidthVecUsagePercent, accumIndex, tempAccumulatorHolder, varLenVectorResizer);
     }
 
     public void accumulate(final long memoryAddr, final int count,
@@ -565,6 +567,8 @@ public class MaxAccumulators {
         // get the offset of incoming record
         final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
         final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
+
+        this.updateRunTimeVarLenColumnSize(endOffset - startOffset);
 
         // get the hash table batch index
         final int chunkIndex = tableIndex >>> bitsInChunk;

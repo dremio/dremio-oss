@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -77,65 +77,6 @@
             <artifactId>flogger-log4j-backend</artifactId>
           </exclusion>
         </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-api</artifactId>
-      <version>${iceberg.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.github.stephenc.findbugs</groupId>
-          <artifactId>findbugs-annotations</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-core</artifactId>
-      <version>${iceberg.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.github.stephenc.findbugs</groupId>
-          <artifactId>findbugs-annotations</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-common</artifactId>
-      <version>${iceberg.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.github.stephenc.findbugs</groupId>
-          <artifactId>findbugs-annotations</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-parquet</artifactId>
-      <version>${iceberg.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.parquet</groupId>
-          <artifactId>parquet-avro</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.github.stephenc.findbugs</groupId>
-          <artifactId>findbugs-annotations</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.iceberg</groupId>
-      <artifactId>iceberg-data</artifactId>
-      <version>${iceberg.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.github.stephenc.findbugs</groupId>
-          <artifactId>findbugs-annotations</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
@@ -1100,12 +1041,33 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-compile</id>
+            <configuration>
+              <annotationProcessorPaths combine.children="append">
+                <path>
+                  <groupId>org.pf4j</groupId>
+                  <artifactId>pf4j</artifactId>
+                  <version>${pf4j.version}</version>
+                </path>
+              </annotationProcessorPaths>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <configuration>
           <encoding>UTF-8</encoding>
@@ -1228,7 +1190,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <configLocation>src/main/checkstyle/checkstyle-config.xml</configLocation>
@@ -1305,7 +1266,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
           <!-- disable default jar execution -->
@@ -1328,7 +1288,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
           <descriptors>
@@ -1361,14 +1320,12 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <reportNameSuffix>hive2</reportNameSuffix>
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
         <executions>
           <execution>
@@ -1382,22 +1339,6 @@
         <configuration>
           <reportNameSuffix>hive2</reportNameSuffix>
           <forkCount>1</forkCount>
-          <trimStackTrace>false</trimStackTrace>
-          <argLine>
-            -Xms512M
-            -Xmx3G
-            -Xss2048k
-            -XX:MaxDirectMemorySize=5120M
-            -XX:+CMSClassUnloadingEnabled
-            -Ddremio.plugins.path=${dremio.plugins.path}
-            @{argLine}
-          </argLine>
-
-
-          <systemPropertyVariables>
-            <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
-          </systemPropertyVariables>
-
           <classpathDependencyExcludes>
             <classpathDependencyExclude>com.dremio.contrib:dremio-hive2-exec-shaded*</classpathDependencyExclude>
           </classpathDependencyExcludes>
@@ -1513,7 +1454,6 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
               <excludes>
@@ -1552,6 +1492,26 @@
           </exclusions>
         </dependency>
       </dependencies>
+    </profile>
+
+    <profile>
+      <id>jdk9-or-higher</id>
+      <activation>
+        <jdk>[9,)</jdk>
+      </activation>
+
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <jdkToolchain>
+                <version>1.8</version>
+              </jdkToolchain>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

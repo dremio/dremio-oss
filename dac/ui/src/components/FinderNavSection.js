@@ -26,11 +26,12 @@ export default class FinderNavSection extends Component {
     items: PropTypes.instanceOf(Immutable.List).isRequired,
     isInProgress: PropTypes.bool,
     maxItemsCount: PropTypes.number,
-    listHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object])
+    listHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
+    renderExtra: PropTypes.func
   };
 
   render() {
-    const { items, maxItemsCount, listHref } = this.props;
+    const { items, maxItemsCount, listHref, renderExtra } = this.props;
     if (!items.size) return null;
 
     const hasMore = items.size > maxItemsCount;
@@ -45,6 +46,7 @@ export default class FinderNavSection extends Component {
                 <FinderNavItem
                   key={item.get('id')}
                   item={item.toJS()}
+                  renderExtra={renderExtra}
                 />
               );
             }

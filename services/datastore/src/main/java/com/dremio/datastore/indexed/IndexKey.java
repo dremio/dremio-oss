@@ -17,6 +17,7 @@ package com.dremio.datastore.indexed;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Function;
 
 import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
@@ -37,11 +38,17 @@ public final class IndexKey {
   private final Map<String, SearchQuery> reservedValues;
   private final boolean canContainMultipleValues;
   public static final String LOWER_CASE_SUFFIX = "_LC";
-  private final Class<? extends Enum> enumType;
+
+  /**
+   * Sample use case, if index key is of enum type with index on enum's number value, converter can be used for required
+   * conversion from enum's name to number before applying filter on it
+   * @throws com.dremio.datastore.EnumSearchValueNotFoundException if no enum found corresponding to input string
+   */
+  private final Function converter;
 
   private IndexKey(String shortName, String indexFieldName, Class<?> valueType, SearchFieldSorting.FieldType sortedValueType,
                    boolean includeInSearchAllFields, boolean stored, Map<String, SearchQuery> reservedValues,
-                   Boolean canContainMultipleValues, Class<? extends Enum> enumType) {
+                   Boolean canContainMultipleValues, Function converter) {
     this.shortName = shortName;
     this.indexFieldName = indexFieldName;
     this.valueType = valueType;
@@ -50,7 +57,7 @@ public final class IndexKey {
     this.stored = stored;
     this.reservedValues = reservedValues;
     this.canContainMultipleValues = canContainMultipleValues;
-    this.enumType = enumType;
+    this.converter = converter;
   }
 
   public Map<String, SearchQuery> getReservedValues() {
@@ -94,8 +101,8 @@ public final class IndexKey {
     return canContainMultipleValues;
   }
 
-  public Class<? extends Enum> getEnumType() {
-    return enumType;
+  public Function getConverter() {
+    return converter;
   }
 
   public SearchFieldSorting toSortField(SortOrder order){
@@ -115,9 +122,9 @@ public final class IndexKey {
     return new Builder(shortName, indexFieldName, valueType);
   }
 
-  public static Builder newBuilder(String shortName, String indexFieldName, Class<?> valueType, Class<? extends Enum> enumType) {
+  public static Builder newBuilder(String shortName, String indexFieldName, Class<?> valueType, Function converter) {
     Builder builder = newBuilder(shortName, indexFieldName, valueType);
-    builder.setEnumType(enumType);
+    builder.setConverter(converter);
     return builder;
   }
 
@@ -133,7 +140,7 @@ public final class IndexKey {
     private boolean stored = false;
     private Map<String, SearchTypes.SearchQuery> reservedValues = Collections.emptyMap();
     private boolean canContainMultipleValues = false;
-    private Class<? extends Enum> enumType;
+    private Function converter;
 
     Builder(String shortName, String indexFieldName, Class<?> valueType) {
       this.shortName = shortName;
@@ -166,12 +173,12 @@ public final class IndexKey {
       return this;
     }
 
-    public void setEnumType(Class<? extends Enum> enumType) {
-      this.enumType = enumType;
+    public void setConverter(Function converter) {
+      this.converter = converter;
     }
 
     public IndexKey build() {
-      return new IndexKey(shortName, indexFieldName, valueType, sortedValueType, includeInSearchAllFields, stored, reservedValues, canContainMultipleValues, enumType);
+      return new IndexKey(shortName, indexFieldName, valueType, sortedValueType, includeInSearchAllFields, stored, reservedValues, canContainMultipleValues, converter);
     }
   }
 }

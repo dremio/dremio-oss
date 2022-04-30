@@ -39,28 +39,13 @@ public final class EnhancedFilterJoinSimplifier {
   private EnhancedFilterJoinSimplifier() {}
 
   /**
-   * A combination of simplifyConjunction and simplifyDisjunction
-   */
-  public static RexNode simplifyConDisjunction(List<RexNode> originalFilters,
-    List<Pair<RexNode, RexNode>> extractions, SqlKind sqlKind, boolean rootLevel, RexBuilder rexBuilder) {
-    switch (sqlKind) {
-      case AND:
-        return simplifyConjunction(originalFilters, extractions, rootLevel, rexBuilder);
-      case OR:
-        return simplifyDisjunction(originalFilters, extractions, rootLevel, rexBuilder);
-      default:
-        throw new UnsupportedOperationException();
-    }
-  }
-
-  /**
    * In conjunction, we may simplify if one child is entirely pushed.
    * In the root level, we can remove child nodes which are entirely pushed
    * In non-root levels, whether we can remove those entirely pushed child nodes depends on ORs on
-   *  the top, so we handle in {@link #simplifyDisjunction(List, List, boolean, RexBuilder)}
+   *  the top, so we handle in {@link #simplifyDisjunction(RexBuilder, List, List, boolean)}
    */
-  private static RexNode simplifyConjunction(List<RexNode> originalFilters,
-    List<Pair<RexNode, RexNode>> extractions, boolean rootLevel, RexBuilder rexBuilder) {
+  public static RexNode simplifyConjunction(RexBuilder rexBuilder, List<RexNode> originalFilters,
+    List<Pair<RexNode, RexNode>> extractions, boolean rootLevel) {
     List<RexNode> remainingFilters = Lists.newArrayList();
     for (int i = 0; i < originalFilters.size(); ++i) {
       RexNode originalFilter = originalFilters.get(i);
@@ -77,8 +62,8 @@ public final class EnhancedFilterJoinSimplifier {
    * E.x.  (a and b) or (a and c)  -> push: a  -> remaining: b or c
    * If in the root level all children are entirely pushed, then we can return {@code true}.
    */
-  private static RexNode simplifyDisjunction(List<RexNode> originalFilters,
-    List<Pair<RexNode, RexNode>> extractions, boolean rootLevel, RexBuilder rexBuilder) {
+  public static RexNode simplifyDisjunction(RexBuilder rexBuilder, List<RexNode> originalFilters,
+    List<Pair<RexNode, RexNode>> extractions, boolean rootLevel) {
     // Find out all entirely pushed child nodes
     List<Pair<RexNode, RexNode>> entirelyPushedExtractions = Lists.newArrayList();
     List<Pair<RexNode, RexNode>> nonEntirelyPushedExtractions = Lists.newArrayList();

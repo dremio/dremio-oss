@@ -15,6 +15,7 @@
  */
 package com.dremio.service.sysflight;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertEquals;
 
@@ -35,9 +36,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
@@ -53,9 +52,6 @@ import io.grpc.StatusRuntimeException;
  * Tests for SysFlight producer
  */
 public class TestSysFlightProducer extends BaseTestQuery {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @ClassRule
   public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();
@@ -124,10 +120,9 @@ public class TestSysFlightProducer extends BaseTestQuery {
   @Test
   public void testUnsupportedDataset() {
     final String random = "random";
-    thrown.expect(StatusRuntimeException.class);
-    thrown.expectMessage("'" + random + "' system table is not supported");
-
-    client.getSchema(FlightDescriptor.path(random));
+    assertThatThrownBy(() -> client.getSchema(FlightDescriptor.path(random)))
+      .isInstanceOf(StatusRuntimeException.class)
+      .hasMessageContaining("'" + random + "' system table is not supported");
   }
   @Test
   public void testFlightStreamBatched() throws Exception{

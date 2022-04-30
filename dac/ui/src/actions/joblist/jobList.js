@@ -27,6 +27,12 @@ export const ITEMS_FOR_FILTER_JOBS_LIST_SUCCESS = 'ITEMS_FOR_FILTER_JOBS_LIST_SU
 export const ITEMS_FOR_FILTER_JOBS_LIST_FAILURE = 'ITEMS_FOR_FILTER_JOBS_LIST_FAILURE';
 export const JOB_DETAILS_VIEW_ID = 'JOB_DETAILS_VIEW_ID';
 export const JOB_PAGE_NEW_VIEW_ID = 'JOB_PAGE_NEW_VIEW_ID';
+export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST = 'FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST';
+export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS = 'FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS';
+export const FETCH_JOB_EXECUTION_DETAILS_BY_ID_FAILURE = 'FETCH_JOB_EXECUTION_DETAILS_BY_ID_FAILURE';
+export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST = 'FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST';
+export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS = 'FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS';
+export const FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE = 'FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE';
 
 function fetchJobsListAction(queryState, viewId) {
   const meta = { viewId };
@@ -45,11 +51,15 @@ function fetchJobsListAction(queryState, viewId) {
         dispatch(fetchJobsListActionSuccess(payload, meta));
         return Promise.resolve(payload);
       })
-      .catch(response => (
-        response.json().then(error => {
-          return dispatch(fetchJobsListActionFailure({ response: error }));
-        }).catch(() => dispatch(fetchJobsListActionFailure(response)))
-      ));
+      .catch(response => {
+        if (Response.prototype.isPrototypeOf(response)) {
+          response.json().then(error => {
+            return dispatch(fetchJobsListActionFailure({ response: error }));
+          }).catch(() => dispatch(fetchJobsListActionFailure(response)));
+        } else {
+          dispatch(fetchJobsListActionFailure({response, meta: { notification: true }}));
+        }
+      });
   };
 }
 
@@ -75,7 +85,7 @@ export function fetchJobsList(queryState, viewId) {
   };
 }
 
-function loadJobDetailsAction(jobId, viewId, attempts, skipStartAction = false) {
+function loadJobDetailsAction(jobId, viewId, attempts = 1, skipStartAction = false) {
   const meta = { viewId };
   return (dispatch) => {
     if (!skipStartAction) {
@@ -139,7 +149,7 @@ export function loadJobDetails(jobId, viewId, attempts, skipStartAction) {
   };
 }
 
-function fetchItemsForFilter(tag, filter = '', limit = '') {
+function fetchItemsForFilter(tag, filter = '', limit = '50') {
   return (dispatch) => {
     return apiUtils.fetch(`jobs/filters/${tag}?filter=${filter}&limit=${limit}`, {}, 2)
       .then(response => {
@@ -153,7 +163,7 @@ function fetchItemsForFilter(tag, filter = '', limit = '') {
         dispatch(fetchItemsForFilterSuccess(payload, tag));
         return Promise.resolve(payload);
       })
-      .catch(payload => dispatch(fetchItemsForFilterFailure(payload, tag)));
+      .catch(payload => dispatch(fetchItemsForFilterFailure(payload, { tag })));
   };
 }
 
@@ -168,15 +178,14 @@ const fetchItemsForFilterFailure = (payload, tag) => ({
   type: ITEMS_FOR_FILTER_JOBS_LIST_FAILURE,
   payload,
   meta: {
-    ...tag,
-    notification: true
+    ...tag
   },
   error: true
 });
 
-export function loadItemsForFilter(tag, item, limit) {
+export function loadItemsForFilter(tag, filter, limit) {
   return (dispatch) => {
-    return dispatch(fetchItemsForFilter(tag, item, limit));
+    return dispatch(fetchItemsForFilter(tag, filter, limit));
   };
 }
 
@@ -236,3 +245,69 @@ export function loadNextJobs(href, viewId) {
     return dispatch(fetchNextJobList(href, viewId));
   };
 }
+
+export const fetchJobExecutionDetails = (jobId, viewId, totalAttempts = 1, skipStartAction = false) => async (dispatch) => {
+  const meta = { viewId };
+  if (!skipStartAction) {
+    dispatch({ type: FETCH_JOB_EXECUTION_DETAILS_BY_ID_REQUEST, meta });
+  }
+  try {
+    let response = await apiUtils.fetch(`queryProfile/${jobId}/JobProfile?attempt=${totalAttempts}`, {}, 2);
+    response = await response.json();
+    dispatch(fetchJobExecutionDetailsSuccess(response, meta));
+  } catch (response) {
+    const error = await response.json();
+    const failureMeta = { ...meta, ...error };
+    return dispatch(fetchJobExecutionDetailsFailure({ response: error }, failureMeta));
+  }
+};
+
+const fetchJobExecutionDetailsSuccess = (payload, meta) => ({
+  type: FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS,
+  payload,
+  meta
+});
+
+const fetchJobExecutionDetailsFailure = (payload, meta) => ({
+  type: FETCH_JOB_EXECUTION_DETAILS_BY_ID_FAILURE,
+  payload,
+  meta: {
+    ...meta,
+    notification: true
+  },
+  error: true
+});
+
+export function fetchJobExecutionOperatorDetails(jobId, viewId, phaseId, operatorId, totalAttempts) {
+  const meta = { viewId };
+  return (dispatch) => {
+    dispatch({ type: FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_REQUEST, meta, payload: {} });
+    return apiUtils.fetch(`queryProfile/${jobId}/JobProfile/OperatorDetails?phaseId=${phaseId}&operatorId=${operatorId}&attempt=${totalAttempts}`, {}, 2)
+      .then(response => response && response.json())
+      .then(payload => {
+        dispatch(fetchJobExecutionOperatorDetailsSuccess(payload, meta));
+        return Promise.resolve(payload);
+      })
+      .catch(response => (
+        response.json().then(error => {
+          return dispatch(fetchJobExecutionOperatorDetailsFailure({ response: error }, meta));
+        }).catch(() => dispatch(fetchJobExecutionOperatorDetailsFailure(response, meta)))
+      ));
+  };
+}
+
+const fetchJobExecutionOperatorDetailsSuccess = (payload, meta) => ({
+  type: FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS,
+  payload,
+  meta
+});
+
+const fetchJobExecutionOperatorDetailsFailure = (payload, meta) => ({
+  type: FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_FAILURE,
+  payload,
+  meta: {
+    ...meta,
+    notification: true
+  },
+  error: true
+});

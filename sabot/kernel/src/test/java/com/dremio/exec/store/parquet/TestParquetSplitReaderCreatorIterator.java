@@ -22,10 +22,9 @@ import static com.dremio.exec.ExecConstants.PREFETCH_READER;
 import static com.dremio.exec.ExecConstants.QUERY_EXEC_OPTION_KEY;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyByte;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -44,6 +43,7 @@ import org.apache.parquet.schema.MessageType;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.SchemaPath;
@@ -314,7 +314,7 @@ public class TestParquetSplitReaderCreatorIterator {
     SabotConfig sabotConfig = mock(SabotConfig.class);
     InputStreamProviderFactory inputStreamProviderFactory = mock(InputStreamProviderFactory.class);
     OptionManager optionManager = mock(OptionManager.class);
-    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     FileSystem fs = mock(FileSystem.class);
     StoragePluginId storagePluginId = mock(StoragePluginId.class);
     OpProps opProps = mock(OpProps.class);
@@ -331,8 +331,8 @@ public class TestParquetSplitReaderCreatorIterator {
     when(optionManager.getOption(QUERY_EXEC_OPTION_KEY)).thenReturn(OptionValue.createString(OptionValue.OptionType.SYSTEM,QUERY_EXEC_OPTION_KEY,"Gandiva"));
     when(context.getStats()).thenReturn(operatorStats);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
-    when(fileSystemPlugin.createFS(anyString(), anyString(), any())).thenReturn(fs);
-    when(fileSystemPlugin.createFSWithAsyncOptions(anyString(), anyString(), any())).thenReturn(fs);
+    when(fileSystemPlugin.createFS(any(), any(), any())).thenReturn(fs);
+    when(fileSystemPlugin.createFSWithAsyncOptions(any(), any(), any())).thenReturn(fs);
     when(fs.supportsPath(any())).thenReturn(true);
     when(fs.supportsAsync()).thenReturn(true);
     when(config.getPluginId()).thenReturn(storagePluginId);
@@ -343,7 +343,7 @@ public class TestParquetSplitReaderCreatorIterator {
     when(config.getColumns()).thenReturn(Collections.singletonList(SchemaPath.getSimplePath("*")));
     when(config.getFormatSettings()).thenReturn(FileConfig.getDefaultInstance());
     when(optionManager.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL_VALIDATOR)).thenReturn("dir");
-    when(inputStreamProviderFactory.create(any(),any(),any(),anyByte(),anyByte(),any(),any(),any(),any(),anyBoolean(),any(),anyByte(),anyBoolean(),anyBoolean())).thenReturn(inputStreamProvider);
+    when(inputStreamProviderFactory.create(any(),any(),any(),anyLong(),anyLong(),any(),any(),any(),any(),anyBoolean(),any(),anyLong(),anyBoolean(),anyBoolean())).thenReturn(inputStreamProvider);
 
     BlockMetaData blockMetaData = mock(BlockMetaData.class);
     when(footer.getBlocks()).thenReturn(Collections.singletonList(blockMetaData));
@@ -353,7 +353,7 @@ public class TestParquetSplitReaderCreatorIterator {
     when(inputStreamProvider.getFooter()).thenReturn(footer);
     when(footer.getFileMetaData()).thenReturn(new FileMetaData(new MessageType("", new ArrayList<>()), new HashMap<>(), ""));
     when(readerConfig.getPartitionNVPairs(any(), any())).thenReturn(new ArrayList<>());
-    when(readerConfig.wrapIfNecessary(any(), any(), any())).then(i -> i.getArgumentAt(1, RecordReader.class));
+    when(readerConfig.wrapIfNecessary(any(), any(), any())).then(i -> i.getArgument(1, RecordReader.class));
 
     List<SplitAndPartitionInfo> splits = new ArrayList<>();
 
@@ -398,7 +398,7 @@ public class TestParquetSplitReaderCreatorIterator {
     SabotConfig sabotConfig = mock(SabotConfig.class);
     InputStreamProviderFactory inputStreamProviderFactory = mock(InputStreamProviderFactory.class);
     OptionManager optionManager = mock(OptionManager.class);
-    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
+    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     FileSystem fs = mock(FileSystem.class);
     StoragePluginId storagePluginId = mock(StoragePluginId.class);
     OpProps opProps = mock(OpProps.class);
@@ -413,8 +413,8 @@ public class TestParquetSplitReaderCreatorIterator {
     when(optionManager.getOption(PARQUET_CACHED_ENTITY_SET_FILE_SIZE)).thenReturn(true);
     when(context.getStats()).thenReturn(operatorStats);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(fileSystemPlugin);
-    when(fileSystemPlugin.createFS(anyString(), anyString(), any())).thenReturn(fs);
-    when(fileSystemPlugin.createFSWithAsyncOptions(anyString(), anyString(), any())).thenReturn(fs);
+    when(fileSystemPlugin.createFS(any(), any(), any())).thenReturn(fs);
+    when(fileSystemPlugin.createFSWithAsyncOptions(any(), any(), any())).thenReturn(fs);
     when(fs.supportsPath(any())).thenReturn(true);
     when(fs.supportsAsync()).thenReturn(true);
     when(tableFunctionContext.getPluginId()).thenReturn(storagePluginId);
@@ -426,7 +426,7 @@ public class TestParquetSplitReaderCreatorIterator {
 
     InputStreamProvider inputStreamProvider = mock(InputStreamProvider.class);
     MutableParquetMetadata footer = mock(MutableParquetMetadata.class);
-    when(inputStreamProviderFactory.create(any(),any(),any(),anyByte(),anyByte(),any(),any(),any(),any(),anyBoolean(),any(),anyByte(),anyBoolean(),anyBoolean())).thenReturn(inputStreamProvider);
+    when(inputStreamProviderFactory.create(any(),any(),any(),anyLong(),anyLong(),any(),any(),any(),any(),anyBoolean(),any(),anyLong(),anyBoolean(),anyBoolean())).thenReturn(inputStreamProvider);
     BlockMetaData blockMetaData = mock(BlockMetaData.class);
     when(footer.getBlocks()).thenReturn(Collections.singletonList(blockMetaData));
     ColumnChunkMetaData chunkMetaData = mock(ColumnChunkMetaData.class);
@@ -435,7 +435,7 @@ public class TestParquetSplitReaderCreatorIterator {
     when(inputStreamProvider.getFooter()).thenReturn(footer);
     when(footer.getFileMetaData()).thenReturn(new FileMetaData(new MessageType("", new ArrayList<>()), new HashMap<>(), ""));
     when(readerConfig.getPartitionNVPairs(any(), any())).thenReturn(new ArrayList<>());
-    when(readerConfig.wrapIfNecessary(any(), any(), any())).then(i -> i.getArgumentAt(1, RecordReader.class));
+    when(readerConfig.wrapIfNecessary(any(), any(), any())).then(i -> i.getArgument(1, RecordReader.class));
 
     return new ParquetSplitReaderCreatorIterator(fragmentExecutionContext, context, opProps, tableFunctionConfig, false, false);
   }

@@ -134,6 +134,8 @@ public interface ProvisioningService extends Service {
    */
   CompletableFuture<Void> autostartCluster(String name);
 
+  void restartPreviewEngine();
+
   /**
    * Stop the collection of clusterIds if possible. No exceptions are thrown if the stop is disallowed.
    */

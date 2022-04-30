@@ -21,7 +21,7 @@ import java.util.List;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.fragment.DistributionAffinity;
-import com.dremio.exec.planner.physical.AggPrelBase;
+import com.dremio.exec.planner.physical.AggregatePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
@@ -42,7 +42,6 @@ import com.dremio.exec.planner.physical.WindowPrel;
  *   All scans are soft affinity
  */
 public class SimpleLimitExchangeRemover {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SimpleLimitExchangeRemover.class);
 
   public static Prel apply(PlannerSettings settings, Prel input){
     if(!settings.isTrivialSingularOptimized() || settings.isLeafLimitsEnabled()) {
@@ -59,24 +58,24 @@ public class SimpleLimitExchangeRemover {
 
     @Override
     public Boolean visitPrel(Prel prel, Boolean isTrivial) {
-      if(prel instanceof WindowPrel || prel instanceof JoinPrel || prel instanceof AggPrelBase || prel instanceof SortPrel || prel instanceof TopNPrel || prel instanceof FilterPrel){
+      if(prel instanceof WindowPrel || prel instanceof JoinPrel || prel instanceof AggregatePrel || prel instanceof SortPrel || prel instanceof TopNPrel || prel instanceof FilterPrel){
         return false;
       }
-
-      if(prel instanceof LimitPrel){
-        if(!((LimitPrel) prel).isTrivial()){
+      for(Prel p : prel) {
+        if(!p.accept(this, isTrivial)) {
           return false;
         }
-
-        isTrivial = true;
       }
+      return true;
+    }
 
-      Boolean okay = true;
-      for(Prel p : prel){
-        okay = okay && p.accept(this, isTrivial);
+    @Override
+    public Boolean visitLimit(LimitPrel limit, Boolean value) throws RuntimeException {
+      if (limit.isTrivial()) {
+        return ((Prel) limit.getInput()).accept(this, true);
+      } else {
+        return false;
       }
-
-      return okay;
     }
 
     @Override
@@ -87,7 +86,6 @@ public class SimpleLimitExchangeRemover {
 
       return isTrivial;
     }
-
 
   }
 

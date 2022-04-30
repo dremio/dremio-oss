@@ -18,9 +18,11 @@ import { combineReducers } from 'redux';
 import entities from 'dyn-load/reducers/resources/entities';
 import view from './view';
 import sourceList from './sourceList';
+import scripts from './scripts';
 
 export default combineReducers({
   entities,
   view,
-  sourceList
+  sourceList,
+  scripts
 });

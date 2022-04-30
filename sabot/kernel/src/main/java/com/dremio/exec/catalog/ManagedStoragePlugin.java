@@ -51,6 +51,7 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsAlteringDatasetMetadata;
 import com.dremio.connector.metadata.options.AlterMetadataOption;
+import com.dremio.datastore.DatastoreException;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
@@ -80,6 +81,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
+import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -121,6 +123,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   private final OptionManager options;
   private final CatalogServiceMonitor monitor;
   private final NamespaceService systemUserNamespaceService;
+  private final Orphanage orphanage;
 
   protected volatile SourceConfig sourceConfig;
   private volatile StoragePlugin plugin;
@@ -138,17 +141,18 @@ public class ManagedStoragePlugin implements AutoCloseable {
   private final ReentrantReadWriteLock rwlock;
 
   public ManagedStoragePlugin(
-      SabotContext context,
-      Executor executor,
-      boolean isMaster,
-      ModifiableSchedulerService modifiableScheduler,
-      NamespaceService systemUserNamespaceService,
-      LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
-      SourceConfig sourceConfig,
-      OptionManager options,
-      ConnectionReader reader,
-      CatalogServiceMonitor monitor,
-      Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
+    SabotContext context,
+    Executor executor,
+    boolean isMaster,
+    ModifiableSchedulerService modifiableScheduler,
+    NamespaceService systemUserNamespaceService,
+    Orphanage orphanage,
+    LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
+    SourceConfig sourceConfig,
+    OptionManager options,
+    ConnectionReader reader,
+    CatalogServiceMonitor monitor,
+    Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
   ) {
     this.rwlock = new ReentrantReadWriteLock(true);
     this.executor = executor;
@@ -159,6 +163,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.sourceKey = new NamespaceKey(sourceConfig.getName());
     this.name = sourceConfig.getName();
     this.systemUserNamespaceService = systemUserNamespaceService;
+    this.orphanage = orphanage;
     this.conf = reader.getConnectionConf(sourceConfig);
     this.plugin = conf.newPlugin(context, sourceConfig.getName(), this::getId);
     this.metadataPolicy = sourceConfig.getMetadataPolicy() == null ? CatalogService.NEVER_REFRESH_POLICY : sourceConfig.getMetadataPolicy();
@@ -334,6 +339,12 @@ public class ManagedStoragePlugin implements AutoCloseable {
     } else if (logger.isDebugEnabled()) {
       logger.debug("{} source [{}].", create ? "Creating" : "Updating", config.getName());
     }
+    // VersionedPlugin  is a source that does not save datasets in Namespace. So they never need to be refreshed
+    if (this.plugin instanceof VersionedPlugin) {
+      config.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+    }
+
+    SourceConfig originalConfigCopy = ProtostuffUtil.copy(sourceConfig);
 
     addDefaults(config);
     addGlobalKeys(config);
@@ -367,7 +378,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
           if (!keepStaleMetadata()) {
             logger.debug("Old metadata data may be bad; deleting all descendants of source [{}]", config.getName());
             // TODO: expensive call on non-master coordinators (sends as many RPC requests as entries under the source)
-            systemUserNamespaceService.deleteSourceChildren(config.getKey(), config.getTag());
+            NamespaceService.DeleteCallback deleteCallback = (DatasetConfig datasetConfig) -> {
+              CatalogUtil.addIcebergMetadataOrphan(datasetConfig, orphanage);
+            };
+            systemUserNamespaceService.deleteSourceChildren(config.getKey(), config.getTag(), deleteCallback);
           } else {
             logger.info("Old metadata data may be bad, but preserving descendants of source [{}] because '{}' is enabled",
                 config.getName(), CatalogOptions.STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE.getOptionName());
@@ -376,7 +390,13 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
         // Now let's create the plugin in the system namespace.
         // This increments the version in the config object as well.
-        userNamespace.addOrUpdateSource(config.getKey(), config, attributes);
+        try {
+          userNamespace.addOrUpdateSource(config.getKey(), config, attributes);
+        } catch (ConcurrentModificationException | DatastoreException e) {
+          logger.trace("Saving to namespace store failed, reverting the in-memory source config to the original version...");
+          setLocals(originalConfigCopy);
+          throw e;
+        }
       }
 
       // ***** Complete Local Update **** //
@@ -794,7 +814,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     metadataManager.setMetadataSyncInfo(request);
   }
 
-  private static boolean isComplete(DatasetConfig config) {
+  public static boolean isComplete(DatasetConfig config) {
     return config != null
         && DatasetHelper.getSchemaBytes(config) != null
         && config.getReadDefinition() != null
@@ -1227,6 +1247,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
       try(AutoCloseableLock read = tryReadLock()) {
         return new SafeNamespaceService(systemUserNamespaceService, new SafeRunner());
       }
+    }
+
+    public Orphanage getOrphanage() {
+      return orphanage;
     }
 
     public MetadataPolicy getMetadataPolicy() {

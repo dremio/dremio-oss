@@ -89,7 +89,7 @@ public abstract class AbstractVector implements AutoCloseable {
   }
 
   public void clear() {
-    dataBuffer.release();
+    dataBuffer.close();
     dataBuffer = allocator.getEmpty();
     valueCount = 0;
   }
@@ -122,7 +122,7 @@ public abstract class AbstractVector implements AutoCloseable {
       newBuf.setZero(0, newBuf.capacity());
       newBuf.setBytes(0, dataBuffer, 0, currentBufferCapacity);
       newBuf.writerIndex(dataBuffer.writerIndex());
-      dataBuffer.release(1);
+      dataBuffer.getReferenceManager().release(1);
       dataBuffer = newBuf;
       allocationSizeInBytes = (int)newAllocationSize;
     }

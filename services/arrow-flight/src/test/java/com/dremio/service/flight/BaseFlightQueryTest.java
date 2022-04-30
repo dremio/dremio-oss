@@ -17,7 +17,7 @@ package com.dremio.service.flight;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,6 +48,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
+import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
@@ -59,9 +60,13 @@ import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserService;
+import com.dremio.service.usersessions.UserSessionService;
+import com.dremio.service.usersessions.UserSessionServiceImpl;
+import com.dremio.service.usersessions.store.UserSessionStoreProvider;
 import com.dremio.ssl.SSLConfig;
 import com.dremio.test.DremioTest;
 import com.google.inject.AbstractModule;
+import com.google.inject.Provider;
 import com.google.inject.util.Providers;
 
 /**
@@ -69,8 +74,8 @@ import com.google.inject.util.Providers;
  */
 public class BaseFlightQueryTest extends BaseTestQuery {
 
-  protected static final String DUMMY_USER = "dummy_user";
-  protected static final String DUMMY_PASSWORD = "dummy_password123";
+  protected static final String DUMMY_USER = UserServiceTestImpl.TEST_USER_1;
+  protected static final String DUMMY_PASSWORD = UserServiceTestImpl.TEST_USER_1_PASSWORD;
   protected static final String DUMMY_TOKEN = "dummy_token";
 
   private static LegacyKVStoreProvider kvStore;
@@ -81,6 +86,8 @@ public class BaseFlightQueryTest extends BaseTestQuery {
   private static SSLConfig sslConfig;
   private static DremioConfig dremioConfig;
   private static String authMode;
+
+  private static final Provider<UserSessionService> userSessionServiceProvider = () ->  new UserSessionServiceImpl(UserSessionStoreProvider::new, () -> 120 * 60);
 
   public static void setupBaseFlightQueryTest(boolean tls, boolean backpressureHandling,
                                               String portPomFileSystemProperty,
@@ -151,17 +158,20 @@ public class BaseFlightQueryTest extends BaseTestQuery {
     dremioConfig = DremioConfig.create(null, config)
       .withValue(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, true)
       .withValue(DremioConfig.FLIGHT_SERVICE_PORT_INT, flightServicePort)
-      .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode);
+      .withValue(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE, authMode)
+      .withValue(DremioConfig.FLIGHT_USE_SESSION_SERVICE, true);
 
     flightService = new DremioFlightService(
       Providers.of(dremioConfig),
       Providers.of(getSabotContext().getAllocator()),
-      getBindingProvider().provider(UserService.class),
       getBindingProvider().provider(UserWorker.class),
       Providers.of(getSabotContext()),
       getBindingProvider().provider(TokenManager.class),
       getBindingProvider().provider(OptionManager.class),
-      runQueryResponseHandlerFactory);
+      userSessionServiceProvider,
+      () -> new DremioFlightAuthProviderImpl(Providers.of(dremioConfig), getBindingProvider().provider(UserService.class), getBindingProvider().provider(TokenManager.class)),
+      runQueryResponseHandlerFactory
+      );
 
     flightService.start();
     flightClientWrapper =
@@ -218,17 +228,13 @@ public class BaseFlightQueryTest extends BaseTestQuery {
     flightService = new DremioFlightService(
       Providers.of(dremioConfig),
       Providers.of(BaseTestQuery.getSabotContext().getAllocator()),
-      BaseTestQuery.getBindingProvider().provider(UserService.class),
       BaseTestQuery.getBindingProvider().provider(UserWorker.class),
       Providers.of(BaseTestQuery.getSabotContext()),
       BaseTestQuery.getBindingProvider().provider(TokenManager.class),
       BaseTestQuery.getBindingProvider().provider(OptionManager.class),
-      runQueryResponseHandlerFactory) {
-      @Override
-      protected BasicServerAuthHandler.BasicAuthValidator createBasicAuthValidator(javax.inject.Provider<UserService> userServiceProvider,
-                                                                                   javax.inject.Provider<TokenManager> tokenManagerProvider,
-                                                                                   DremioFlightSessionsManager dremioFlightSessionsManager) {
-        return new BasicServerAuthHandler.BasicAuthValidator() {
+      userSessionServiceProvider,
+      () -> (builder, dremioFlightSessionsManager) -> builder.authHandler(new BasicServerAuthHandler(
+        new BasicServerAuthHandler.BasicAuthValidator() {
           @Override
           public byte[] getToken(String user, String password) {
             return new byte[0];
@@ -238,8 +244,9 @@ public class BaseFlightQueryTest extends BaseTestQuery {
           public Optional<String> isValid(byte[] bytes) {
             return Optional.of(DUMMY_USER);
           }
-        };
-      }
+        }
+      )),
+      runQueryResponseHandlerFactory) {
 
       @Override
       protected SSLConfig getSSLConfig(DremioConfig config, SSLConfigurator sslConfigurator) {

@@ -15,6 +15,8 @@
  */
 package com.dremio.jdbc;
 
+import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.ANONYMOUS;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -46,6 +48,7 @@ public class JdbcWithServerTestBase extends JdbcTestBase {
 
   protected static void setupConnection(Properties properties) throws SQLException {
     Driver.load();
+    properties.put("user", ANONYMOUS);
     connection = DriverManager.getConnection( sabotNode.getJDBCConnectionString(), properties );
   }
 

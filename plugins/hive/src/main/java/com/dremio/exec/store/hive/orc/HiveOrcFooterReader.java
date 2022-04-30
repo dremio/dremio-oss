@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 
-import org.apache.iceberg.FileFormat;
 import org.apache.orc.CompressionCodec;
 import org.apache.orc.CompressionKind;
 import org.apache.orc.FileFormatException;
@@ -88,8 +87,7 @@ public class HiveOrcFooterReader implements FooterReader {
   }
 
   private long getRowsFromFileFooter(String path, long fileSize) throws IOException {
-    try (final Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
-      FSInputStream inputStream = fs.open(Path.of(path));
+    try (final Closeable ccls = HivePf4jPlugin.swapClassLoader(); FSInputStream inputStream = fs.open(Path.of(path))) {
       int readSize = (int) Math.min(fileSize, DIRECTORY_SIZE_GUESS);
       ByteBuffer bb = ByteBuffer.allocate(readSize);
       inputStream.setPosition(fileSize - readSize);

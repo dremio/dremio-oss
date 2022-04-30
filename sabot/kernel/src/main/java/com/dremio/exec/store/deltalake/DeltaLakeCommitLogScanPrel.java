@@ -301,7 +301,7 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
       ImmutableList.of(numRecords, minValues, maxValues, nullCount));
 
 
-    final Field add = new Field(DELTA_FIELD_ADD, true, new ArrowType.Struct(),
+    final Field add = new Field(DELTA_FIELD_ADD, new FieldType(true, new ArrowType.Struct(), null),
       ImmutableList.of(path, partitionValues, size, modificationTime, dataChange, tags, stats, partitionValuesParsed, statsParsed));
     outputSchema.addField(add);
 
@@ -309,7 +309,7 @@ public class DeltaLakeCommitLogScanPrel extends AbstractRelNode implements LeafP
     final Field deletionTimestamp = Field.nullablePrimitive(SCHEMA_DELETION_TIMESTAMP, new ArrowType.PrimitiveType.Int(64, true));
     final Field removeDataChange = Field.nullablePrimitive(SCHEMA_DATA_CHANGE, new ArrowType.Bool());
 
-    final Field remove = new Field(DELTA_FIELD_REMOVE, true, new ArrowType.Struct(), ImmutableList.of(removePath, deletionTimestamp, removeDataChange));
+    final Field remove = new Field(DELTA_FIELD_REMOVE, new FieldType(true,  new ArrowType.Struct(), null), ImmutableList.of(removePath, deletionTimestamp, removeDataChange));
     outputSchema.addField(remove);
     final Field version = Field.nullablePrimitive(VERSION, new ArrowType.Int(64, true));
     outputSchema.addField(version);

@@ -32,6 +32,6 @@ public class Hive2PluginCreator implements StoragePluginCreator {
   public HiveStoragePlugin createStoragePlugin(PluginManager pf4jManager, HiveStoragePluginConfig config,
                                            SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     final HiveConfFactory confFactory = new HiveConfFactory();
-    return new HiveStoragePlugin(confFactory.createHiveConf(config), pf4jManager, context, name);
+    return new HiveStoragePlugin(confFactory.createHiveConf(config), pf4jManager, context, name, pluginIdProvider);
   }
 }

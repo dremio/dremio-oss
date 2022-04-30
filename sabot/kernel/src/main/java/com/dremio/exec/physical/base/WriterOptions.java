@@ -20,17 +20,18 @@ import java.util.List;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.visitor.WriterUpdater;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
-import com.dremio.exec.store.VersionedDatasetAccessOptions;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 
@@ -39,6 +40,7 @@ import io.protostuff.ByteString;
 /**
  * Writer options.
  */
+// TODO: Convert to @Value.Immutable
 public class WriterOptions {
   public enum IcebergWriterOperation {
     NONE,
@@ -48,7 +50,7 @@ public class WriterOptions {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterOptions.class);
 
   public static final WriterOptions DEFAULT = new WriterOptions(null, ImmutableList.<String>of(),
-      ImmutableList.<String>of(), ImmutableList.<String>of(), PartitionDistributionStrategy.UNSPECIFIED, false,
+      ImmutableList.<String>of(), ImmutableList.<String>of(), PartitionDistributionStrategy.UNSPECIFIED, null, false,
       Long.MAX_VALUE, IcebergWriterOperation.NONE, null);
 
   private final Integer ringCount;
@@ -56,6 +58,7 @@ public class WriterOptions {
   private final List<String> sortColumns;
   private final List<String> distributionColumns;
   private final PartitionDistributionStrategy partitionDistributionStrategy;
+  private final String tableLocation;
   private final boolean singleWriter;
   private long recordLimit;
   // output limit per query from the PlannerSettings.OUTPUT_LIMIT_SIZE
@@ -63,9 +66,9 @@ public class WriterOptions {
   private final IcebergWriterOperation icebergWriterOperation;
   private final ByteString extendedProperty;
   private final boolean outputLimitEnabled;
-  private IcebergTableProps icebergTableProps;
-  private boolean readSignatureSupport;
-  private VersionedDatasetAccessOptions versionedDatasetAccessOptions;
+  private final IcebergTableProps icebergTableProps;
+  private final boolean readSignatureSupport;
+  private final ResolvedVersionContext version;
 
   public WriterOptions(
     Integer ringCount,
@@ -76,7 +79,7 @@ public class WriterOptions {
     boolean singleWriter,
     long recordLimit) {
     this(ringCount, partitionColumns, sortColumns, distributionColumns,
-      partitionDistributionStrategy, singleWriter, recordLimit, IcebergWriterOperation.NONE, null);
+      partitionDistributionStrategy, null, singleWriter, recordLimit, IcebergWriterOperation.NONE, null);
   }
 
   public WriterOptions(
@@ -92,7 +95,7 @@ public class WriterOptions {
     IcebergTableProps icebergTableProps,
     boolean readSignatureSupport
   ) {
-    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy,
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, null,
       singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE,
       icebergTableProps, readSignatureSupport, null);
   }
@@ -103,12 +106,13 @@ public class WriterOptions {
     List<String> sortColumns,
     List<String> distributionColumns,
     PartitionDistributionStrategy partitionDistributionStrategy,
+    String tableLocation,
     boolean singleWriter,
     long recordLimit,
     IcebergWriterOperation icebergWriterOperation,
     ByteString extendedProperty
   ) {
-    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy,
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, tableLocation,
       singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE, null, true, null);
   }
 
@@ -122,11 +126,11 @@ public class WriterOptions {
     long recordLimit,
     IcebergWriterOperation icebergWriterOperation,
     ByteString extendedProperty,
-    VersionedDatasetAccessOptions versionedDatasetAccessOptions
+    ResolvedVersionContext version
   ) {
-    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy,
+    this(ringCount, partitionColumns, sortColumns, distributionColumns, partitionDistributionStrategy, null,
       singleWriter, recordLimit, icebergWriterOperation, extendedProperty, false, Long.MAX_VALUE,
-      null, true, versionedDatasetAccessOptions);
+      null, true, version);
   }
 
 
@@ -137,6 +141,7 @@ public class WriterOptions {
     @JsonProperty("sortColumns") List<String> sortColumns,
     @JsonProperty("distributionColumns") List<String> distributionColumns,
     @JsonProperty("partitionDistributionStrategy") PartitionDistributionStrategy partitionDistributionStrategy,
+    @JsonProperty("tableLocation") String tableLocation,
     @JsonProperty("singleWriter") boolean singleWriter,
     @JsonProperty("recordLimit") long recordLimit,
     @JsonProperty("icebergWriterOperation") IcebergWriterOperation icebergWriterOperation,
@@ -145,13 +150,14 @@ public class WriterOptions {
     @JsonProperty("outputLimitSize") long outputLimitSize,
     @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
     @JsonProperty("readSignatureSupport") Boolean readSignatureSupport,
-    @JsonProperty("versionedDatasetAccessOptions") VersionedDatasetAccessOptions versionedDatasetAccessOptions
+    @JsonProperty("versionContext") ResolvedVersionContext version
     ) {
     this.ringCount = ringCount;
     this.partitionColumns = partitionColumns;
     this.sortColumns = sortColumns;
     this.distributionColumns = distributionColumns;
     this.partitionDistributionStrategy = partitionDistributionStrategy;
+    this.tableLocation = tableLocation;
     this.singleWriter = singleWriter;
     this.recordLimit = recordLimit;
     this.icebergWriterOperation = icebergWriterOperation;
@@ -160,7 +166,7 @@ public class WriterOptions {
     this.outputLimitSize = outputLimitSize;
     this.icebergTableProps = icebergTableProps;
     this.readSignatureSupport = readSignatureSupport;
-    this.versionedDatasetAccessOptions = versionedDatasetAccessOptions;
+    this.version = version;
   }
 
   public Integer getRingCount() {
@@ -169,6 +175,10 @@ public class WriterOptions {
 
   public List<String> getPartitionColumns() {
     return partitionColumns;
+  }
+
+  public String getTableLocation() {
+    return tableLocation;
   }
 
   public List<String> getSortColumns() {
@@ -193,6 +203,10 @@ public class WriterOptions {
     return outputLimitEnabled;
   }
 
+  public ResolvedVersionContext getVersion() {
+    return version;
+  }
+
   public boolean hasDistributions() {
     return distributionColumns != null && !distributionColumns.isEmpty();
   }
@@ -207,7 +221,7 @@ public class WriterOptions {
 
   public WriterOptions withRecordLimit(long recordLimit) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
-      this.partitionDistributionStrategy, this.singleWriter, recordLimit, this.icebergWriterOperation, this.extendedProperty);
+      this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, recordLimit, this.icebergWriterOperation, this.extendedProperty);
   }
 
   public long getOutputLimitSize() {
@@ -216,28 +230,28 @@ public class WriterOptions {
 
   public WriterOptions withOutputLimitEnabled(boolean outputLimitEnabled) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
-                             this.partitionDistributionStrategy, this.singleWriter, this.recordLimit,
+                             this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, this.recordLimit,
                              this.icebergWriterOperation, this.extendedProperty, outputLimitEnabled,
                              this.outputLimitSize, null, this.readSignatureSupport, null);
   }
 
   public WriterOptions withOutputLimitSize(long outputLimitSize) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
-                             this.partitionDistributionStrategy, this.singleWriter, this.recordLimit,
+                             this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, this.recordLimit,
                              this.icebergWriterOperation, this.extendedProperty, this.outputLimitEnabled,
                              outputLimitSize, null,this.readSignatureSupport, null);
   }
 
   public WriterOptions withPartitionColumns(List<String> partitionColumns) {
     return new WriterOptions(this.ringCount, partitionColumns, this.sortColumns, this.distributionColumns,
-      this.partitionDistributionStrategy, this.singleWriter, this.recordLimit, this.icebergWriterOperation, this.extendedProperty);
+      this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, this.recordLimit, this.icebergWriterOperation, this.extendedProperty);
   }
 
-  public WriterOptions withVersionOptions(VersionedDatasetAccessOptions versionOptions) {
+  public WriterOptions withVersion(ResolvedVersionContext version) {
     return new WriterOptions(this.ringCount, this.partitionColumns, this.sortColumns, this.distributionColumns,
-      this.partitionDistributionStrategy, this.singleWriter, recordLimit, this.icebergWriterOperation,
+      this.partitionDistributionStrategy, this.tableLocation, this.singleWriter, recordLimit, this.icebergWriterOperation,
       this.extendedProperty, false, Long.MAX_VALUE,
-      icebergTableProps, readSignatureSupport, versionOptions);
+      icebergTableProps, readSignatureSupport, Preconditions.checkNotNull(version));
   }
 
   public IcebergWriterOperation getIcebergWriterOperation() {
@@ -279,18 +293,6 @@ public class WriterOptions {
 
   public boolean isReadSignatureSupport() {
     return readSignatureSupport;
-  }
-
-  public void setIcebergTableProps(IcebergTableProps icebergTableProps) {
-    this.icebergTableProps = icebergTableProps;
-  }
-
-  public void setVersionedDatasetAccessOptions(VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
-    this.versionedDatasetAccessOptions = versionedDatasetAccessOptions;
-  }
-
-  public VersionedDatasetAccessOptions getVersionedDatasetAccessOptions() {
-    return versionedDatasetAccessOptions;
   }
 
   private static DistributionTrait hashDistributedOn(final List<String> columns, final RelDataType inputRowType) {

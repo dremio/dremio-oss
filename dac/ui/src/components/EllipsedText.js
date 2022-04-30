@@ -30,7 +30,7 @@ export default class EllipsedText extends Component {
     const { text, children, className, title, ...props } = this.props;
     return <div
       className={'EllipsedText ' + (className || '')}
-      title={title || text}
+      title={title}
       {...props}
     >
       {children || text}

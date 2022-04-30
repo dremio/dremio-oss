@@ -17,28 +17,22 @@ package com.dremio.exec.store.parquet2;
 
 import static com.dremio.exec.ExecConstants.LIMIT_FIELD_SIZE_BYTES;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.common.exceptions.UserException;
+import com.dremio.test.UserExceptionAssert;
 
 /**
  * Tests the reading of parquet cell with a given limiting size.
  */
 public class TestParquetCellLimit extends BaseTestQuery {
 
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
-
   @Test
   public void testCellSizeForVarcharFieldExceedingLimit() throws Exception {
     try(AutoCloseable c = withSystemOption(LIMIT_FIELD_SIZE_BYTES, 10L)) {
       final String query = "select l_shipmode, l_comment from cp.\"parquet/cell_limit.parquet\"";
-      exception.expect(UserException.class);
-      exception.expectMessage("UNSUPPORTED_OPERATION ERROR: Field exceeds the size limit");
-      test(query);
+      UserExceptionAssert.assertThatThrownBy(() -> test(query))
+          .hasMessageContaining("UNSUPPORTED_OPERATION ERROR: Field exceeds the size limit");
     }
   }
 

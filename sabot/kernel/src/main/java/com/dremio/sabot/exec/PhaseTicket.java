@@ -40,12 +40,14 @@ import com.google.common.collect.ImmutableList;
 public class PhaseTicket extends TicketWithChildren {
   private final QueryTicket queryTicket;
   private final int majorFragmentId;
+  private final int phaseWeight;
   private final Set<FragmentTicket> fragmentTickets = ConcurrentHashMap.newKeySet();
 
-  public PhaseTicket(QueryTicket queryTicket, int majorFragmentId, BufferAllocator allocator) {
+  public PhaseTicket(QueryTicket queryTicket, int majorFragmentId, BufferAllocator allocator, int phaseWeight) {
     super(allocator);
     this.queryTicket = queryTicket;
     this.majorFragmentId = majorFragmentId;
+    this.phaseWeight = phaseWeight;
   }
 
   public int getMajorFragmentId() {
@@ -78,5 +80,9 @@ public class PhaseTicket extends TicketWithChildren {
       .setMajorFragmentId(majorFragmentId)
       .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation())
       .build();
+  }
+
+  public int getPhaseWeight() {
+    return phaseWeight;
   }
 }

@@ -35,8 +35,6 @@ public class TestParquetWriterEmptyFiles extends BaseTestQuery {
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "local");
 
     fs = FileSystem.get(conf);
-
-    updateTestCluster(3, null);
   }
 
   @Test // see DRILL-2408

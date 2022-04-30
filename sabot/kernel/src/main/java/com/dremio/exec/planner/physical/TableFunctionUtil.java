@@ -83,7 +83,8 @@ public class TableFunctionUtil {
               getInternalTablePluginId(tableMetadata),
               columns,
               tableMetadata.getReadDefinition().getPartitionColumnsList(), null,
-              tableMetadata.getReadDefinition().getExtendedProperty(), false, false, true);
+              tableMetadata.getReadDefinition().getExtendedProperty(), false, false, true,
+              tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings());
     } catch (IOException e) {
       throw UserException.validationError().message("Not able serialized iceberg prune condititions" + icebergAnyColExpression.toString()).buildSilently();
     }
@@ -112,7 +113,8 @@ public class TableFunctionUtil {
       tableMetadata.getStoragePluginId(), getInternalTablePluginId(tableMetadata), columns,
       tableMetadata.getReadDefinition().getPartitionColumnsList(), null,
       tableMetadata.getReadDefinition().getExtendedProperty(),
-      arrowCachingEnabled, isConvertedIcebergDataset, false
+      arrowCachingEnabled, isConvertedIcebergDataset, false,
+      tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings()
     );
   }
 
@@ -126,7 +128,8 @@ public class TableFunctionUtil {
       tableMetadata.getStoragePluginId(), getInternalTablePluginId(tableMetadata),
       getSplitGenSchemaColumns(),
       tableMetadata.getReadDefinition().getPartitionColumnsList(), null,
-      tableMetadata.getReadDefinition().getExtendedProperty(), false, false, false);
+      tableMetadata.getReadDefinition().getExtendedProperty(), false, false, false,
+      tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings());
   }
 
   public static TableFunctionConfig getDataFileScanTableFunctionConfig(
@@ -173,7 +176,7 @@ public class TableFunctionUtil {
       getFooterReadOutputSchemaColumns(),
       Lists.newArrayList(), Lists.newArrayList(),
       Optional.ofNullable(tableMetadata.getReadDefinition()).map(ReadDefinition::getExtendedProperty).orElse(null),
-      false, false, false);
+      false, false, false, tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings());
   }
 
   private static List<SchemaPath> getFooterReadOutputSchemaColumns() {
@@ -210,7 +213,8 @@ public class TableFunctionUtil {
     }
     ImmutableList<SchemaPath> outputColumns = builder.build();
     TableFunctionContext tableFunctionContext = new TableFunctionContext(tableMetadata.getFormatSettings(), outputSchema, tableMetadata.getSchema(),
-      ImmutableList.of(tableMetadata.getName().getPathComponents()), null, tableMetadata.getStoragePluginId(), getInternalTablePluginId(tableMetadata), outputColumns, null, null, null, false, false, isIcebergMetadata);
+      ImmutableList.of(tableMetadata.getName().getPathComponents()), null, tableMetadata.getStoragePluginId(), getInternalTablePluginId(tableMetadata), outputColumns, null, null, null, false, false, isIcebergMetadata,
+      tableMetadata.getDatasetConfig().getPhysicalDataset().getInternalSchemaSettings());
     TableFunctionConfig tableFunctionConfig = new TableFunctionConfig(TableFunctionConfig.FunctionType.SPLIT_ASSIGNMENT, true, tableFunctionContext);
     return new TableFunctionPrel(input.getCluster(), input.getTraitSet(), null, input, tableMetadata, outputColumns, tableFunctionConfig, output);
   }

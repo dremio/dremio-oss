@@ -22,6 +22,8 @@ $lighter-primary-color: #5EC6D5;
 
 $brand-color: #2A394A;
 
+$tooltip-color: #32383E;
+
 $mine-shaft: #333;
 
 $border-color: #E5E5E5;
@@ -30,7 +32,7 @@ $neutral-color: #F2F2F2;
 
 $lighter-neutral-color: #F9F9F9;
 
-$error-color: #DE4949;
+$error-color: #CA3F32;
 
 $white: #FFF;
 
@@ -53,7 +55,9 @@ $aliceBlue: #F5FCFF;
 
 $oslo-gray: #7F8B95;
 
-$disabled-color: $border-color;
+$woodsmoke: #060607;
+
+$disabled-color: #EEEFF1;
 
 $dark-gray: $mine-shaft;
 
@@ -64,9 +68,22 @@ $iceberg: #E4F2F7;
 $frost: #EEF7E2;
 
 $serenade: #FFF3E8;
-
+$pelorous: #3DA5B4;
 $regentBlue: #A1DBE4;
+
+$iron: #D2D6DA;
+$trout: #505862;
+$solitude: #E9EDF0;
+$cultured: #F6F7F8;
+$malibu: #63DAFF;
 
 :export {
   error: $error-color;
+  malibu: $malibu;
 }
+
+$FIGMA_TEXT_DISABLED: #B0B7BF;
+$FIGMA_PRIMARY_150: #E9F5F9;
+$FIGMA_PRIMARY_200: #C6E9EF;
+$FIGMA_NEUTRAL_200: #D2D6DA;
+$FIGMA_TEXT_MAIN: #202124;

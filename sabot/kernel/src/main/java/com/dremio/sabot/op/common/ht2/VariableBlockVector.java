@@ -62,11 +62,11 @@ public class VariableBlockVector implements AutoCloseable {
    * @return true if the buffer was expanded (meaning one needs to reread the memory address).
    */
   public boolean ensureAvailableDataSpace(int sizeInBytes){
-    if (!allowExpansion) {
-      throw new RuntimeException("This buffer has fixed capacity. Not allowed to expand");
-    }
+    if (buf.capacity() < sizeInBytes) {
+      if (!allowExpansion) {
+        throw new RuntimeException("This buffer has fixed capacity. Not allowed to expand");
+      }
 
-    if(buf.capacity() < sizeInBytes){
       resizeBuffer(sizeInBytes);
       return true;
     }
@@ -85,7 +85,7 @@ public class VariableBlockVector implements AutoCloseable {
     buf = allocator.buffer(targetSize);
     PlatformDependent.copyMemory(oldBuf.memoryAddress(), buf.memoryAddress(), oldBuf.capacity());
     buf.writerIndex(oldBuf.writerIndex());
-    oldBuf.release();
+    oldBuf.close();
   }
 
   @VisibleForTesting
@@ -96,7 +96,7 @@ public class VariableBlockVector implements AutoCloseable {
   @Override
   public synchronized void close() {
     if(buf != null){
-      buf.release();
+      buf.close();
       buf = null;
     }
   }

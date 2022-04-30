@@ -237,6 +237,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void recordsOutput(long recordCount) {
+    execute(() -> innerObserver.recordsOutput(recordCount));
+  }
+
+  @Override
   public void planGenerationTime(final long millisTaken) {
     execute(() -> innerObserver.planGenerationTime(millisTaken));
   }

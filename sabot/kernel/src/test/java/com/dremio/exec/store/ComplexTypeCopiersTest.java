@@ -24,6 +24,7 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.IntWriter;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Assert;
 import org.junit.Test;
@@ -65,8 +66,8 @@ public class ComplexTypeCopiersTest extends ExecTest {
   @Test
   public void testListCopier() {
     int rowcount = 5000;
-    try (final ListVector l1 = new ListVector("colList", allocator, null);
-         final ListVector l2 = new ListVector("colList", allocator, null);
+    try (final ListVector l1 = new ListVector("colList", allocator, FieldType.nullable(ArrowType.List.INSTANCE), null);
+         final ListVector l2 = new ListVector("colList", allocator, FieldType.nullable(ArrowType.List.INSTANCE), null);
          final ArrowBuf tempBuf = allocator.buffer(rowcount * 16)) {
       l1.allocateNew();
       UnionListWriter listWriter = new UnionListWriter(l1);

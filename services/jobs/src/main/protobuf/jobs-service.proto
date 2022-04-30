@@ -146,6 +146,7 @@ message JobSummary {
   int64 input_bytes = 31;
   int64 output_bytes = 32;
   repeated com.dremio.service.job.proto.ParentDatasetInfo parents = 33;
+  bool job_completed = 35;
 }
 
 message ActiveJobSummary {
@@ -155,21 +156,35 @@ message ActiveJobSummary {
   string user_name = 4;
   string queried_datasets = 5;
   string scanned_datasets = 6;
-  int64 submitted_ts = 7;
-  int64 metadata_retrieval_ts = 8;
-  int64 planning_start_ts = 9;
-  int64 query_enqueued_ts = 10;
-  int64 engine_start_ts = 11;
-  int64 execution_planning_ts = 12;
-  int64 execution_start_ts = 13;
-  int64 final_state_ts = 14;
-  int64 rows_scanned = 15;
-  int64 rows_returned = 16;
-  bool accelerated = 17;
-  string queue_name = 18;
-  string engine = 19;
-  string error_msg = 20;
-  string query = 21;
+  int32 attempt_count = 7;
+  google.protobuf.Timestamp submitted_ts = 8;
+  google.protobuf.Timestamp attempt_started_ts = 9;
+  google.protobuf.Timestamp metadata_retrieval_ts = 10;
+  google.protobuf.Timestamp planning_start_ts = 11;
+  google.protobuf.Timestamp query_enqueued_ts = 12;
+  google.protobuf.Timestamp engine_start_ts = 13;
+  google.protobuf.Timestamp execution_planning_ts = 14;
+  google.protobuf.Timestamp execution_start_ts = 15;
+  google.protobuf.Timestamp final_state_ts = 16;
+  int64 submitted_epoch_millis = 17;
+  int64 attempt_started_epoch_millis = 18;
+  int64 metadata_retrieval_epoch_millis = 19;
+  int64 planning_start_epoch_millis = 20;
+  int64 query_enqueued_epoch_millis = 21;
+  int64 engine_start_epoch_millis = 22;
+  int64 execution_planning_epoch_millis = 23;
+  int64 execution_start_epoch_millis = 24;
+  int64 final_state_epoch_millis = 25;
+  double planner_estimated_cost = 26;
+  int64 rows_scanned = 27;
+  int64 bytes_scanned = 28;
+  int64 rows_returned = 29;
+  int64 bytes_returned = 30;
+  bool accelerated = 31;
+  string queue_name = 32;
+  string engine = 33;
+  string error_msg = 34;
+  string query = 35;
 }
 
 //proto2 enums cannot be used directly in proto3 syntax
@@ -249,6 +264,7 @@ enum QueryType {
   REST = 500; //query submitted by public rest interfaces
   FLIGHT = 600; //query submitted by FlightClient
   METADATA_REFRESH = 700; // Queries related to metadata refresh
+  INTERNAL_ICEBERG_METADATA_DROP = 800; // Queries related to internal iceberg metadata drop
 }
 
 enum RequestType {
@@ -349,6 +365,21 @@ message SqlQuery {
   repeated string context = 2;
   string username = 3;
   string engine_name = 4;
+  string session_id = 5;
+
+  enum VersionContextType {
+    UNKNOWN = 0;
+    BRANCH = 1;
+    TAG = 2;
+    BARE_COMMIT = 3;
+  }
+
+  message VersionContext {
+    VersionContextType type = 1;
+    string value = 2;
+  }
+
+  map <string, VersionContext> source_version_mapping = 6;
 }
 
 message SubstitutionSettings {

@@ -29,6 +29,7 @@ import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.MaterializationShuttle;
 import com.dremio.exec.planner.acceleration.StrippingFactory;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -143,7 +144,12 @@ class ReflectionPlanNormalizer implements RelTransformer {
 
     Iterable<DremioTable> requestedTables = sqlHandlerConfig.getContext().getCatalog().getAllRequestedTables();
 
-    final RelSerializerFactory serializerFactory = RelSerializerFactory.getPlanningFactory(config, sqlHandlerConfig.getScanResult());
+    final boolean strictRefresh = optionManager != null && optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH);
+    final boolean isLegacy = optionManager != null && optionManager.getOption(PlannerSettings.LEGACY_SERIALIZER_ENABLED);
+    final RelSerializerFactory serializerFactory =
+      isLegacy ?
+        RelSerializerFactory.getLegacyPlanningFactory(config, sqlHandlerConfig.getScanResult()) :
+        RelSerializerFactory.getPlanningFactory(config, sqlHandlerConfig.getScanResult());
 
     this.refreshDecision = RefreshDecisionMaker.getRefreshDecision(
       entry,
@@ -155,16 +161,12 @@ class ReflectionPlanNormalizer implements RelTransformer {
       strippedPlan,
       requestedTables,
       serializerFactory,
-      optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH),
+      strictRefresh,
       forceFullUpdate,
       sqlHandlerConfig.getContext().getFunctionRegistry());
 
     if (isIncremental(refreshDecision)) {
-      try {
       strippedPlan = strippedPlan.accept(getIncremental(refreshDecision));
-      } catch(RuntimeException ex) {
-        throw ex;
-      }
     }
 
     return strippedPlan;

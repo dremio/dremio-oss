@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M11.7222 3.10615C11.8578 2.98484 12.0529 2.96751 12.2055 3.05416L12.2778 3.10615L19.3592 9.44207L19.363 9.44548L21.8612 11.6807C22.0327 11.8341 22.0473 12.0976 21.8938 12.2691C21.7596 12.4191 21.5411 12.4491 21.3737 12.3514L21.3055 12.3017L19.5 10.6863V19.0746C19.5 19.6866 18.9996 20.1726 18.3762 20.231L18.25 20.2368L14.5 20.2368H9.49999L5.75001 20.2368C5.11189 20.2368 4.57161 19.7891 4.50657 19.1952L4.50001 19.0746V10.6863L2.6945 12.3017C2.54444 12.436 2.32401 12.4416 2.16845 12.326L2.10615 12.2691C1.97189 12.119 1.96631 11.8986 2.0819 11.743L2.13884 11.6807L11.7222 3.10615ZM14.9167 19.4035V14.6009C14.9167 13.948 14.3473 13.4386 13.6667 13.4386H10.3333C9.65265 13.4386 9.08332 13.948 9.08332 14.6009V19.4035H5.75001L5.66325 19.3964C5.46875 19.3637 5.33334 19.2239 5.33334 19.0746V9.94072L12 3.97596L18.6667 9.94075V19.0746L18.6586 19.1377C18.6215 19.2823 18.4598 19.4035 18.25 19.4035H14.9167ZM13.6667 14.2719L13.7534 14.2791C13.9479 14.3117 14.0833 14.4515 14.0833 14.6009L14.0831 19.4031H9.91582L9.91665 14.6009C9.91665 14.4302 10.0935 14.2719 10.3333 14.2719H13.6667Z" fill="#6E7987"/>
+</svg>

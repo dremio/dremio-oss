@@ -46,7 +46,7 @@ public class ValidityVectorHelper extends FixedWidthVectorHelper<BitVector> {
     vector.clear();
     vector.valueBuffer = buffer.slice(0, actualLength);
     vector.valueBuffer.writerIndex(actualLength);
-    vector.valueBuffer.retain();
+    vector.valueBuffer.getReferenceManager().retain();
     vector.valueCount = valueCount;
   }
 

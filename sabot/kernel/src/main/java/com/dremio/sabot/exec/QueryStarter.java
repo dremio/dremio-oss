@@ -27,6 +27,24 @@ public interface QueryStarter {
   void buildAndStartQuery(QueryTicket ticket);
 
   /**
+   * Gets the size of the query in terms of the number of tasks that will be created.
+   * <p>
+   * Note: this can be an approximation, if it is more performant to do so. Due to this clients of this
+   * API should treat this as an approximation.
+   * </p>
+   * @return approximate size of query
+   */
+  int getApproximateQuerySize();
+
+  /**
+   * This method is used to determine if the query should use weight based scheduling
+   * @return
+   */
+  default boolean useWeightBasedScheduling() {
+    return false;
+  }
+
+  /**
    * Invoked when the caller is unable to build a query ticket
    * The call is supposed to handle the exception and not throw anything. This function might be invoked in the
    * context of another thread, where throwing an exception is not an option.

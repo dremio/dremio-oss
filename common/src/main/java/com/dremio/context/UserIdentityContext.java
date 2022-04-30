@@ -15,6 +15,8 @@
  */
 package com.dremio.context;
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * User Identity
  */
@@ -32,5 +34,10 @@ public class UserIdentityContext {
 
   public String serialize() {
     return userId;
+  }
+
+  public static boolean isSet() {
+    final UserIdentityContext userIdentity = RequestContext.current().get(UserIdentityContext.CTX_KEY);
+    return userIdentity != null && !StringUtils.isEmpty(userIdentity.getUserId());
   }
 }

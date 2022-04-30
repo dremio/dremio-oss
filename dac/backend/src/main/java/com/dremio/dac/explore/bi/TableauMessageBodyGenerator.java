@@ -156,8 +156,32 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
    * Enum for the different types of Tableau export available within Dremio.
    */
   public enum TableauExportType {
-    ODBC,
-    NATIVE
+    ODBC("", "", EXTRA_CONNECTION_PROPERTIES),
+    FLIGHT("usetls=true","dremio-flight-sql", EXTRA_FLIGHT_CONNECTION_PROPERTIES),
+    NATIVE("ssl=true","dremio", EXTRA_NATIVE_CONNECTION_PROPERTIES);
+
+    private final String sslProps;
+    private final String connectorClass;
+    private final StringValidator extraConnectionProps;
+
+    TableauExportType(String sslProps, String connectorClass, StringValidator extraConnectionProps) {
+      // The ssl property has to be lower case to mirror the case insensitivity of JDBC connection properties
+      this.sslProps = sslProps.toLowerCase(Locale.ROOT);
+      this.connectorClass = connectorClass;
+      this.extraConnectionProps = extraConnectionProps;
+    }
+
+    public String getSslProps() {
+      return sslProps;
+    }
+
+    public String getConnectorClass() {
+      return connectorClass;
+    }
+
+    public StringValidator getExtraConnectionProps() {
+      return extraConnectionProps;
+    }
   }
 
   /**
@@ -175,7 +199,14 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     "export.tableau.extra-native-connection-properties", "");
 
   /**
-   * Option to switch between ODBC/TDC and JDBC/SDK connectors for Tableau.
+   * Option to add extra connection properties to FLIGHT connection. Should follow JDBC connection
+   * string format.
+   */
+  public static final StringValidator EXTRA_FLIGHT_CONNECTION_PROPERTIES = new StringValidator(
+    "export.tableau.extra-flight-connection-properties", "");
+
+  /**
+   * Option to switch between ODBC/TDC, JDBC/SDK, and FLIGHT-SQL-JDBC/SDK connectors for Tableau.
    */
   public static final EnumValidator<TableauExportType> TABLEAU_EXPORT_TYPE =
     new EnumValidator<>("export.tableau.export-type", TableauExportType.class, TableauExportType.NATIVE);
@@ -234,7 +265,9 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     if (WebServer.MediaType.APPLICATION_TDS_TYPE.equals(mediaType)) {
       // The EnumValidator lower-cases the enum for some reason, so we upper case it to match our enum values again.
       if (TableauExportType.NATIVE == TableauExportType.valueOf(getOptionManager().getOption(TABLEAU_EXPORT_TYPE).toUpperCase(Locale.ROOT))) {
-        writeSdkConnection(xmlStreamWriter, datasetConfig, hostname);
+        writeSdkConnection(xmlStreamWriter, datasetConfig, hostname, TableauExportType.NATIVE);
+      } else if (TableauExportType.FLIGHT == TableauExportType.valueOf(getOptionManager().getOption(TABLEAU_EXPORT_TYPE).toUpperCase(Locale.ROOT))) {
+        writeSdkConnection(xmlStreamWriter, datasetConfig, hostname, TableauExportType.FLIGHT);
       } else {
         writeOdbcConnection(xmlStreamWriter, datasetConfig, hostname);
       }
@@ -280,14 +313,15 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     return ImmutableMap.of(TableauSDKConstants.AUTHENTICATION, TableauSDKConstants.BASIC);
   }
 
-  protected String getSdkSSL() {
+  protected String getSdkSSL(TableauExportType tableauExportType) {
     // TODO(DX-34480): We only check for ssl=true and ignore any other option
-    String customExtraProperties = getOptionManager().getOption(EXTRA_NATIVE_CONNECTION_PROPERTIES);
+    String customExtraProperties = getOptionManager().getOption(tableauExportType.getExtraConnectionProps());
     customExtraProperties = customExtraProperties.replace(" ", "").toLowerCase(Locale.ROOT);
 
     // The "parsing" here is rudimentary, and is not meant to be advanced. We simply need a flag to determine if SSL
     // is enabled to allow Tableau to do the right thing. As more options are added, this may need to be more complex.
-    if (customExtraProperties.contains("ssl=true") || (config.hasPath(USER_SSL) && config.getBoolean(USER_SSL))) {
+    if (customExtraProperties.contains(tableauExportType.getSslProps())
+      || (config.hasPath(USER_SSL) && config.getBoolean(USER_SSL))) {
       return TableauSDKConstants.REQUIRE;
     }
     return TableauSDKConstants.NOT_REQUIRE;
@@ -299,20 +333,22 @@ public class TableauMessageBodyGenerator extends BaseBIToolMessageBodyGenerator 
     }
   }
 
-  private void writeSdkConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname) throws XMLStreamException {
+  private void writeSdkConnection(XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname, TableauExportType tableauExportType) throws XMLStreamException {
     final DatasetPath dataset = new DatasetPath(datasetConfig.getFullPathList());
 
     xmlStreamWriter.writeStartElement(TableauSDKConstants.CONN_ATTR);
 
+    String port = tableauExportType.equals(TableauExportType.FLIGHT) ? String.valueOf(config.getInt(DremioConfig.FLIGHT_SERVICE_PORT_INT)) : String.valueOf(getPort());
+
     final Map<String, String> basicAttributes = new ImmutableMap.Builder<String, String>()
-            .put(TableauSDKConstants.CLASS, "dremio")
+            .put(TableauSDKConstants.CLASS, tableauExportType.getConnectorClass())
             .put(TableauSDKConstants.DBNAME, InfoSchemaConstants.IS_CATALOG_NAME)
             .put(TableauSDKConstants.SCHEMA, dataset.toParentPath())
-            .put(TableauSDKConstants.PORT, String.valueOf(getPort()))
+            .put(TableauSDKConstants.PORT, port)
             .put(TableauSDKConstants.SERVER, hostname)
             .put(TableauSDKConstants.USERNAME, "")
             .put(TableauSDKConstants.PRODUCT, getSdkProduct())
-            .put(TableauSDKConstants.SSL, getSdkSSL())
+            .put(TableauSDKConstants.SSL, getSdkSSL(tableauExportType))
             .build();
 
     writeAttributes(xmlStreamWriter, basicAttributes);

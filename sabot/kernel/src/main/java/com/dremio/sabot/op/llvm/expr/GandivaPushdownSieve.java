@@ -286,7 +286,7 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
    */
   private ArrowType generifyDecimalType(ArrowType returnType) {
     if (returnType.getTypeID() == ArrowType.ArrowTypeID.Decimal) {
-      returnType = new ArrowType.Decimal(0,0);
+      returnType = new ArrowType.Decimal(0,0, 128);
     }
     return returnType;
   }

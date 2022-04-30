@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="25px" viewBox="0 0 24 25" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>47599CB9-25B8-498F-B010-D0766C49C2B6</title>
+    <defs>
+        <rect id="path-1" x="0" y="0" width="1056" height="56"></rect>
+        <filter x="-0.0%" y="-0.9%" width="100.1%" height="101.8%" filterUnits="objectBoundingBox" id="filter-2">
+            <feOffset dx="0" dy="-1" in="SourceAlpha" result="shadowOffsetInner1"></feOffset>
+            <feComposite in="shadowOffsetInner1" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="shadowInnerInner1"></feComposite>
+            <feColorMatrix values="0 0 0 0 0.91372549   0 0 0 0 0.929411765   0 0 0 0 0.941176471  0 0 0 1 0" type="matrix" in="shadowInnerInner1"></feColorMatrix>
+        </filter>
+        <filter id="filter-3">
+            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0.168627 0 0 0 0 0.560784 0 0 0 0 0.615686 0 0 0 1.000000 0"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="Spaces-(New)" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Spaces/Repo/Branch-(History)" transform="translate(-1232.000000, -80.000000)">
+            <rect fill="#FFFFFF" x="0" y="0" width="1456" height="1024"></rect>
+            <g id="Layout-(Side)/Data" fill="black" fill-opacity="1">
+                <g id="BG" transform="translate(384.000000, 64.000000)">
+                    <use filter="url(#filter-2)" xlink:href="#path-1"></use>
+                </g>
+            </g>
+            <g id="Actions" transform="translate(1113.000000, 76.000000)">
+                <g id="Button/Secondary/Icon-(L)" transform="translate(111.000000, 0.000000)">
+                    <rect id="Rectangle" x="0" y="0" width="74" height="32" rx="4"></rect>
+                    <g id="Icon/Share" transform="translate(8.000000, 4.000000)">
+                        <polygon id="Path" points="0 0 24 0 24 24 0 24"></polygon>
+                        <g filter="url(#filter-3)" id="git-fork">
+                            <g transform="translate(3.000000, 2.000000)">
+                                <path d="M4,10 L11.5,10 C13.277025,10 14.7447372,8.6756742 14.970024,6.96013518 C13.2885152,6.7047201 12,5.25283448 12,3.5 C12,1.56700338 13.5670034,0 15.5,0 C17.4329966,0 19,1.56700338 19,3.5 C19,5.27155475 17.6838151,6.73569805 15.9759671,6.96790818 C15.7419236,9.2333126 13.8272778,11 11.5,11 L4,11 L4,13.0354444 C5.69614707,13.2780593 7,14.736764 7,16.5 C7,18.4329966 5.43299662,20 3.5,20 C1.56700338,20 0,18.4329966 0,16.5 C0,14.736764 1.30385293,13.2780593 3,13.0354444 L3,6.96455557 C1.30385293,6.72194074 0,5.26323595 0,3.5 C0,1.56700338 1.56700338,0 3.5,0 C5.43299662,0 7,1.56700338 7,3.5 C7,5.26323595 5.69614707,6.72194074 4,6.96455557 L4,10 Z M1,16.5 C1,17.8807119 2.11928813,19 3.5,19 C4.88071187,19 6,17.8807119 6,16.5 C6,15.1192881 4.88071187,14 3.5,14 C2.11928813,14 1,15.1192881 1,16.5 Z M1,3.5 C1,4.88071187 2.11928813,6 3.5,6 C4.88071187,6 6,4.88071187 6,3.5 C6,2.11928813 4.88071187,1 3.5,1 C2.11928813,1 1,2.11928813 1,3.5 Z M15.5,1 C14.1192881,1 13,2.11928813 13,3.5 C13,4.88071187 14.1192881,6 15.5,6 C16.8807119,6 18,4.88071187 18,3.5 C18,2.11928813 16.8807119,1 15.5,1 Z" id="Shape" fill="#000000" fill-rule="nonzero"></path>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

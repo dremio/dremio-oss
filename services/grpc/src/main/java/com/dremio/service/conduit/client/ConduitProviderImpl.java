@@ -48,6 +48,7 @@ import io.opentracing.contrib.grpc.TracingClientInterceptor;
  * Master coordinator conduit that provides an active channel to the master coordinator.
  */
 public class ConduitProviderImpl implements ConduitProvider, Service {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConduitProviderImpl.class);
 
   private final Provider<NodeEndpoint> masterEndpoint;
 
@@ -76,6 +77,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
         @Override
         public ManagedChannel load(@SuppressWarnings("NullableProblems") NodeEndpoint peerEndpoint)
           throws SSLException {
+          logger.debug("Using software conduit provider.");
           final NettyChannelBuilder builder =
             NettyChannelBuilder.forAddress(peerEndpoint.getAddress(), peerEndpoint.getConduitPort())
               .maxInboundMessageSize(Integer.MAX_VALUE)
@@ -139,6 +141,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
       .build(new CacheLoader<NodeEndpoint, ManagedChannel>() {
         @Override
         public ManagedChannel load(@SuppressWarnings("NullableProblems") NodeEndpoint peerEndpoint) {
+          logger.debug("Using executor specific conduit provider.");
           ManagedChannelBuilder<?> builder = factoryProvider.get().newManagedChannelBuilder(
             peerEndpoint.getAddress(), peerEndpoint.getConduitPort())
             .enableRetry()

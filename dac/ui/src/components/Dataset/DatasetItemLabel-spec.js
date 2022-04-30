@@ -15,7 +15,6 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
-import { Overlay } from 'react-overlays';
 import DatasetItemLabel from './DatasetItemLabel';
 
 describe('DatasetItemLabel', () => {
@@ -29,7 +28,8 @@ describe('DatasetItemLabel', () => {
     };
     commonProps = {
       ...minimalProps,
-      showFullPath: false
+      showFullPath: false,
+      isOpenOverlay: false
     };
   });
 
@@ -39,17 +39,16 @@ describe('DatasetItemLabel', () => {
     expect(wrapper.find('EllipsedText').first().props().text).to.equal('ds1');
   });
 
-  it('should render TextHighlight, DatasetOverlayContent', () => {
+  it('should render EllipsedText', () => {
     const wrapper = shallow(<DatasetItemLabel {...commonProps}/>);
-    expect(wrapper.find('TextHighlight')).to.have.length(1);
-    expect(wrapper.find(Overlay)).to.have.length(1);
+    expect(wrapper.find('EllipsedText')).to.have.length(1);
   });
 
   it('should show fullPath in header', () => {
     const wrapper = shallow(<DatasetItemLabel {...commonProps}/>);
-    expect(wrapper.find('TextHighlight')).to.have.length(1);
+    expect(wrapper.find('EllipsedText')).to.have.length(1);
     wrapper.setProps({ showFullPath: true });
-    expect(wrapper.find('TextHighlight')).to.have.length(2);
+    expect(wrapper.find('EllipsedText')).to.have.length(2);
   });
 
   it('should render custom node', () => {
@@ -58,32 +57,6 @@ describe('DatasetItemLabel', () => {
     );
     const wrapper = shallow(<DatasetItemLabel {...commonProps} customNode={customNode}/>);
     expect(wrapper.find('.customNode')).to.have.length(1);
-    expect(wrapper.find('TextHighlight')).to.have.length(0);
-  });
-
-  it('should only show Overlay and Portal when dataset is not new', () => {
-    const wrapper = shallow(<DatasetItemLabel {...commonProps}/>);
-    expect(wrapper.find(Overlay)).to.have.length(1);
-    wrapper.setProps({ isNewQuery: true });
-    expect(wrapper.find(Overlay)).to.have.length(0);
-  });
-
-  it('should not show Overlay and Portal for shouldShowOverlay=false', () => {
-    const wrapper = shallow(<DatasetItemLabel {...commonProps} shouldShowOverlay={false}/>);
-    expect(wrapper.find(Overlay)).to.have.length(0);
-  });
-
-  it('should only show Portal if state.isOpenOverlay=true and state.isDragInProgress=false', () => {
-    const wrapper = shallow(<DatasetItemLabel {...commonProps}/>);
-    expect(wrapper.find('Portal')).to.have.length(0);
-    wrapper.setState({
-      isOpenOverlay: true
-    });
-    expect(wrapper.find('Portal')).to.have.length(1);
-    wrapper.setState({
-      isDragInProgress: true
-    });
-    expect(wrapper.find('Portal')).to.have.length(0);
-
+    expect(wrapper.find('EllipsedText')).to.have.length(0);
   });
 });

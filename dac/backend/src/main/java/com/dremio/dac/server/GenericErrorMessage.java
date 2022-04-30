@@ -29,9 +29,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class GenericErrorMessage {
 
-  public static final String CHECK_LOG_FILE =  "Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html";
-  public static final String GENERIC_ERROR_MSG = "Something went wrong. " + CHECK_LOG_FILE;
   public static final String NO_USER_MSG = "No User Available";
+  public static final String MISSING_VERSION_PARAM_MSG = "Missing Version Parameter";
+  public static final String GENERIC_ERROR_MSG = "Something went wrong.";
 
   private final String errorMessage;
   private final String moreInfo;
@@ -41,8 +41,8 @@ public class GenericErrorMessage {
     this(errorMessage, "", new String[0]);
   }
 
-  public GenericErrorMessage(String moreInfo, String[] stackTrace) {
-    this(GENERIC_ERROR_MSG, moreInfo, stackTrace);
+  public GenericErrorMessage(String errorMessage, String[] stackTrace) {
+    this(errorMessage, "", stackTrace);
   }
 
   @JsonCreator
@@ -50,7 +50,8 @@ public class GenericErrorMessage {
       @JsonProperty("errorMessage") String errorMessage,
       @JsonProperty("moreInfo") String moreInfo,
       @JsonProperty("stackTrace") String[] stackTrace) {
-    this.errorMessage = errorMessage;
+    this.errorMessage = errorMessage == null || errorMessage.trim().isEmpty()
+      ? GENERIC_ERROR_MSG : errorMessage;
     this.moreInfo = moreInfo;
     this.stackTrace = stackTrace;
   }

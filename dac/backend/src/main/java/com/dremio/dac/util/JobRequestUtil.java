@@ -35,7 +35,9 @@ public final class JobRequestUtil {
   /**
    * Creates SqlQuery (Proto) - used to populate SubmitJobRequest
    */
-  public static SqlQuery createSqlQuery(String sql, List<String> context, String username, String engineName) {
+  public static SqlQuery createSqlQuery(String sql, List<String> context,
+                                        String username, String engineName,
+                                        String sessionId) {
     final SqlQuery.Builder sqlQueryBuilder = SqlQuery.newBuilder();
     if (!Strings.isNullOrEmpty(sql)) {
       sqlQueryBuilder.setSql(sql);
@@ -49,10 +51,13 @@ public final class JobRequestUtil {
     if (!Strings.isNullOrEmpty(engineName)) {
       sqlQueryBuilder.setEngineName(engineName);
     }
+    if (!Strings.isNullOrEmpty(sessionId)) {
+      sqlQueryBuilder.setSessionId(sessionId);
+    }
     return sqlQueryBuilder.build();
   }
 
   public static SqlQuery createSqlQuery(String sql, List<String> context, String username) {
-    return createSqlQuery(sql, context, username, null);
+    return createSqlQuery(sql, context, username, null, null);
   }
 }

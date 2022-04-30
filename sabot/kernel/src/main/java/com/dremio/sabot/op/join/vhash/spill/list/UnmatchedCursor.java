@@ -23,7 +23,7 @@ import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.KEY_OFF
 import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.KEY_SIZE;
 import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.NEXT_OFFSET;
 
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
 
@@ -33,12 +33,12 @@ public class UnmatchedCursor {
 
   private final PageListMultimap list;
   private final ProbeBuffers buffers;
-  private final Function<Integer, Integer> varLengthFunction;
+  private final BiFunction<Long, Integer, Integer> varLengthFunction;
   private int currentElementIndex;
   private long unmatchedBuildKeyCount;
 
   public UnmatchedCursor(PageListMultimap list, ProbeBuffers buffers,
-                         Function<Integer, Integer> varLengthFunction) {
+                         BiFunction<Long, Integer, Integer> varLengthFunction) {
     this.list = list;
     this.buffers = buffers;
     this.varLengthFunction = varLengthFunction;
@@ -54,7 +54,6 @@ public class UnmatchedCursor {
     final long[] elementAddresses = list.getElementAddresses();
 
     int outputRecords = 0;
-    int totalVarSize = 0;
     for (;
          outputRecords < maxOutputRecords && currentElementIndex < list.getTotalListSize();
          ++currentElementIndex) {
@@ -73,12 +72,13 @@ public class UnmatchedCursor {
 
       // Maintain the ordinal of the key for unpivot later
       PlatformDependent.putInt(outBuildProjectKeyAddr + outputRecords * KEY_SIZE, tableOrdinal);
-      totalVarSize += varLengthFunction.apply(tableOrdinal);
       unmatchedBuildKeyCount++;
       outputRecords++;
     }
 
-    return new Stats(outputRecords, totalVarSize, currentElementIndex < list.getTotalListSize());
+    return new Stats(outputRecords,
+      varLengthFunction.apply(outBuildProjectKeyAddr, outputRecords),
+      currentElementIndex < list.getTotalListSize());
   }
 
   public long getUnmatchedBuildKeyCount() {

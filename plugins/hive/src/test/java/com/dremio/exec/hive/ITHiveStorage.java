@@ -20,11 +20,11 @@ import static com.dremio.common.utils.PathUtils.parseFullPath;
 import static com.dremio.exec.store.hive.exec.HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.hamcrest.CoreMatchers.containsString;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -43,17 +43,15 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.assertj.core.api.Assertions;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -83,6 +81,17 @@ import com.google.common.collect.Lists;
 
 public class ITHiveStorage extends HiveTestBase {
   protected static Boolean runWithUnlimitedSplitSupport = false;
+  private static AutoCloseable icebergDisabled;
+
+  @BeforeClass
+  public static void disableUnlimitedSplitFeature() {
+    icebergDisabled = disableUnlimitedSplitsAndIcebergSupportFlags();
+  }
+
+  @AfterClass
+  public static void resetUnlimitedSplitFeature() throws Exception {
+    icebergDisabled.close();
+  }
 
   @BeforeClass
   public static void setupOptions() throws Exception {
@@ -93,9 +102,6 @@ public class ITHiveStorage extends HiveTestBase {
   public static void shutdownOptions() throws Exception {
     test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
-
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
 
   @Test // DRILL-4083
   public void testNativeScanWhenNoColumnIsRead() throws Exception {
@@ -852,11 +858,8 @@ public class ITHiveStorage extends HiveTestBase {
     String exceptionMessage = "Hive table property %s value 'A' is non-numeric";
 
     for (Map.Entry<String, String> entry : testData.entrySet()) {
-      try {
-        test(String.format(query, entry.getKey()));
-      } catch (UserRemoteException e) {
-        assertThat(e.getMessage(), containsString(String.format(exceptionMessage, entry.getValue())));
-      }
+      assertThatThrownBy(() -> test(String.format(query, entry.getKey())))
+        .hasMessageContaining(String.format(exceptionMessage, entry.getValue()));
     }
   }
 
@@ -1052,6 +1055,7 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testShortNamesInAlterTableSet() throws Exception {
+    final String tableName = "foo_bar2";
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
@@ -1063,7 +1067,7 @@ public class ITHiveStorage extends HiveTestBase {
       .getAllDatasets(new NamespaceKey("hive")));
 
     // create an empty table
-    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS foo_bar(a INT, b STRING)");
+    dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS " + tableName + "(a INT, b STRING)");
 
     // verify that the new table is visible
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
@@ -1079,34 +1083,34 @@ public class ITHiveStorage extends HiveTestBase {
 
     // verify that the newly created table is under default namespace
     assertTrue(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(parseFullPath("hive.\"default\".foo_bar")), Type.DATASET));
+      new NamespaceKey(parseFullPath("hive.\"default\"." + tableName)), Type.DATASET));
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(parseFullPath("hive.foo_bar")), Type.DATASET));
+      new NamespaceKey(parseFullPath("hive." + tableName)), Type.DATASET));
 
     // execute queries & verify responses
     testBuilder()
-      .sqlQuery("ALTER TABLE hive.\"default\".foo_bar SET enable_varchar_truncation = true")
+      .sqlQuery("ALTER TABLE hive.\"default\"." + tableName + " SET enable_varchar_truncation = true")
       .unOrdered()
       .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table [hive.\"default\".foo_bar] options updated")
+      .baselineValues(true, "Table [hive.\"default\"." + tableName + "] options updated")
       .build().run();
 
     testBuilder()
-      .sqlQuery("ALTER TABLE hive.foo_bar SET enable_varchar_truncation = true")
+      .sqlQuery("ALTER TABLE hive." + tableName + " SET enable_varchar_truncation = true")
       .unOrdered()
       .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table [hive.foo_bar] options did not change")
+      .baselineValues(true, "Table [hive." + tableName + "] options did not change")
       .build().run();
 
     testBuilder()
-      .sqlQuery("ALTER TABLE hive.foo_bar SET enable_varchar_truncation = false")
+      .sqlQuery("ALTER TABLE hive." + tableName + " SET enable_varchar_truncation = false")
       .unOrdered()
       .baselineColumns("ok", "summary")
-      .baselineValues(true, "Table [hive.foo_bar] options updated")
+      .baselineValues(true, "Table [hive." + tableName + "] options updated")
       .build().run();
 
     // drop table
-    dataGenerator.executeDDL("DROP TABLE foo_bar");
+    dataGenerator.executeDDL("DROP TABLE " + tableName);
 
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
@@ -1121,7 +1125,7 @@ public class ITHiveStorage extends HiveTestBase {
       .getAllDatasets(new NamespaceKey("hive")));
     assertEquals(tables1.size(), tables3.size());
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(parseFullPath("hive.\"default\".foo_bar")), Type.DATASET));
+      new NamespaceKey(parseFullPath("hive.\"default\"." + tableName)), Type.DATASET));
   }
 
   @Test
@@ -1457,14 +1461,13 @@ public class ITHiveStorage extends HiveTestBase {
 
   private void readFieldSizeLimit(String table, String column) throws Exception {
     String exceptionMessage = "UNSUPPORTED_OPERATION ERROR: Field exceeds the size limit of 32000 bytes.";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
     String query = "SELECT " + column + " FROM " + table;
-    testBuilder().sqlQuery(query)
+    assertThatThrownBy(() -> testBuilder().sqlQuery(query)
         .ordered()
         .baselineColumns(column)
         .baselineValues("")
-        .go();
+        .go())
+      .hasMessageContaining(exceptionMessage);
   }
 
   /**
@@ -1473,7 +1476,6 @@ public class ITHiveStorage extends HiveTestBase {
   private void readTableWithUnionHiveDataTypes(String table) {
     int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
     for (int row : testrows) {
-      final String exceptionMessage = BatchSchema.MIXED_TYPES_ERROR;
       try {
         testBuilder().sqlQuery("SELECT * FROM hive." + table + " order by rownum limit 1 offset " + row)
           .ordered()
@@ -1482,7 +1484,7 @@ public class ITHiveStorage extends HiveTestBase {
           .go();
       } catch (Exception e) {
         e.printStackTrace();
-        assertThat(e.getMessage(), containsString(exceptionMessage));
+        assertThat(e.getMessage()).contains(BatchSchema.MIXED_TYPES_ERROR);
       }
     }
   }

@@ -22,6 +22,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -51,8 +52,9 @@ public class SplitGenManifestScanTableFunctionContext extends TableFunctionConte
                                                     @JsonProperty("extendedProperty") ByteString extendedProperty,
                                                     @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
                                                     @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
-                                                    @JsonProperty("icebergMetadata") boolean isIcebergMetadata) {
-        super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata);
+                                                    @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
+                                                    @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings) {
+        super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
         this.partitionSpecMap = partitionSpecMap;
         this.icebergAnyColExpression = icebergAnyColExpression;
     }

@@ -1,0 +1,99 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+ @import "~@app/uiTheme/less/color-schema.less";
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .TreeBrowser {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+
+    &-heading {
+      border-bottom: .1rem solid @SECONDARY_200;
+      display: flex;
+      height: 3.9rem;
+      padding: 0 .8rem;
+
+      &.--dataset {
+        align-items: center;
+      }
+
+      h3 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        line-height: 1.8rem;
+      }
+    }
+
+    &-items {
+      max-height: calc(100vh - 21rem);
+      min-height: 49rem; // height of the panel subracting header elements
+      padding: 0.4rem 1.2rem;
+      overflow-y: auto;
+
+      .dragSource {
+        align-items: center;
+        display: flex;
+        flex-direction: row;
+        padding: .4rem 0;
+
+        &:hover {
+          background: @PRIMARY_100;
+
+          .resourceTreeNode__add {
+            opacity: 1;
+          }
+        }
+      }
+    }
+
+    // overwriting PageType tabs css
+    &-tab {
+      font-size: 14px;
+      line-height: 20px;
+      color: @MAIN_TEXT;
+      padding: 0 12px;
+      margin: 0 4px;
+
+      &.--active {
+        color: @FIGMA_TEXT_LINK;
+        font-weight: 600;
+      }
+
+      &::after {
+        height: 2px;
+        background-color: @FIGMA_TEXT_LINK;
+      }
+
+      &:hover:not(.button-active)::after {
+        height: 2px;
+        background-color: @FIGMA_TEXT_LINK;
+      }
+    }
+    
+    &__collapseButton {
+      margin-left: auto;
+      transition: 300ms ease filter;
+      width: 2rem;
+
+      &:hover {
+        filter: invert(53%) sepia(45%) saturate(6859%) hue-rotate(157deg) brightness(70%) contrast(73%);
+        cursor: pointer;
+      }
+    }
+  }
+}

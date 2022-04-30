@@ -167,4 +167,8 @@ public interface Accumulator extends AutoCloseable {
   default int getNumCompactions() {
     return 0;
   }
+
+  default int getMaxVarLenKeySize() {
+    return 0;
+  }
 }

@@ -99,6 +99,7 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
 
     // configure hadoop fs implementation
     properties.add(new Property("fs.dremioAzureStorage.impl", AzureStorageFileSystem.class.getName()));
+    properties.add(new Property("fs.dremioAzureStorage.impl.disable.cache", "true"));
 
     // configure azure properties.
     properties.add(new Property(AzureStorageFileSystem.ACCOUNT, config.accountName));
@@ -143,15 +144,14 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
 
   @Override
   public CreateTableEntry createNewTable(
-    SchemaConfig config,
-    NamespaceKey key,
+    NamespaceKey tableSchemaPath, SchemaConfig config,
     IcebergTableProps icebergTableProps,
     WriterOptions writerOptions,
     Map<String, Object> storageOptions,
     boolean isResultsTable
   ) {
-    final String containerName = getAndCheckContainerName(key);
-    final CreateTableEntry entry = super.createNewTable(config, key,
+    final String containerName = getAndCheckContainerName(tableSchemaPath);
+    final CreateTableEntry entry = super.createNewTable(tableSchemaPath, config,
       icebergTableProps, writerOptions, storageOptions, isResultsTable);
 
     final AzureStorageFileSystem fs = getSystemUserFS().unwrap(AzureStorageFileSystem.class);

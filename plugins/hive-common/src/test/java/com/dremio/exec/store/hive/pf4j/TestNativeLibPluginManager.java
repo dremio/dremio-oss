@@ -42,7 +42,7 @@ public class TestNativeLibPluginManager {
     Path expectedPath = Paths.get("/tmp/plugins/connectors");
 
     // when
-    Path actualPath = nativeLibPluginManager.createPluginsRoot();
+    Path actualPath = nativeLibPluginManager.createPluginsRoot().get(0);
 
     // then
     Assert.assertEquals(expectedPath, actualPath);

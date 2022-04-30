@@ -64,7 +64,7 @@ public interface IcebergCommand {
     /**
      * End of MetadataRefresh
      */
-    Snapshot endMetadataRefreshTransaction();
+    Table endMetadataRefreshTransaction();
 
     /**
      * Commit the delete operation
@@ -151,20 +151,53 @@ public interface IcebergCommand {
      */
     void renameColumn(String name, String newName);
 
-    /**
-     * Load an Iceberg table from disk
-     * @return Iceberg table instance
-     */
-    Table loadTable();
+  /**
+   * Marks the transaction as a read-modify-write transaction. The transaction is expected
+   * to add validation checks to ensure that the Iceberg table has not modified since the
+   * read of the table
+   *
+   * Note: This should be the first update to the transaction. This should be invoked before
+   * adding/deleting files or changing the schema of the table
+   *
+   * @param snapshotId The snapshotId that was used to read the transaction
+   */
+   void setIsReadModifyWriteTransaction(long snapshotId);
 
-    /**
-     *
-     * @return return Iceberg table metadata file location
-     */
-    String getRootPointer();
+  /**
+   * Load an Iceberg table from disk
+   * @return Iceberg table instance
+   */
+   Table loadTable();
 
+  /**
+   * @return returns the latest snapshot on which the transaction is performed
+   */
+   Snapshot getCurrentSnapshot();
 
-    void deleteTable();
+   /**
+    * @return return Iceberg table metadata file location
+    */
+   String getRootPointer();
+
+  /**
+   * Delete the root pointer of the table
+   *
+   */
+   void deleteTableRootPointer();
+
+   void deleteTable();
 
     Map<Integer, PartitionSpec> getPartitionSpecMap();
+
+    void beginAlterTableTransaction();
+
+    Table endAlterTableTransaction();
+
+    void addColumnsInternalTable(List<Field> columnsToAdd);
+
+    void dropColumnInternalTable(String columnToDrop);
+
+    void changeColumnForInternalTable(String columnToChange, Field batchField);
+
+    void updatePropertiesMap(BatchSchema droppedColumns, BatchSchema updatedColumns);
 }

@@ -217,5 +217,10 @@ public class TimedKVStore<K, V> implements KVStore<K, V> {
         indexedStore.applyForAllTenants(condition, consumer, executor, tenantContextSupplier, options);
       }
     }
+
+    @Override
+    public Integer version() {
+      return indexedStore.version();
+    }
   }
 }

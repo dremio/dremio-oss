@@ -117,7 +117,7 @@ class GCSAsyncFileReader extends ReusableAsyncByteReader {
   private java.util.function.Function<Void, Request> getRequestBuilderFunction(long offset, int len) {
     java.util.function.Function<Void, Request> requestBuilderFunction = (Function<Void, Request>) unused -> {
       try {
-        String encodedBlob = URLEncoder.encode(blob.substring(1), StandardCharsets.UTF_8.toString());
+        String encodedBlob = URLEncoder.encode(blob.substring(1), StandardCharsets.UTF_8.toString()).replace("+", "%20");
         // If-Unmodified-Since is only supported on the xml api.
         //String uri = String.format("https://www.googleapis.com/download/storage/v1/b/%s/o/%s?alt=media", bucket, encodedBlob);
         String uri = String.format("https://storage.googleapis.com/%s/%s", bucket, encodedBlob);

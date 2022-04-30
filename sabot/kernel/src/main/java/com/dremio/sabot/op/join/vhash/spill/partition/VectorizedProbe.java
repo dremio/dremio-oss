@@ -30,9 +30,9 @@ import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Unpivots;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
-import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6;
+import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6Util;
+import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopier6;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
 import com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap;
 import com.dremio.sabot.op.join.vhash.spill.list.ProbeBuffers;
@@ -71,6 +71,7 @@ public class VectorizedProbe implements AutoCloseable {
 
   public VectorizedProbe(
     JoinSetupParams setupParams,
+    CopierFactory copierFactory,
     long sv2Addr,
     long tableHashAddr4B,
     JoinTable table,
@@ -89,21 +90,20 @@ public class VectorizedProbe implements AutoCloseable {
     List<FieldVector> buildOutputCarryOvers = setupParams.getBuildOutputCarryOvers();
     if (table.size() > 0) {
       this.buildCopiers = projectUnmatchedProbe  ?
-        ConditionalFieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputCarryOvers) :
-        FieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputCarryOvers);
+        copierFactory.getSixByteConditionalCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputCarryOvers) :
+        copierFactory.getSixByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputCarryOvers);
     } else {
-      this.buildCopiers = ConditionalFieldBufferCopier6.getEmptySourceFourByteCopiers(buildOutputCarryOvers);
+      this.buildCopiers = ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(buildOutputCarryOvers);
     }
 
     // create copier for copying keys from probe batch to build side output
     if (setupParams.getProbeIncomingKeys().size() > 0) {
-      this.keysCopiers = FieldBufferCopier.getCopiers(setupParams.getProbeIncomingKeys(), setupParams.getBuildOutputKeys());
+      this.keysCopiers = copierFactory.getTwoByteCopiers(setupParams.getProbeIncomingKeys(), setupParams.getBuildOutputKeys());
     } else {
       this.keysCopiers = Collections.emptyList();
     }
 
-    this.probeCopiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(setupParams.getLeft()),
-      setupParams.getProbeOutputs());
+    this.probeCopiers = copierFactory.getTwoByteCopiers(VectorContainer.getFieldVectors(setupParams.getLeft()), setupParams.getProbeOutputs());
 
     linkedList.moveToRead();
     this.cursor = ProbeCursor.startProbe(
@@ -120,7 +120,7 @@ public class VectorizedProbe implements AutoCloseable {
           buffers.getInTableMatchOrdinals4B().memoryAddress() /*output*/);
       });
     if (projectUnmatchedBuild) {
-      this.unmatchedCursor = new UnmatchedCursor(linkedList, buffers, table::getVarKeyLength);
+      this.unmatchedCursor = new UnmatchedCursor(linkedList, buffers, table::getCumulativeVarKeyLength);
     }
   }
 
@@ -162,14 +162,13 @@ public class VectorizedProbe implements AutoCloseable {
     allocateForUnpivot(startOutputIndex, maxOutputIndex);
     Preconditions.checkState(outputRecords <= maxOutputIndex - startOutputIndex + 1);
     try (FixedBlockVector fbv = new FixedBlockVector(allocator, buildKeyUnpivot.getBlockWidth());
-         VariableBlockVector var = new VariableBlockVector(allocator, buildKeyUnpivot.getVariableCount());
-    ) {
+         VariableBlockVector var = new VariableBlockVector(allocator, buildKeyUnpivot.getVariableCount())) {
       fbv.ensureAvailableBlocks(outputRecords);
       var.ensureAvailableDataSpace(stats.getTotalVarSize());
       final long keyFixedVectorAddr = fbv.getMemoryAddress();
       final long keyVarVectorAddr = var.getMemoryAddress();
       // Collect all the pivoted keys for non matched records
-      table.copyKeyToBuffer(buffers.getOutBuildProjectKeyOrdinals4B().memoryAddress(), outputRecords, keyFixedVectorAddr, keyVarVectorAddr);
+      table.copyKeysToBuffer(buffers.getOutBuildProjectKeyOrdinals4B().memoryAddress(), outputRecords, keyFixedVectorAddr, keyVarVectorAddr);
       // Unpivot the keys for build side into output
       Unpivots.unpivotToAllocedOutput(buildKeyUnpivot, fbv, var, 0, outputRecords, startOutputIndex);
     }
@@ -243,14 +242,14 @@ public class VectorizedProbe implements AutoCloseable {
 
   /**
    * Project the probe data
-   * @param sv4Addr
+   * @param sv2Addr
    * @param count
    */
-  private void projectProbe(final long sv4Addr, final int startOutputIdx, final int count){
+  private void projectProbe(final long sv2Addr, final int startOutputIdx, final int count){
     probeCopyWatch.start();
     for(FieldBufferCopier c : probeCopiers){
       outputCursor.setTargetIndex(startOutputIdx);
-      c.copy(sv4Addr, count, outputCursor);
+      c.copy(sv2Addr, count, outputCursor);
     }
     probeCopyWatch.stop();
   }

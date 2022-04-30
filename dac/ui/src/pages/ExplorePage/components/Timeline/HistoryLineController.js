@@ -20,8 +20,20 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import { getHistoryItems } from 'selectors/explore';
+import exploreUtils from '@app/utils/explore/exploreUtils';
+import { memoOne } from '@app/utils/memoUtils';
+import { cloneDeep } from 'lodash';
+import { pageTypesProp } from '../../pageTypes';
 
 import HistoryLine from './HistoryLine';
+
+const getAlteredHistoryItemsMemo = memoOne((items) => {
+  const historyItems = cloneDeep(items);
+  const jsHistoryItems = historyItems.toJS();
+  jsHistoryItems.pop();
+
+  return Immutable.List(jsHistoryItems).map(item => Immutable.Map(item));
+});
 
 @Radium
 export class HistoryLineController extends PureComponent {
@@ -29,7 +41,8 @@ export class HistoryLineController extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     historyItems: PropTypes.instanceOf(Immutable.List),
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
+    pageType: pageTypesProp
   };
 
   constructor(props) {
@@ -37,21 +50,34 @@ export class HistoryLineController extends PureComponent {
   }
 
   render() {
-    const { dataset, historyItems, location } = this.props;
+    const { dataset, historyItems, location, pageType } = this.props;
     return (
       <HistoryLine
         location={location}
         historyItems={historyItems}
         tipVersion={dataset.get('tipVersion')}
         activeVersion={dataset.get('datasetVersion')}
+        pageType={pageType}
       />
     );
   }
 }
 
 function mapStateToProps(state, ownProps) {
+  const version = ownProps.dataset.get('tipVersion');
+  const entities = state.resources.entities;
+  const history = entities.get('history');
+  const historyItem = entities.get('historyItem');
+  const datasetUI = entities.get('datasetUI');
+  const [, isInPhysicalHistory] = exploreUtils.getIfInEntityHistory(history, historyItem, datasetUI, version);
+
+  let historyItems = getHistoryItems(state, version);
+  if (isInPhysicalHistory) {
+    historyItems = getAlteredHistoryItemsMemo(historyItems);
+  }
+
   return {
-    historyItems: getHistoryItems(state, ownProps.dataset.get('tipVersion'))
+    historyItems
   };
 }
 

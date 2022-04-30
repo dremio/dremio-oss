@@ -19,7 +19,7 @@ package com.dremio.dac.server.admin.profile;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-class HostProcessingRate implements Comparable<HostProcessingRate>{
+public class HostProcessingRate implements Comparable<HostProcessingRate>{
   private Integer major;
   private String hostname;
   private BigInteger numRecords, processNanos, numThreads;

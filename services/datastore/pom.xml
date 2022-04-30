@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
   <artifactId>dremio-services-datastore</artifactId>
   <name>Services - Datastore</name>
@@ -154,9 +154,9 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.immutables</groupId>
-      <artifactId>value</artifactId>
-      <scope>provided</scope>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -287,7 +287,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
           <execution>

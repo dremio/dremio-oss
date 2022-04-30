@@ -18,11 +18,9 @@ package com.dremio;
 import java.math.BigDecimal;
 
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.common.exceptions.UserException;
+import com.dremio.test.UserExceptionAssert;
 
 /**
  * Tests decimal vectorized aggregations - sum, sum0, min, max, count
@@ -46,9 +44,6 @@ import com.dremio.common.exceptions.UserException;
  ]
  */
 public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
-
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
 
   @Test
   public void testDecimalSumAgg_Parquet() throws Exception {
@@ -132,15 +127,12 @@ public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
 
   @Test
   @Ignore("DX-11334")
-  public void testDecimalSumAggOverflow_Parquet() throws Exception {
-
-    exception.expect(UserException.class);
-    exception.expectMessage("Overflow happened for decimal addition. Max precision is 38.");
-
+  public void testDecimalSumAggOverflow_Parquet() {
     final String query = "select sum(val) from cp" +
       ".\"parquet/decimals/overflow.parquet\" group by department";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasMessageContaining("Overflow happened for decimal addition. Max precision is 38.");
   }
 
   @Test
@@ -161,15 +153,12 @@ public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
 
   @Test
   @Ignore("DX-11334")
-  public void testDecimalSum0AggOverflow_Parquet() throws Exception {
-
-    exception.expect(UserException.class);
-    exception.expectMessage("Overflow happened for decimal addition. Max precision is 38.");
-
+  public void testDecimalSum0AggOverflow_Parquet() {
     final String query = "select $sum0(val) from cp" +
       ".\"parquet/decimals/overflow.parquet\" group by department";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasMessageContaining("Overflow happened for decimal addition. Max precision is 38.");
   }
 
   @Test

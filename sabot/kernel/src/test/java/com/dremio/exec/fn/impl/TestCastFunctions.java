@@ -15,21 +15,29 @@
  */
 package com.dremio.exec.fn.impl;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.FUNCTION;
+
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.FileUtils;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestCastFunctions extends BaseTestQuery {
 
   @Test
   public void testVarbinaryToDate() throws Exception {
-    errorMsgTestHelper("select count(*) as cnt from cp.\"employee.json\" where (cast(convert_to(birth_date, 'utf8') as date)) = date '1961-08-26'",
-        "Cast function cannot convert value of type VARBINARY(65536) to type DATE");
+    String query = "select count(*) as cnt from cp.\"employee.json\" where (cast(convert_to(birth_date, 'utf8') as date)) = date '1961-08-26'";
+
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("cnt")
+      .baselineValues(1L)
+      .build()
+      .run();
   }
 
   @Test // DRILL-2827
@@ -92,11 +100,11 @@ public class TestCastFunctions extends BaseTestQuery {
   }
 
   @Test
-  public void testFailedCast() throws Exception {
+  public void testFailedCast() {
     final String query = "select cast('trueX' as boolean) from (values(1))";
 
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.FUNCTION));
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasErrorType(FUNCTION);
   }
 
   @Test

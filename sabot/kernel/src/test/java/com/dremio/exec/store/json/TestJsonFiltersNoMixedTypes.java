@@ -15,10 +15,7 @@
  */
 package com.dremio.exec.store.json;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -170,12 +167,10 @@ public class TestJsonFiltersNoMixedTypes extends PlanTestBase {
 
   private void triggerSchemaLearning(Path jsonDir) {
     String query = String.format("SELECT * FROM dfs.\"%s\"", jsonDir);
-    try {
-      testRunAndReturn(UserBitShared.QueryType.SQL, query);
-      fail("Expected UserRemoteException");
-    } catch (Exception e) {
-      assertThat(e.getCause(), instanceOf(UserRemoteException.class));
-      assertThat(e.getCause().getMessage(), containsString("New schema found"));
-    }
+    assertThatExceptionOfType(Exception.class)
+      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+      .havingCause()
+      .isInstanceOf(UserRemoteException.class)
+      .withMessageContaining("New schema found");
   }
 }

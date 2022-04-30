@@ -16,8 +16,8 @@
 package com.dremio.exec.store.iceberg;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -231,8 +231,8 @@ public class TestIcebergPartitionData extends BaseTestQuery {
         .withPartition(partitionData)
         .build();
 
-      FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
-      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
+      FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
+      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
       when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
       SchemaConverter schemaConverter = new SchemaConverter(tableName);
       IcebergOpCommitter committer = icebergHadoopModel.getCreateTableCommitter(tableName,

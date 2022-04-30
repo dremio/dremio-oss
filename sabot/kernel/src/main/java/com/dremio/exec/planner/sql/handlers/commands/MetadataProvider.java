@@ -31,6 +31,7 @@ import javax.inject.Provider;
 
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
@@ -420,7 +421,7 @@ public class MetadataProvider {
 
         if (tableKey != null) {
           catalogService.getCatalog(MetadataRequestOptions.of(
-            SchemaConfig.newBuilder(parameters.getUsername()).build()))
+            SchemaConfig.newBuilder(CatalogUser.from(parameters.getUsername())).build()))
             .getTable(tableKey);
 
           schemata = catalogStub.listTableSchemata(requestBuilder.build());
@@ -430,7 +431,8 @@ public class MetadataProvider {
       final List<ColumnMetadata> columnMetadata =
         StreamSupport.stream(Spliterators.spliteratorUnknownSize(schemata, Spliterator.ORDERED), false)
           .flatMap((Function<TableSchema, Stream<ColumnMetadata>>) tableSchema ->
-            MetadataProviderUtils.toColumnMetadata(tableSchema, parameters.getCatalogName(), false))
+            MetadataProviderUtils.toColumnMetadata(tableSchema, parameters.getCatalogName(),
+              req.getSupportsComplexTypes()))
           .filter(column ->
             catalogNamePred.test(column.getCatalogName()) &&
               columnNamePred.test(column.getColumnName()))

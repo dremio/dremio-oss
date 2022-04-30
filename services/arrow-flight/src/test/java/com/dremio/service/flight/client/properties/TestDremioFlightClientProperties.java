@@ -18,8 +18,10 @@ package com.dremio.service.flight.client.properties;
 import static com.dremio.service.flight.client.properties.DremioFlightClientProperties.applyClientPropertiesToUserSessionBuilder;
 import static com.dremio.service.flight.client.properties.DremioFlightClientProperties.applyMutableClientProperties;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.ErrorFlightMetadata;
@@ -55,11 +57,39 @@ public class TestDremioFlightClientProperties {
   }
 
   @Test
+  public void testApplyMutableClientPropertiesWithDoubleQuotes() {
+    // Arrange
+    final String testSchema = "test.catalog.table";
+
+    final UserSession userSession = UserSession.Builder.newBuilder()
+      .withDefaultSchema(Arrays.asList(testSchema.split("\\.")))
+      .build();
+
+    // Update UserSession with new CallHeaders.
+    final CallHeaders testCallHeaders = new ErrorFlightMetadata();
+    final String newTestSchema = "new.\"catalog.table\"";
+
+
+    testCallHeaders.insert(UserSession.SCHEMA, newTestSchema);
+
+    // Act
+    applyMutableClientProperties(userSession, testCallHeaders);
+
+    // Verify
+    final List<String> actual = userSession.getDefaultSchemaPath().getPathComponents();
+
+    assertTrue(actual.size() == 2);
+    assertEquals("new", actual.get(0));
+    assertEquals("catalog.table", actual.get(1));
+  }
+
+  @Test
   public void testApplyMutableClientPropertiesWithImmutableProperties() {
     // Arrange
     final String testRoutingTag = "test-tag-value";
     final String testRoutingQueue = "test.queue.value";
     final String testSchema = "test.catalog.table";
+    final String testRoutingEngine = "test.engine.value";
 
     final UserSession userSession = UserSession.Builder.newBuilder()
       .withUserProperties(
@@ -67,6 +97,7 @@ public class TestDremioFlightClientProperties {
           .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.SCHEMA, testSchema))
           .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_TAG, testRoutingTag))
           .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_QUEUE, testRoutingQueue))
+          .addProperties(DremioFlightClientProperties.createUserProperty(UserSession.ROUTING_ENGINE, testRoutingEngine))
           .build())
       .build();
 
@@ -75,10 +106,12 @@ public class TestDremioFlightClientProperties {
     final String newTestRoutingTag = "new-tag-value";
     final String newTestRoutingQueue = "new.queue.value";
     final String newTestSchema = "new.catalog.table";
+    final String newTestRoutingEngine = "new.engine.value";
 
     updatedHeaders.insert(UserSession.ROUTING_TAG, newTestRoutingTag);
     updatedHeaders.insert(UserSession.ROUTING_QUEUE, newTestRoutingQueue);
     updatedHeaders.insert(UserSession.SCHEMA, newTestSchema);
+    updatedHeaders.insert(UserSession.ROUTING_ENGINE, newTestRoutingEngine);
 
     // Act
     applyMutableClientProperties(userSession, updatedHeaders);
@@ -89,6 +122,7 @@ public class TestDremioFlightClientProperties {
     // Routing queue should remain unchanged since it is not a mutable property.
     assertEquals(testRoutingQueue, userSession.getRoutingQueue());
     assertEquals(newTestSchema, String.join(".", userSession.getDefaultSchemaPath().getPathComponents()));
+    assertEquals(newTestRoutingEngine, userSession.getRoutingEngine());
   }
 
   @Test

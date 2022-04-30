@@ -15,10 +15,8 @@
  */
 package com.dremio.jdbc;
 
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -48,7 +46,7 @@ public class StatementTest extends JdbcWithServerTestBase {
   @Test
   public void testGetQueryTimeoutSaysNoTimeout() throws SQLException {
     try(Statement statement = getConnection().createStatement()) {
-      assertThat( statement.getQueryTimeout(), equalTo( 0 ) );
+      assertThat( statement.getQueryTimeout()).isEqualTo( 0 ) ;
     }
   }
 
@@ -64,17 +62,15 @@ public class StatementTest extends JdbcWithServerTestBase {
     }
   }
 
-
   @Test
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
     try(Statement statement = getConnection().createStatement()) {
-      statement.setQueryTimeout( -2 );
-    }
-    catch ( SQLException e ) {
-      // Check exception for some mention of parameter name or semantics:
-      assertThat( e.getMessage(), anyOf( containsString( "seconds" ),
-                                         containsString( "timeout" ),
-                                         containsString( "Timeout" ) ) );
+      assertThatThrownBy(() -> statement.setQueryTimeout(-2))
+        .isInstanceOf(SQLException.class)
+        .satisfiesAnyOf(
+          e -> assertThat(e.getMessage()).contains("seconds"),
+          e -> assertThat(e.getMessage()).contains("timeout"),
+          e -> assertThat(e.getMessage()).contains("Timeout"));
     }
   }
 
@@ -83,17 +79,17 @@ public class StatementTest extends JdbcWithServerTestBase {
    */
   @Test
   public void testValidSetQueryTimeout() throws SQLException {
-    try(Statement statement = getConnection().createStatement()) {
+    try (Statement statement = getConnection().createStatement()) {
       // Setting positive value
       statement.setQueryTimeout(1_000);
-      assertThat( statement.getQueryTimeout(), equalTo( 1_000 ) );
-    };
+      assertThat(statement.getQueryTimeout()).isEqualTo(1_000);
+    }
   }
 
   /**
    * Test setting timeout for a query that actually times out
    */
-  @Test ( expected = SqlTimeoutException.class )
+  @Test(expected = SqlTimeoutException.class)
   public void testTriggeredQueryTimeout() throws SQLException {
     // Prevent the server to complete the query to trigger a timeout
     final String controls = Controls.newBuilder()
@@ -105,8 +101,7 @@ public class StatementTest extends JdbcWithServerTestBase {
           statement.execute(String.format(
               "ALTER session SET \"%s\" = '%s'",
               ExecConstants.NODE_CONTROL_INJECTIONS,
-              controls)),
-          equalTo(true));
+              controls))).isTrue();
     }
     String queryId = null;
     try(Statement statement = getConnection().createStatement()) {

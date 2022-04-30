@@ -47,6 +47,9 @@ import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotBuilder.PivotInfo;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.koloboke.collect.hash.HashConfig;
+import com.koloboke.collect.impl.hash.HashConfigWrapper;
+import com.koloboke.collect.impl.hash.LHashCapacities;
 
 /**
  * Memory estimate for the pre-allocation (upper bound) required for Vectorized HashAgg (with
@@ -158,7 +161,6 @@ public class HashAggMemoryEstimator {
     final int hashTableBatchSize,
     final OptionManager options) {
 
-
     final int variableWidthKeySize =
       (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
     final int maxVariableBlockLength =
@@ -192,7 +194,6 @@ public class HashAggMemoryEstimator {
   }
 
   private void computePreAllocation() {
-
     /* data structures for hash-table inside all partitions */
     memHashTable = computeForHashTable();
 
@@ -224,8 +225,11 @@ public class HashAggMemoryEstimator {
 
   private void computeForControlBlockSinglePartition() {
     final int minHashTableSize = (int)optionManager.getOption(ExecConstants.MIN_HASH_TABLE_SIZE);
-    final int minHashTableSizePerPartition = (int)Math.ceil((minHashTableSize * 1.0)/numPartitions);
-    memControlBlockSinglePartition = LBlockHashTable.computePreAllocationForControlBlock(minHashTableSizePerPartition, hashTableBatchSize);
+    int minHashTableSizePerPartition = (int)Math.ceil((minHashTableSize * 1.0) / numPartitions);
+    minHashTableSizePerPartition = LHashCapacities.capacity(new HashConfigWrapper(HashConfig.getDefault()),
+      minHashTableSizePerPartition, false);
+    memControlBlockSinglePartition = LBlockHashTable.computePreAllocationForControlBlock(
+      minHashTableSizePerPartition, hashTableBatchSize);
   }
 
   private void computeFixedBlockSinglePartition() {
@@ -269,8 +273,9 @@ public class HashAggMemoryEstimator {
       /* Irrespecive of the minorType, the memory for HLL is fixed size. */
       if (accumType == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal() ||
           accumType == AccumulatorBuilder.AccumulatorType.HLL.ordinal()) {
-        /* Double the size for tmp buffer */
-        dataSize += 2 * (int)optionManager.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
+        dataSize += (int)optionManager.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
+        /* Add space for temporary buffer as well */
+        dataSize += (int)optionManager.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES) / numPartitions;
         validitySize += 2 * BitVectorHelper.getValidityBufferSize(hashTableBatchSize);
         continue;
       }
@@ -309,16 +314,29 @@ public class HashAggMemoryEstimator {
 
         case VARCHAR:
         case VARBINARY:
+          final int variableWidthKeySize =
+            (int) optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
           /* Calculate the temporary buffer */
           validitySize += getValidityBufferSizeFromCount(hashTableBatchSize);
-          dataSize += hashTableBatchSize * 4;
-          final int estimatedVariableWidthKeySize = (int)this.optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
-          dataSize += estimatedVariableWidthKeySize * hashTableBatchSize;
+          /* Offset buffer size */
+          int tempVecDataSize = hashTableBatchSize * 4;
+          tempVecDataSize += variableWidthKeySize * hashTableBatchSize;
+          tempVecDataSize = Numbers.nextPowerOfTwo(tempVecDataSize);
+          /* One temporary vector for each partition */
+          dataSize += tempVecDataSize / numPartitions;
 
-          /* Calculate the accumulator buffer */
+          /* Calculate the accumulator buffer. */
           validitySize += MutableVarcharVector.getValidityBufferSizeFromCount(hashTableBatchSize);
-          dataSize += MutableVarcharVector.getDataBufferSizeFromCount(hashTableBatchSize,
-            hashTableBatchSize * (int) optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE));
+          /*
+           * AccumulatorSet most likely use an unshared buffer for varchar accumulator, which always
+           * rounded to nextPowerOfTwo. If we have too many varchar vectors and nextPowerOfTwo is not
+           * calculated, the extra memory add's up and we may have mismatch in memory estimator vs
+           * actual usage.
+           */
+          dataSize += Numbers.nextPowerOfTwo(
+            MutableVarcharVector.getValidityBufferSizeFromCount(hashTableBatchSize) +
+              MutableVarcharVector.getDataBufferSizeFromCount(hashTableBatchSize,
+              hashTableBatchSize * variableWidthKeySize));
           break;
       }
     }
@@ -341,9 +359,7 @@ public class HashAggMemoryEstimator {
     return PivotBuilder.getBlockInfo(inputVectors);
   }
 
-  private static int computeHashTableSize(final OptionManager options,
-    final BatchSchema schema) {
-
+  private static int computeHashTableSize(final OptionManager options, final BatchSchema schema) {
     /*
      * Estimate the outgoing record size. This is proportional to the sum of the accumulator and
      * pivot sizes.

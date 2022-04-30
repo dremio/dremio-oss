@@ -53,7 +53,7 @@ import com.google.common.base.Preconditions;
  * custom data generator for large number of accumulators in the schema
  */
 public class CustomHashAggDataGeneratorLargeAccum implements Generator {
-  private final static FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9));
+  private final static FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
   private final static ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
   private final static CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
 

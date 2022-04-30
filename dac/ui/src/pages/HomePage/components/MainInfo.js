@@ -28,7 +28,7 @@ import { loadWiki } from '@app/actions/home';
 import DatasetMenu from 'components/Menus/HomePage/DatasetMenu';
 import FolderMenu from 'components/Menus/HomePage/FolderMenu';
 
-import BreadCrumbs from 'components/BreadCrumbs';
+import BreadCrumbs, {formatFullPath} from 'components/BreadCrumbs';
 import { getRootEntityType } from 'utils/pathUtils';
 import SettingsBtn from 'components/Buttons/SettingsBtn';
 import FontIcon from 'components/Icon/FontIcon';
@@ -345,7 +345,7 @@ export class MainInfoView extends Component {
         tableData={this.getTableData()}
         viewState={viewState}
       >
-        <DocumentTitle title={entity && BreadCrumbs.formatFullPath(entity.get('fullPathList')).join('.') || ''} />
+        <DocumentTitle title={entity && formatFullPath(entity.get('fullPathList')).join('.') || ''} />
       </BrowseTable>
     );
   }

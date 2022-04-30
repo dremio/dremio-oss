@@ -22,12 +22,13 @@ import classNames from 'classnames';
 import Immutable, { List } from 'immutable';
 
 import { humanSorter, getSortValue } from '@app/utils/sort';
+import { stopPropagation } from '../utils/reactEventUtils.js';
 import { virtualizedRow } from './VirtualizedTableViewer.less';
 
 const ROW_HEIGHT = 30;
 const HEADER_HEIGHT = 30;
 const TABLE_BOTTOM_CUSHION = 10;
-const MIN_COLUMN_WIDTH = 130;
+const MIN_COLUMN_WIDTH = 25;
 export const SortDirection = {
   ASC: 'ASC',
   DESC: 'DESC'
@@ -43,6 +44,7 @@ export default class VirtualizedTableViewer extends Component {
       PropTypes.instanceOf(Immutable.List),
       PropTypes.array
     ]),
+    rowHeight: PropTypes.number,
     className: PropTypes.string,
     columns: PropTypes.array,
     defaultSortBy: PropTypes.string,
@@ -64,13 +66,15 @@ export default class VirtualizedTableViewer extends Component {
 
   static defaultProps = {
     tableData: Immutable.List(),
-    tableWidth: window.screen.width
+    tableWidth: window.screen.width,
+    rowHeight: ROW_HEIGHT
   };
 
   state = {
     sortBy: this.props.defaultSortBy,
     sortDirection: this.props.defaultSortDirection,
-    tableColumns: []
+    tableColumns: [],
+    resizedTableWidth: this.props.tableWidth || window.screen.width
   };
 
   setColumns = () => {
@@ -79,6 +83,17 @@ export default class VirtualizedTableViewer extends Component {
     });
   }
 
+  setTableWidth = () => {
+    // Minimum width to acommadate the additional column icons
+    let width = 160;
+    // re-calculate the columns width after an additional column is added
+    for (let i = 0; i < this.props.columns.length; i++ ) {
+      width += this.props.columns[i].width;
+    }
+    this.setState({resizedTableWidth: width});
+  }
+
+
   componentDidMount() {
     this.setColumns();
   }
@@ -86,6 +101,7 @@ export default class VirtualizedTableViewer extends Component {
   componentDidUpdate(previousProps) {
     if (previousProps.columns !== this.props.columns) {
       this.setColumns();
+      this.setTableWidth();
     }
   }
 
@@ -150,6 +166,7 @@ export default class VirtualizedTableViewer extends Component {
     /* column */ { style, infoContent, headerStyle }) => {
     const isSorted = sortBy === dataKey;
     const headerClassName = classNames(
+      'text',
       'virtualizedTable__headerContent',
       {
         'sort-asc': isSorted && sortDirection === SortDirection.ASC,
@@ -187,60 +204,67 @@ export default class VirtualizedTableViewer extends Component {
     const { showIconHeaders } = this.props;
     const key = showIconHeaders[rowData.dataKey] ? showIconHeaders[rowData.dataKey].node() : rowData;
     return (
-      <div className='draggableHeaderContent' >
-        <div>{this.renderHeader(key, item)}</div>
-        <Draggable
-          axis='x'
-          defaultClassName='DragHandle'
-          defaultClassNameDragging='DragHandleActive'
-          onStop={(event, data) =>
-            this.resizeColumn(
-              rowData.dataKey,
-              data.x
-            )
-          }
-          position={{
-            x: 0,
-            y: 0
-          }}
-          zIndex={999}
-        >
-          <div className='draggableHeaderContent__pipe' >{item.isDraggable ? '|' : ''}</div>
-        </Draggable>
+      <div className='draggableHeaderContent text' >
+        <div className='draggableHeaderInnerText'>{this.renderHeader(key, item)}</div>
+        <div className='maxZIndex' onClick={(e) => stopPropagation(e)}>
+          <Draggable
+            axis='x'
+            defaultClassName='DragHandle'
+            defaultClassNameDragging='DragHandleActive'
+            onStop={(event, data) =>
+              this.resizeColumn(
+                rowData.dataKey,
+                data.x
+              )
+            }
+            position={{
+              x: 0,
+              y: 0
+            }}
+          >
+            <div className='draggableHeaderContent__pipe' >{item.isDraggable ? '|' : ''}</div>
+          </Draggable>
+        </div>
       </div>
-
     );
   }
 
   resizeColumn = (dataKey, deltaX) => {
-    const { tableColumns } = this.state;
+    const { tableColumns, resizedTableWidth } = this.state;
     const thisColumn = tableColumns.find(obj => {
       return obj.key === dataKey;
     });
+    const oldColumnWidth = thisColumn.width;
     thisColumn.width = Math.max(MIN_COLUMN_WIDTH, thisColumn.width + deltaX);
     thisColumn.flexGrow = 0;
     thisColumn.flexShrink = 0;
+    // adjusts the table width to accomdate the resized column
+    const newTableWidth = resizedTableWidth - oldColumnWidth + thisColumn.width;
     this.setState({
-      tableColumns
+      tableColumns,
+      resizedTableWidth: newTableWidth
     });
   }
 
   render() {
     const {
-      tableData, style, resetScrollTop, scrollToIndex, sortRecords,
-      onClick, enableHorizontalScroll, tableWidth, resizableColumn, disableSort, ...tableProps
+      tableData, rowHeight, style, resetScrollTop, scrollToIndex, sortRecords,
+      onClick, enableHorizontalScroll, resizableColumn, disableSort, ...tableProps
     } = this.props;
     const {
       sortBy,
       sortDirection,
-      tableColumns
+      tableColumns,
+      resizedTableWidth
     } = this.state;
+
     const tableSize = List.isList(tableData) ? tableData.size : tableData.length;
     const sortedTableData = sortRecords ? tableData : this.getSortedTableData();
     const isEmpty = tableSize === 0;
     const baseStyle = isEmpty ? { height: HEADER_HEIGHT } : { height: '100%' };
     const scrollStyle = enableHorizontalScroll ? { overflowX: 'auto' } : {};
-    const tableColumnsWidth = tableWidth > window.screen.width && !isEmpty;
+    const tableColumnsWidth = resizedTableWidth > window.screen.width && !isEmpty;
+
     return (
       <div style={[styles.base, baseStyle, style, scrollStyle]}>
         <AutoSizer>
@@ -254,12 +278,12 @@ export default class VirtualizedTableViewer extends Component {
                 headerHeight={HEADER_HEIGHT}
                 rowCount={tableSize}
                 rowClassName={({ index }) => this.rowClassName(this.getRow(sortedTableData, index), index)}
-                rowHeight={ROW_HEIGHT}
+                rowHeight={rowHeight}
                 rowGetter={({ index }) => this.getRow(sortedTableData, index)}
                 sortDirection={sortDirection}
                 sortBy={sortBy}
                 height={tableHeight}
-                width={tableColumnsWidth ? tableWidth : width}
+                width={tableColumnsWidth ? resizedTableWidth : width}
                 sort={this.sort}
                 {...tableProps}
               >
@@ -345,6 +369,6 @@ export class DeferredRenderer extends Component {
 
   render() {
     if (this.state.initial) return null;
-    return <div>{this.props.render()}</div>;
+    return <div className='text'>{this.props.render()}</div>;
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.services.credentials;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -28,7 +29,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.config.DremioConfig;
@@ -44,9 +44,6 @@ public class TestLocalSecretsStore extends DremioTest {
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testEncryptDecrypt() throws Exception {
@@ -137,8 +134,8 @@ public class TestLocalSecretsStore extends DremioTest {
     key = localSecretsStore.lookupKeystore("master", false);
     assertNotNull(key);
 
-    thrown.expect(NoSuchElementException.class);
-    key = localSecretsStore.lookupKeystore("invalidAlias", false);
+    assertThatThrownBy(() -> localSecretsStore.lookupKeystore("invalidAlias", false))
+      .isInstanceOf(NoSuchElementException.class);
   }
 
 }

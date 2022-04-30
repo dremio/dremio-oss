@@ -15,29 +15,36 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
+import com.dremio.exec.planner.physical.AggregatePrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
+import com.dremio.exec.planner.physical.FilterPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.LeafPrel;
+import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.TableFunctionPrel;
+import com.dremio.exec.planner.physical.UnionPrel;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
 
 
 public interface PrelVisitor<RETURN, EXTRA, EXCEP extends Throwable> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PrelVisitor.class);
 
-  public RETURN visitExchange(ExchangePrel prel, EXTRA value) throws EXCEP;
-  public RETURN visitScreen(ScreenPrel prel, EXTRA value) throws EXCEP;
-  public RETURN visitWriter(WriterPrel prel, EXTRA value) throws EXCEP;
-  public RETURN visitWriterCommitter(WriterCommitterPrel prel, EXTRA value) throws EXCEP;
-  public RETURN visitLeaf(LeafPrel prel, EXTRA value) throws EXCEP;
-  public RETURN visitJoin(JoinPrel prel, EXTRA value) throws EXCEP;
-  public RETURN visitProject(ProjectPrel prel, EXTRA value) throws EXCEP;
-  public RETURN visitTableFunction(TableFunctionPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitExchange(ExchangePrel prel, EXTRA value) throws EXCEP;
+  RETURN visitScreen(ScreenPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitWriter(WriterPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitWriterCommitter(WriterCommitterPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitLeaf(LeafPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitJoin(JoinPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitProject(ProjectPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitTableFunction(TableFunctionPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitUnion(UnionPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitAggregate(AggregatePrel prel, EXTRA value) throws EXCEP;
+  RETURN visitLimit(LimitPrel prel, EXTRA value) throws EXCEP;
+  RETURN visitFilter(FilterPrel prel, EXTRA value) throws EXCEP;
 
-  public RETURN visitPrel(Prel prel, EXTRA value) throws EXCEP;
+  RETURN visitPrel(Prel prel, EXTRA value) throws EXCEP;
 
 }

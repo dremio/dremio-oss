@@ -37,6 +37,17 @@ public interface Partition extends AutoCloseable {
   boolean isBuildSideEmpty();
 
   /**
+   * Compute hash for given pivoted records (Build or probe)
+   *
+   * @param records number of records
+   * @param keyFixedVectorAddr start addr of fixed vector addr
+   * @param keyVarVectorAddr start addr of variable vector addr
+   * @param seed seed to use when computing the hash
+   * @param hashoutAddr8B start addr of hash vector for computed hash values
+   */
+  void hashPivoted(int records, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashoutAddr8B);
+
+  /**
    * Handle pivoted records (only keys are pivoted) of a probe batch, and optionally, produce output records.
    *
    * @param records number of records in incoming batch

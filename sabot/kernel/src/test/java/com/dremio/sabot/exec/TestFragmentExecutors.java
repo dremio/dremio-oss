@@ -17,7 +17,8 @@ package com.dremio.sabot.exec;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -187,7 +188,7 @@ public class TestFragmentExecutors {
     List<AsyncTaskWrapper> runningTasks = new ArrayList<>();
     TaskPool mockTaskPool = mock(TaskPool.class);
     doAnswer((Answer<Object>) invocation -> {
-      AsyncTaskWrapper taskWrapper = invocation.getArgumentAt(0, AsyncTaskWrapper.class);
+      AsyncTaskWrapper taskWrapper = invocation.getArgument(0, AsyncTaskWrapper.class);
       runningTasks.add(taskWrapper);
       return null;
     }).when(mockTaskPool).execute(any());
@@ -249,7 +250,7 @@ public class TestFragmentExecutors {
 
     final FragmentExecutorBuilder mockFragmentExecutorBuilder = mock(FragmentExecutorBuilder.class);
     doAnswer((Answer<Object>) invocation -> {
-      QueryStarter queryStarter = invocation.getArgumentAt(2, QueryStarter.class);
+      QueryStarter queryStarter = invocation.getArgument(2, QueryStarter.class);
       queryStarter.buildAndStartQuery(mock(QueryTicket.class));
       return null;
     }).when(mockFragmentExecutorBuilder).buildAndStartQuery(any(), any(), any());
@@ -275,11 +276,11 @@ public class TestFragmentExecutors {
       if (exceptionAtStartup) {
         throw new OutOfMemoryException();
       }
-      PlanFragmentFull planFragment = invocation.getArgumentAt(1, PlanFragmentFull.class);
+      PlanFragmentFull planFragment = invocation.getArgument(1, PlanFragmentFull.class);
       int majorId = planFragment.getMajorFragmentId();
       int minorId = planFragment.getMinorFragmentId();
       return fragmentExecutors[majorId + minorId];
-    }).when(mockFragmentExecutorBuilder).build(any(), any(), any(), any(), any());
+    }).when(mockFragmentExecutorBuilder).build(any(), any(), eq(1), any(), any(), any());
 
     return new TestState(fe, initializeFragments, runningTasks, mockMaestroProxy, new Runnable() {
       @Override

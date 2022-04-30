@@ -19,7 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -168,8 +168,8 @@ public class TestHistogramGenerator {
     when(queryExecutor.runQueryWithListener(any(SqlQuery.class), any(QueryType.class), any(DatasetPath.class), any(DatasetVersion.class), any(JobStatusListener.class)))
         .thenAnswer(
           (Answer<JobData>) invocation -> {
-            final String query = invocation.getArgumentAt(0, SqlQuery.class).getSql();
-            final JobStatusListener listener = invocation.getArgumentAt(4, JobStatusListener.class);
+            final String query = invocation.getArgument(0, SqlQuery.class).getSql();
+            final JobStatusListener listener = invocation.getArgument(4, JobStatusListener.class);
             JobData jobData = mock(JobDataWrapper.class);
 
             when(jobData.getJobResultsTable()).thenReturn("jobResults.previewJob");
@@ -181,7 +181,7 @@ public class TestHistogramGenerator {
     when(queryExecutor.runQueryAndWaitForCompletion(any(SqlQuery.class), any(QueryType.class), any(DatasetPath.class), any(DatasetVersion.class)))
       .thenAnswer(
         (Answer<JobData>) invocation -> {
-          final String query = invocation.getArgumentAt(0, SqlQuery.class).getSql();
+          final String query = invocation.getArgument(0, SqlQuery.class).getSql();
           JobData jobData = mock(JobDataWrapper.class);
 
           if (expFilter != null) {

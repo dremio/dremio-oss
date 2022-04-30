@@ -1243,7 +1243,7 @@ public class TestNativeFunctions extends BaseTestFunction {
     });
   }
 
-  @Ignore("DX-32437; temporarily ignoring as this function is temporarily blacklisted")
+  @Ignore("DX-32437; temporarily ignoring as this function is temporarily blocklisted")
   @Test
   public void testConvertReplaceUTF8() throws Exception {
     testFunctions(new Object[][]{

@@ -35,6 +35,7 @@ import { getExploreState, getImmutableTable } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 
 import { CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
+import { getActiveScript } from '@app/selectors/scripts';
 import CalculatedFieldContent from './DetailsWizard/CalculatedFieldContent';
 import TransformContent from './DetailsWizard/TransformContent';
 import ConvertTrimContent from './DetailsWizard/ConvertTrimContent';
@@ -65,7 +66,8 @@ export class DetailsWizard extends PureComponent {
     joinTableViewState: PropTypes.instanceOf(Immutable.Map),
     dragType: PropTypes.string,
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-    canSelect: PropTypes.any
+    canSelect: PropTypes.any,
+    activeScript: PropTypes.object
   };
 
   static contextTypes = {
@@ -90,7 +92,7 @@ export class DetailsWizard extends PureComponent {
   }
 
   goToExplorePage() {
-    const { location } = this.props;
+    const { location, activeScript } = this.props;
     const { version } = location.query;
     const sliceIndex = location.pathname.indexOf('/details');
     const newPath = location.pathname.slice(0, sliceIndex);
@@ -99,7 +101,13 @@ export class DetailsWizard extends PureComponent {
       tipVersion: location.query.tipVersion || undefined,
       mode: location.query.mode || undefined
     };
-    this.context.router.push({state: {previewVersion: ''}, pathname: newPath, query});
+    this.context.router.push({
+      state: {
+        previewVersion: '',
+        renderScriptTab: !!activeScript.id
+      },
+      pathname: newPath, query
+    });
   }
 
   handleFormTypeChange = (formType) => this.setState({ formType })
@@ -114,7 +122,7 @@ export class DetailsWizard extends PureComponent {
   };
 
   handleApply = (values) => {
-    const { dataset, detailType, tableData } = this.props;
+    const { dataset, detailType, tableData, activeScript } = this.props;
     return this.props.runTableTransform(
       dataset,
       exploreUtils.getMappedDataForTransform(values, detailType),
@@ -123,7 +131,7 @@ export class DetailsWizard extends PureComponent {
     ).then((response) => {
       if (!response.error) {
         // this navigation will trigger data load. see explorePageDataChecker saga
-        return this.props.navigateToNextDataset(response);
+        return this.props.navigateToNextDataset(response, { renderScriptTab: !!activeScript.id });
       }
       return response;
     });
@@ -303,7 +311,8 @@ function mapStateToProps(state, props) {
     recommendedJoins: explorePageState.join.getIn(['recommended', 'recommendedJoins']) || Immutable.List([]),
     activeRecommendedJoin: explorePageState.join.getIn(['recommended', 'activeRecommendedJoin']) || Immutable.Map(),
     recommendedJoinsViewState: getViewState(state, RECOMMENDED_JOINS_VIEW_ID),
-    joinTableViewState: getViewState(state, JOIN_TABLE_VIEW_ID)
+    joinTableViewState: getViewState(state, JOIN_TABLE_VIEW_ID),
+    activeScript: getActiveScript(state)
   };
 }
 

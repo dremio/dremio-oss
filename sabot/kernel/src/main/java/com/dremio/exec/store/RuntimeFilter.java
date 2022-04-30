@@ -96,7 +96,7 @@ public class RuntimeFilter implements AutoCloseable {
                 "BloomFilter value count mismatched. Expected %s, Actual %s", partitionColFilterProto.getValueCount(), bloomFilter.getNumBitsSet());
         partitionColFilter = new CompositeColumnFilter.Builder().setProtoFields(protoFilter.getPartitionColumnFilter())
                 .setBloomFilter(bloomFilter).build();
-        bloomFilter.getDataBuffer().retain();
+        bloomFilter.getDataBuffer().getReferenceManager().retain();
 
         runTimeFilterDetails
           .setMinorFragmentId(fragmentHandle.getMinorFragmentId())
@@ -133,7 +133,7 @@ public class RuntimeFilter implements AutoCloseable {
         final CompositeColumnFilter nonPartitionColFilter = new CompositeColumnFilter.Builder()
                 .setProtoFields(nonPartitionColFilterProto).setValueList(valueListFilter).build();
         nonPartitionColFilters.add(nonPartitionColFilter);
-        valueListFilter.buf().retain();
+        valueListFilter.buf().getReferenceManager().retain();
 
         runTimeFilterDetails
           .setMinorFragmentId(fragmentHandle.getMinorFragmentId())

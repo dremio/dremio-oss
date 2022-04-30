@@ -71,6 +71,7 @@ import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.context.FragmentStats;
 import com.dremio.sabot.exec.context.StatusHandler;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -199,6 +200,7 @@ public class FragmentExecutorBuilder {
 
   public FragmentExecutor build(final QueryTicket queryTicket,
                                 final PlanFragmentFull fragment,
+                                final int schedulingWeight,
                                 final EventProvider eventProvider,
                                 final SchedulingInfo schedulingInfo,
                                 final CachedFragmentReader cachedReader) throws Exception {
@@ -288,7 +290,9 @@ public class FragmentExecutorBuilder {
             .getJobResultsClient(major.getForeman(), allocator, QueryIdHelper.getFragmentId(fragment.getHandle()), QueryIdHelper.getQueryIdentifier(fragment.getHandle())).getTunnel();
         final DeferredException exception = new DeferredException();
         final StatusHandler handler = new StatusHandler(exception);
-        final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), jobResultsTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP));
+        final FileCursorManagerFactory fileCursorManagerFactory = maestroProxy.getFileCursorMangerFactory(fragment.getHandle().getQueryId());
+        final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), jobResultsTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP),
+          fileCursorManagerFactory);
 
         final OperatorContextCreator creator = new OperatorContextCreator(
             stats,
@@ -315,13 +319,14 @@ public class FragmentExecutorBuilder {
             expressionSplitCache
           );
 
-        final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats,
+        final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), schedulingWeight, stats,
             maestroProxy, allocator);
         final FragmentExecutor executor = new FragmentExecutor(
             statusReporter,
             config,
             controls,
             fragment,
+            schedulingWeight,
             coord,
             cachedReader,
             sharedResources,
@@ -331,6 +336,7 @@ public class FragmentExecutorBuilder {
             creator,
             funcRegistry,
             decimalFuncRegistry,
+            fileCursorManagerFactory,
             tunnelProvider,
             flushable,
             fragmentOptions,

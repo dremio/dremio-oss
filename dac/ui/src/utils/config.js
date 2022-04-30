@@ -69,6 +69,7 @@ export default { // defaults, and defaults for unit tests
   downloadRecordsLimit: 1000000,
   ...((window && window.dremioConfig) || {}),
   displayTutorialsLink: false,
+  showNewJobsPage: true,
   showMetadataValidityCheckbox: false,
   ...((window && window.dremioConfig) || {})
 };

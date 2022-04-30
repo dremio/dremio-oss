@@ -110,7 +110,8 @@ export class ConfirmCancelFooter extends Component {
 const styles = {
   base: {
     display: 'flex',
-    justifyContent: 'flex-end'
+    justifyContent: 'flex-end',
+    alignItems: 'center'
   },
   nonModalFooter: {
     marginTop: 20,

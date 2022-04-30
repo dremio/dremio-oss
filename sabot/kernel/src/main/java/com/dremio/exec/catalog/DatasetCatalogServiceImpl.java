@@ -102,7 +102,7 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
     try {
       Preconditions.checkArgument(!request.getDatasetPathList().isEmpty());
       final DatasetCatalog catalog = catalogServiceProvider.get().getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()));
+        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
 
       final NamespaceKey name = new NamespaceKey(request.getDatasetPathList());
 
@@ -188,7 +188,6 @@ public class DatasetCatalogServiceImpl extends DatasetCatalogServiceGrpc.Dataset
         }
         config.getPhysicalDataset().setIcebergMetadata(icebergMetadata);
       }
-
       saveDataset(namespaceService, catalog, request.getDatasetConfig(), name, config);
       responseObserver.onNext(Empty.newBuilder().build());
       responseObserver.onCompleted();

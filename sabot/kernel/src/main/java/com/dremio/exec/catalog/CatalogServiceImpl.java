@@ -43,6 +43,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogImpl.IdentityResolver;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -69,19 +70,24 @@ import com.dremio.service.coordinator.DistributedSemaphore.DistributedLease;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceIdentity;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.NamespaceUser;
 import com.dremio.service.namespace.SourceState;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
-import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
 import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
+import com.dremio.service.users.User;
+import com.dremio.service.users.UserNotFoundException;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
@@ -107,9 +113,6 @@ public class CatalogServiceImpl implements CatalogService {
   private static final Logger logger = LoggerFactory.getLogger(CatalogServiceImpl.class);
   public static final long CATALOG_SYNC = TimeUnit.MINUTES.toMillis(3);
   private static final long CHANGE_COMMUNICATION_WAIT = TimeUnit.SECONDS.toMillis(5);
-
-
-  private static final String LOCAL_TASK_LEADER_NAME = "catalogserviceV2";
 
   public static final String CATALOG_SOURCE_DATA_NAMESPACE = "catalog-source-data";
 
@@ -138,7 +141,7 @@ public class CatalogServiceImpl implements CatalogService {
   protected final CatalogServiceMonitor monitor;
   private final Set<String> influxSources; //will contain any sources influx(i.e actively being modified). Otherwise empty.
   protected final Predicate<String> isInfluxSource;
-  protected ModifiableSchedulerService modifiableSchedulerService;
+  protected Provider<ModifiableSchedulerService> modifiableSchedulerService;
 
   public CatalogServiceImpl(
     Provider<SabotContext> context,
@@ -153,10 +156,11 @@ public class CatalogServiceImpl implements CatalogService {
     Provider<OptionManager> optionManager,
     Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider,
     DremioConfig config,
-    EnumSet<Role> roles
+    EnumSet<Role> roles,
+    Provider<ModifiableSchedulerService> modifiableSchedulerService
   ) {
     this(context, scheduler, sysTableConfProvider, sysFlightTableConfProvider, fabric, connectionReaderProvider, bufferAllocator,
-      kvStoreProvider, datasetListingService, optionManager, broadcasterProvider, config, roles, CatalogServiceMonitor.DEFAULT);
+      kvStoreProvider, datasetListingService, optionManager, broadcasterProvider, config, roles, CatalogServiceMonitor.DEFAULT, modifiableSchedulerService);
   }
 
   @VisibleForTesting
@@ -174,7 +178,8 @@ public class CatalogServiceImpl implements CatalogService {
     Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider,
     DremioConfig config,
     EnumSet<Role> roles,
-    final CatalogServiceMonitor monitor
+    final CatalogServiceMonitor monitor,
+    Provider<ModifiableSchedulerService> modifiableSchedulerService
   ) {
     this.context = context;
     this.scheduler = scheduler;
@@ -192,6 +197,7 @@ public class CatalogServiceImpl implements CatalogService {
     this.monitor = monitor;
     this.influxSources = ConcurrentHashMap.newKeySet();
     this.isInfluxSource = this::isInfluxSource;
+    this.modifiableSchedulerService = modifiableSchedulerService;
   }
 
   @Override
@@ -200,8 +206,7 @@ public class CatalogServiceImpl implements CatalogService {
     this.allocator = bufferAllocator.get().newChildAllocator("catalog-protocol", 0, Long.MAX_VALUE);
     this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     this.sourceDataStore = kvStoreProvider.get().getStore(CatalogSourceDataCreator.class);
-    this.modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
-        ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, optionManager.get());
+    modifiableSchedulerService.get().start();
     this.plugins = newPluginsManager();
     plugins.start();
     this.protocol =  new CatalogProtocol(allocator, new CatalogChangeListener(), config.getSabotConfig());
@@ -212,7 +217,7 @@ public class CatalogServiceImpl implements CatalogService {
     if(roles.contains(Role.MASTER) || isDistributedCoordinator) {
       final CountDownLatch wasRun = new CountDownLatch(1);
       final Cancellable task = scheduler.get().schedule(ScheduleUtils.scheduleToRunOnceNow(
-        LOCAL_TASK_LEADER_NAME), () -> {
+        optionManager.get().getOption(ExecConstants.CATALOG_SERVICE_LOCAL_TASK_LEADER_NAME)), () -> {
           try {
             if (createSourceIfMissing(new SourceConfig()
               .setConfig(new InfoSchemaConf().toBytesString())
@@ -274,9 +279,9 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   protected PluginsManager newPluginsManager() {
-    return new PluginsManager(context.get(), systemNamespace, datasetListingService.get(), optionManager.get(),
+    return new PluginsManager(context.get(), systemNamespace, context.get().getOrphanageFactory().get(), datasetListingService.get(), optionManager.get(),
       config, sourceDataStore, scheduler.get(), connectionReaderProvider.get(), monitor, broadcasterProvider,
-      isInfluxSource, modifiableSchedulerService);
+      isInfluxSource, modifiableSchedulerService.get());
   }
 
   private void communicateChange(SourceConfig config, RpcType rpcType) {
@@ -353,7 +358,7 @@ public class CatalogServiceImpl implements CatalogService {
         continue;
       }
 
-      deleteSource(source, SystemUser.SYSTEM_USERNAME);
+      deleteSource(source, CatalogUser.from(SystemUser.SYSTEM_USERNAME), null);
     }
   }
 
@@ -382,7 +387,6 @@ public class CatalogServiceImpl implements CatalogService {
     }
     ex.suppressingClose(protocol);
     ex.suppressingClose(allocator);
-    ex.suppressingClose(modifiableSchedulerService);
     ex.close();
   }
 
@@ -402,20 +406,19 @@ public class CatalogServiceImpl implements CatalogService {
   public boolean createSourceIfMissingWithThrow(SourceConfig config) {
     Preconditions.checkArgument(config.getTag() == null);
     if(!getPlugins().hasPlugin(config.getName())) {
-      createSource(config, SystemUser.SYSTEM_USERNAME);
+      createSource(config, CatalogUser.from(SystemUser.SYSTEM_USERNAME));
       return true;
     }
     return false;
   }
 
-  private void createSource(SourceConfig config, String userName, NamespaceAttribute... attributes) {
-
+  private void createSource(SourceConfig config, CatalogIdentity subject, NamespaceAttribute... attributes) {
     boolean afterUnknownEx = false;
 
     try(final AutoCloseable sourceDistributedLock = getDistributedLock(config.getName())) {
       logger.debug("Obtained distributed lock for source {}", "-source-"+config.getName());
       setInfluxSource(config.getName());
-      getPlugins().create(config, userName, attributes);
+      getPlugins().create(config, subject.getName(), attributes);
       communicateChange(config, RpcType.REQ_SOURCE_CONFIG);
     } catch (SourceAlreadyExistsException e) {
       throw UserException.concurrentModificationError(e).message("Source already exists with name %s.", config.getName()).buildSilently();
@@ -431,7 +434,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
   }
 
-  private void updateSource(SourceConfig config, String userName, NamespaceAttribute... attributes) {
+  private void updateSource(SourceConfig config, CatalogIdentity subject, NamespaceAttribute... attributes) {
     Preconditions.checkArgument(config.getTag() != null);
     boolean afterUnknownEx = false;
 
@@ -446,7 +449,7 @@ public class CatalogServiceImpl implements CatalogService {
       if (("HOME".equalsIgnoreCase(srcType)) || ("INTERNAL".equalsIgnoreCase(srcType)) || ("ACCELERATION".equalsIgnoreCase(srcType))) {
         config.setAllowCrossSourceSelection(true);
       }
-      plugin.updateSource(config, userName, attributes);
+      plugin.updateSource(config, subject.getName(), attributes);
       communicateChange(config, RpcType.REQ_SOURCE_CONFIG);
     } catch (ConcurrentModificationException ex) {
       throw ex;
@@ -465,7 +468,7 @@ public class CatalogServiceImpl implements CatalogService {
     if(plugin == null) {
       return;
     }
-    deleteSource(plugin.getId().getConfig(), SystemUser.SYSTEM_USERNAME);
+    deleteSource(plugin.getId().getConfig(), CatalogUser.from(SystemUser.SYSTEM_USERNAME), null);
   }
 
   /**
@@ -473,10 +476,10 @@ public class CatalogServiceImpl implements CatalogService {
    *   Grab the distributed source lock.
    *   Check that we have a valid config.
    * @param config
-   * @param userName
+   * @param subject
    */
-  private void deleteSource(SourceConfig config, String userName) {
-    NamespaceService namespaceService = context.get().getNamespaceService(userName);
+  private void deleteSource(SourceConfig config, CatalogIdentity subject, NamespaceService.DeleteCallback callback) {
+    NamespaceService namespaceService = context.get().getNamespaceService(subject.getName());
     boolean afterUnknownEx = false;
 
     try (AutoCloseable l = getDistributedLock(config.getName()) ) {
@@ -486,7 +489,7 @@ public class CatalogServiceImpl implements CatalogService {
         throw UserException.invalidMetadataError().message("Unable to remove source as the provided definition is out of date.").buildSilently();
       }
 
-      namespaceService.deleteSource(config.getKey(), config.getTag());
+      namespaceService.deleteSourceWithCallBack(config.getKey(), config.getTag(), callback);
       sourceDataStore.delete(config.getKey());
     } catch (RuntimeException ex) {
       afterUnknownEx = true;
@@ -627,6 +630,10 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   protected Catalog createCatalog(MetadataRequestOptions requestOptions) {
+    return createCatalog(requestOptions, new CatalogIdentityResolver());
+  }
+
+  protected Catalog createCatalog(MetadataRequestOptions requestOptions, IdentityResolver identityProvider) {
     OptionManager optionManager = requestOptions.getSchemaConfig().getOptions();
     if (optionManager == null) {
       optionManager = context.get().getOptionManager();
@@ -635,12 +642,15 @@ public class CatalogServiceImpl implements CatalogService {
     return new CatalogImpl(
       requestOptions,
       new Retriever(),
-      new SourceModifier(requestOptions.getSchemaConfig().getUserName()),
+      new SourceModifier(requestOptions.getSchemaConfig().getAuthContext().getSubject()),
       optionManager,
       context.get().getNamespaceService(SystemUser.SYSTEM_USERNAME),
       context.get().getNamespaceServiceFactory(),
+      context.get().getOrphanageFactory().get(),
       context.get().getDatasetListing(),
-      context.get().getViewCreatorFactoryProvider().get());
+      context.get().getViewCreatorFactoryProvider().get(),
+      identityProvider
+    );
   }
 
   @Override
@@ -716,7 +726,8 @@ public class CatalogServiceImpl implements CatalogService {
 
   @VisibleForTesting
   public Catalog getSystemUserCatalog() {
-    return getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()));
+    return getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
+      .build()));
   }
 
   @VisibleForTesting
@@ -733,14 +744,14 @@ public class CatalogServiceImpl implements CatalogService {
    * access to the service methods to the Catalog instances this service generates.
    */
   public class SourceModifier {
-    private final String userName;
+    private final CatalogIdentity subject;
 
-    public SourceModifier(String userName) {
-      this.userName = userName;
+    public SourceModifier(CatalogIdentity subject) {
+      this.subject = subject;
     }
 
-    public SourceModifier cloneWith(String userName) {
-      return new SourceModifier(userName);
+    public SourceModifier cloneWith(CatalogIdentity subject) {
+      return new SourceModifier(subject);
     }
 
     public <T extends StoragePlugin> T getSource(String name) {
@@ -748,15 +759,45 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     public void createSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) {
-      CatalogServiceImpl.this.createSource(sourceConfig, userName, attributes);
+      CatalogServiceImpl.this.createSource(sourceConfig, subject, attributes);
     }
 
     public void updateSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) {
-      CatalogServiceImpl.this.updateSource(sourceConfig, userName, attributes);
+      CatalogServiceImpl.this.updateSource(sourceConfig, subject, attributes);
     }
 
-    public void deleteSource(SourceConfig sourceConfig) {
-      CatalogServiceImpl.this.deleteSource(sourceConfig, userName);
+    public void deleteSource(SourceConfig sourceConfig , NamespaceService.DeleteCallback callback) {
+      CatalogServiceImpl.this.deleteSource(sourceConfig, subject, callback);
+    }
+  }
+
+  private class CatalogIdentityResolver implements IdentityResolver {
+    @Override
+    public CatalogIdentity getOwner(List<String> path) throws NamespaceException {
+      final DatasetConfig dataset = systemNamespace.getDataset(new NamespaceKey(path));
+
+      if (dataset.getType() != DatasetType.VIRTUAL_DATASET) {
+        return null;
+      }
+
+      return new CatalogUser(dataset.getOwner());
+    }
+
+    @Override
+    public NamespaceIdentity toNamespaceIdentity(CatalogIdentity identity) {
+      if (identity instanceof CatalogUser) {
+        if (identity.getName().equals(SystemUser.SYSTEM_USERNAME)) {
+          return new NamespaceUser(() -> SystemUser.SYSTEM_USER);
+        }
+
+        try {
+          final User user = context.get().getUserService().getUser(identity.getName());
+          return new NamespaceUser(() -> user);
+        } catch (UserNotFoundException ignored) {
+        }
+      }
+
+      return null;
     }
   }
 }

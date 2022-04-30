@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -161,20 +161,17 @@
 
     <dependency>
       <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-nessie-api</artifactId>
-      <version>${project.version}</version>
+      <artifactId>dremio-services-nessie</artifactId>
     </dependency>
 
     <dependency>
       <groupId>com.dremio.services</groupId>
-      <artifactId>dremio-services-nessie</artifactId>
-      <version>${project.version}</version>
+      <artifactId>dremio-services-nessie-grpc-client</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.projectnessie</groupId>
       <artifactId>nessie-client</artifactId>
-      <version>${nessie.version}</version>
     </dependency>
 
     <dependency>
@@ -202,12 +199,6 @@
     <dependency>
       <groupId>io.protostuff</groupId>
       <artifactId>protostuff-api</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -278,6 +269,10 @@
       <artifactId>iceberg-data</artifactId>
       <version>${iceberg.version}</version>
       <exclusions>
+        <exclusion>
+          <groupId>org.apache.orc</groupId>
+          <artifactId>orc-core</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>com.github.stephenc.findbugs</groupId>
           <artifactId>findbugs-annotations</artifactId>
@@ -691,11 +686,6 @@
       <artifactId>dremio-services-execselector</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.immutables</groupId>
-      <artifactId>value</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-jobtelemetry-common</artifactId>
       <version>${project.version}</version>
@@ -723,13 +713,11 @@
     <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-module-junit4</artifactId>
-      <version>1.6.5</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
-      <version>1.6.5</version>
+      <artifactId>powermock-api-mockito2</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -745,6 +733,17 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-datastore</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-orphanage</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
     </dependency>
   </dependencies>
 

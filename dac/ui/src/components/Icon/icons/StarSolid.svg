@@ -1,0 +1,20 @@
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M17.6488 10.7827C17.58 10.5873 17.4005 10.45 17.1907 10.4324L14.1602 9.99837L12.802 7.29497C12.713 7.11458 12.5268 7 12.3227 7C12.1185 7 11.9323 7.11458 11.8433 7.29497L10.4852 9.99314L7.45466 10.4324C7.25356 10.4604 7.08623 10.5984 7.02325 10.7879C6.96567 10.973 7.01689 11.1742 7.1564 11.3108L9.35607 13.4024L8.82346 16.3725C8.78464 16.5727 8.86778 16.7768 9.0365 16.8954C9.20078 17.0107 9.41733 17.0249 9.59574 16.932L12.3227 15.5359L15.039 16.9372C15.1137 16.9786 15.1982 17.0003 15.284 17C15.3968 17.0004 15.5068 16.9656 15.5982 16.9006C15.7669 16.782 15.8501 16.5779 15.8113 16.3777L15.2787 13.4077L17.4783 11.3161C17.6353 11.1855 17.7016 10.9779 17.6488 10.7827Z" fill="#6E7987"/>
+</svg>

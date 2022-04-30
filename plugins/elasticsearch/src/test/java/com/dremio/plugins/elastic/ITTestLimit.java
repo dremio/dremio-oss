@@ -19,6 +19,16 @@ import static com.dremio.TestBuilder.mapOf;
 import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
 
+import com.dremio.context.RequestContext;
+import com.dremio.context.TenantContext;
+import com.dremio.context.UserContext;
+import com.dremio.service.DirectProvider;
+import com.dremio.service.grpc.GrpcChannelBuilderFactory;
+import com.dremio.service.grpc.SingleTenantGrpcChannelBuilderFactory;
+import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
+import com.dremio.service.jobtelemetry.JobTelemetryClient;
+import com.dremio.telemetry.utils.TracerFacade;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Arrays;
@@ -27,6 +37,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,6 +71,14 @@ import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
 
 public class ITTestLimit extends ElasticBaseTestQuery {
+  private final GrpcChannelBuilderFactory grpcChannelBuilderFactory =
+    new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE,
+      DirectProvider.wrap(RequestContext.current()
+        .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
+        .with(UserContext.CTX_KEY, new UserContext("dremio"))),
+      () -> Maps.newHashMap());
+
+  private JobTelemetryClient jobTelemetryClient;
 
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
@@ -68,6 +87,14 @@ public class ITTestLimit extends ElasticBaseTestQuery {
   public void loadTable() throws IOException, ParseException, InterruptedException {
     ColumnData[] data = getBusinessData();
     loadWithRetry(schema, table, data);
+
+    jobTelemetryClient = new JobTelemetryClient(grpcChannelBuilderFactory, DirectProvider.wrap(getSabotContext().getEndpoint()));
+    jobTelemetryClient.start();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    AutoCloseables.close(jobTelemetryClient);
   }
 
   String AGG_LIMIT = "="
@@ -479,8 +506,12 @@ public class ITTestLimit extends ElasticBaseTestQuery {
       .build();
 
     ProfileGrabber grabber = new ProfileGrabber();
-    getLocalQueryExecutor().submitLocalQuery(ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config, false);
+    getLocalQueryExecutor().submitLocalQuery(ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config, false, null);
     QueryProfile profile = grabber.getProfile();
+
+    profile = jobTelemetryClient.getBlockingStub().getQueryProfile(GetQueryProfileRequest.newBuilder()
+      .setQueryId(profile.getId())
+      .build()).getProfile();
 
     Optional<OperatorProfile> scanProfile = profile.getFragmentProfile(0)
       .getMinorFragmentProfile(0).getOperatorProfileList().stream()

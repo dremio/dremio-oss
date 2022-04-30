@@ -17,11 +17,10 @@ package com.dremio.exec.store.dfs;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static junit.framework.TestCase.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertFalse;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.service.users.SystemUser;
 
@@ -29,23 +28,21 @@ import com.dremio.service.users.SystemUser;
  * Tests for ImpersonationUtil
  */
 public class TestImpersonationUtil  {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testNullUser() throws Exception {
-    thrown.expect(IllegalArgumentException.class);
-    ImpersonationUtil.createProxyUgi(null);
+  public void testNullUser() {
+    assertThatThrownBy(() -> ImpersonationUtil.createProxyUgi(null))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  public void testEmptyUser() throws Exception {
-    thrown.expect(IllegalArgumentException.class);
-    ImpersonationUtil.createProxyUgi("");
+  public void testEmptyUser() {
+    assertThatThrownBy(() -> ImpersonationUtil.createProxyUgi(""))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  public void testIsSystemUserName() throws Exception {
+  public void testIsSystemUserName() {
     assertTrue(SystemUser.isSystemUserName(SYSTEM_USERNAME));
     assertFalse(SystemUser.isSystemUserName("foo"));
   }

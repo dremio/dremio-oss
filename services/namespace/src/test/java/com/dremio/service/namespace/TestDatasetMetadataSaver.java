@@ -16,9 +16,10 @@
 package com.dremio.service.namespace;
 
 import static java.util.Arrays.asList;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -27,13 +28,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -61,9 +58,6 @@ public class TestDatasetMetadataSaver {
   private LegacyKVStoreProvider kvStoreProvider;
   private NamespaceService namespaceService;
   private NamespaceService.SplitCompression currentCompression;
-
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
 
   @Before
   public void setup() throws Exception {
@@ -121,11 +115,11 @@ public class TestDatasetMetadataSaver {
       assertEquals(numSplitsPerPartitionChunk, splits.size());
       for (DatasetSplit split : splits) {
         String splitName = new String(split.getSplitExtendedProperty().toByteArray());
-        assertTrue(expectedSplits.contains(splitName));
+        assertThat(expectedSplits).contains(splitName);
         expectedSplits.remove(splitName);
       }
     }
-    assertTrue(expectedSplits.isEmpty());
+    assertThat(expectedSplits).isEmpty();
   }
 
   private void saveDataset(SampleSourceMetadata connector, DatasetHandle ds, DatasetConfig dsConfig, NamespaceKey dsPath,
@@ -359,27 +353,10 @@ public class TestDatasetMetadataSaver {
     saveDataset(s, ds, dsConfig, dsPath, false, false, Long.MAX_VALUE, false);
 
     dsConfig.setId(new EntityId().setId("Bogus"));
-    expectedException.expect(new ExceptionMatcher<>("There already exists an entity", UserException.class));
-    saveDataset(s, ds, dsConfig, dsPath, false, true, Long.MAX_VALUE, false);
-  }
-
-  private static class ExceptionMatcher<T extends Throwable> extends TypeSafeMatcher<T> {
-    private final Class<T> exceptionClazz;
-    private final String expectedMessage;
-    ExceptionMatcher(String expectedMessage, Class<T> clazz) {
-      this.expectedMessage = expectedMessage;
-      exceptionClazz = clazz;
-    }
-    @Override
-    protected boolean matchesSafely(T e) {
-      return exceptionClazz.isInstance(e) && e.getMessage().contains(expectedMessage);
-    }
-    @Override
-    public void describeTo(final Description description) {
-      description.appendText(exceptionClazz.getName());
-      description.appendText(" containing the message: ");
-      description.appendText(expectedMessage);
-    }
+    assertThatThrownBy(
+      () -> saveDataset(s, ds, dsConfig, dsPath, false, true, Long.MAX_VALUE, false))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("There already exists an entity");
   }
 
   @Test

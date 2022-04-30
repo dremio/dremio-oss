@@ -45,6 +45,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDatasetPlanBuilder implements SupportPartialRefresh {
@@ -92,7 +93,7 @@ public class HiveIncrementalRefreshDatasetPlanBuilder extends HiveFullRefreshDat
 
     return new DirListingInvocationPrel(cluster, cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL),
       table, storagePluginId, refreshExecTableMetadata,
-      1.0d, metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh, metadataProvider, paths, x -> getRowCountEstimates("DirList"));
+      1.0d, metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh, metadataProvider, paths, x -> getRowCountEstimates("DirList"), ImmutableList.of());
   }
 
   private void validateMetadata() {

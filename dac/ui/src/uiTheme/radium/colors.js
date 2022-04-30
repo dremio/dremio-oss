@@ -53,6 +53,8 @@ export const CELL_EXPANSION = '#E9E9E9';
 // menu
 export const MENU_SELECTED = '#d2edf2';
 
+export const MALIBU = '#63DAFF';
+
 export default {
   GREY,
   NAVY,

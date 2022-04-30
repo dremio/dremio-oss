@@ -16,15 +16,18 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.awaitility.Awaitility;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
@@ -32,13 +35,9 @@ import com.dremio.BaseTestQuery;
 // Tests that iceberg feature is disabled by default, and dis-allows iceberg operations.
 public class TestIcebergFeatureOption extends BaseTestQuery {
   private static String TEST_SCHEMA = TEMP_SCHEMA;
-  private static String ERROR_MESSAGE_SUBSTRING = "steps to enable the iceberg tables feature.";
 
   @ClassRule
   public static TemporaryFolder testFolder = new TemporaryFolder();
-
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
 
   @BeforeClass
   public static void initFs() throws Exception {
@@ -62,18 +61,18 @@ public class TestIcebergFeatureOption extends BaseTestQuery {
         test(ctasQuery);
       }
 
-      expectedEx.expectMessage(ERROR_MESSAGE_SUBSTRING);
       try {
-        // mac stores mtime in units of sec. so, atleast this much time should elapse to detect the
-        // change.
-        Thread.sleep(1001);
         final String insertQuery =
           String.format(
             "INSERT INTO %s.%s "
               + "SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" limit 3",
             testSchema, tableName);
-
-        test(insertQuery);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+          .untilAsserted(() -> assertThatThrownBy(() -> test(insertQuery))
+            .satisfiesAnyOf(t -> assertThat(t.getMessage()).contains(
+                "UNSUPPORTED_OPERATION ERROR: Source [dfs_test_hadoop] does not support DML operations"),
+              t -> assertThat(t.getMessage()).contains(
+                "UNSUPPORTED_OPERATION ERROR: Source [dfs_test] does not support DML operations")));
       } finally {
         FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
       }
@@ -84,12 +83,12 @@ public class TestIcebergFeatureOption extends BaseTestQuery {
   public void createEmpty() throws Exception {
     final String newTblName = "create_empty_auto_refresh";
 
-    expectedEx.expectMessage(ERROR_MESSAGE_SUBSTRING);
     try {
       final String ctasQuery =
         String.format("CREATE TABLE %s.%s (id int, name varchar, distance Decimal(38, 3))", TEST_SCHEMA, newTblName);
 
-      test(ctasQuery);
+      assertThatThrownBy(() -> test(ctasQuery))
+        .hasMessageContaining("UNSUPPORTED_OPERATION ERROR: Source [dfs_test] does not support CREATE TABLE. Please use correct catalog");
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
     }

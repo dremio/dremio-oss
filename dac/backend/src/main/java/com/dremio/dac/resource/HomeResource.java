@@ -77,6 +77,7 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.BufferAllocatorFactory;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.InputValidation;
 import com.dremio.dac.server.UIOptions;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
@@ -406,8 +407,9 @@ public class HomeResource extends BaseResourceWithAllocator {
   public void deleteFile(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, DACException {
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     if (version == null) {
-      throw new ClientErrorException("missing version parameter");
+      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
+
     try {
       catalogServiceHelper.deleteHomeDataset(namespaceService.getDataset(filePath.toNamespaceKey()), version, filePath.toNamespaceKey().getPathComponents());
     } catch (IOException ioe) {
@@ -489,8 +491,9 @@ public class HomeResource extends BaseResourceWithAllocator {
   public void deleteFolder(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, FolderNotFoundException {
     FolderPath folderPath = FolderPath.fromURLPath(homeName, path);
     if (version == null) {
-      throw new ClientErrorException("missing version parameter");
+      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
+
     try {
       namespaceService.deleteFolder(folderPath.toNamespaceKey(), version);
     } catch (NamespaceNotFoundException nfe) {

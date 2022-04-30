@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +32,6 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Manages the matching and outputting process of NLJ. Will output both match records and unmatched probe records in the left/full cases.
@@ -41,8 +41,8 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
   private enum State {INIT, JOINING, NON_MATCHES, BATCH_COMPLETE}
 
   private final OperatorContext context;
-  private final ImmutableList<FieldBufferCopier> buildCopiers;
-  private final ImmutableList<FieldBufferCopier> probeCopiers;
+  private final List<FieldBufferCopier> buildCopiers;
+  private final List<FieldBufferCopier> probeCopiers;
 
   private DualRange inputRange;
   private VectorRange outputRange;
@@ -62,8 +62,9 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
       VectorAccessible build,
       int targetGenerateAtOnce,
       DualRange initialMatchState,
-      ImmutableList<FieldBufferCopier> probeCopiers,
-      ImmutableList<FieldBufferCopier> buildCopiers, JoinRelType joinType) {
+      List<FieldBufferCopier> probeCopiers,
+      List<FieldBufferCopier> buildCopiers,
+      JoinRelType joinType) {
     this.inputRange = initialMatchState;
     this.context = context;
     this.joinType = joinType;

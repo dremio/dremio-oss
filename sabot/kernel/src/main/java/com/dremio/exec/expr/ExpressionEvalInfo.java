@@ -60,4 +60,9 @@ public class ExpressionEvalInfo {
   public int hashCode() {
     return Objects.hash(mode, allowInnerMethods) + exp.accept(new HashVisitor(), null);
   }
+
+  @Override
+  public String toString() {
+    return "[expr= {" + exp + "} mode = {" + mode + "} " + allowInnerMethods + "]";
+  }
 }

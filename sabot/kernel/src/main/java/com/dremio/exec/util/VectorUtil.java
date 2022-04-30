@@ -154,7 +154,7 @@ public class VectorUtil {
           System.out.printf(formats.get(columnIndex), column.length() <= columnWidth ? column : column.substring(0, columnWidth - 1));
           columnIndex++;
         }
-        System.out.printf("|\n");
+        System.out.print("|\n");
         System.out.println(StringUtils.repeat("-", width + 1));
       }
       // column values
@@ -171,7 +171,7 @@ public class VectorUtil {
         System.out.printf(formats.get(columnIndex), cellString.length() <= columnWidth ? cellString : cellString.substring(0, columnWidth - 1));
         columnIndex++;
       }
-      System.out.printf("|\n");
+      System.out.print("|\n");
     }
     if (rows > 0) {
       System.out.println(StringUtils.repeat("-", width + 1));

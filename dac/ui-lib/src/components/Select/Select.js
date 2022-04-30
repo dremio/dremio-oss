@@ -40,6 +40,7 @@ const Select = (props) => {
 
   const {
     classes,
+    disabled,
     value,
     options,
     onChange,
@@ -51,6 +52,10 @@ const Select = (props) => {
 
   const rootClass = clsx('selectRoot', { [classes.root]: classes.root });
   const labelClass = clsx('selectRoot__label', { [classes.label]: classes.label });
+  const containerClass = clsx(
+    'selectRoot__select',
+    { '--disabled': disabled }
+  );
 
   return (
     <div className={rootClass}>
@@ -58,7 +63,7 @@ const Select = (props) => {
 
       <MuiSelect
         classes={{
-          root: 'selectRoot__select'
+          root: containerClass
         }}
         MenuProps={MENU_PROPS}
         name={name}
@@ -68,15 +73,25 @@ const Select = (props) => {
         displayEmpty
         aria-labelledby={`select-label-${name}`}
         role='combobox'
+        disabled={disabled}
         {...otherProps}
       >
-        {options && options.map(({ label: optionLabel, value: optionValue }, idx) => (
+        {options && options.map(({
+          label: optionLabel,
+          value: optionValue,
+          disabled:optionDisabled = false,
+          classes: itemClasses = {}
+        }, idx) => (
           <MenuItem
             key={idx}
             value={optionValue}
             classes={{
               selected: 'selectRoot__option --selected'
             }}
+            ListItemClasses ={{
+              disabled: itemClasses.disabled
+            }}
+            disabled={optionDisabled}
           >
             {optionLabel}
           </MenuItem>
@@ -93,13 +108,14 @@ Select.propTypes = {
   }),
   value: PropTypes.string,
   options: PropTypes.arrayOf(PropTypes.shape({
-    label: PropTypes.string,
+    label: PropTypes.node,
     value: PropTypes.string
   })).isRequired,
   onChange: PropTypes.func,
   label: PropTypes.string,
   name: PropTypes.string,
-  helpText: PropTypes.string
+  helpText: PropTypes.string,
+  disabled: PropTypes.bool
 };
 
 Select.defaultProps = {

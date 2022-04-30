@@ -97,7 +97,7 @@ public class SortPrel extends SortRelBase implements Prel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
     return new ExternalSort(
-        creator.props(this, null, childPOP.getProps().getSchema(), RESERVE, LIMIT)
+        creator.props(this, null, childPOP.getProps().getSchema().clone(SelectionVectorMode.NONE), RESERVE, LIMIT)
           .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
           .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
           .cloneWithMemoryExpensive(true)

@@ -49,7 +49,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.UpdateMode;
-import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -77,6 +77,7 @@ public class MetadataSynchronizer {
   private final Set<NamespaceKey> ancestorsToKeep;
   private final List<Tuple<String, String>> failedDatasets;
   private final OptionManager optionManager;
+  private final Orphanage orphanage;
 
   private Set<NamespaceKey> existingDatasets;
 
@@ -100,6 +101,7 @@ public class MetadataSynchronizer {
     this.ancestorsToKeep = new HashSet<>();
     this.failedDatasets = new ArrayList<>();
     this.optionManager = optionManager;
+    this.orphanage = bridge.getOrphanage();
   }
 
   /**
@@ -110,6 +112,7 @@ public class MetadataSynchronizer {
         "only PREFETCH and PREFETCH_QUERIED are supported");
 
     existingDatasets = Sets.newHashSet(systemNamespace.getAllDatasets(sourceKey));
+    ancestorsToKeep.add(sourceKey);
 
     logger.debug("Source '{}' sync setup ({} datasets)", sourceKey, existingDatasets.size());
     logger.trace("Source '{}' has datasets: '{}'", sourceKey, existingDatasets);
@@ -361,8 +364,7 @@ public class MetadataSynchronizer {
         }
 
         try {
-          final FolderConfig folderConfig = systemNamespace.getFolder(ancestorKey);
-          systemNamespace.deleteFolder(ancestorKey, folderConfig.getTag());
+          systemNamespace.deleteEntity(ancestorKey);
           logger.trace("Folder '{}' deleted", ancestorKey);
           syncStatus.setRefreshed();
         } catch (NamespaceNotFoundException ignored) {
@@ -395,8 +397,12 @@ public class MetadataSynchronizer {
 
       final DatasetConfig datasetConfig;
       try {
-        datasetConfig = systemNamespace.getDataset(toBeDeleted);
-        systemNamespace.deleteDataset(toBeDeleted, datasetConfig.getTag());
+        datasetConfig = systemNamespace.getEntityByPath(toBeDeleted).getDataset();
+        assert datasetConfig != null;
+        if (CatalogUtil.hasIcebergMetadata(datasetConfig)) {
+          CatalogUtil.addIcebergMetadataOrphan(datasetConfig, orphanage);
+        }
+        systemNamespace.deleteEntity(toBeDeleted);
         syncStatus.setRefreshed();
         if (datasetConfig.getReadDefinition() == null) {
           syncStatus.incrementShallowDeleted();

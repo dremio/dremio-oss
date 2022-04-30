@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -96,7 +97,6 @@ import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetX
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileConfig;
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -268,7 +268,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
         final boolean autoCorrectCorruptDates = context.getOptionManager().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
           ((ParquetFormatPlugin) formatPlugin).getConfig().autoCorrectCorruptDates;
-        final MutableParquetMetadata mutableParquetMetadata = new MutableParquetMetadata(footer);
+        final MutableParquetMetadata mutableParquetMetadata = new MutableParquetMetadata(footer, fs.getUri().getPath());
         final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(mutableParquetMetadata, GroupScan.ALL_COLUMNS,
             autoCorrectCorruptDates);
         final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()

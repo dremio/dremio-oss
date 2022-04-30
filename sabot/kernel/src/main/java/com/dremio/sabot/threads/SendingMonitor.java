@@ -37,7 +37,7 @@ public class SendingMonitor {
   public static final int LIMIT = 3;
 
   private static final int RESTART = LIMIT - 1;
-  private final AtomicInteger outsandingMessages = new AtomicInteger(0);
+  private final AtomicInteger outstandingMessages = new AtomicInteger(0);
   private final SharedResource resource;
   private final SendingAccountor accountor;
 
@@ -51,7 +51,7 @@ public class SendingMonitor {
   public void increment(){
     accountor.increment();
     synchronized(resource){
-      final int outcome = outsandingMessages.incrementAndGet();
+      final int outcome = outstandingMessages.incrementAndGet();
       if (outcome == LIMIT) {
         resource.markBlocked();
       }
@@ -61,7 +61,7 @@ public class SendingMonitor {
   private void decrement() {
     accountor.decrement();
     synchronized(resource) {
-      final int outcome = outsandingMessages.decrementAndGet();
+      final int outcome = outstandingMessages.decrementAndGet();
       if(outcome == RESTART){
         resource.markAvailable();
       }

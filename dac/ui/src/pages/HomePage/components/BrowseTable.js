@@ -144,12 +144,11 @@ export default class BrowseTable extends Component {
                         ? title
                         : title && title.props && LRE + constructFullPath(title.props.fullPath.toJS(), true)
                     }>
-                      {LRE}{title}
+                      {title}
                     </EllipsedText>
                   </h3>
                   <div style={{display: 'flex', alignItems: 'center'}}>
                     <SearchField
-                      value={this.state.filter}
                       ref={searchField => this.searchField = searchField}
                       onChange={this.handleFilterChange}
                       style={tableStyles.searchField}
@@ -203,8 +202,7 @@ export default class BrowseTable extends Component {
 const styles = { // todo: RTL support
   heading: {
     flexShrink: 1,
-    minWidth: 0,
-    direction: 'rtl' // use RTL mode as a hack to make truncation start at the left...
+    minWidth: 0
   }
 };
 const LRE = '\u202A'; // ... but make sure the text is treated as LTR by the text engine (e.g. render '@dremio', not 'dremio@')

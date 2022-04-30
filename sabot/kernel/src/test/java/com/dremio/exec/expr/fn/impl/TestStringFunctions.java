@@ -27,7 +27,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
-import com.dremio.common.exceptions.UserException;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestStringFunctions extends BaseTestQuery {
 
@@ -97,10 +97,9 @@ public class TestStringFunctions extends BaseTestQuery {
   }
 
   @Test
-  public void invalidLocate() throws Exception {
-    thrownException.expect(UserException.class);
-    thrownException.expectMessage("must be greater than 0");
-    test("SELECT LOCATE('nope', a, 0) FROM (VALUES('foobar')) tbl(a)");
+  public void invalidLocate() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("SELECT LOCATE('nope', a, 0) FROM (VALUES('foobar')) tbl(a)"))
+      .hasMessageContaining("must be greater than 0");
   }
 
   @Test

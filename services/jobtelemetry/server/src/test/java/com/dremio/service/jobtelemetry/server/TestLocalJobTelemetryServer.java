@@ -15,13 +15,12 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -54,9 +53,6 @@ public class TestLocalJobTelemetryServer {
 
   private LocalJobTelemetryServer server;
   private JobTelemetryClient client;
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void setUp() throws Exception {
@@ -145,12 +141,12 @@ public class TestLocalJobTelemetryServer {
     );
 
     // verify it's gone.
-    thrown.expect(io.grpc.StatusRuntimeException.class);
-    thrown.expectMessage("profile not found for the given queryId");
-    client.getBlockingStub().getQueryProfile(
-      GetQueryProfileRequest.newBuilder()
-        .setQueryId(queryId)
-        .build()
-    );
+    assertThatThrownBy(() ->
+      client.getBlockingStub().getQueryProfile(
+        GetQueryProfileRequest.newBuilder()
+          .setQueryId(queryId)
+          .build()
+      )).isInstanceOf(io.grpc.StatusRuntimeException.class)
+      .hasMessageContaining("profile not found for the given queryId");
   }
 }

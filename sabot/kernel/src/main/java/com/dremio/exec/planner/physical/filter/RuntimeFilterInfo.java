@@ -18,42 +18,54 @@ package com.dremio.exec.planner.physical.filter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 @JsonTypeName("runtime-filter")
 public class RuntimeFilterInfo {
-  private List<RuntimeFilterEntry> nonPartitionJoinColumns;
-  private List<RuntimeFilterEntry> partitionJoinColumns;
-  private boolean isBroadcastJoin;
+  private final List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets;
+  private final boolean isBroadcastJoin;
 
   @JsonCreator
-  public RuntimeFilterInfo(@JsonProperty("nonPartitionRFEntry")List<RuntimeFilterEntry> nonPartitionJoinColumns,
-                           @JsonProperty("partitionRFEntry")List<RuntimeFilterEntry> partitionJoinColumns,
-                           @JsonProperty("isBroadcastJoin") boolean isBroadcastJoin) {
-    this.nonPartitionJoinColumns = Optional.ofNullable(nonPartitionJoinColumns).orElse(new ArrayList<>(0));
-    this.partitionJoinColumns = Optional.ofNullable(partitionJoinColumns).orElse(new ArrayList<>(0));
+  public RuntimeFilterInfo(
+      @JsonProperty("runtimeFilterProbeTargets")List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets,
+      @JsonProperty("broadcastJoin") boolean isBroadcastJoin) {
+    this.runtimeFilterProbeTargets = runtimeFilterProbeTargets == null
+      ? new ArrayList<>(0)
+      : runtimeFilterProbeTargets;
     this.isBroadcastJoin = isBroadcastJoin;
   }
 
+  public List<RuntimeFilterProbeTarget> getRuntimeFilterProbeTargets() {
+    return runtimeFilterProbeTargets;
+  }
+
+  public boolean isBroadcastJoin() {
+    return isBroadcastJoin;
+  }
+
+  @Override
+  public String toString() {
+    if (runtimeFilterProbeTargets.isEmpty()) {
+      return "";
+    }
+    return runtimeFilterProbeTargets.toString();
+  }
+
+
   public static class Builder {
-    private List<RuntimeFilterEntry> nonPartitionJoinColumns;
-    private List<RuntimeFilterEntry> partitionJoinColumns;
+    private List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets;
     private boolean isBroadcastJoin;
 
     public Builder() {
     }
 
-    public Builder nonPartitionJoinColumns (List<RuntimeFilterEntry> nonPartitionJoinColumns) {
-      this.nonPartitionJoinColumns = nonPartitionJoinColumns;
-      return this;
-    }
-
-    public Builder partitionJoinColumns (List<RuntimeFilterEntry> partitionJoinColumns) {
-      this.partitionJoinColumns = partitionJoinColumns;
+    public Builder setRuntimeFilterProbeTargets(
+      List<RuntimeFilterProbeTarget> runtimeFilterProbeTargets) {
+      this.runtimeFilterProbeTargets = runtimeFilterProbeTargets;
       return this;
     }
 
@@ -63,50 +75,8 @@ public class RuntimeFilterInfo {
     }
 
     public RuntimeFilterInfo build() {
-      return new RuntimeFilterInfo(this);
+      return new RuntimeFilterInfo(runtimeFilterProbeTargets, isBroadcastJoin);
     }
 
-  }
-
-  public RuntimeFilterInfo(Builder builder) {
-    this.nonPartitionJoinColumns = Optional.ofNullable(builder.nonPartitionJoinColumns).orElse(new ArrayList<>(0));
-    this.partitionJoinColumns = Optional.ofNullable(builder.partitionJoinColumns).orElse(new ArrayList<>(0));
-    this.isBroadcastJoin = builder.isBroadcastJoin;
-  }
-
-  public List<RuntimeFilterEntry> getNonPartitionJoinColumns() {
-    return nonPartitionJoinColumns;
-  }
-
-  public void setNonPartitionJoinColumns(List<RuntimeFilterEntry> nonPartitionJoinColumns) {
-    this.nonPartitionJoinColumns = nonPartitionJoinColumns;
-  }
-
-  public List<RuntimeFilterEntry> getPartitionJoinColumns() {
-    return partitionJoinColumns;
-  }
-
-  public void setPartitionJoinColumns(List<RuntimeFilterEntry> partitionJoinColumns) {
-    this.partitionJoinColumns = partitionJoinColumns;
-  }
-
-  public boolean isBroadcastJoin() {
-    return isBroadcastJoin;
-  }
-
-  public void setBroadcastJoin(boolean broadcastJoin) {
-    isBroadcastJoin = broadcastJoin;
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder("");
-    if (!nonPartitionJoinColumns.isEmpty()) {
-      sb.append(nonPartitionJoinColumns);
-    }
-    if(!partitionJoinColumns.isEmpty()) {
-      sb.append(partitionJoinColumns);
-    }
-    return sb.toString();
   }
 }

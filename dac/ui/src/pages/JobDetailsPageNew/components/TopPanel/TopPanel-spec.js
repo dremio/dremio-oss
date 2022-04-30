@@ -35,11 +35,11 @@ describe('TopPanel', () => {
     };
   });
 
-  it('should render with minimal props without exploding', () => {
+  xit('should render with minimal props without exploding', () => {
     const wrapper = shallow(<TopPanel {...minimalProps} />);
     expect(wrapper).to.have.length(1);
   });
-  it('should render jobid', () => {
+  xit('should render jobid', () => {
     const props = {
       ...minimalProps,
       jobId: '293'

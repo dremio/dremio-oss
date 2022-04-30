@@ -72,8 +72,8 @@ public class TestStringFunctionUtil extends DremioTest {
       NettyArrowBuf.unwrapBuffer(src), LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
       LargeMemoryUtil.checkedCastToInt(src.writerIndex()), dest);
     assertSameAsExpected(expected, dest, destLen);
-    src.release();
-    dest.release();
+    src.close();
+    dest.close();
   }
 
   @Test
@@ -96,8 +96,8 @@ public class TestStringFunctionUtil extends DremioTest {
       NettyArrowBuf.unwrapBuffer(src), LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
       LargeMemoryUtil.checkedCastToInt(src.writerIndex()), NettyArrowBuf.unwrapBuffer(dest), replace);
     assertSameAsExpected(expected, dest, destLen);
-    src.release();
-    dest.release();
+    src.close();
+    dest.close();
   }
 
   @Test
@@ -117,7 +117,7 @@ public class TestStringFunctionUtil extends DremioTest {
     assertEquals(expected, GuavaUtf8.isUtf8(NettyArrowBuf.unwrapBuffer(src),
       LargeMemoryUtil.checkedCastToInt(src.readerIndex() + 1),
       LargeMemoryUtil.checkedCastToInt(src.writerIndex())));
-    src.release();
+    src.close();
   }
 
   @Test

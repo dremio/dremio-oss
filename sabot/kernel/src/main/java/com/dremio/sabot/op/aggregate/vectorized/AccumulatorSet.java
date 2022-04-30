@@ -47,9 +47,10 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   private final int jointAllocationLimit;
   private final BufferAllocator allocator;
   private final Accumulator[] children;
-  private final Map<Integer, List<List<Integer>>> combinedAccumulators;
-  private final List<Integer> singleAccumulators;
+  private Map<Integer, List<List<Integer>>> combinedAccumulators;
+  private List<Integer> singleAccumulators;
   private List<Accumulator> varLenAccums;
+  private boolean hasVarLenMinMax = false;
   private List<Accumulator> fixedLenAccums;
 
   public AccumulatorSet(final long jointAllocationMin, final long jointAllocationLimit,
@@ -60,6 +61,10 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     this.allocator = allocator;
     this.children = children;
     updateVarlenAndFixedAccumusLst();
+    updateCombinedAndSingleAccumulators();
+  }
+
+  private void updateCombinedAndSingleAccumulators() {
     final int numAllocationBuckets = Long.numberOfTrailingZeros(jointAllocationLimit) - Long.numberOfTrailingZeros(jointAllocationMin);
     this.combinedAccumulators = new HashMap<>(numAllocationBuckets);
     this.singleAccumulators = new ArrayList<>();
@@ -83,6 +88,10 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
       final TypeProtos.MinorType type = CompleteType.fromField(output.getField()).toMinorType();
       if (type == TypeProtos.MinorType.VARCHAR || type == TypeProtos.MinorType.VARBINARY) {
         varLenAccums.add(a);
+        if (a.getType() == AccumulatorBuilder.AccumulatorType.MAX ||
+            a.getType() == AccumulatorBuilder.AccumulatorType.MIN) {
+          hasVarLenMinMax = true;
+        }
       } else {
         fixedLenAccums.add(a);
       }
@@ -91,6 +100,18 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
 
   @Override
   public void addBatch() throws Exception {
+    if (hasVarLenMinMax) {
+      /*
+       * For variable length min/max accumulators, the backing memory size can be changed
+       * dynamically, if the variable input size go beyond the default estimate.
+       * So re-update the single and combined list based on the new sizes.
+       *
+       * XXX: Instead to this for every addBatch() do it only if any of the accumulator
+       * backing memory size has been changed.
+       */
+      updateCombinedAndSingleAccumulators();
+    }
+
     addBatchWithLimitOptimizedForDirect();
   }
 
@@ -336,6 +357,17 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
       }
     }
     return true;
+  }
+
+  @Override
+  public int getMaxVarLenKeySize() {
+    int maxVarLenKeySize = 0;
+    for (Accumulator a : children) {
+      if (a.getMaxVarLenKeySize() > maxVarLenKeySize) {
+        maxVarLenKeySize = a.getMaxVarLenKeySize();
+      }
+    }
+    return maxVarLenKeySize;
   }
 
   @VisibleForTesting

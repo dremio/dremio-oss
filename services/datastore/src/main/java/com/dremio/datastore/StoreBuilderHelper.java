@@ -72,6 +72,11 @@ public final class StoreBuilderHelper<K, V> {
     return info.getTablename();
   }
 
+  public Integer getVersion(){
+    Preconditions.checkNotNull(documentConverter);
+    return documentConverter.getVersion();
+  }
+
   public Format<K> getKeyFormat() {
     return keyFormat;
   }

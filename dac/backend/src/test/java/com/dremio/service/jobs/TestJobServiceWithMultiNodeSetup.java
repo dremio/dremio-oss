@@ -617,16 +617,6 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     injectProfileException(controls, AttemptManager.INJECTOR_TAIL_PROFLE_ERROR, true);
   }
 
-  @Test
-  public void testGetFullProfileFailedStateSlave() throws Exception {
-    final String controls = Controls.newBuilder()
-      .addException(AttemptManager.class, AttemptManager.INJECTOR_GET_FULL_PROFLE_ERROR,
-        RuntimeException.class)
-      .build();
-
-    injectProfileException(controls, AttemptManager.INJECTOR_GET_FULL_PROFLE_ERROR, false);
-  }
-
   private void injectAttemptCompletionException(String controls, boolean master) throws Exception {
     JobId jobId = null;
     DremioClient dremioClient = getDremioClient(master);

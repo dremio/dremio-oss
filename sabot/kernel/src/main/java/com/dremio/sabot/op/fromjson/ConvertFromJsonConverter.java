@@ -68,6 +68,8 @@ import com.google.common.collect.Lists;
 public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, RuntimeException> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConvertFromJsonConverter.class);
+  public static final String FAILURE_MSG =
+    "Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.";
 
   private final RelMetadataQuery query;
   private final QueryContext context;
@@ -174,7 +176,7 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
 
 
   private static UserException failed(){
-    return UserException.validationError().message("Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.").build(logger);
+    return UserException.validationError().message(FAILURE_MSG).build(logger);
   }
 
   private static CompleteType getRawSchema(DatasetConfig datasetConfig, final String fieldname) {

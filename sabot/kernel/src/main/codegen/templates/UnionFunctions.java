@@ -50,7 +50,7 @@ public class GUnionFunctions {
   <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
   <#assign supported = typeMapping.supported!true>
   <#if supported>
-  <#if !minor.class?starts_with("Decimal") && !minor.class?starts_with("UInt") && !minor.class?starts_with("SmallInt") && !minor.class?starts_with("TinyInt") >
+  <#if !minor.class?starts_with("Decimal") && !minor.class?starts_with("UInt") && !minor.class?starts_with("SmallInt") && !minor.class?starts_with("TinyInt") && !minor.class?starts_with("IntervalMonthDayNano") >
 
   @SuppressWarnings("unused")
   @FunctionTemplate(name = "IS_${dremioMinorType}", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)

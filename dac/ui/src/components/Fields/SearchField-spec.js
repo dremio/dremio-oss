@@ -40,8 +40,8 @@ describe('SearchField', () => {
     const wrapperMinProps = shallow(<SearchField {...minimalProps}/>);
     expect(wrapperMinProps).to.have.length(1);
   });
-  it('should render 2 FontIcon components, input', () => {
-    expect(wrapper.find('FontIcon')).to.have.length(2);
+  it('should render 1 FontIcon components, input', () => {
+    expect(wrapper.find('FontIcon')).to.have.length(1);
     expect(wrapper.find('input')).to.have.length(1);
   });
 });

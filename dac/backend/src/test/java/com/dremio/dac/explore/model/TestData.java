@@ -868,7 +868,7 @@ public class TestData extends DremioTest {
   }
 
   private static Pair<ListVector, ResultVerifier> testListVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    ListVector colListV = new ListVector("colList", allocator, null);
+    ListVector colListV = new ListVector("colList", allocator, FieldType.nullable(ArrowType.List.INSTANCE), null);
 
     colListV.allocateNew();
     UnionListWriter listWriter = new UnionListWriter(colListV);
@@ -909,7 +909,7 @@ public class TestData extends DremioTest {
   }
 
   private Pair<UnionVector, ResultVerifier> testUnionVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    UnionVector colUnionV = new UnionVector("colUnion", allocator, null);
+    UnionVector colUnionV = new UnionVector("colUnion", allocator, null, null);
 
     UnionWriter unionWriter = new UnionWriter(colUnionV);
     unionWriter.allocate();

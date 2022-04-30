@@ -114,10 +114,12 @@ public class DremioConfig extends NestedConfig {
   public static final String FLIGHT_SERVICE_ENABLED_BOOLEAN = "services.flight.enabled";
   public static final String FLIGHT_SERVICE_PORT_INT = "services.flight.port";
   public static final String FLIGHT_SERVICE_AUTHENTICATION_MODE = "services.flight.auth.mode";
+  // Session manager configuration
+  public static final String FLIGHT_USE_SESSION_SERVICE = "services.flight.use_session_service";
 
   public static final String NESSIE_SERVICE_ENABLED_BOOLEAN = "services.nessie.enabled";
   public static final String NESSIE_SERVICE_IN_MEMORY_BOOLEAN = "services.nessie.backend.in-memory";
-  public static final String NESSIE_SERVICE_KVSTORE_MAX_COMMIT_RETRIES = "services.nessie.kvstore.max-commit-retries";
+  public static final String NESSIE_SERVICE_KVSTORE_COMMIT_TIMEOUT_MS = "services.nessie.kvstore.commit-timeout-ms";
   public static final String NESSIE_SERVICE_REMOTE_URI = "services.nessie.remote-uri";
 
   public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";

@@ -22,6 +22,7 @@ import com.dremio.common.util.MayExpire;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
 import com.dremio.service.maestroservice.MaestroClient;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -102,4 +103,6 @@ interface QueryTracker extends MayExpire {
    * @return
    */
   void setQuerySentTime(long querySentTime);
+
+  FileCursorManagerFactory getFileCursorManagerFactory();
 }

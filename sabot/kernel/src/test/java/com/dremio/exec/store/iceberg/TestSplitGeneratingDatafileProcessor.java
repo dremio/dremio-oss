@@ -22,7 +22,6 @@ import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getDatafile;
 import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getSplitVec;
 import static com.dremio.exec.store.iceberg.DataProcessorTestUtil.getTableFunctionContext;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -68,7 +67,7 @@ public class TestSplitGeneratingDatafileProcessor extends BaseTestQuery {
     OperatorContext operatorContext = getOperatorContext();
     blockSize = operatorContext.getOptions().getOption(ExecConstants.PARQUET_SPLIT_SIZE).getNumVal();
     TableFunctionContext tableFunctionContext = getTableFunctionContext(DataProcessorType.SPLIT_GEN);
-    FileSystemPlugin plugin = mock(FileSystemPlugin.class);
+    FileSystemPlugin plugin = BaseTestQuery.getMockedFileSystemPlugin();
     when(plugin.createSplitCreator(operatorContext,null, false)).thenReturn(new ParquetSplitCreator(operatorContext, true));
     dataFileProcessor = new SplitGeneratingDatafileProcessor(operatorContext, plugin, null, tableFunctionContext);
     dataFileProcessor = spy(dataFileProcessor);

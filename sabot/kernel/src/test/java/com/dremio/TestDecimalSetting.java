@@ -15,24 +15,21 @@
  */
 package com.dremio;
 
-import org.junit.Rule;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestDecimalSetting extends BaseTestQuery {
 
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
-
   @Test
-  public void testSettingDecimalFlagAtSessionLevelFails() throws Exception {
-    exception.expect(UserException.class);
-    exception.expectMessage("Admin related settings can only be set at SYSTEM level scope. Given scope 'SESSION'");
-    test(String.format("alter session set \"%s\" = true", PlannerSettings
-      .ENABLE_DECIMAL_V2_KEY));
+  public void testSettingDecimalFlagAtSessionLevelFails() {
+    assertThatThrownBy(() -> test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_V2_KEY)))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("Admin related settings can only be set at SYSTEM level scope. Given scope 'SESSION'");
+
   }
 
   @Test

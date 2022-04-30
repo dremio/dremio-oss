@@ -45,7 +45,10 @@ export default function confirmation(state = initialState, action) {
       promptFieldProps,
       dataQa,
       validatePromptText,
-      isCentered
+      isCentered,
+      closeButtonType,
+      className,
+      headerIcon
     } = action;
     // list all to be sure to reset everything
     return {
@@ -68,7 +71,10 @@ export default function confirmation(state = initialState, action) {
       promptFieldProps,
       dataQa,
       validatePromptText,
-      isCentered
+      isCentered,
+      closeButtonType,
+      className,
+      headerIcon
     };
   }
   case ActionTypes.HIDE_CONFIRMATION_DIALOG:

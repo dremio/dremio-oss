@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, PureComponent } from 'react';
+import { Component, createRef, PureComponent } from 'react';
 import { connect } from 'react-redux';
 import classNames from 'classnames';
 import Radium from 'radium';
@@ -80,8 +80,8 @@ export class FinderNavItem extends Component {
     style: PropTypes.object,
 
     //connected
-    entityType: PropTypes.oneOf([ENTITY_TYPES.home, ENTITY_TYPES.source, ENTITY_TYPES.space]).isRequired
-
+    entityType: PropTypes.oneOf([ENTITY_TYPES.home, ENTITY_TYPES.source, ENTITY_TYPES.space]).isRequired,
+    renderExtra: PropTypes.any
   };
 
   constructor() {
@@ -126,8 +126,10 @@ export class FinderNavItem extends Component {
     }
   };
 
+  itemRef = createRef(null);
+
   render() {
-    const { style, entityType } = this.props;
+    const { style, entityType, renderExtra } = this.props;
     const {
       id,
       name,
@@ -135,20 +137,33 @@ export class FinderNavItem extends Component {
       disabled,
       datasetCountBounded
     } = this.props.item;
-    const itemClass = classNames('finder-nav-item');
+    const itemClass = classNames('finder-nav-item', { withExtra: !!renderExtra });
 
     return (
-      <li className={itemClass} style={[disabled && styles.disabled, style]} onContextMenu={this.handleRightClick}>
+      <li className={itemClass} style={[disabled && styles.disabled, style]} ref={this.itemRef}>
         {
           entityType === ENTITY_TYPES.space ?
-            <FinderNavItemV3 entityId={id} /> :
             (
-              <EntityLink entityId={id} activeClassName='active' className='finder-nav-item-link'>
-                <EntityIcon entityId={id} />
-                <EllipsedText text={name} style={{marginRight: 5}} />
-                <ContainerDatasetCount count={numberOfDatasets} isBounded={datasetCountBounded} />
-                {id && <ResourcePin entityId={id} />}
-              </EntityLink>
+              <div onContextMenu={this.handleRightClick}>
+                <FinderNavItemV3 entityId={id} />
+              </div>
+            ) :
+            (
+              <>
+                <div className='entity-link-wrapper' onContextMenu={this.handleRightClick}>
+                  <EntityLink entityId={id} activeClassName='active' className='finder-nav-item-link'>
+                    <EntityIcon entityId={id} />
+                    <EllipsedText text={name} style={{marginRight: 5}} />
+                    {!renderExtra && (
+                      <>
+                        <ContainerDatasetCount count={numberOfDatasets} isBounded={datasetCountBounded} />
+                        {id && <ResourcePin entityId={id} />}
+                      </>
+                    )}
+                  </EntityLink>
+                  {renderExtra && <span className='extra-content'>{renderExtra(this.props.item, this.itemRef)}</span>}
+                </div>
+              </>
             )
         }
         {this.hasMenu() && this.state.menuOpen &&

@@ -22,6 +22,7 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
+import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -41,21 +42,30 @@ public class HiveIcebergScanTableMetadata extends TableMetadataImpl {
 
   @Override
   public FileConfig getFormatSettings() {
+    return PhysicalDatasetUtils
+      .toFileFormat(formatPlugin)
+      .asFileConfig()
+      .setLocation(getMetadataLocation());
+  }
+
+  private String getMetadataLocation() {
+    IcebergMetadata icebergMetadata = tableMetadata.getDatasetConfig().getPhysicalDataset().getIcebergMetadata();
+    if (icebergMetadata != null && icebergMetadata.getMetadataFileLocation() != null &&
+            !icebergMetadata.getMetadataFileLocation().isEmpty()) {
+      return icebergMetadata.getMetadataFileLocation();
+    }
+
+    // following is for backward compatibility
     try {
-      return PhysicalDatasetUtils
-        .toFileFormat(formatPlugin)
-        .asFileConfig()
-        .setLocation(EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(
-          tableMetadata.getSplits()
-            .next()
-            .getDatasetSplits()
-            .iterator()
-            .next()
-            .getSplitExtendedProperty())
-          .getPath());
+      return EasyProtobuf.EasyDatasetSplitXAttr.parseFrom(
+                    tableMetadata.getSplits()
+                            .next()
+                            .getDatasetSplits()
+                            .iterator()
+                            .next()
+                            .getSplitExtendedProperty()).getPath();
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException(e);
     }
   }
-
 }

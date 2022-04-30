@@ -22,7 +22,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWriter;
 import com.fasterxml.jackson.annotation.JacksonInject;
@@ -50,11 +50,10 @@ public class EasyWriter extends FileSystemWriter {
       @JsonProperty("sortColumns") List<String> sortColumns,
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("format") FormatPluginConfig formatConfig,
-      @JacksonInject CatalogService catalogService
-      ) {
+      @JacksonInject StoragePluginResolver storagePluginResolver
+  ) {
     super(props, child, options);
-    //CatalogService catalogService = null;
-    this.plugin = catalogService.getSource(pluginId);
+    this.plugin = storagePluginResolver.getSource(pluginId);
     this.formatPlugin = (EasyFormatPlugin<?>) plugin.getFormatPlugin(formatConfig);
     Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
     this.location = location;

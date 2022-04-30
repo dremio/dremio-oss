@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <artifactId>dremio-ui-lib</artifactId>
@@ -34,10 +34,10 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0</version>
         <configuration>
           <excludes combine.children="append">
             <exclude>**/*.editorconfig</exclude>
+            <exclude>src/react-app-env.d.ts</exclude>
           </excludes>
           <mapping>
             <!-- full file names -->
@@ -95,13 +95,6 @@
         <groupId>com.github.eirslett</groupId>
         <artifactId>frontend-maven-plugin</artifactId>
 
-        <configuration>
-          <workingDirectory>${project.basedir}</workingDirectory>
-          <environmentVariables>
-            <NPM_CONFIG_REGISTRY>${npm.registry.url}</NPM_CONFIG_REGISTRY>
-          </environmentVariables>
-        </configuration>
-
         <executions>
           <execution>
             <id>install node and yarn</id>
@@ -109,11 +102,6 @@
             <goals>
               <goal>install-node-and-yarn</goal>
             </goals>
-            <configuration>
-              <nodeVersion>v14.0.0</nodeVersion>
-              <yarnVersion>v1.22.10</yarnVersion>
-              <!-- <npmVersion>6.1.0</npmVersion> -->
-            </configuration>
           </execution>
           <execution>
             <id>yarn install</id>
@@ -124,7 +112,7 @@
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
-              <arguments>install --prefer-offline --no-audit --network-timeout 300000</arguments>
+              <arguments>${yarn.installscript}</arguments>
             </configuration>
           </execution>
 
@@ -152,7 +140,7 @@
               <goal>yarn</goal>
             </goals>
             <configuration>
-              <arguments>build</arguments>
+              <arguments>build:ci</arguments>
             </configuration>
           </execution>
         </executions>

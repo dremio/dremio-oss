@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -40,6 +40,11 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-jobs</artifactId>
       <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-script</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -72,6 +77,11 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-datastore</artifactId>
       <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-transientstore</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -115,7 +125,7 @@
     <dependency>
       <groupId>com.dremio.provision</groupId>
       <artifactId>dremio-provision-common</artifactId>
-    </dependency> 
+    </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-accelerator</artifactId>
@@ -262,6 +272,11 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
+      <version>1.4</version>
+    </dependency>
+    <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-configuration</artifactId>
       <version>${project.version}</version>
@@ -394,11 +409,6 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>org.immutables</groupId>
-      <artifactId>value</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-telemetry-impl</artifactId>
       <version>${project.version}</version>
@@ -412,6 +422,37 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-usersessions</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-nessie-grpc-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-orphanagecleaner</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-orphanage</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-userpreferences</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-autocomplete</artifactId>
+        <version>${project.version}</version>
+        <scope>compile</scope>
     </dependency>
   </dependencies>
 
@@ -466,7 +507,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
@@ -598,7 +638,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
           <execution>
@@ -615,7 +654,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <includes>**/*.java</includes>
@@ -641,19 +679,6 @@
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <forkCount>${forkCount}</forkCount>
-          <trimStackTrace>false</trimStackTrace>
-          <argLine>
-            -XX:+HeapDumpOnOutOfMemoryError
-            -Xms512m
-            -Xmx3g
-            -XX:MaxDirectMemorySize=3072M
-            -XX:+CMSClassUnloadingEnabled
-            -XX:-OmitStackTraceInFastThrow
-            -Dio.netty.tryReflectionSetAccessible=true
-            -ea
-            @{argLine}
-          </argLine>
           <systemPropertyVariables>
             <dremio.test.query.printing.silent>true</dremio.test.query.printing.silent>
             <dremio.service.jobs.over_socket>false</dremio.service.jobs.over_socket>
@@ -714,7 +739,6 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
               <testExcludes>

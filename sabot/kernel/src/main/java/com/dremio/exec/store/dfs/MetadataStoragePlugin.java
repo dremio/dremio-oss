@@ -25,17 +25,25 @@ import java.util.List;
 import javax.inject.Provider;
 
 import com.dremio.common.FSConstants;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.iceberg.model.IcebergCatalogType;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshUtils;
+import com.dremio.io.file.Path;
+import com.dremio.service.namespace.NamespaceKey;
 
 /**
  * FileSystemPlugin for internal iceberg metadata tables
  */
 public class MetadataStoragePlugin extends MayBeDistFileSystemPlugin<MetadataStoragePluginConfig> {
-    public MetadataStoragePlugin(MetadataStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MetadataStoragePlugin.class);
+
+  public MetadataStoragePlugin(MetadataStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
         super(config, context, name, idProvider);
     }
 
@@ -55,6 +63,21 @@ public class MetadataStoragePlugin extends MayBeDistFileSystemPlugin<MetadataSto
   @Override
   protected boolean ctasToUseIceberg() {
     return MetadataRefreshUtils.unlimitedSplitsSupportEnabled(getContext().getOptionManager());
+  }
+
+
+  @Override
+  public void dropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+    try {
+      TableMutationOptions metadataPluginTableMutationOptions =
+        TableMutationOptions.newBuilder().from(tableMutationOptions).setIsLayered(true).build();
+      super.dropTable(tableSchemaPath, schemaConfig, metadataPluginTableMutationOptions);
+      final List<String> path = super.resolveTableNameToValidPath(tableSchemaPath.getPathComponents());
+      final Path fsPath = PathUtils.toFSPath(path);
+      super.deleteIcebergTableRootPointer(schemaConfig.getUserName(), fsPath);
+    } catch (Exception e) {
+      logger.debug("Couldn't delete internal iceberg metadata table {}", e);
+    }
   }
 
 }

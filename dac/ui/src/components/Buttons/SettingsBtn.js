@@ -35,7 +35,8 @@ export default class SettingsBtn extends PureComponent {
     position: PropTypes.any,
     hideArrowIcon: PropTypes.bool,
     children: PropTypes.node,
-    style: PropTypes.object
+    style: PropTypes.object,
+    stopPropagation: PropTypes.bool
   };
 
   static defaultProps = {
@@ -54,7 +55,8 @@ export default class SettingsBtn extends PureComponent {
     };
   }
 
-  handleRequestClose() {
+  handleRequestClose(event) {
+    this.props.stopPropagation && event && event.stopPropagation();
     if (this.props.handleSettingsClose) {
       this.props.handleSettingsClose(this.refs.settingsWrap);
     }
@@ -65,6 +67,7 @@ export default class SettingsBtn extends PureComponent {
 
   handleTouchTap(event) {
     event.preventDefault();
+    this.props.stopPropagation && event.stopPropagation();
     if (this.props.handleSettingsOpen) {
       this.props.handleSettingsOpen(this.refs.settingsWrap);
     }

@@ -29,6 +29,7 @@ import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.base.Strings;
 
 /**
  * Source model for the public REST API.
@@ -261,7 +262,9 @@ public class Source implements CatalogEntity {
 
   public SourceConfig toSourceConfig() {
     SourceConfig sourceConfig = new SourceConfig();
-    sourceConfig.setId(new EntityId(getId()));
+    if (!Strings.isNullOrEmpty(getId())) {
+      sourceConfig.setId(new EntityId(getId()));
+    }
 
     String tag = getTag();
     if (tag != null) {

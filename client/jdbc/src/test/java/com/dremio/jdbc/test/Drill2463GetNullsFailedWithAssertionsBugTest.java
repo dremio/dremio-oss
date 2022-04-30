@@ -15,10 +15,7 @@
  */
 package com.dremio.jdbc.test;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -32,6 +29,7 @@ import com.dremio.jdbc.JdbcWithServerTestBase;
 
 
 public class Drill2463GetNullsFailedWithAssertionsBugTest extends JdbcWithServerTestBase {
+
   private static Statement statement;
 
   @BeforeClass
@@ -51,28 +49,28 @@ public class Drill2463GetNullsFailedWithAssertionsBugTest extends JdbcWithServer
   @Test
   public void testGetPrimitiveTypeNullAsOwnType() throws Exception {
     final ResultSet rs = statement.executeQuery(
-        "SELECT CAST( NULL AS INTEGER ) FROM INFORMATION_SCHEMA.CATALOGS" );
-    assertTrue( rs.next() );
-    assertThat( "getInt(...) for NULL", rs.getInt( 1 ), equalTo( 0 ) );
-    assertThat( "wasNull", rs.wasNull(), equalTo( true ) );
+      "SELECT CAST( NULL AS INTEGER ) FROM INFORMATION_SCHEMA.CATALOGS");
+    assertThat(rs.next()).isTrue();
+    assertThat(rs.getInt(1)).isEqualTo(0);
+    assertThat(rs.wasNull()).isTrue();
   }
 
   @Test
   public void testGetPrimitiveTypeNullAsObject() throws Exception {
     final ResultSet rs = statement.executeQuery(
-        "SELECT CAST( NULL AS INTEGER ) FROM INFORMATION_SCHEMA.CATALOGS" );
-    assertTrue( rs.next() );
-    assertThat( "getObject(...) for NULL", rs.getObject( 1 ), nullValue() );
-    assertThat( "wasNull", rs.wasNull(), equalTo( true ) );
+      "SELECT CAST( NULL AS INTEGER ) FROM INFORMATION_SCHEMA.CATALOGS");
+    assertThat(rs.next()).isTrue();
+    assertThat(rs.getObject(1)).isNull();
+    assertThat(rs.wasNull()).isTrue();
   }
 
   @Test
   public void testGetNonprimitiveTypeNullAsOwnType() throws Exception {
     final ResultSet rs = statement.executeQuery(
-        "SELECT CAST( NULL AS VARCHAR ) FROM INFORMATION_SCHEMA.CATALOGS" );
-    assertTrue( rs.next() );
-    assertThat( "getString(...) for NULL", rs.getString( 1 ), nullValue() );
-    assertThat( "wasNull", rs.wasNull(), equalTo( true ) );
+      "SELECT CAST( NULL AS VARCHAR ) FROM INFORMATION_SCHEMA.CATALOGS");
+    assertThat(rs.next()).isTrue();
+    assertThat(rs.getString(1)).isNull();
+    assertThat(rs.wasNull()).isTrue();
   }
 
   // Test a few specifics
@@ -80,36 +78,36 @@ public class Drill2463GetNullsFailedWithAssertionsBugTest extends JdbcWithServer
   @Test
   public void testGetBooleanNullAsOwnType() throws Exception {
     final ResultSet rs = statement.executeQuery(
-        "SELECT CAST( NULL AS BOOLEAN ) FROM INFORMATION_SCHEMA.CATALOGS" );
-    assertTrue( rs.next() );
-    assertThat( "getBoolean(...) for NULL", rs.getBoolean( 1 ), equalTo( false ) );
-    assertThat( "wasNull", rs.wasNull(), equalTo( true ) );
+      "SELECT CAST( NULL AS BOOLEAN ) FROM INFORMATION_SCHEMA.CATALOGS");
+    assertThat(rs.next()).isTrue();
+    assertThat(rs.getBoolean(1)).isEqualTo(false);
+    assertThat(rs.wasNull()).isTrue();
   }
 
   @Test
   public void testGetBooleanNullAsObject() throws Exception {
     final ResultSet rs = statement.executeQuery(
-        "SELECT CAST( NULL AS BOOLEAN ) FROM INFORMATION_SCHEMA.CATALOGS" );
-    assertTrue( rs.next() );
-    assertThat( "getObject(...) for NULL", rs.getObject( 1 ), nullValue() );
-    assertThat( "wasNull", rs.wasNull(), equalTo( true ) );
+      "SELECT CAST( NULL AS BOOLEAN ) FROM INFORMATION_SCHEMA.CATALOGS");
+    assertThat(rs.next()).isTrue();
+    assertThat(rs.getObject(1)).isNull();
+    assertThat(rs.wasNull()).isTrue();
   }
 
   @Test
   public void testGetIntegerNullAsOwnType() throws Exception {
     final ResultSet rs = statement.executeQuery(
-        "SELECT CAST( NULL AS INTEGER ) FROM INFORMATION_SCHEMA.CATALOGS" );
-    assertTrue( rs.next() );
-    assertThat( "getInt(...) for NULL", rs.getInt( 1 ), equalTo( 0 ) );
-    assertThat( "wasNull", rs.wasNull(), equalTo( true ) );
+      "SELECT CAST( NULL AS INTEGER ) FROM INFORMATION_SCHEMA.CATALOGS");
+    assertThat(rs.next()).isTrue();
+    assertThat(rs.getInt(1)).isEqualTo(0);
+    assertThat(rs.wasNull()).isTrue();
   }
 
   @Test
   public void testGetIntegerNullAsObject() throws Exception {
     final ResultSet rs = statement.executeQuery(
-        "SELECT CAST( NULL AS INTEGER ) FROM INFORMATION_SCHEMA.CATALOGS" );
-    assertTrue( rs.next() );
-    assertThat( "getObject(...) for NULL", rs.getObject( 1 ), nullValue() );
-    assertThat( "wasNull", rs.wasNull(), equalTo( true ) );
+      "SELECT CAST( NULL AS INTEGER ) FROM INFORMATION_SCHEMA.CATALOGS");
+    assertThat(rs.next()).isTrue();
+    assertThat(rs.getObject(1)).isNull();
+    assertThat(rs.wasNull()).isTrue();
   }
 }

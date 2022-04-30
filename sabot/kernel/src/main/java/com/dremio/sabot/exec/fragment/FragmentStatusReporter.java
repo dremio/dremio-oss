@@ -35,6 +35,7 @@ class FragmentStatusReporter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentStatusReporter.class);
 
   private final FragmentHandle handle;
+  private final int schedulingWeight;
   private final FragmentStats stats;
   private final MaestroProxy maestroProxy;
   private final BufferAllocator fragmentAllocator;
@@ -42,10 +43,12 @@ class FragmentStatusReporter {
 
   public FragmentStatusReporter(
       final FragmentHandle handle,
+      final int schedulingWeight,
       final FragmentStats stats,
       final MaestroProxy maestroProxy,
       final BufferAllocator fragmentAllocator) {
     this.handle = handle;
+    this.schedulingWeight = schedulingWeight;
     this.stats = stats;
     this.maestroProxy = maestroProxy;
     this.fragmentAllocator = fragmentAllocator;
@@ -96,7 +99,7 @@ class FragmentStatusReporter {
    */
   public void stateChanged(final FragmentState newState) {
     final FragmentStatus status = getStatus(newState, null);
-    logger.info("{}: State to report: {}", QueryIdHelper.getQueryIdentifier(handle), newState);
+    logger.info("{} scheduling weight {}: State to report: {}", QueryIdHelper.getQueryIdentifier(handle), schedulingWeight, newState);
     switch (newState) {
     case AWAITING_ALLOCATION:
     case CANCELLATION_REQUESTED:

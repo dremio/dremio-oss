@@ -844,7 +844,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
       /* set the bytes in LE format in the buffer of decimal vector, we will swap
        * the bytes while writing into the vector.
        */
-      writer.writeBigEndianBytesToDecimal(bytes, new ArrowType.Decimal(holder.precision, holder.scale));
+      writer.writeBigEndianBytesToDecimal(bytes, new ArrowType.Decimal(holder.precision, holder.scale, 128));
       setWritten();
     }
 

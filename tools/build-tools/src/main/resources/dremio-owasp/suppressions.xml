@@ -1010,4 +1010,13 @@
     <sha1>08eebdbb7a9df83e02eaa42d0e5da0b57bf2e4da</sha1>
     <cve>CVE-2018-8012</cve>
   </suppress>
+  <!-- Data Sketches -->
+  <suppress>
+    <notes><![CDATA[
+   file name: datasketches-java-2.0.0.jar
+   False positive. The CVE is for Sketch, an UI/UX app for MacOS. datasketch is a completely different library
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.datasketches/datasketches\-java@.*$</packageUrl>
+    <cve>CVE-2021-40531</cve>
+  </suppress>
 </suppressions>

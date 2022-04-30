@@ -301,4 +301,42 @@ public abstract class TestAbstractCaseNormalQueries extends PlanTestBase {
       .baselineValues(10L)
       .go();
   }
+
+  @Test
+  public void testCaseCorrectness() throws Exception {
+    final String sql = "select res from (select CASE " +
+      "WHEN f_1 IS NULL OR f_1 = 'Not' OR LTRIM(RTRIM(f_1)) = '' OR LTRIM(RTRIM(f_1)) = 'j' THEN null " +
+      "WHEN TO_NUMBER(f_1,'###') > 15 and tO_NUMBER(f_1,'###') < 68 THEN 'Good'" +
+      "ELSE 'Low' END as res from cp.\"coalesce/sample1.parquet\") where res is not null";
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("res")
+      .baselineValues("Low")
+      .baselineValues("Good")
+      .go();
+  }
+
+  @Test
+  public void testNestedCaseCorrectness() throws Exception {
+    final String sql = "select CASE " +
+      "WHEN f_1 IS NULL THEN 'YYY' " +
+      "WHEN 1 = CASE WHEN f_1 IS NULL THEN 1 " +
+      "          WHEN LTRIM(RTRIM(f_1)) = '' THEN 2 " +
+      "          WHEN LTRIM(RTRIM(f_1)) = 'j' THEN 3 " +
+      "          WHEN LTRIM(RTRIM(f_1)) = 'Not' THEN 4 " +
+      "          WHEN TO_NUMBER(f_1,'###') > 15 and tO_NUMBER(f_1,'###') < 20 THEN 6" +
+      "          ELSE 7 END THEN 'ERR' ELSE 'XXX' END as res from cp.\"coalesce/sample1.parquet\"";
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("res")
+      .baselineValues("XXX")
+      .baselineValues("YYY")
+      .baselineValues("XXX")
+      .baselineValues("XXX")
+      .baselineValues("XXX")
+      .baselineValues("XXX")
+      .go();
+  }
 }

@@ -26,6 +26,7 @@ import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeCo
 import { getEntityType, getNormalizedEntityPath } from '@app/selectors/home';
 import { ENTITY_TYPES } from '@app/constants/Constants';
 import { APIV2Call } from '@app/core/APICall';
+import { ALL_SPACES_VIEW_ID } from './spaces';
 
 export const ADD_FOLDER_START = 'ADD_FOLDER_START';
 export const ADD_FOLDER_SUCCESS = 'ADD_FOLDER_SUCCESS';
@@ -247,7 +248,7 @@ function fetchRemoveDataset(dataset) {
   const href = dataset.get('resourcePath');
   const meta = {
     name: dataset.get('name'),
-    invalidateViewIds: [HOME_CONTENTS_VIEW_ID]
+    invalidateViewIds: [ALL_SPACES_VIEW_ID, HOME_CONTENTS_VIEW_ID]
   };
   const notification = {
     message: la('Successfully removed.'),
@@ -257,16 +258,18 @@ function fetchRemoveDataset(dataset) {
 
   const apiCall = new APIV2Call()
     .fullpath(href)
-    .params({savedTag: dataset.getIn(['datasetConfig', 'savedTag'])});
+    .params({ savedTag: dataset.getIn(['datasetConfig', 'savedTag']) });
 
   return {
     [RSAA]: {
       types: [
         {
-          type: REMOVE_DATASET_START, meta
+          type: REMOVE_DATASET_START,
+          meta
         },
         {
-          type: REMOVE_DATASET_SUCCESS, meta: {...meta, success: true, notification}
+          type: REMOVE_DATASET_SUCCESS,
+          meta: { ...meta, success: true, notification }
         },
         {
           type: REMOVE_DATASET_FAILURE,

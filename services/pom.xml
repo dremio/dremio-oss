@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -49,8 +49,9 @@
     <module>jobtelemetry</module>
     <module>maestro</module>
     <module>namespace</module>
+    <module>nessie-grpc</module>
     <module>nessie</module>
-    <module>nessie-api</module>
+    <module>nessie-storage-upgrade</module>
     <module>options</module>
     <module>resourcescheduler</module>
     <module>scheduler</module>
@@ -65,5 +66,11 @@
     <module>statistics</module>
     <module>sysflight</module>
     <module>accelerator-api</module>
+    <module>orphanage</module>
+    <module>orphanagecleaner</module>
+    <module>reindexer</module>
+    <module>script</module>
+    <module>autocomplete</module>
+    <module>userpreferences</module>
   </modules>
 </project>

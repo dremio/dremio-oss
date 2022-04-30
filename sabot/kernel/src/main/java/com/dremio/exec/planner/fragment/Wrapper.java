@@ -49,6 +49,7 @@ public class Wrapper {
   private long initialAllocation = 0;
   private long maxMemoryAllocationPerNode = Long.MAX_VALUE;
   private final IdentityHashMap<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets = new IdentityHashMap<>();
+  private boolean strictDependency = false; // true if the parallelization must exactly match the dependency's.
 
   // List of fragments this particular fragment depends on for determining its parallelization and endpoint assignments.
   private final List<Wrapper> fragmentDependencies = Lists.newArrayList();
@@ -56,6 +57,8 @@ public class Wrapper {
   // a list of assigned endpoints. Technically, there could repeated endpoints in this list if we'd like to assign the
   // same fragment multiple times to the same endpoint.
   private final List<NodeEndpoint> endpoints = Lists.newLinkedList();
+
+  private int assignedWeight = 0;
 
   public Wrapper(Fragment node, int majorFragmentId) {
     this.majorFragmentId = majorFragmentId;
@@ -86,6 +89,14 @@ public class Wrapper {
   public void setWidth(int width) {
     Preconditions.checkState(this.width == -1);
     this.width = width;
+  }
+
+  public void setAssignedWeight(int newWeight) {
+    this.assignedWeight = newWeight;
+  }
+
+  public int getAssignedWeight() {
+    return this.assignedWeight;
   }
 
   public Fragment getNode() {
@@ -172,6 +183,14 @@ public class Wrapper {
    */
   public void addFragmentDependency(Wrapper dependsOn) {
     fragmentDependencies.add(dependsOn);
+  }
+
+  public boolean isStrictDependency() {
+    return strictDependency;
+  }
+
+  public void setStrictDependency() {
+    strictDependency = true;
   }
 
   /**

@@ -30,9 +30,11 @@ import com.google.common.collect.Iterables;
  * Remote indexed store.
  */
 public class RemoteIndexedStore<K, V> extends RemoteKVStore<K, V> implements IndexedStore<K, V> {
+  private final Integer version;
 
   public RemoteIndexedStore(DatastoreRpcClient client, String storeId, StoreBuilderHelper<K, V> helper) {
     super(client, storeId, helper);
+    this.version = helper.getVersion();
   }
 
   @Override
@@ -51,5 +53,10 @@ public class RemoteIndexedStore<K, V> extends RemoteKVStore<K, V> implements Ind
     } catch (IOException e) {
       throw new DatastoreException(format("Failed to get counts on store id: %s", getStoreId()), e);
     }
+  }
+
+  @Override
+  public Integer version() {
+    return version;
   }
 }

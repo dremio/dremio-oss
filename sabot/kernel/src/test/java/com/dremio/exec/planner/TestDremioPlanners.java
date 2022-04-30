@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Convention;
@@ -31,11 +33,8 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
@@ -90,9 +89,6 @@ public class TestDremioPlanners {
     }
   }
 
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
-
   public PlannerSettings getSettings(long timeoutMillis, int maxNodes) {
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(
         new OptionResolverSpec()
@@ -114,17 +110,15 @@ public class TestDremioPlanners {
 
 
   @Test
-  public void checkThrowOnMaxNodes() throws Exception {
-
+  public void checkThrowOnMaxNodes() {
     DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(60_000, 10), a -> {
     }, null);
     planner.setPlannerPhase(PlannerPhase.LOGICAL);
     planner.addRule(new LoopRule());
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
     RelNode root = new NoneRel(cluster);
-    expectedException.expectMessage("Job was cancelled because the query went beyond system capacity during query planning.");
     planner.setRoot(root);
-    planner.findBestExp();
+    assertThatThrownBy(planner::findBestExp).hasMessageContaining("Job was cancelled because the query went beyond system capacity during query planning.");
   }
 
   @Test
@@ -139,12 +133,10 @@ public class TestDremioPlanners {
   }
 
   private void checkCancelFlag(RelOptPlanner planner) {
-    expectedException.expect(UserException.class);
-    expectedException.expectMessage("Query was cancelled because planning time exceeded");
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
     RelNode root = new NoneRel(cluster);
     planner.setRoot(root);
-    planner.findBestExp();
+    assertThatThrownBy(planner::findBestExp).hasMessageContaining("Query was cancelled because planning time exceeded");
   }
 
 }

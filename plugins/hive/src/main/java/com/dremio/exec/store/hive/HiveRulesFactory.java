@@ -82,6 +82,7 @@ import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.github.slugify.Slugify;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -289,8 +290,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
     public HiveScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
                         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                        ScanFilter filter, HiveReaderProto.ReaderType readerType) {
-      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
+                        ScanFilter filter, HiveReaderProto.ReaderType readerType, List<Info> runtimeFilters) {
+      super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
       this.filter = filter;
       this.readerType = readerType;
     }
@@ -307,13 +308,13 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
       return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, getProjectedColumns(),
-        observedRowcountAdjustment, filter, readerType);
+        observedRowcountAdjustment, filter, readerType, getRuntimeFilters());
     }
 
     @Override
     public HiveScanPrel cloneWithProject(List<SchemaPath> projection) {
       return new HiveScanPrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, getProjectedColumns(),
-        observedRowcountAdjustment, filter, readerType);
+        observedRowcountAdjustment, filter, readerType, getRuntimeFilters());
     }
 
     @Override
@@ -349,7 +350,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
       return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-        observedRowcountAdjustment, filter, readerType);
+        observedRowcountAdjustment, filter, readerType, getRuntimeFilters());
     }
 
   }
@@ -370,7 +371,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       HiveScanDrel drel = (HiveScanDrel) rel;
       return new HiveScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(),
         drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.getReaderType());
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.getReaderType(), ImmutableList.of());
     }
 
     @Override

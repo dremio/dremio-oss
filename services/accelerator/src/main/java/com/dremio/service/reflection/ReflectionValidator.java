@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.catalog.MetadataRequestOptions;
@@ -83,7 +84,7 @@ public class ReflectionValidator {
     // The dataset that the reflection refers to must exist.
     final EntityExplorer entityExplorer = catalogService.get()
         .getCatalog(MetadataRequestOptions.newBuilder()
-            .setSchemaConfig(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build())
+            .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build())
             .setCheckValidity(false)
             .build());
 

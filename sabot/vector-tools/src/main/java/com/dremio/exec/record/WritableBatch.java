@@ -105,7 +105,7 @@ public class WritableBatch implements AutoCloseable {
         for (ArrowBuf buf : buffers) {
           newBuf.setBytes(offset, buf);
           offset += buf.capacity();
-          buf.release();
+          buf.close();
         }
 
         List<SerializedField> fields = def.getFieldList();
@@ -128,7 +128,7 @@ public class WritableBatch implements AutoCloseable {
         }
       } finally {
         // Any vectors that loaded material from newBuf slices above will retain those.
-        newBuf.release(1);
+        newBuf.getReferenceManager().release(1);
       }
     }
 
@@ -152,7 +152,7 @@ public class WritableBatch implements AutoCloseable {
       return;
     }
     for (ArrowBuf buf : buffers) {
-      buf.release();
+      buf.close();
     }
     cleared = true;
   }
@@ -214,7 +214,7 @@ public class WritableBatch implements AutoCloseable {
 
   public void retainBuffers(final int increment) {
     for (final ArrowBuf buf : buffers) {
-      buf.retain(increment);
+      buf.getReferenceManager().retain(increment);
     }
   }
 

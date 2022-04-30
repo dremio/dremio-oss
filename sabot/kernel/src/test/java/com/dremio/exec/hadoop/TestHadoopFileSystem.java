@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.hadoop;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 
@@ -37,7 +35,7 @@ public class TestHadoopFileSystem {
   public void testLocalFileSystem() throws IOException {
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     org.apache.hadoop.fs.LocalFileSystem localFS = fs.unwrap(org.apache.hadoop.fs.LocalFileSystem.class);
-    assertThat(localFS, is(notNullValue()));
+    assertThat(localFS).isNotNull();
   }
 
   // Sanity check to make sure that HadoopFileSystem#getLocal(Configuration) actually returns an
@@ -46,6 +44,6 @@ public class TestHadoopFileSystem {
   public void tesRawLocalFileSystem() throws IOException {
     FileSystem fs = HadoopFileSystem.getRawLocal(new Configuration());
     org.apache.hadoop.fs.RawLocalFileSystem localFS = fs.unwrap(org.apache.hadoop.fs.RawLocalFileSystem.class);
-    assertThat(localFS, is(notNullValue()));
+    assertThat(localFS).isNotNull();
   }
 }

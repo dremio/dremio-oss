@@ -70,6 +70,29 @@ public class SabotConfig extends NestedConfig {
     }
   }
 
+  /**
+   * Same as {@link #getInstance(String, Class, Object...)}, except that it handles cases where objects in constructorArgs
+   * are an instance of a subclass of the constructor's formal arguments. It is assumed all the formal arguments of the
+   * constructor are of one class type.
+   *
+   * @param path                The configuration path to use.
+   * @param iface               The Interface or Superclass of the instance you requested.
+   * @param constructorArgClass The class type of the constructor's formal argument
+   * @param constructorArgs     Any arguments required for constructing the requested type.
+   * @return The new Object instance that implements the provided Interface
+   */
+  public <T> T getInstanceWithConstructorArgType(String path, Class<T> iface, Class<?> constructorArgClass, Object... constructorArgs) {
+    try{
+      String className = this.getString(path);
+      Class<?> clazz = Class.forName(className);
+      return instantiateWithConstructorArgType(iface, clazz, constructorArgClass, constructorArgs);
+    }catch(Exception e){
+      throw UserException.unsupportedError(e)
+        .message("Failure while attempting to load instance of the class of type %s requested at path %s.",
+          iface.getName(), path).build(logger);
+    }
+  }
+
   public <T> T getInstance(String path, Class<T> iface, Class<? extends T> defaultImpl) {
     if (this.hasPath(path)) {
       return getInstance(path, iface);
@@ -86,6 +109,13 @@ public class SabotConfig extends NestedConfig {
   public <T> T getInstance(String path, Class<T> iface, T defaultInstance, Object... constructorArgs) {
     if (this.hasPath(path)) {
       return getInstance(path, iface, constructorArgs);
+    }
+    return defaultInstance;
+  }
+
+  public <T> T getInstanceWithConstructorArgType(String path, Class<T> iface, T defaultInstance, Class<?> constructorArgClass, Object... constructorArgs) {
+    if (this.hasPath(path)) {
+      return getInstanceWithConstructorArgType(path, iface, constructorArgClass, constructorArgs);
     }
     return defaultInstance;
   }
@@ -116,6 +146,18 @@ public class SabotConfig extends NestedConfig {
     Class<?>[] argClasses = new Class[constructorArgs.length];
     for (int i = 0; i < constructorArgs.length; i++) {
       argClasses[i] = constructorArgs[i].getClass();
+    }
+    Constructor<?> constructor = clazz.getConstructor(argClasses);
+    return (T) constructor.newInstance(constructorArgs);
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T> T instantiateWithConstructorArgType(Class<T> iface, Class<?> clazz, Class<?> constructorArgClass, Object... constructorArgs)
+    throws ReflectiveOperationException {
+    Preconditions.checkArgument(iface.isAssignableFrom(clazz));
+    Class<?>[] argClasses = new Class[constructorArgs.length];
+    for (int i = 0; i < constructorArgs.length; i++) {
+      argClasses[i] = constructorArgClass;
     }
     Constructor<?> constructor = clazz.getConstructor(argClasses);
     return (T) constructor.newInstance(constructorArgs);

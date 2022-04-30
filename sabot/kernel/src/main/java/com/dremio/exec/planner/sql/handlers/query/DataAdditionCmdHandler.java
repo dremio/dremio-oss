@@ -28,7 +28,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 import org.apache.iceberg.PartitionField;
@@ -42,7 +41,10 @@ import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.catalog.SourceCatalog;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -62,6 +64,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
 import com.dremio.exec.planner.sql.parser.DataAdditionCmdCall;
+import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
@@ -84,22 +87,25 @@ import io.protostuff.ByteString;
 public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DataAdditionCmdHandler.class);
 
+
   private String textPlan;
   private FileSystemCreateTableEntry icebergCreateTableEntry = null;
   private BatchSchema tableSchemaFromKVStore = null;
   private List<String> partitionColumns = null;
   private Map<String, Object> storageOptionsMap = null;
   private boolean isIcebergTable = false;
+  private DremioTable cachedDremioTable = null;
+  private boolean dremioTableFetched = false;
+  private boolean isVersionedTable = false;
 
   public DataAdditionCmdHandler() {
   }
 
-  public void setStorageOptionsMap(Map<String, Object> storageOptionsMap) {
-    this.storageOptionsMap = storageOptionsMap;
-  }
-
   public boolean isIcebergTable() {
     return isIcebergTable;
+  }
+  private boolean isVersionedTable() {
+    return isVersionedTable;
   }
 
   public WriterOptions.IcebergWriterOperation getIcebergWriterOperation() {
@@ -109,13 +115,15 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     return isCreate() ? WriterOptions.IcebergWriterOperation.CREATE : WriterOptions.IcebergWriterOperation.INSERT;
   }
 
-  public Map<String, Object> getStorageOptionsMap() {
-    return isIcebergTable() ? null : storageOptionsMap;
-  }
-
   public abstract boolean isCreate();
 
-  public PhysicalPlan getPlan(DatasetCatalog datasetCatalog, NamespaceKey path, SqlHandlerConfig config, String sql, SqlNode sqlNode, DataAdditionCmdCall sqlCmd) throws Exception {
+  public PhysicalPlan getPlan(DatasetCatalog datasetCatalog,
+                              NamespaceKey path,
+                              SqlHandlerConfig config,
+                              String sql,
+                              DataAdditionCmdCall sqlCmd,
+                              ResolvedVersionContext version
+  ) throws Exception {
     try {
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlCmd.getQuery());
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
@@ -125,6 +133,8 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
         throw new ColumnCountTooLargeException((int) maxColumnCount);
       }
 
+      // Get and cache table info (if not already retrieved) to avoid multiple retrievals
+      getDremioTable(datasetCatalog, path);
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();
       ViewAccessEvaluator viewAccessEvaluator = null;
       if (config.getConverter().getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
@@ -137,29 +147,31 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
       final long ringCount = config.getContext().getOptions().getOption(PlannerSettings.RING_COUNT);
 
+      ByteString extendedByteString = null;
+      if (!isCreate()) {
+        extendedByteString = cachedDremioTable.getDatasetConfig().getReadDefinition().getExtendedProperty();
+      }
+
       // For Insert command we make sure query schema match exactly with table schema,
       // which includes partition columns. So, not checking here
       final RelNode newTblRelNodeWithPCol = SqlHandlerUtil.qualifyPartitionCol(newTblRelNode,
-        isCreate() ? sqlCmd.getPartitionColumns(datasetCatalog, path) : Lists.newArrayList());
+        isCreate() ?
+          sqlCmd.getPartitionColumns(null /*param is unused in this interface for create */) :
+          Lists.newArrayList());
 
       PrelTransformer.log("Calcite", newTblRelNodeWithPCol, logger, null);
 
-      ByteString extendedByteString = null;
-      if (!isCreate()) {
-        DremioTable table = datasetCatalog.getTable(path);
-        extendedByteString = table.getDatasetConfig().getReadDefinition().getExtendedProperty();
-      }
-
       final WriterOptions options = new WriterOptions(
         (int) ringCount,
-        sqlCmd.getPartitionColumns(datasetCatalog, path),
+        sqlCmd.getPartitionColumns(cachedDremioTable),
         sqlCmd.getSortColumns(),
         sqlCmd.getDistributionColumns(),
         sqlCmd.getPartitionDistributionStrategy(),
         sqlCmd.isSingleWriter(),
         Long.MAX_VALUE,
         getIcebergWriterOperation(),
-        extendedByteString
+        extendedByteString,
+        version
       );
 
       // Convert the query to Dremio Logical plan and insert a writer operator on top.
@@ -178,7 +190,9 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);
 
       PhysicalPlan plan = PrelTransformer.convertToPlan(config, pop,
-        isIcebergTable() ? () -> refreshDataset(datasetCatalog, path, isCreate()) : null);
+        isIcebergTable() && !isVersionedTable() ?
+          () -> refreshDataset(datasetCatalog, path, isCreate())
+          : null);
 
       PrelTransformer.log(config, "Dremio Plan", plan, logger);
 
@@ -193,6 +207,28 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
 
     } catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
+    }
+  }
+
+  // Cache the table metadata so we can retrieve schema and partition columns and avoid double lookups
+  protected DremioTable getDremioTable(DatasetCatalog datasetCatalog, NamespaceKey path) {
+    if (dremioTableFetched == false) {
+      cachedDremioTable = datasetCatalog.getTable(path);
+      dremioTableFetched = true;
+    }
+    return cachedDremioTable;
+  }
+
+  protected void checkExistenceValidity(NamespaceKey path, DremioTable dremioTable) {
+    if (dremioTable != null && isCreate()) {
+      throw UserException.validationError()
+        .message("A table or view with given name [%s] already exists.", path.toString())
+        .build(logger);
+    }
+    if (dremioTable == null && !isCreate()) {
+      throw UserException.validationError()
+        .message("Table [%s] not found", path)
+        .buildSilently();
     }
   }
 
@@ -220,8 +256,7 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     RelDataType queryRowType,
     final Map<String, Object> storageOptions,
     final List<String> fieldNames)
-    throws RelConversionException, SqlUnsupportedException {
-
+      throws SqlUnsupportedException {
     Rel convertedRelNode = PrelTransformer.convertToDrel(config, relNode);
 
     // Put a non-trivial topProject to ensure the final output field name is preserved, when necessary.
@@ -232,20 +267,21 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     if (isIcebergTable()) {
       queryId = QueryIdHelper.getQueryId(config.getContext().getQueryId());
       if (!isCreate()) {
-        DremioTable table = datasetCatalog.getTable(key);
-        tableSchemaFromKVStore = table.getSchema();
-        partitionColumns = table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
+        tableSchemaFromKVStore = cachedDremioTable.getSchema();
+        partitionColumns = cachedDremioTable.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
       }
       icebergTableProps = new IcebergTableProps(null, queryId,
         null,
-        isCreate() ? options.getPartitionColumns() : partitionColumns,
+        options.getPartitionColumns() ,
         isCreate() ? IcebergCommandType.CREATE : IcebergCommandType.INSERT,
-        key.getName(), null);
-
+        key.getName(), null, options.getVersion()); // TODO: DX-43311 Should we allow null version?
     }
 
-    CreateTableEntry tableEntry = datasetCatalog.createNewTable(key,
-      icebergTableProps, options, storageOptions);
+    CreateTableEntry tableEntry = datasetCatalog.createNewTable(
+      key,
+      icebergTableProps,
+      options,
+      storageOptions);
     if (isIcebergTable()) {
       // Store file system create table entry, so that later we can perform supported schema and plugin validations
       Preconditions.checkState(tableEntry instanceof FileSystemCreateTableEntry, "Unexpected create table entry");
@@ -382,6 +418,44 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
     return true;
   }
 
+
+  public static boolean isStorageOptionIceberg(OptionManager options,
+                                               Map<String, Object> storageOptionsMap) {
+    if (!options.getOption(ExecConstants.ENABLE_ICEBERG)) {
+      return false;
+    }
+
+    if (storageOptionsMap != null) {
+      return storageOptionsMap.get("type").equals("iceberg") && storageOptionsMap.size() == 1;
+    }
+
+    return false;
+  }
+
+  public static boolean isIcebergDMLFeatureEnabled(SourceCatalog sourceCatalog,
+                                                   NamespaceKey path, OptionManager options,
+                                                Map<String, Object> storageOptionsMap) {
+    if (!isIcebergFeatureEnabled(options, storageOptionsMap)) {
+      return false;
+    }
+
+    StoragePlugin storagePlugin = null;
+    try {
+      storagePlugin = sourceCatalog.getSource(path.getRoot());
+    } catch (UserException uex) {
+    }
+
+    // to avoid existing test failures do not check for additional flags for Versioned and FileSystem plugins
+    if (storagePlugin == null || storagePlugin instanceof VersionedPlugin || storagePlugin instanceof FileSystemPlugin) {
+      return true;
+    }
+
+    if (!options.getOption(ExecConstants.ENABLE_ICEBERG_DML)) {
+      return false;
+    }
+    return true;
+  }
+
   public static boolean validatePath(SourceCatalog sourceCatalog,
                                      NamespaceKey path) {
     try {
@@ -401,18 +475,64 @@ public abstract class DataAdditionCmdHandler implements SqlToPlanHandler {
       return false;
     }
 
-    if (!(storagePlugin instanceof FileSystemPlugin)) {
-      return false;
+    if (storagePlugin instanceof VersionedPlugin) {
+      return true;
     }
 
-    FileSystemPlugin fileSystemPlugin = (FileSystemPlugin) storagePlugin;
-    return fileSystemPlugin.supportsIcebergTables();
+    if (storagePlugin instanceof FileSystemPlugin) {
+      FileSystemPlugin fileSystemPlugin = (FileSystemPlugin) storagePlugin;
+      return fileSystemPlugin.supportsIcebergTables();
+    }
+
+    return storagePlugin instanceof MutablePlugin;
   }
 
   @VisibleForTesting
   public void validateTableFormatOptions(SourceCatalog sourceCatalog, NamespaceKey path, OptionManager options) {
-    isIcebergTable = isIcebergFeatureEnabled(options, storageOptionsMap) &&
-                      validatePluginSupportForIceberg(sourceCatalog, path);
+    boolean isStorageOptionIceberg = isStorageOptionIceberg(options, storageOptionsMap);
+    if (isStorageOptionIceberg) {
+      resetStorageOptions();
+    }
+    isIcebergTable = isIcebergDMLFeatureEnabled(sourceCatalog, path, options, storageOptionsMap) &&
+      validatePluginSupportForIceberg(sourceCatalog, path);
+    if (!isIcebergTable && isStorageOptionIceberg) {
+      throw UserException.validationError()
+        .message("Please enable required support options to perform operations in iceberg format", path.toString())
+        .build(logger);
+    }
+  }
+
+  private void resetStorageOptions() {
+    storageOptionsMap = null;
+  }
+
+  public static void validateCreateTableLocation(SourceCatalog sourceCatalog, NamespaceKey path, SqlCreateEmptyTable sqlCreateEmptyTable) {
+    if (sqlCreateEmptyTable.getLocation() != null) {
+      StoragePlugin storagePlugin = sourceCatalog.getSource(path.getRoot());
+      if (storagePlugin instanceof FileSystemPlugin) {
+        throw UserException.parseError().message("LOCATION clause is not supported in the query for this source").build(logger);
+      }
+    }
+  }
+
+  @VisibleForTesting
+  public void validateVersionedTableFormatOptions(SourceCatalog sourceCatalog, NamespaceKey path, OptionManager options) {
+    isIcebergTable = validatePluginSupportForVersionedIceberg(sourceCatalog, path);
+  }
+
+  private  boolean validatePluginSupportForVersionedIceberg(SourceCatalog sourceCatalog, NamespaceKey path) {
+    StoragePlugin versionedPlugin;
+    try {
+      versionedPlugin = sourceCatalog.getSource(path.getRoot());
+    } catch (UserException uex) {
+      return false;
+    }
+
+    if (!(versionedPlugin instanceof VersionedPlugin)) {
+      return false;
+    }
+    isVersionedTable = true;
+    return true;
   }
 
   @Override

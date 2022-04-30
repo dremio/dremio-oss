@@ -156,8 +156,7 @@ export default connect(mapStateToProps, {
 const styles = {
   base: {
     display: 'flex',
-    flexGrow: 1,
-    backgroundColor: '#F5FCFF'
+    flexGrow: 1
   },
   tableBlock: {
     display: 'flex',

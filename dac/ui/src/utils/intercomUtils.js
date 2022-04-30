@@ -24,7 +24,7 @@ const testEmails = ['@dremio.com', '@dremio.test', '@test.com'];
 const testEmailRegex = new RegExp(`(${testEmails.map(escapeSpecialCharacters).join('|')})`, 'i');
 
 // export for testing
-export const useTestIntercomApp = (userEmail) => !config.isReleaseBuild || testEmailRegex.test(userEmail);
+export const UseTestIntercomApp = (userEmail) => !config.isReleaseBuild || testEmailRegex.test(userEmail);
 
 const testIntercomAppId = 'z8apq4co';
 
@@ -89,7 +89,7 @@ class IntercomUtils {
     const userData = localStorageUtils.getUserData();
     if (userData) {
       const email = userData.email;
-      const appId = useTestIntercomApp(email) ? testIntercomAppId :
+      const appId = UseTestIntercomApp(email) ? testIntercomAppId :
         (config.intercomAppId || testIntercomAppId); // if server does not provide app id, use a test one
 
       this._sendToIntercom('boot', {

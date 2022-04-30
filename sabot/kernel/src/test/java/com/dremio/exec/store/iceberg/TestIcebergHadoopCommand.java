@@ -16,7 +16,6 @@
 package com.dremio.exec.store.iceberg;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -26,6 +25,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -42,8 +42,8 @@ public class TestIcebergHadoopCommand {
     // Instantiate iceberg operation, start it and store it in PhysicalPlan
     String tableName = "icebergtable";
     BatchSchema schema = BatchSchema.newBuilder().addField(CompleteType.INT.toField("int")).build();
-    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
-    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
+    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
+    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
     when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
     IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter(
             tableName, icebergHadoopModel.getTableIdentifier(Path.of(tempDir.getRoot().getPath()).resolve(tableName).toString()),

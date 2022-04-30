@@ -129,7 +129,7 @@ public class StreamPerColumnProvider implements InputStreamProvider {
   public MutableParquetMetadata getFooter() throws IOException {
     if(footer == null) {
       SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
-      footer = new MutableParquetMetadata(footerCache.getFooter(getStream(null), path.toString(), length, fs, maxFooterLen));
+      footer = new MutableParquetMetadata(footerCache.getFooter(getStream(null), path.toString(), length, fs, maxFooterLen), path.getName());
     }
     return footer;
   }

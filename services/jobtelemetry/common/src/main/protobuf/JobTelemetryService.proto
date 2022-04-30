@@ -45,6 +45,10 @@ service JobTelemetryService {
   rpc getQueryProfile(GetQueryProfileRequest) returns (GetQueryProfileResponse);
 
   // get progress metrics for a query.
+  rpc getQueryProgressMetricsUnary(GetQueryProgressMetricsRequest) returns
+  (GetQueryProgressMetricsResponse);
+
+  // get progress metrics for a query.
   rpc getQueryProgressMetrics(stream GetQueryProgressMetricsRequest) returns
   (stream GetQueryProgressMetricsResponse);
 

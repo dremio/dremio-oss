@@ -35,6 +35,7 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.holders.DecimalHolder;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -72,7 +73,8 @@ public class TestConstantColumnPopulators {
     outputMutator.addField(CompleteType.TIMESTAMP.toField("timestampCol"), TimeStampMilliVector.class);
     outputMutator.addField(CompleteType.VARBINARY.toField("varbinaryCol"), VarBinaryVector.class);
     outputMutator.addField(CompleteType.VARCHAR.toField("varcharCol"), VarCharVector.class);
-    outputMutator.addField(new Field("decimalCol", true, new ArrowType.Decimal(10, 2), null), DecimalVector.class);
+    outputMutator.addField(new Field("decimalCol", new FieldType(true,
+      new ArrowType.Decimal(10, 2, 128), null), null), DecimalVector.class);
   }
 
   @AfterClass
@@ -274,7 +276,7 @@ public class TestConstantColumnPopulators {
       }
     });
 
-    arrowBuf.release();
+    arrowBuf.close();
   }
 
   private void verifyNullColumn(NameValuePair nameValuePair) throws Exception {

@@ -37,10 +37,11 @@
  @SECONDARY_400: #9FA6B0;
  @SECONDARY_300: #C5CAD0;
  @SECONDARY_200: #E9EDF0;
+ @SECONDARY_150: #F6F7F8;
  @SECONDARY_100: #F4F6F7;
 
  // DARK AND FOR TEXT COLORS
- @DARK_900: #333333;
+ @DARK_900: #202124;
  @DARK_800: #505050;
  @DARK_700: #888888;
  @DARK_600: #9C9C9C;
@@ -54,9 +55,12 @@
  @WHITE: #FFFFFF;
  @BLACK: #000000;
 
+ @IRON: #D2D6DA;
+ @TROUT: #505862;
+
  @GREY: #6A7781;
  @NAVY: #2A394A;
- @BLUE: #43B8C9;
+ @BLUE: #008489;
  @TEAL: #5ED7B9;
  @ORANGE: #FFBB57;
  @LIGHT_GREY: #ECECEC;
@@ -82,9 +86,11 @@
  @icon-button-hover-bg: rgba(0, 0, 0, 0.05);
  @overlay-color: rgba(255, 255, 255, 0.5);
  @btn-hover-border: #C0E9F5;
- 
+
  @CODE_BLUE: #358da3;
- 
+ @ELM: #196C79;
+ @PELOROUS: #43b8c8;
+
  //monaco variables
  @monaco-error: rgba(255, 18, 18, 0.7);
  @monaco-purple: #a100ff;
@@ -92,7 +98,7 @@
  @monaco-persian-green: #AA8900;
  @monaco-light-green: #79B5F6;
  @monaco-orange: #E28171;
- 
+
  @table-bg: @TRANSPARENT_COLOR;
  @table-bg-accent: #f9f9f9;
  @table-bg-hover: #f5f5f5;
@@ -121,6 +127,7 @@
  @white-smoke: #F1F1F1;
  @grey: #888888;
  @pale_liteGrey: #e5e5e5;
+ @silver-chalice: #B2B2B2;
  @swiss-white: #DBDEDF;
  @ton-grey: #9C9C9C;
  @alice-blue: #F4F6F7;
@@ -129,7 +136,7 @@
  @title-text:#7F8B95;
  @sql-link:#3F4C5C;
  @tab-bottom-border:#f3f3f3;
- 
+
  // REFLECTIONS/ACCELERATION PAGES:
  @BORDER_TABLE: @SECONDARY_300;
  @BORDER_TABLE_DARK: @DARK_900;
@@ -146,15 +153,15 @@
  @DISABLED_DRAG_AREA: @SECONDARY_200;
 
  @DISABLED_DRAG_AREA_BORDER: @TRANSPARENT_COLOR;
- 
+
  // REFLECTIONS/ACCELERATION PAGES - ADVANCED VIEW
  @ACTIVE_ADVANCED_LIGHT_ROW: @ACTIVE_DRAG_AREA_BACKGROUND_COLOR;
  @ACTIVE_ADVANCED_DARK_ROW: @ACTIVE_HOVER_DRAG_AREA;
  @DISABLED_ADVANCED_LIGHT_ROW: @DISABLED_DRAG_AREA_BACKGROUND_COLOR;
  @DISABLED_ADVANCED_DARK_ROW: @SECONDARY_100;
- 
+
  @ADVANCED_INNER_BORDER_GREY: @BORDER_TABLE;
- 
+
  // REFLECTIONS/ACCELERATION PAGES - CELLPOPOVER
  @ACTIVE_COLUMN_BORDER: #a8e7d9;
  @ACTIVE_COLUMN_BACKGROUND_COLOR: #ebf9f6;
@@ -163,11 +170,11 @@
  @DISABLED_COLUMN_BACKGROUND_COLOR: @WHITE;
  @DISABLED_COLUMN_INDEX_BACKGROUND_COLOR: @action-btn-bg;
  @DISABLED_COLUMN_INDEX_TEXT_COLOR: #D2D2D2;
- 
+
  @CLEAR_ALL_BORDER_COLOR: #CCCCCC; // DX-34369: use once SimpleButton component is refactored
  @CLEAR_ALL_BACKGROUND_COLOR: #F2F2F2; // DX-34369: use once SimpleButton component is refactored
  @NEW_REFLECTION_BUTTON_BORDER_COLOR: #D9D9D9; // DX-34369
- 
+
  // AGGREGATE STYLES:
  @BORDER_GREEN: #92E2D0;
  @BORDER_GRAY: rgba(0,0,0,0.10);
@@ -184,16 +191,62 @@
 @sideBar-background-color: #2a394a;
 @sideBar-font-color-default: #fcfcfc;
 @sideBar-font-label-color: #f4fafc;
-@sideBar-icon-image-color: #E5E5E5;
-@sideBar-icon-image-color-active: #aadee5;
-@sideBar-icon-active-background: #196c79;
+@sideBar-icon-image-color: #EEEFF1;
+@sideBar-icon-image-color-active: #FFFFFF;
+@sideBar-icon-active-background: #2B8F9D;
 @sideBar-account-background: #43b8c9;
 @sideBar-account-icon-text-color: #2A394A;
 @sideBar-project-background: #64c5bf;
 @sideBar-project-icon-text-color: #2A394A;
-@sideBar-hover-background: #3F4C5C;
+@sideBar-hover-background: #2B8F9D66;
 @sideBar-separator-bar: #f4fafc;
 
 @input-element-border: @TABLE_BORDER;
 
 @linen: #FEEAEA;
+@red:  #d44451;
+@raven: #77818F;
+@light-blue: #8CA4E9;
+@pale-litesky: #6E7880;
+
+// Dropdown menu
+@MAIN_TEXT: #202124;
+@LESS_IMPORTANT_TEXT: @TROUT;
+
+// FIGMA NEW DESIGN COLORS ( THESE WILL BE USED FOR THE NEW COMPONENTS/REVAMPS UNTIL WE CAN SWITCH COMPLETELY TO IT )
+
+// FIGMA PRIMARY COLORS
+@FIGMA_PRIMARY_100: #F1FAFB;
+@FIGMA_PRIMARY_150: #E9F5F9;
+@FIGMA_PRIMARY_200: #C6E9EF;
+@FIGMA_PRIMARY_500: #43B8C9;
+@FIGMA_PRIMARY_600: #2E92A1;
+@FIGMA_PRIMARY_700: #206771;
+@FIGMA_PRIMARY_800: #133C42;
+
+// FIGMA NEUTRAL COLORS
+@FIGMA_NEUTRAL_0: #FFFFFF;
+@FIGMA_NEUTRAL_100: #F6F7F8;
+@FIGMA_NEUTRAL_150: #EEEFF1;
+@FIGMA_NEUTRAL_200: #D2D6DA;
+@FIGMA_NEUTRAL_300: #B0B7BF;
+@FIGMA_NEUTRAL_600: #505862;
+@FIGMA_NEUTRAL_700: #32383E;
+@FIGMA_NEUTRAL_850: #060607;
+
+// FIGMA TEXT COLORS
+@FIGMA_TEXT_DISABLED: #B0B7BF;
+@FIGMA_TEXT_LESS_IMPORTANT: #505862;
+@FIGMA_TEXT_MAIN: #202124;
+@FIGMA_TEXT_LINK: #008489;
+
+// FIGMA ICON COLORS
+@FIGMA_ICON_DISABLED: #D2D6DA;
+@FIGMA_ICON_DEFAULT: #505862;
+
+// FIGMA STATUS COLORS
+@FIGMA_STATUS_ERROR: #CA3F32;
+@FIGMA_STATUS_SUCCESS: #5ABD4A;
+@FIGMA_STATUS_WARNING: #FFA940;
+
+@FIGMA_USERNAV_BACKGROUND: #F4FBFC;

@@ -29,6 +29,8 @@ public class Fragment implements Iterable<Fragment.ExchangeFragmentPair> {
   private PhysicalOperator root;
   private ExchangeFragmentPair sendingExchange;
   private final List<ExchangeFragmentPair> receivingExchangePairs = Lists.newLinkedList();
+  // these aren't fragments that this fragment directly sends to, they correspond to siblings of the bridge exchange.
+  private final List<Fragment> siblingBridgeFragments = Lists.newLinkedList();
 
   /**
    * Set the given operator as root operator of this fragment. If root operator is already set,
@@ -77,6 +79,14 @@ public class Fragment implements Iterable<Fragment.ExchangeFragmentPair> {
 
   public ExchangeFragmentPair getSendingExchangePair() {
     return sendingExchange;
+  }
+
+  public List<Fragment> getSiblingBridgeFragments() {
+    return siblingBridgeFragments;
+  }
+
+  public void addSiblingBridgeFragment(Fragment fragment) {
+    siblingBridgeFragments.add(fragment);
   }
 
 //  public <T, V> T accept(FragmentVisitor<T, V> visitor, V extra) {

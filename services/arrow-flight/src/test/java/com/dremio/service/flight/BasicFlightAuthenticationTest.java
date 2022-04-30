@@ -16,7 +16,6 @@
 package com.dremio.service.flight;
 
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -27,8 +26,6 @@ import javax.inject.Provider;
 import org.apache.arrow.flight.FlightStatusCode;
 import org.apache.commons.lang3.time.DateUtils;
 import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.service.tokens.TokenDetails;
 import com.dremio.service.tokens.TokenManager;
@@ -58,9 +55,6 @@ public abstract class BasicFlightAuthenticationTest {
       + FlightStatusCode.UNAUTHENTICATED + ", but none was thrown.");
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-
   @Before
   public void setup() throws UserLoginException {
     when(mockUserServiceProvider.get()).thenReturn(mockUserService);
@@ -72,7 +66,6 @@ public abstract class BasicFlightAuthenticationTest {
 
     when(mockTokenManagerProvider.get()).thenReturn((mockTokenManager));
     when(mockTokenManager.createToken(eq(USERNAME), eq(null))).thenReturn(TOKEN_DETAILS);
-    doReturn(MAX_NUMBER_OF_SESSIONS).when(mockDremioFlightSessionsManager).getMaxSessions();
   }
 
   public Provider<UserService> getMockUserServiceProvider() {

@@ -18,14 +18,18 @@ package com.dremio.plugins.awsglue.store;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
+import org.apache.iceberg.TableOperations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,10 +50,17 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.TableMutationOptions;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.Writer;
+import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.physical.config.TableFunctionConfig;
+import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.refresh.AbstractRefreshPlanBuilder;
@@ -58,12 +69,15 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.BlockBasedSplitGenerator;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.dfs.FormatPlugin;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
 import com.dremio.exec.store.iceberg.SupportsIcebergRootPointer;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
+import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingRecordReader;
 import com.dremio.exec.store.metadatarefresh.footerread.FooterReadTableFunction;
@@ -85,7 +99,7 @@ import com.google.protobuf.ByteString;
  * This plugin is a wrapper over Hive2 Storage plugin
  * During instantiation it creates a hive 2 plugin and delegates all calls to it
  */
-public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignature,
+public class AWSGlueStoragePlugin implements StoragePlugin, MutablePlugin, SupportsReadSignature,
   SupportsListingDatasets, SupportsPF4JStoragePlugin, SupportsInternalIcebergTable, SupportsIcebergRootPointer {
 
   private static final Logger logger = LoggerFactory.getLogger(AWSGlueStoragePlugin.class);
@@ -204,6 +218,11 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   }
 
   @Override
+  public Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplier(String path, Iterable<Map.Entry<String, String>> conf, String queryUser) {
+    return ((MutablePlugin)hiveStoragePlugin).getHadoopFsSupplier(path, conf, queryUser);
+  }
+
+  @Override
   public Configuration getFsConfCopy() {
     return ((SupportsIcebergRootPointer) hiveStoragePlugin).getFsConfCopy();
   }
@@ -231,6 +250,12 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   @Override
   public boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key, NamespaceService userNamespaceService) {
     return ((SupportsIcebergRootPointer) hiveStoragePlugin).isIcebergMetadataValid(config, key, userNamespaceService);
+  }
+
+  @Override
+  // TODO : DX-41818
+  public TableOperations createIcebergTableOperations(FileSystem fs, String queryUserName, IcebergTableIdentifier tableIdentifier) {
+    throw new UnsupportedOperationException("creating iceberg table ops not supported for AWS glue");
   }
 
   @Override
@@ -296,6 +321,79 @@ public class AWSGlueStoragePlugin implements StoragePlugin, SupportsReadSignatur
   @Override
   public boolean supportReadSignature(DatasetMetadata metadata, boolean isFileDataset) {
     return ((SupportsInternalIcebergTable) hiveStoragePlugin).supportReadSignature(metadata, isFileDataset);
+  }
+
+  @Override
+  public CreateTableEntry createNewTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig,
+                                         IcebergTableProps icebergTableProps, WriterOptions writerOptions,
+                                         Map<String, Object> storageOptions, boolean isResultsTable) {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support table creation via CTAS.");
+  }
+
+  @Override
+  public void createEmptyTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, BatchSchema batchSchema, WriterOptions writerOptions) {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support table creation.");
+  }
+
+  @Override
+  public StoragePluginId getId() {
+    return idProvider.get();
+  }
+
+  @Override
+  public void dropTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support dropping table.");
+  }
+
+  @Override
+  public void truncateTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions) {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support table truncation.");
+  }
+
+  @Override
+  public void addColumns(NamespaceKey tableSchemaPath,
+                         SchemaConfig schemaConfig,
+                         List<Field> columnsToAdd,
+                         TableMutationOptions tableMutationOptions) {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support schema update.");
+  }
+
+  @Override
+  public void dropColumn(NamespaceKey tableSchemaPath,
+                         SchemaConfig schemaConfig,
+                         String columnToDrop,
+                         TableMutationOptions tableMutationOptions) {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support schema update.");
+  }
+
+  @Override
+  public void changeColumn(NamespaceKey tableSchemaPath,
+                           SchemaConfig schemaConfig,
+                           String columnToChange,
+                           Field field,
+                           TableMutationOptions tableMutationOptions) {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support schema update.");
+  }
+
+  @Override
+  public Writer getWriter(PhysicalOperator child, String location, WriterOptions options, OpProps props)
+    throws IOException {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support table creation via CTAS.");
+  }
+
+  @Override
+  public boolean toggleSchemaLearning(NamespaceKey table, SchemaConfig schemaConfig, boolean enableSchemaLearning) {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support schema update.");
+  }
+
+  @Override
+  public boolean createOrUpdateView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig, View view) throws IOException {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support view creation via CREATE VIEW.");
+  }
+
+  @Override
+  public void dropView(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig) throws IOException {
+    throw new UnsupportedOperationException("AWS Glue plugin doesn't support view drop via DROP VIEW.");
   }
 
   @Override

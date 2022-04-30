@@ -17,9 +17,7 @@ package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.NamespaceInternalKeyDumpUtil.extractKey;
 import static com.dremio.service.namespace.NamespaceInternalKeyDumpUtil.extractRangeKey;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.charset.StandardCharsets;
@@ -142,28 +140,28 @@ public class TestNamespaceInternalStringKey {
       final NamespaceInternalKey key = newKey(inputPath);
       final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8), normalize);
       final NamespaceKey expectedPath = (normalize)? key.getPath().asLowerCase() : key.getPath();
-      assertThat(parsedKey.getPath(), is(equalTo(expectedPath)));
+      assertThat(parsedKey.getPath()).isEqualTo(expectedPath);
     }
 
     @Test
     public void testParsedKey() {
       final NamespaceInternalKey key = newKey(inputPath);
       final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8), normalize);
-      assertThat(parsedKey.getKey(), is(equalTo(key.getKey())));
+      assertThat(parsedKey.getKey()).isEqualTo(key.getKey());
     }
 
     @Test
     public void testParsedRangeStartKey() {
       final NamespaceInternalKey key = newKey(inputPath);
       final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8), normalize);
-      assertThat(parsedKey.getRangeStartKey(), is(equalTo(key.getRangeStartKey())));
+      assertThat(parsedKey.getRangeStartKey()).isEqualTo(key.getRangeStartKey());
     }
 
     @Test
     public void testParsedRangeEndKey() {
       final NamespaceInternalKey key = newKey(inputPath);
       final NamespaceInternalKey parsedKey = parseKey(key.getKey().getBytes(StandardCharsets.UTF_8), normalize);
-      assertThat(parsedKey.getRangeEndKey(), is(equalTo(key.getRangeEndKey())));
+      assertThat(parsedKey.getRangeEndKey()).isEqualTo(key.getRangeEndKey());
     }
 
     @Test
@@ -172,7 +170,7 @@ public class TestNamespaceInternalStringKey {
       final List<String> expectedPaths = Arrays.asList(paths.split("["+ NamespaceInternalKey.PATH_DELIMITER +"]"));
       final List<String> actualPaths = NamespaceInternalKey.processPathComponents(
         new NamespaceKey(PathUtils.parseFullPath(inputPath)), normalize);
-      assertThat(actualPaths, is(equalTo(expectedPaths)));
+      assertThat(actualPaths).isEqualTo(expectedPaths);
     }
   }
 }

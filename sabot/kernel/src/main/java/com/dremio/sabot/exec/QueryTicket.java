@@ -16,9 +16,13 @@
 package com.dremio.sabot.exec;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
 
@@ -30,9 +34,6 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.SchedulingGroup;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
 
 /**
  *  Manages the query level allocator and potentially the query scheduling group. Allows for reporting of query-level
@@ -50,23 +51,29 @@ import com.google.common.collect.Queues;
  *  {@link IllegalStateException}
  */
 public class QueryTicket extends TicketWithChildren {
+  public static final int MAX_EXPECTED_SIZE = 1000;
+
   private final WorkloadTicket workloadTicket;
   private final QueryId queryId;
   private final NodeEndpoint foreman;
   private final NodeEndpoint assignment;
-  private final ConcurrentMap<Integer, PhaseTicket> phaseTickets = Maps.newConcurrentMap();
-  private final Collection<NodePhaseStatus> completed = Queues.newConcurrentLinkedQueue();
+  private final ConcurrentMap<Integer, PhaseTicket> phaseTickets = new ConcurrentHashMap<>();
+  private final Collection<NodePhaseStatus> completed = new ConcurrentLinkedQueue<>();
   private final long enqueuedTime;
+  private final SchedulingGroup<AsyncTaskWrapper> queryGroup;
   private volatile NodeQueryStatus finalQueryStatus;
 
   public QueryTicket(WorkloadTicket workloadTicket, QueryId queryId, BufferAllocator allocator, NodeEndpoint foreman,
-                     NodeEndpoint assignment, long enqueuedTime) {
+                     NodeEndpoint assignment, long enqueuedTime, boolean useWeightBasedScheduling, int expectedNumTickets) {
     super(allocator);
     this.workloadTicket = workloadTicket;
     this.queryId = Preconditions.checkNotNull(queryId, "queryId cannot be null");
     this.foreman = foreman;
     this.assignment = assignment;
     this.enqueuedTime = enqueuedTime;
+    final int queryWeight = Math.min(expectedNumTickets, MAX_EXPECTED_SIZE);
+    this.queryGroup = this.workloadTicket.getSchedulingGroup()
+      .addGroup((queryWeight <= 0) ? 1 : queryWeight, useWeightBasedScheduling);
   }
 
   public QueryId getQueryId() {
@@ -91,26 +98,18 @@ public class QueryTicket extends TicketWithChildren {
    *
    * Multi-thread safe`
    */
-  public PhaseTicket getOrCreatePhaseTicket(int majorFragmentId, long maxAllocation) {
-    PhaseTicket phaseTicket = phaseTickets.get(majorFragmentId);
-    if (phaseTicket == null) {
-      final BufferAllocator phaseAllocator = getAllocator().newChildAllocator("phase-" + majorFragmentId, 0, maxAllocation);
-      phaseTicket = new PhaseTicket(this, majorFragmentId, phaseAllocator);
-      PhaseTicket insertedTicket = phaseTickets.putIfAbsent(majorFragmentId, phaseTicket);
-      if (insertedTicket == null) {
+  public PhaseTicket getOrCreatePhaseTicket(int majorFragmentId, long maxAllocation, int fragmentWeight) {
+    return phaseTickets.compute(majorFragmentId, (k, v) -> {
+      if (v == null) {
+        final BufferAllocator phaseAllocator = getAllocator().newChildAllocator("phase-" + majorFragmentId,
+          0, maxAllocation);
+        final PhaseTicket phaseTicket = new PhaseTicket(this, majorFragmentId, phaseAllocator, fragmentWeight);
         this.reserve();
+        return phaseTicket;
       } else {
-        // Race condition: another user managed to insert a phase ticket. Let's close ours and use theirs
-        Preconditions.checkState(insertedTicket != phaseTicket);
-        try {
-          AutoCloseables.close(phaseTicket);  // NB: closing the ticket will close the phaseAllocator
-        } catch (Exception e) {
-          // Ignored
-        }
-        phaseTicket = insertedTicket;
+        return v;
       }
-    }
-    return phaseTicket;
+    });
   }
 
   /**
@@ -137,17 +136,12 @@ public class QueryTicket extends TicketWithChildren {
   }
 
   /**
-   * @return all the active phase tickets for this query
+   * @return all the active phase tickets for this query in descending order of their weights.
    */
   Collection<PhaseTicket> getActivePhaseTickets() {
-    return ImmutableList.copyOf(phaseTickets.values());
-  }
-
-  /**
-   * @return true if there is at least one active phase ticket.
-   */
-  boolean hasActivePhaseTickets() {
-    return phaseTickets.size() > 0;
+    return phaseTickets.values().stream()
+      .sorted(Comparator.comparingInt(PhaseTicket::getPhaseWeight).reversed())
+      .collect(Collectors.toList());
   }
 
   /**
@@ -189,7 +183,7 @@ public class QueryTicket extends TicketWithChildren {
   }
 
   public SchedulingGroup<AsyncTaskWrapper> getSchedulingGroup() {
-    return workloadTicket.getSchedulingGroup();
+    return this.queryGroup;
   }
 
 }

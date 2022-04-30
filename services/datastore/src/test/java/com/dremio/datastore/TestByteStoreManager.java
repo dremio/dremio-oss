@@ -32,11 +32,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.DisableOnDebug;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
@@ -51,9 +49,6 @@ import com.google.common.collect.Lists;
  * Tests for {@code ByteStoreManager}
  */
 public class TestByteStoreManager {
-
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
 
   @Rule
   public final TestRule timeout = new DisableOnDebug(Timeout.seconds(60));
@@ -282,35 +277,6 @@ public class TestByteStoreManager {
       assertEquals(updates.get(2), ReplayType.DELETE);
       assertArrayEquals(entries.get(2).getKey(), one);
       assertEquals(entries.get(2).getValue(), null);
-    }
-  }
-
-  @Test
-  @Ignore // the exception is not propagated
-  public void closeNicelyOnThrow() throws Exception {
-    thrownException.expect(RuntimeException.class);
-
-    String dbPath = temporaryFolder.newFolder().getAbsolutePath();
-    try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
-      bsm.start();
-
-      final String storeName = "test-store";
-      ByteStore bs = bsm.getStore(storeName);
-      final long txn = bsm.getMetadataManager()
-          .getLatestTransactionNumber();
-
-      bs.put(getBytes("one"), getBytes("1"));
-
-      bsm.replaySince(txn, new ReplayHandler() {
-        @Override
-        public void put(String tableName, byte[] key, byte[] value) {
-          throw new RuntimeException("troll");
-        }
-
-        @Override
-        public void delete(String tableName, byte[] key) {
-        }
-      });
     }
   }
 

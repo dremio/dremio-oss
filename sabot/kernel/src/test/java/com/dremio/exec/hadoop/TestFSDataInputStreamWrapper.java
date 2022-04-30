@@ -18,11 +18,7 @@ package com.dremio.exec.hadoop;
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.exec.hadoop.FSErrorTestUtils.getDummyArguments;
 import static com.dremio.exec.hadoop.FSErrorTestUtils.newFSError;
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
 
@@ -30,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 
@@ -48,8 +45,6 @@ import org.mockito.stubbing.Answer;
 import com.dremio.io.FSInputStream;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-
-import javassist.Modifier;
 
 /**
  * Test to verify how {@code FSDataInputStream} handle {@code FSError}
@@ -110,12 +105,12 @@ public class TestFSDataInputStreamWrapper {
       method.invoke(fdisw, params);
     } catch(InvocationTargetException e) {
       if (byteBufferPositionedReadableClass == null) {
-        assertThat(e.getTargetException(), anyOf(is(instanceOf(IOException.class)), is(instanceOf(UnsupportedOperationException.class))));
+        assertThat(e.getTargetException()).isInstanceOfAny(IOException.class, UnsupportedOperationException.class);
       } else {
-        assertThat(e.getTargetException(), is(instanceOf(IOException.class)));
+        assertThat(e.getTargetException()).isInstanceOf(IOException.class);
       }
       if (e.getTargetException() instanceof IOException) {
-        assertThat((IOException) e.getTargetException(), is(sameInstance(ioException)));
+        assertThat((IOException) e.getTargetException()).isSameAs(ioException);
       }
     }
   }

@@ -22,11 +22,11 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import { FormattedMessage } from 'react-intl';
 
-import FontIcon from 'components/Icon/FontIcon';
 import { fixedWidthDefault } from 'uiTheme/radium/typography';
 import Modal from 'components/Modals/Modal';
 import ModalForm from 'components/Forms/ModalForm';
 import FormBody from 'components/Forms/FormBody';
+import Art from '@app/components/Art';
 
 import jobsUtils from 'utils/jobsUtils';
 import {haveLocKey} from 'utils/locale';
@@ -140,13 +140,13 @@ export default class Message extends PureComponent {
   renderIcon(messageType) {
     switch (messageType) {
     case 'error':
-      return <FontIcon type='ErrorSolid' style={styles.icon}/>;
+      return <Art src='CloseCircleError.svg' alt='Error' style={styles.icon} />;
     case 'warning':
-      return <FontIcon type='Warning' style={styles.icon}/>;
+      return <Art src='WarningCircleNotf.svg' alt='Warning' style={styles.icon} />;
     case 'info':
-      return <FontIcon type='InfoCircleNoninteractive' style={styles.icon}/>;
+      return <Art src='CircleInfo.svg' alt='Info' style={styles.icon} />;
     case 'success':
-      return <FontIcon type='OK' style={styles.icon}/>;
+      return <Art src='SuccessCircle.svg' alt='Success' style={styles.icon} />;
     default:
       return null;
     }
@@ -285,12 +285,13 @@ export default class Message extends PureComponent {
       validate: {
         url: (url) => {
           return Message.URLS_ALLOWED[url];
-        }
+        },
+        email: () => false
       }
     };
 
     return (
-      <div className={`message ${messageType} ${className || ''}`} style={[styles.wrap, !inFlow && styles.notInFlow, style]}>
+      <div className={`message ${messageType} ${className || ''} margin-bottom--double`} style={[styles.wrap, !inFlow && styles.notInFlow, style]}>
         <div style={[styles.base, styles[messageType]]} ref='messagePanel'>
           {this.renderIcon(messageType)}
           <span className='message-content' style={{...styles.messageText, ...messageTextStyle}} onMouseUp={this.prevent}>
@@ -298,7 +299,7 @@ export default class Message extends PureComponent {
             {details && this.renderShowMoreToggle()}
           </span>
           {this.props.isDismissable && <div style={styles.close}>
-            <FontIcon type='XSmall' onClick={this.onDismiss} style={styles.dismissBtn}/>
+            <Art src='CloseSmall.svg' alt='Dismiss' onClick={this.onDismiss} style={styles.dismissBtn} />
           </div>}
         </div>
         {this.renderShowMore(details, linkOptions)}
@@ -320,22 +321,24 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'nowrap',
-    padding: '5px',
     width: '100%',
-    borderBottom: '1px rgba(0,0,0,0.05) solid',
     borderRadius: 1,
     'MozUserSelect': 'text',
     'WebkitUserSelect': 'text',
     'UserSelect': 'text',
     position: 'relative',
+    minHeight: 32,
     zIndex: 100 // needs to be above disabled table overlay
   },
   messageText: {
     flexGrow: 1,
     maxHeight: 100,
     overflowY: 'auto',
-    padding: '5px 0', // add our own padding for scroll reasons
-    margin: '-5px 0' // ... and offset the padding on `base`
+    minHeight: 32,
+    lineHeight: '18px',
+    fontSize: '12px',
+    color: '#202124',
+    padding: '7px 0' // add our own padding for scroll reasons
   },
   stackTrace: {
     whiteSpace: 'pre',
@@ -348,11 +351,11 @@ const styles = {
     flexShrink: 0
   },
   details: {
-    padding: '10px 34px',
+    padding: '10px 38px',
     maxHeight: 200,
     width: '100%',
     overflowX: 'auto',
-    backgroundColor: '#FEEDED'
+    backgroundColor: '#FDEDED'
   },
   close: {
     justifyContent: 'center',
@@ -361,11 +364,12 @@ const styles = {
     height: 24,
     width: 24,
     padding: 5,
-    marginTop: 5
+    marginRight: 12
   },
   icon: {
-    marginRight: 5,
-    height: 24
+    marginRight: 8,
+    marginLeft: 12,
+    height: 20
   },
   msgWrap: {
     lineHeight: '24px',
@@ -374,22 +378,23 @@ const styles = {
     width: '100%'
   },
   info: {
-    'backgroundColor': '#E4F2F7'
+    'backgroundColor': '#E9F5F9'
   },
 
   success: {
-    'backgroundColor': '#EEF7E2'
+    'backgroundColor': '#EDF7ED'
   },
 
   warning: {
-    'backgroundColor': '#FFF3E8'
+    'backgroundColor': '#FFF4E5'
   },
 
   error: {
-    'backgroundColor': '#FCD9D9'
+    'backgroundColor': '#FDEDED'
   },
-
   'dismissBtn': {
+    width: '24px',
+    height: '24px',
     cursor: 'pointer'
   }
 };

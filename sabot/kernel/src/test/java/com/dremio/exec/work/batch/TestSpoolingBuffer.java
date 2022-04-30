@@ -17,7 +17,7 @@ package com.dremio.exec.work.batch;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
@@ -85,7 +85,7 @@ public class TestSpoolingBuffer extends ExecTest {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-        Runnable work = invocationOnMock.getArgumentAt(0, Runnable.class);
+        Runnable work = invocationOnMock.getArgument(0, Runnable.class);
         executorService.submit(work);
         return null;
       }
@@ -137,7 +137,7 @@ public class TestSpoolingBuffer extends ExecTest {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-        Runnable work = invocationOnMock.getArgumentAt(0, Runnable.class);
+        Runnable work = invocationOnMock.getArgument(0, Runnable.class);
         executorService.submit(work);
         return null;
       }
@@ -219,7 +219,7 @@ public class TestSpoolingBuffer extends ExecTest {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-        Runnable work = invocationOnMock.getArgumentAt(0, Runnable.class);
+        Runnable work = invocationOnMock.getArgument(0, Runnable.class);
         executorService.submit(work);
         return null;
       }

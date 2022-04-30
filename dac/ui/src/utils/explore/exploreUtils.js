@@ -22,6 +22,9 @@ import dataStoreUtils from 'utils/dataStoreUtils';
 import { copyTextToClipboard } from '@app/utils/clipboard/clipboardUtils';
 import { BOOLEAN, DATE, DATETIME, DECIMAL, FLOAT, INTEGER, LIST, MAP, TEXT, TIME } from '@app/constants/DataTypes';
 import { APIV2Call } from '@app/core/APICall';
+import { UNSAVED_DATASET_PATH } from '@app/constants/explorePage/paths';
+import { JOB_STATUS } from '@app/pages/ExplorePage/components/ExploreTable/constants';
+import { PHYSICAL_DATASET_TYPES } from '@app/constants/datasetTypes';
 
 const DROP_WIDTH = 150;
 const ARROW_WIDTH = 20;
@@ -566,6 +569,48 @@ class ExploreUtils {
       }
       return count;
     }, 0);
+  }
+
+  isSqlEditorTab(location) {
+    const locationExists = location && location.pathname;
+    return locationExists && (location.pathname.includes(UNSAVED_DATASET_PATH) || location.pathname.includes('/new_query'));
+  }
+
+  isExploreDatasetPage(location) {
+    const curLocation = location && location.pathname;
+    return curLocation.startsWith('/space') || curLocation.startsWith('/home') || curLocation.startsWith('/source');
+  }
+
+  getCancellable = jobStatus => {
+    return jobStatus === JOB_STATUS.running
+      || jobStatus === JOB_STATUS.starting
+      || jobStatus === JOB_STATUS.enqueued
+      || jobStatus === JOB_STATUS.pending
+      || jobStatus === JOB_STATUS.metadataRetrieval
+      || jobStatus === JOB_STATUS.planning
+      || jobStatus === JOB_STATUS.engineStart
+      || jobStatus === JOB_STATUS.queued
+      || jobStatus === JOB_STATUS.executionPlanning;
+  };
+
+  getIfInEntityHistory(history, historyItem, datasetUI, version) {
+    if (!history || !historyItem || !datasetUI || !version) {
+      return [false, true];
+    }
+
+    let isInVersionHistory = false;
+    let hasPhysicalDatasetOrigin = false;
+
+    const versions = historyItem.toJS();
+    isInVersionHistory = versions[version] && Object.keys(versions).length > 1;
+    const historyList = history.getIn([version, 'items']);
+    if (!historyList) {
+      return [false, true];
+    }
+    const originalDatasetHistory = datasetUI.get(historyList.get(historyList.size - 1));
+    hasPhysicalDatasetOrigin = originalDatasetHistory && PHYSICAL_DATASET_TYPES.has(originalDatasetHistory.get('datasetType'));
+
+    return [isInVersionHistory && !hasPhysicalDatasetOrigin, isInVersionHistory && hasPhysicalDatasetOrigin];
   }
 }
 

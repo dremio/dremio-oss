@@ -29,6 +29,7 @@ import static java.util.Arrays.asList;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -109,6 +110,7 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.job.proto.ParentDatasetInfo;
+import com.dremio.service.jobs.JobsVersionContext;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
@@ -146,7 +148,9 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
 
   @Override
   public TransformResult visit(TransformUpdateSQL updateSQL) throws Exception {
-    final SqlQuery query = new SqlQuery(updateSQL.getSql(), updateSQL.getSqlContextList(), username, updateSQL.getEngineName());
+    Map<String, JobsVersionContext> sourceVersionMapping = TransformerUtils.createSourceVersionMapping(updateSQL.getReferencesList());
+    final SqlQuery query = new SqlQuery(updateSQL.getSql(), updateSQL.getSqlContextList(), username, updateSQL.getEngineName(),
+      updateSQL.getSessionId(), sourceVersionMapping);
     m.setSql(getMetadata(query));
     return m.result();
   }

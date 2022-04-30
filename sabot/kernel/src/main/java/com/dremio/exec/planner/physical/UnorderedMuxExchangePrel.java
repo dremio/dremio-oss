@@ -22,6 +22,7 @@ import java.util.List;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -39,13 +40,22 @@ public class UnorderedMuxExchangePrel extends ExchangePrel {
   public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.sender.mux.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.sender.mux.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  public UnorderedMuxExchangePrel(RelOptCluster cluster, RelTraitSet traits, RelNode child) {
+  private final int fragmentsPerNode;
+
+  public UnorderedMuxExchangePrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, int fragmentPerNode) {
     super(cluster, traits, child);
+    this.fragmentsPerNode = fragmentPerNode;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new UnorderedMuxExchangePrel(getCluster(), traitSet, sole(inputs));
+    return new UnorderedMuxExchangePrel(getCluster(), traitSet, sole(inputs), fragmentsPerNode);
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter rw) {
+    return super.explainTerms(rw)
+      .itemIf("fragmentsPerNode", fragmentsPerNode, fragmentsPerNode > 1);
   }
 
   @Override
@@ -65,7 +75,8 @@ public class UnorderedMuxExchangePrel extends ExchangePrel {
         receiverProps,
         props.getSchema(),
         childPOP,
-        creator.getOptionManager());
+        creator.getOptionManager(),
+        fragmentsPerNode);
   }
 
   @Override

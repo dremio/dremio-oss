@@ -44,12 +44,12 @@
                         {
                           "propName": "config.accessKey",
                           "size": "half",
-                          "errMsg": "Both access secret and key are required for accessing Amazon Elasticsearch Service."
+                          "errMsg": "Both access secret and key are required for accessing Amazon OpenSearch Service."
                         },
                         {
                           "propName": "config.accessSecret",
                           "size": "half",
-                          "errMsg": "Both access secret and key are required for accessing Amazon Elasticsearch Service.",
+                          "errMsg": "Both access secret and key are required for accessing Amazon OpenSearch Service.",
                           "secure": true
                         }
                       ]
@@ -89,7 +89,7 @@
         "name": "Advanced Options",
         "sections": [
           {
-            "name": "Elasticsearch",
+            "name": "OpenSearch",
             "elements": [
               {
                 "propName": "config.showHiddenIndices"
@@ -136,7 +136,7 @@
               },
               {
                 "propName": "config.scrollSize",
-                "tooltip": "Configure scroll size for Elasticsearch requests Dremio makes. This setting must be less than or equal to your Elasticsearch's setting for index.max_result_window setting (typically defaults to 10,000).",
+                "tooltip": "Configure scroll size for OpenSearch requests Dremio makes. This setting must be less than or equal to your OpenSearch's setting for index.max_result_window setting (typically defaults to 10,000).",
                 "size": "half"
               }
             ]

@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
+@import '~@app/uiTheme/less/color-schema.less';
 
- .dragged-item-mixin() {
+.dragged-item-mixin() {
   background-color: @ACTIVE_DRAG_AREA;
   border: 1px solid @ACTIVE_DRAG_AREA_BORDER;
- }
+}
 
- .disabled-dragged-item-mixin() {
+.disabled-dragged-item-mixin() {
   background-color: @DISABLED_DRAG_AREA;
   border: 1px solid @DISABLED_DRAG_AREA_BORDER;
- }
+}
 
 .formLabel() {
   font-weight: 500;
@@ -81,7 +81,6 @@
   padding-right: @cell-padding / 2;
 }
 
-
 .row-vertical-padding-mixin(@cell-padding) {
   margin-top: -@cell-padding / 2;
   margin-bottom: -@cell-padding / 2;
@@ -114,4 +113,9 @@
 .flex-row-container() {
   display: flex;
   flex-direction: row;
+}
+
+.flex-center() {
+  display: flex;
+  align-items: center;
 }

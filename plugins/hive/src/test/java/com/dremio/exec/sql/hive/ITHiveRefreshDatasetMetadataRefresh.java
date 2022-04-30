@@ -19,11 +19,8 @@ import static com.dremio.exec.store.hive.exec.HiveDatasetOptions.HIVE_PARQUET_EN
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
-import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -41,6 +38,7 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.types.Types;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -171,7 +169,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     runSQL(sql);
 
     // Check that no iceberg table created
-    assertTrue(isDirEmpty(Paths.get(finalIcebergMetadataLocation)));
+    assertThat(isDirEmpty(Paths.get(finalIcebergMetadataLocation))).isTrue();
   }
 
   @Test
@@ -206,12 +204,10 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
       dataGenerator.executeDDL("CREATE TABLE IF NOT EXISTS " + tableName + "(col1 INT, col2 STRING) STORED AS PARQUET");
       runSQL(String.format(REFRESH_DATASET, HIVE + tableName));
 
-      try {
-        runSQL(setTableOptionQuery("hive.\"default\"." + tableName,
-          HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
-      } catch (UserRemoteException e) {
-        assertTrue(e.getMessage().contains("ALTER unsupported on table 'hive.\"default\".refresh_v2_test_table_option_" + formatType + "'"));
-      }
+      assertThatThrownBy(() -> runSQL(setTableOptionQuery("hive.\"default\"." + tableName,
+        HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true")))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining("ALTER unsupported on table 'hive.\"default\".refresh_v2_test_table_option_" + formatType + "'");
     }
     finally {
       dataGenerator.executeDDL("DROP TABLE IF EXISTS " + tableName);
@@ -232,12 +228,8 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
       runSQL(String.format(FORGET, HIVE + tableName));
     }
 
-    try {
-      runSQL(sql);
-      fail("Query should fail because maxLeafColumns are exceeded");
-    } catch (Exception e) {
-      assertTrue(e.getMessage().contains("Number of fields in dataset exceeded the maximum number of fields of 800"));
-    }
+    assertThatThrownBy(() -> runSQL(sql))
+      .hasMessageContaining("Number of fields in dataset exceeded the maximum number of fields of 800");
   }
 
   @Test
@@ -254,11 +246,12 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     try {
       // no exec on dir
       fs.setPermission(tableDir, new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE));
-      test("SELECT * from " + HIVE + tableName);
-      fail("query is expected to fail");
-    } catch(UserRemoteException e) {
-      assertEquals(UserBitShared.DremioPBError.ErrorType.PERMISSION, e.getErrorType());
-      assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset"));
+      assertThatThrownBy(() -> test("SELECT * from " + HIVE + tableName))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining("PERMISSION ERROR: Access denied reading dataset")
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .isEqualTo(UserBitShared.DremioPBError.ErrorType.PERMISSION);
     }
     finally {
       fs.setPermission(tableDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
@@ -279,11 +272,12 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
     try {
       // no exec on dir
       fs.setPermission(partitionDir, new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE));
-      test("SELECT * from " + HIVE + tableName);
-      fail("query is expected to fail");
-    } catch(UserRemoteException e) {
-      assertEquals(UserBitShared.DremioPBError.ErrorType.PERMISSION, e.getErrorType());
-      assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset"));
+      assertThatThrownBy(() -> test("SELECT * from " + HIVE + tableName))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining("PERMISSION ERROR: Access denied reading dataset")
+        .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+        .extracting(UserRemoteException::getErrorType)
+        .isEqualTo(UserBitShared.DremioPBError.ErrorType.PERMISSION);
     }
     finally {
       fs.setPermission(partitionDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
@@ -300,7 +294,7 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
 
     // deleting a partition directory
     final Path partitionDir = new Path(dataGenerator.getWhDir() + "/" + tableName.toLowerCase(Locale.ROOT) + "/year=2020/month=Jan");
-    assertTrue("Error deleting dir " + partitionDir, fs.delete(partitionDir, true));
+    assertThat(fs.delete(partitionDir, true)).isTrue();
 
     final String sql = String.format(REFRESH_DATASET, HIVE + tableName);
     // this will do a full refresh
@@ -324,9 +318,9 @@ public class ITHiveRefreshDatasetMetadataRefresh extends LazyDataGeneratingHiveT
   static void verifyIcebergExecution(String query, String icebergMetadataLocation) throws Exception {
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
     // Check and make sure that IcebergManifestList is present in the plan
-    assertTrue("Unexpected plan\n" + plan, plan.contains("IcebergManifestList"));
+    assertThat(plan).contains("IcebergManifestList");
     if (icebergMetadataLocation != null && !icebergMetadataLocation.isEmpty()) {
-      assertTrue("Iceberg metadata location not added", plan.contains("metadataFileLocation=[file://" + icebergMetadataLocation));
+      assertThat(plan).contains("metadataFileLocation=[file://" + icebergMetadataLocation);
     }
   }
 

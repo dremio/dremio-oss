@@ -23,15 +23,11 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.UnionRel;
-import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class UnionAllPrule extends Prule {
@@ -55,69 +51,17 @@ public class UnionAllPrule extends Prule {
     final UnionRel union = (UnionRel) call.rel(0);
     final List<RelNode> inputs = union.getInputs();
     List<RelNode> convertedInputList = Lists.newArrayList();
-    PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
-    boolean allHashDistributed = true;
 
-    for (int i = 0; i < inputs.size(); i++) {
-      RelNode child = inputs.get(i);
-      List<DistributionField> childDistFields = Lists.newArrayList();
-      RelNode convertedChild;
-
-      for (RelDataTypeField f : child.getRowType().getFieldList()) {
-        childDistFields.add(new DistributionField(f.getIndex()));
-      }
-
-      if (settings.isUnionAllDistributeEnabled()) {
-        final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(call.getPlanner());
-        final RelTraitSet traitsChild;
-        if (plannerSettings.getOptions().getOption(PlannerSettings.ENABLE_UNIONALL_ROUND_ROBIN)) {
-          traitsChild = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.ROUND_ROBIN);
-        } else {
-        /*
-         * Strictly speaking, union-all does not need re-distribution of data; but in Dremio's execution
-         * model, the data distribution and parallelism operators are the same. Here, we insert a
-         * hash distribution operator to allow parallelism to be determined independently for the parent
-         * and children. (See DRILL-4833).
-         * Note that a round robin distribution would have sufficed but we don't have one.
-         */
-          DistributionTrait hashChild = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.copyOf(childDistFields));
-          traitsChild = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(hashChild);
-        }
-        convertedChild = convert(child, PrelUtil.fixTraits(call, traitsChild));
-      } else {
-        RelTraitSet traitsChild = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL);
-        convertedChild = convert(child, PrelUtil.fixTraits(call, traitsChild));
-        allHashDistributed = false;
-      }
-      convertedInputList.add(convertedChild);
+    for (RelNode input : inputs) {
+      RelTraitSet traitsChild = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL);
+      convertedInputList.add(convert(input, PrelUtil.fixTraits(call, traitsChild)));
     }
 
+    RelTraitSet traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.ANY);
     try {
-
-      RelTraitSet traits;
-      if (allHashDistributed) {
-        // since all children of union-all are hash distributed, propagate the traits of the left child
-        traits = convertedInputList.get(0).getTraitSet();
-      } else {
-        // output distribution trait is set to ANY since union-all inputs may be distributed in different ways
-        // and unlike a join there are no join keys that allow determining how the output would be distributed.
-        // Note that a downstream operator may impose a required distribution which would be satisfied by
-        // inserting an Exchange after the Union-All.
-        traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.ANY);
-      }
-
-      Preconditions.checkArgument(convertedInputList.size() >= 2, "Union list must be at least two items.");
-      RelNode left = convertedInputList.get(0);
-      for (int i = 1; i < convertedInputList.size(); i++) {
-        left = new UnionAllPrel(union.getCluster(), traits, ImmutableList.of(left, convertedInputList.get(i)),
-            false /* compatibility already checked during logical phase */);
-
-      }
-      call.transformTo(left);
-
+    call.transformTo(new UnionAllPrel(union.getCluster(), traits, convertedInputList, false /* compatibility already checked during logical phase */));
     } catch (InvalidRelException e) {
       tracer.warn(e.toString());
     }
   }
-
 }

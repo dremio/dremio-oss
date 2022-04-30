@@ -168,14 +168,14 @@ public class BroadcastOperator extends BaseSender {
           ArrowBuf newBuf = buf.getReferenceManager().transferOwnership(buf, context.getAllocator())
             .getTransferredBuffer();
           newBuf.writerIndex(writerIndex);
-          buf.release();
+          buf.close();
           return newBuf;
         }
       }).toList();
 
     if (tunnels.length > 1) {
       for (ArrowBuf buf : buffers) {
-        buf.retain(tunnels.length - 1);
+        buf.getReferenceManager().retain(tunnels.length - 1);
       }
     }
 
@@ -190,7 +190,7 @@ public class BroadcastOperator extends BaseSender {
       updateStats(batch);
       tunnels[i].sendRecordBatch(batch);
       for (ArrowBuf buf : buffers) {
-        buf.release();
+        buf.close();
       }
     }
   }

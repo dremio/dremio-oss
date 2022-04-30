@@ -53,6 +53,7 @@ public class AzureDataLakeStoragePlugin extends FileSystemPlugin<AzureDataLakeCo
 
     // configure hadoop fs implementation
     properties.add(new Property("fs.dremioAdl.impl", DremioAdlFileSystem.class.getName()));
+    properties.add(new Property("fs.dremioAdl.impl.disable.cache", "true"));
     properties.add(new Property("fs.AbstractFileSystem.dremioAdl.impl", DremioAdl.class.getName()));
 
     // configure azure properties.

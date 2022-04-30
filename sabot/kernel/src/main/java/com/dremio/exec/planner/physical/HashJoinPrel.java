@@ -16,7 +16,10 @@
 package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
@@ -38,7 +41,11 @@ import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.HashJoinPOP;
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
+import com.dremio.exec.planner.physical.explain.PrelSequencer;
+import com.dremio.exec.planner.physical.filter.RuntimeFilterId;
 import com.dremio.exec.planner.physical.filter.RuntimeFilterInfo;
+import com.dremio.exec.planner.physical.filter.RuntimeFilteredRel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.SchemaBuilder;
@@ -49,6 +56,7 @@ import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
+import com.google.common.collect.ImmutableList;
 
 @Options
 public class HashJoinPrel extends JoinPrel {
@@ -61,26 +69,29 @@ public class HashJoinPrel extends JoinPrel {
 
   private final boolean swapped;
   private final RexNode extraCondition;
-  private RuntimeFilterInfo runtimeFilterInfo;
+  private RuntimeFilterId runtimeFilterId;
 
-  private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                       RexNode extraCondition, JoinRelType joinType, boolean swapped,
-                       RuntimeFilterInfo runtimeFilterInfo) {
+
+  private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right,
+      RexNode condition, RexNode extraCondition, JoinRelType joinType, boolean swapped,
+      RuntimeFilterId runtimeFilterId) {
     super(cluster, traits, left, right, condition, joinType);
     this.swapped = swapped;
     this.extraCondition = extraCondition;
-    this.runtimeFilterInfo = runtimeFilterInfo;
+    this.runtimeFilterId = runtimeFilterId;
   }
 
   public static HashJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
                                     RexNode extraCondition, JoinRelType joinType) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, extraCondition, joinType, false, null);
+    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, extraCondition,
+      joinType, false, null);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, this.extraCondition, joinType, this.swapped, this.runtimeFilterInfo);
+    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr,
+      this.extraCondition, joinType, this.swapped, this.runtimeFilterId);
   }
 
   @Override
@@ -95,11 +106,6 @@ public class HashJoinPrel extends JoinPrel {
   }
 
   @Override
-  public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return getHashJoinPop(creator);
-  }
-
-  @Override
   public SelectionVectorMode[] getSupportedEncodings() {
     return SelectionVectorMode.DEFAULT;
   }
@@ -109,7 +115,8 @@ public class HashJoinPrel extends JoinPrel {
     return SelectionVectorMode.NONE;
   }
 
-  private PhysicalOperator getHashJoinPop(PhysicalPlanCreator creator) throws IOException {
+  @Override
+  public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     final List<String> fields = getRowType().getFieldNames();
     assert isUnique(fields);
 
@@ -168,8 +175,49 @@ public class HashJoinPrel extends JoinPrel {
       extraJoinCondition,
       joinType,
       vectorize,
-      runtimeFilterInfo
+      buildRuntimeFilterInfo(creator)
     );
+  }
+
+  private RuntimeFilterInfo buildRuntimeFilterInfo(PhysicalPlanCreator creator) {
+    if(null == runtimeFilterId) {
+      return null;
+    }
+    Deque<RelNode> relNodes = new ArrayDeque<>(getInputs());
+    ImmutableList.Builder<RuntimeFilterProbeTarget> runtimeFilterProbeTargets =
+      ImmutableList.builder();
+    while (!relNodes.isEmpty()) {
+      RelNode relNode = relNodes.poll();
+      if (relNode instanceof HashJoinPrel) {
+        HashJoinPrel that = (HashJoinPrel) relNode;
+        if (Objects.equals(that.runtimeFilterId, this.runtimeFilterId)) {
+          continue;
+        }
+      } else if(relNode instanceof RuntimeFilteredRel) {
+        List<RuntimeFilteredRel.Info> infoList =
+          ((RuntimeFilteredRel) relNode).getRuntimeFilters();
+        if (!infoList.isEmpty()){
+          PrelSequencer.OpId id = creator.getOpId((Prel) relNode);
+          RuntimeFilterProbeTarget.Builder target = new RuntimeFilterProbeTarget.Builder(
+            id.getFragmentId(), id.getAsSingleInt());
+          for (RuntimeFilteredRel.Info info : infoList) {
+            if(info.getColumnType() == RuntimeFilteredRel.ColumnType.PARTITION) {
+              target.addPartitionKey(info.getFilteringColumnName(),
+                info.getFilteredColumnName());
+            } else if(info.getColumnType() == RuntimeFilteredRel.ColumnType.RANDOM) {
+              target.addNonPartitionKey(info.getFilteringColumnName(),
+                info.getFilteredColumnName());
+            }
+          }
+          runtimeFilterProbeTargets.add(target.build());
+        }
+      }
+      relNodes.addAll(relNode.getInputs());
+    }
+    return new RuntimeFilterInfo.Builder()
+      .isBroadcastJoin(runtimeFilterId.isBroadcastJoin())
+      .setRuntimeFilterProbeTargets(runtimeFilterProbeTargets.build())
+      .build();
   }
 
   private boolean canVectorize(FunctionLookupContext functionLookup, PhysicalOperator leftPop, PhysicalOperator rightPop, List<JoinCondition> conditions){
@@ -198,7 +246,7 @@ public class HashJoinPrel extends JoinPrel {
     return super.explainTerms(pw)
       .itemIf("extraCondition", extraCondition, extraCondition != null)
       .itemIf("swapped", swapped, swapped)
-      .itemIf("runtimeFilter", runtimeFilterInfo, runtimeFilterInfo != null);
+      .itemIf("runtimeFilterId", runtimeFilterId, runtimeFilterId != null);
   }
 
   private boolean isJoinable(CompleteType ct){
@@ -221,23 +269,23 @@ public class HashJoinPrel extends JoinPrel {
   }
 
   public HashJoinPrel swap() {
-    return new HashJoinPrel(getCluster(), traitSet, left, right, condition, extraCondition, joinType, !swapped, runtimeFilterInfo);
+    return new HashJoinPrel(getCluster(), traitSet, left, right, condition, extraCondition, joinType, !swapped, runtimeFilterId);
   }
 
   public boolean isSwapped() {
     return this.swapped;
   }
 
-  public RuntimeFilterInfo getRuntimeFilterInfo() {
-    return runtimeFilterInfo;
-  }
-
-  public void setRuntimeFilterInfo(RuntimeFilterInfo runtimeFilterInfo) {
-    this.runtimeFilterInfo = runtimeFilterInfo;
-  }
-
   @Override
   public RexNode getExtraCondition() {
     return extraCondition;
+  }
+
+  public RuntimeFilterId getRuntimeFilterId() {
+    return runtimeFilterId;
+  }
+
+  public void setRuntimeFilterId(RuntimeFilterId runtimeFilterId) {
+    this.runtimeFilterId = runtimeFilterId;
   }
 }

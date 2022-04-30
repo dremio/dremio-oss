@@ -65,6 +65,8 @@ public interface NamespaceService {
      * @throws IllegalArgumentException if {@code userName} is invalid
      */
     NamespaceService get(String userName);
+
+    NamespaceService get(NamespaceIdentity identity);
   }
 
   //// Create
@@ -167,12 +169,30 @@ public interface NamespaceService {
   void deleteSource(NamespaceKey sourcePath, String version) throws NamespaceException;
 
   /**
-   * Delete all of a sources children but leave the source intact.
+   * Callback for dataset deletion
+   */
+  @FunctionalInterface
+  interface DeleteCallback {
+
+    void onDatasetDelete(DatasetConfig datasetConfig);
+
+  }
+  /**
+   * Delete all of a sources children but leave the source intact and takes callback as parameter.
    * @param sourcePath
    * @param version
    * @throws NamespaceException
    */
-  void deleteSourceChildren(final NamespaceKey sourcePath, String version) throws NamespaceException;
+  void deleteSourceWithCallBack(NamespaceKey sourcePath, String version, DeleteCallback callback) throws NamespaceException;
+
+  /**
+   * Delete all of a sources children but leave the source intact.
+   * @param sourcePath
+   * @param version
+   * @param callback
+   * @throws NamespaceException
+   */
+  void deleteSourceChildren(final NamespaceKey sourcePath, String version, DeleteCallback callback) throws NamespaceException;
 
   void deleteSpace(NamespaceKey spacePath, String version) throws NamespaceException;
 

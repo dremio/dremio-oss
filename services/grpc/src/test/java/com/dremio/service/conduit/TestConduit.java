@@ -15,6 +15,8 @@
  */
 package com.dremio.service.conduit;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.net.InetAddress;
 import java.util.Optional;
 import java.util.Set;
@@ -25,7 +27,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.DirectProvider;
@@ -49,9 +50,6 @@ public class TestConduit {
 
   @Rule
   public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
-
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
 
   private ConduitServer conduitServer1;
   private NodeEndpoint endpoint1;
@@ -130,9 +128,6 @@ public class TestConduit {
 
   @Test
   public void unimplemented() {
-    thrownException.expect(StatusRuntimeException.class);
-    thrownException.expectMessage("Method not found");
-
     final ManagedChannel channel = getConduitProvider().getOrCreateChannel(getEndpoint2());
     grpcCleanupRule.register(channel);
 
@@ -140,6 +135,8 @@ public class TestConduit {
       ConduitTestServiceGrpc.newBlockingStub(channel);
 
     //noinspection ResultOfMethodCallIgnored
-    stub.increment(IncrementRequest.newBuilder().setI(1).build());
+    assertThatThrownBy(() -> stub.increment(IncrementRequest.newBuilder().setI(1).build()))
+      .isInstanceOf(StatusRuntimeException.class)
+      .hasMessageContaining("Method not found");
   }
 }

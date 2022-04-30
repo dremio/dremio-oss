@@ -21,6 +21,7 @@ import java.util.List;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -37,24 +38,24 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 @JsonDeserialize(using = HiveProxyingOrcScanFilterDeserializer.class)
 public class HiveProxyingOrcScanFilter implements ScanFilter {
 
-  static final String JSON_PROP_PLUGINNAME = "pluginName";
+  static final String JSON_PROP_PLUGINID = "pluginId";
   static final String JSON_PROP_WRAPPEDHIVEORCSCANFILTER = "wrappedHiveOrcScanFilter";
   static final String FILTER_COLUMNS = "filterColumns";
 
   private final HiveProxiedOrcScanFilter proxiedOrcScanFilter;
-  private final String pluginName;
+  private final StoragePluginId pluginId;
 
   @JsonCreator
   public HiveProxyingOrcScanFilter(
-    @JsonProperty(JSON_PROP_PLUGINNAME) String pluginName,
+    @JsonProperty(JSON_PROP_PLUGINID) StoragePluginId pluginId,
     @JsonProperty(JSON_PROP_WRAPPEDHIVEORCSCANFILTER) HiveProxiedOrcScanFilter proxiedOrcScanFilter) {
-    this.pluginName = pluginName;
+    this.pluginId = pluginId;
     this.proxiedOrcScanFilter = proxiedOrcScanFilter;
   }
 
-  @JsonProperty(JSON_PROP_PLUGINNAME)
-  public String getPluginName() {
-    return pluginName;
+  @JsonProperty(JSON_PROP_PLUGINID)
+  public StoragePluginId getPluginId() {
+    return pluginId;
   }
 
   @JsonProperty(JSON_PROP_WRAPPEDHIVEORCSCANFILTER)

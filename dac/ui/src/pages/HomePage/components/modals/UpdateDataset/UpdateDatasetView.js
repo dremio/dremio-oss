@@ -182,7 +182,7 @@ export class UpdateDatasetView extends Component {
     return buttons.map((button, index) => {
       const onClick = button.key === 'cancel' ? hide : handleSubmit(submit.bind(this, button.key));
       return <Button
-        style={{marginLeft: 5}}
+        style={{marginLeft: 5, marginBottom: 0}}
         className={button.className}
         onClick={onClick}
         text={button.name}

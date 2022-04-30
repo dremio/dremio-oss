@@ -77,6 +77,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionStatsMetadataReader;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.exceptions.NotFoundException;
+import org.apache.iceberg.hadoop.Util;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
@@ -89,6 +90,7 @@ import com.dremio.common.expression.Describer;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -99,6 +101,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitIdentity;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemConf;
+import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
@@ -118,7 +121,9 @@ public class IcebergUtils {
    */
   public static Map<String, Integer> getIcebergColumnNameToIDMap(Schema schema) {
     Map<String, Integer> schemaNameIDMap = TypeUtil.visit(Types.StructType.of(schema.columns()), new DremioIndexByName());
-    return CaseInsensitiveMap.newImmutableMap(schemaNameIDMap);
+    CaseInsensitiveMap<Integer> nameToIDMap = CaseInsensitiveMap.newHashMap();
+    nameToIDMap.putAll(schemaNameIDMap); // if two fields have the same name, ignore one of them
+    return CaseInsensitiveMap.newImmutableMap(nameToIDMap);
   }
 
   public static Object getValueFromByteBuffer(ByteBuffer byteBuffer, Type fieldType) {
@@ -295,12 +300,12 @@ public class IcebergUtils {
       return Optional.empty();
     }
 
-  public static String getPartitionStatsFile(String rootPointer, long snapshotId, Configuration conf) {
+  public static String getPartitionStatsFile(String rootPointer, long snapshotId, Configuration conf, MutablePlugin plugin) {
     String partitionStatsMetadata = PartitionStatsMetadataReader.toFilename(snapshotId);
     Map<Integer, String> partitionStatsFileBySpecId;
     try {
       String fullPath = resolvePath(rootPointer, partitionStatsMetadata);
-      partitionStatsFileBySpecId = PartitionStatsMetadataReader.read(new DremioFileIO(conf), fullPath);
+      partitionStatsFileBySpecId = PartitionStatsMetadataReader.read(new DremioFileIO(conf, plugin), fullPath);
     } catch (NotFoundException | UncheckedIOException exception) {
       logger.debug("Partition stats metadata file: {} not found", partitionStatsMetadata);
       return null;
@@ -543,4 +548,28 @@ public class IcebergUtils {
     }
     return scanRequiredColumns;
   }
+
+  static org.apache.hadoop.fs.FileSystem getHadoopFs(com.dremio.io.file.Path filePath, FileSystem fs, Configuration conf) {
+    String path;
+    if ((fs == null)
+      || (fs != null && !fs.supportsPathsWithScheme())) {
+      path = com.dremio.io.file.Path.getContainerSpecificRelativePath(filePath);
+      filePath = com.dremio.io.file.Path.of(path);
+    }
+    path = filePath.toString();
+    return Util.getFs(new org.apache.hadoop.fs.Path(path), conf);
+  }
+
+  public static boolean isTransformedOrPartitionSpecEvolved(Map<Integer, PartitionSpec> partitionSpecMap) {
+      if(partitionSpecMap.size() > 1) {
+        return true;
+      } else {
+        return checkNonIdentityTransform(partitionSpecMap.get(0));
+      }
+  }
+
+  public static boolean checkNonIdentityTransform(PartitionSpec partitionSpec) {
+    return partitionSpec.fields().stream().anyMatch(partitionField -> !partitionField.transform().isIdentity());
+  }
+
 }

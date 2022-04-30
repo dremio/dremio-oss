@@ -320,7 +320,7 @@ public class PlanTestBase extends BaseTestQuery {
   /**
    * This method will take a SQL string statement, get the LOGICAL plan in Calcite
    * RelNode format. Then check the physical plan against the list expected
-   * substrs. Verify all the expected strings are contained in the physical plan
+   * substrs. Verify all the expected strings are contained in the logical plan
    * string.
    */
   public static void testRelLogicalPlanLevExplain(String sql, String... expectedSubstrs) throws Exception {
@@ -331,6 +331,16 @@ public class PlanTestBase extends BaseTestQuery {
     }
   }
 
+  /**
+   * This method will take a SQL string statement, get the LOGICAL plan in Calcite
+   * RelNode format. Then check the physical plan against the list expected
+   * substrs. Verify all the expected strings are contained in the logical plan
+   * string.
+   */
+  public static void testRelLogicalPlanLevAllMatchingPattern(String sql,  String[] expectedSubstrs, String[] excludedSubstrs) throws Exception {
+    final String planStr = getRelPlanInString(sql, SqlExplainLevel.ALL_ATTRIBUTES, Depth.LOGICAL);
+    testMatchingPatterns(planStr, expectedSubstrs, excludedSubstrs);
+  }
   /*
    * This will get the plan (either logical or physical) in Calcite RelNode
    * format, based on SqlExplainLevel and Depth.

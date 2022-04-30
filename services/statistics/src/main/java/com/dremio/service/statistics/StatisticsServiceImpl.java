@@ -43,12 +43,14 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.statistics.StatisticsListManager;
 import com.dremio.exec.store.sys.statistics.StatisticsService;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.QueryType;
@@ -224,7 +226,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   public Long getNDV(String column, NamespaceKey key) {
-    validateDataset(key);
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
@@ -236,7 +237,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   public Long getRowCount(NamespaceKey key) {
-    validateDataset(key);
     return getRowCount(key.toString());
   }
 
@@ -252,7 +252,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 
   @Override
   public Long getNullCount(String column, NamespaceKey key) {
-    validateDataset(key);
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     Statistic rowCountStatistic = statisticStore.get(createRowCountStatisticId(key));
@@ -271,7 +270,6 @@ public class StatisticsServiceImpl implements StatisticsService {
   public Histogram getHistogram(String column, TableMetadata tableMetaData) {
     SqlTypeName sqlTypeName = getSqlTypeNameFromColumn(column, tableMetaData.getSchema());
     String normalizedColumn = column.toLowerCase();
-    validateDataset(tableMetaData.getName());
     StatisticId statisticId = createStatisticId(column, tableMetaData.getName().toString());
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
@@ -284,7 +282,6 @@ public class StatisticsServiceImpl implements StatisticsService {
   @Override
   @VisibleForTesting
   public Histogram getHistogram(String column,  NamespaceKey key,SqlTypeName sqlTypeName){
-    validateDataset(key);
     StatisticId statisticId = createStatisticId(column, key);
     Statistic statistic = statisticStore.get(statisticId);
     if (statistic == null) {
@@ -336,7 +333,14 @@ public class StatisticsServiceImpl implements StatisticsService {
     return stringBuilder.toString();
   }
 
+  private OptionManager getOptionManager(){
+    return sabotContext.get().getOptionManager();
+  }
+
   private void populateNdvSql(StringBuilder stringBuilder, List<Field> fields) {
+    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_NDV_STAT)){
+      return;
+    }
     for (Field field : fields) {
       String column = field.getName();
       stringBuilder.append(", ");
@@ -345,11 +349,17 @@ public class StatisticsServiceImpl implements StatisticsService {
   }
 
   private void populateCountStarSql(StringBuilder stringBuilder) {
+    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_ROWCOUNT_STAT)){
+      return;
+    }
     stringBuilder.append(", ");
     stringBuilder.append(String.format("count(*) as \"%s\" ", getColumnName(Statistic.StatisticType.RCOUNT, ROW_COUNT_IDENTIFIER)));
   }
 
   private void populateCountColumnSql(StringBuilder stringBuilder, List<Field> fields) {
+    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_COUNT_COL_STAT)){
+      return;
+    }
     for (Field field : fields) {
       String column = field.getName();
       stringBuilder.append(", ");
@@ -358,6 +368,9 @@ public class StatisticsServiceImpl implements StatisticsService {
   }
 
   private void populateTDigestSql(StringBuilder stringBuilder, List<Field> fields) {
+    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_TDIGEST_STAT)){
+      return;
+    }
     for (Field field : fields) {
       String column = field.getName();
       if (!isSupportedTypeForTDigest(field.getFieldType())) {
@@ -370,6 +383,9 @@ public class StatisticsServiceImpl implements StatisticsService {
   }
 
   private void populateItemsSketchSql(StringBuilder stringBuilder, List<Field> fields) {
+    if(!getOptionManager().getOption(PlannerSettings.COMPUTE_ITEMSSKETCH_STAT)){
+      return;
+    }
     for (Field field : fields) {
       String column = field.getName();
       if (!isSupportedTypeForItemsSketch(field.getFieldType())) {

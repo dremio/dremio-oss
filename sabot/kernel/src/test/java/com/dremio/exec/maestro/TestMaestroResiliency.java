@@ -28,9 +28,11 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.testing.Controls;
@@ -56,6 +58,7 @@ public class TestMaestroResiliency extends BaseTestQuery {
   private static final int QUEUE_LIMIT = 2;
   private static final int NUM_NODES = 3;
   private static String query;
+  private static AutoCloseable disableUnlimitedSplits;
 
   @BeforeClass
   public static void setUp() throws Exception {
@@ -63,14 +66,15 @@ public class TestMaestroResiliency extends BaseTestQuery {
     setSessionOption(BasicResourceConstants.SMALL_QUEUE_SIZE.getOptionName(),
       Integer.toString(QUEUE_LIMIT));
     setSessionOption("planner.slice_target", "10");
-
+    disableUnlimitedSplits = disableUnlimitedSplitsSupportFlags();
     query = getFile("queries/tpch/01.sql");
   }
 
   @AfterClass
-  public static void tearDown() {
+  public static void tearDown() throws Exception {
     resetSessionOption("planner.slice_target");
     resetSessionOption(BasicResourceConstants.SMALL_QUEUE_SIZE.getOptionName());
+    AutoCloseables.close(disableUnlimitedSplits);
   }
 
   // Test with 1 more than the queue limit. If the semaphore isn't released correctly,
@@ -240,6 +244,13 @@ public class TestMaestroResiliency extends BaseTestQuery {
   }
 
   @Test
+  public void testFragmentStarterTimeout() throws Exception {
+    setSystemOption(ExecConstants.FRAGMENT_STARTER_TIMEOUT,"50000");
+    pauseAndResume(FragmentStarter.class,FragmentStarter.INJECTOR_AFTER_ON_COMPLETED_PAUSE,40000);
+  }
+
+
+  @Test
   public void testFailureAfterActivateFragments() throws Exception {
     final String controls = Controls.newBuilder()
       .addException(FragmentStarter.class,
@@ -309,6 +320,31 @@ public class TestMaestroResiliency extends BaseTestQuery {
     assertEquals(UserBitShared.QueryResult.QueryState.CANCELED, queryState);
 
     waitTillQueryCleanup();
+  }
+
+  void pauseAndResume(Class clazz, String descriptor, int delayInMilliSeconds) throws Exception {
+    final String controls = Controls.newBuilder()
+      .addPause(clazz, descriptor)
+      .build();
+
+    ControlsInjectionUtil.setControls(client, controls);
+    QueryIdCapturingListener capturingListener = new QueryIdCapturingListener();
+    final AwaitableUserResultsListener listener = new AwaitableUserResultsListener(capturingListener);
+    testWithListener(UserBitShared.QueryType.SQL, query, listener);
+
+    // wait till we have a queryId
+    UserBitShared.QueryId queryId;
+    while ((queryId = capturingListener.getQueryId()) == null) {
+      Thread.sleep(10);
+    }
+    // wait for the pause to be hit
+    Thread.sleep(delayInMilliSeconds);
+
+    // resume now.
+    client.resumeQuery(queryId);
+
+    listener.await();
+
   }
 
   @Test

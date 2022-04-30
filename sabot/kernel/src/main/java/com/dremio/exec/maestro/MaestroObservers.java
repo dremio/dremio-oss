@@ -123,6 +123,13 @@ public class MaestroObservers implements MaestroObserver {
     }
   }
 
+  @Override
+  public void recordsOutput(long recordCount) {
+    for (final MaestroObserver observer : chain) {
+      observer.recordsOutput(recordCount);
+    }
+  }
+
 
   @Override
   public void fragmentsStarted(long millisTaken, UserBitShared.FragmentRpcSizeStats stats) {

@@ -42,11 +42,13 @@ import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeList;
 import org.apache.arrow.vector.types.pojo.ArrowType.FloatingPoint;
 import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
+import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
 import com.dremio.exec.vector.complex.fn.FieldSelection;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -64,6 +66,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.flatbuffers.FlatBufferBuilder;
 
 import io.protostuff.ByteString;
@@ -80,7 +83,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   // Dummy schema used when we cannot sample (no data from source) and there is no data from the source.
   // This can happen if the table is defined but data is not yet present in sources like Mongo/Elasticsearch.
   public static final String SCHEMA_UNKNOWN_NO_DATA_COLNAME = "NO_DATA";
-  public static final BatchSchema SCHEMA_UNKNOWN_NO_DATA = BatchSchema.newBuilder().addField(new Field(SCHEMA_UNKNOWN_NO_DATA_COLNAME, true, new ArrowType.Utf8(), null)).build();
+  public static final BatchSchema SCHEMA_UNKNOWN_NO_DATA = BatchSchema.newBuilder().addField(new Field(SCHEMA_UNKNOWN_NO_DATA_COLNAME, new FieldType(true, new ArrowType.Utf8(), null ), null)).build();
   public static final BatchSchema EMPTY = new BatchSchema(Collections.EMPTY_LIST);
   public static final UnknownSchema UNKNOWN_SCHEMA_OBJECT = new UnknownSchema();
 
@@ -238,11 +241,11 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
         if (field.getType().getTypeID() == ArrowTypeID.List) {
           Field innerField = field.getChildren().get(0);
           List<Field> childFields = maskFields(innerField.getChildren(), selection.getChild(field.getName()));
-          Field newInnerField = new Field(innerField.getName(), innerField.isNullable(), innerField.getType(), childFields);
-          fieldsListBuilder.add(new Field(field.getName(), field.isNullable(), field.getType(), Collections.singletonList(newInnerField)));
+          Field newInnerField = new Field(innerField.getName(), new FieldType(innerField.isNullable(), innerField.getType(), null), childFields);
+          fieldsListBuilder.add(new Field(field.getName(),  new FieldType(field.isNullable(), field.getType(), null), Collections.singletonList(newInnerField)));
         } else {
           List<Field> childFields = maskFields(field.getChildren(), selection.getChild(field.getName()));
-          fieldsListBuilder.add(new Field(field.getName(), field.isNullable(), field.getType(), childFields));
+          fieldsListBuilder.add(new Field(field.getName(),  new FieldType(field.isNullable(), field.getType(), null), childFields));
         }
       }
     }
@@ -709,6 +712,66 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     List<Field> fileFields = ImmutableList.copyOf(fileSchema);
     return new BatchSchema(SelectionVectorMode.NONE, mergeWithUpPromotion(fileFields));
   }
+  //newFields.mergeWithRetainOld(oldFields)
+  //Should add only those fields to newFields which are not in the newFields
+  public BatchSchema mergeWithRetainOld(BatchSchema toMerge){
+    Map<String,Field> alreadyExisting = new LinkedHashMap<>();
+    for (Field field : getFields()) {
+      String dottedName = field.getName().toLowerCase();
+      Field temp = field;
+      while(!temp.getChildren().isEmpty()) {
+        dottedName = dottedName.concat("." + temp.getChildren().get(0).getName().toLowerCase());
+        temp = temp.getChildren().get(0);
+      }
+      alreadyExisting.put(dottedName, field);
+    }
+
+    Map<String,Field> newFields = new LinkedHashMap<>();
+    for (Field field : toMerge.getFields()) {
+      String dottedName = field.getName().toLowerCase();
+      Field temp = field;
+      while(!temp.getChildren().isEmpty()) {
+        dottedName = dottedName.concat("." + temp.getChildren().get(0).getName().toLowerCase());
+        temp = temp.getChildren().get(0);
+      }
+      newFields.put(dottedName, field);
+    }
+
+    List<Field> addedFields = Maps.difference(newFields, alreadyExisting).entriesOnlyOnLeft().values().stream().collect(Collectors.toList());
+    addedFields.addAll(getFields());
+    return new BatchSchema(addedFields);
+  }
+
+  public BatchSchema difference(BatchSchema schema) {
+    Map<String,Field> alreadyExisting = new LinkedHashMap<>();
+    for (Field field : getFields()) {
+      String dottedName = field.getName().toLowerCase();
+      Field temp = field;
+      while(!temp.getChildren().isEmpty()) {
+        dottedName = dottedName.concat("." + temp.getChildren().get(0).getName().toLowerCase());
+        temp = temp.getChildren().get(0);
+      }
+      alreadyExisting.put(dottedName, field);
+    }
+
+    if(alreadyExisting.isEmpty()) {
+      return BatchSchema.EMPTY;
+    }
+
+    Map<String,Field> newFields = new LinkedHashMap<>();
+    for (Field field : schema.getFields()) {
+      String dottedName = field.getName().toLowerCase();
+      Field temp = field;
+      while(!temp.getChildren().isEmpty()) {
+        dottedName = dottedName.concat("." + temp.getChildren().get(0).getName().toLowerCase());
+        temp = temp.getChildren().get(0);
+      }
+      newFields.put(dottedName, field);
+    }
+
+    List<Field> addedFields = Maps.difference(alreadyExisting, newFields).entriesOnlyOnLeft().values().stream().collect(Collectors.toList());
+    return new BatchSchema(addedFields);
+  }
 
   private List<Field> mergeWithUpPromotion(List<Field> fileFields) {
       return CompleteType.mergeFieldListsWithUpPromotionOrCoercion(ImmutableList.copyOf(this), fileFields);
@@ -755,6 +818,33 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
       .findFirst();
   }
 
+  public BatchSchema applyUserDefinedSchemaAfterSchemaLearning(BatchSchema newSchema,
+                                                               List<Field> droppedColumns,
+                                                               List<Field> updatedColumns,
+                                                               boolean isSchemaLearningDisabledByUser,
+                                                               boolean isUserDefinedSchemaEnabled,
+                                                               String filePath,
+                                                               List<String> tableSchemaPath) {
+    if (isUserDefinedSchemaEnabled && isSchemaLearningDisabledByUser) {
+      return this;
+    }
+    BatchSchema finalSchema;
+    try {
+      finalSchema = this.mergeWithUpPromotion(newSchema);
+      for (Field field : droppedColumns) {
+        finalSchema = finalSchema.dropField(field);
+      }
+      for (Field field : updatedColumns) {
+        finalSchema = finalSchema.changeTypeRecursive(field);
+      }
+    } catch (NoSupportedUpPromotionOrCoercionException e) {
+      e.addFilePath(filePath);
+      e.addDatasetPath(tableSchemaPath);
+      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
+    }
+    return finalSchema.removeNullFields();
+  }
+
   /**
    * returns Optional<BatchSchema> with subset of fields in the order they appear in fieldNames if fieldNames is not empty
    * returns Optional.empty() if fieldNames is empty
@@ -781,7 +871,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
 
     if (!missingColumns.isEmpty()) {
       throw UserException.validationError()
-          .message("Specified column(s) %s not found in schema.", missingColumns).buildSilently();
+        .message("Specified column(s) %s not found in schema.", missingColumns).buildSilently();
     }
     return Optional.of(schemaBuilder.build());
   }
@@ -793,6 +883,48 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
       newSchema = newSchema.dropField(path);
     }
     return newSchema;
+  }
+
+  public BatchSchema addColumns(List<Field> columnsToAdd) {
+    //drop the field here and return the dropped field
+    Map<String,Field> originalFieldMap = new LinkedHashMap<>();
+    for (Field field : getFields()) {
+      originalFieldMap.put(field.getName().toLowerCase(), field);
+    }
+
+    BatchSchema newSchema = new BatchSchema(getFields());
+    for(Field fieldToAdd : columnsToAdd) {
+      addFieldToSchema(originalFieldMap, fieldToAdd);
+    }
+    return new BatchSchema(originalFieldMap.values().stream().collect(Collectors.toList()));
+  }
+
+  public BatchSchema addColumn(Field newField) {
+    Map<String,Field> originalFieldMap = new LinkedHashMap<>();
+    for (Field field : getFields()) {
+      originalFieldMap.put(field.getName().toLowerCase(), field);
+    }
+    addFieldToSchema(originalFieldMap, newField);
+    return new BatchSchema(originalFieldMap.values().stream().collect(Collectors.toList()));
+  }
+
+  private void addFieldToSchema(Map<String,Field> originalFieldMap, Field newField) {
+    List<String> fieldPaths = new ArrayList<>();
+    Field tempField = newField;
+    fieldPaths.add(tempField.getName().toLowerCase());
+    while(!tempField.getChildren().isEmpty()) {
+      fieldPaths.add(tempField.getChildren().get(0).getName().toLowerCase());
+      tempField = tempField.getChildren().get(0);
+    }
+    Field field = originalFieldMap.get(newField.getName().toLowerCase());
+
+    if(!newField.getType().isComplex() || !originalFieldMap.containsKey(fieldPaths.get(0))) {
+      originalFieldMap.put(fieldPaths.get(0), newField);
+    } else {
+      //if complex check for existence first
+      Field newType = new Field(field.getName(), field.getFieldType(), addComplexTypes(field.getChildren(), fieldPaths, 1, newField.getChildren().get(0)));
+      originalFieldMap.replace(fieldPaths.get(0), newType);
+    }
   }
 
   private BatchSchema dropField(List<String> path) {
@@ -819,13 +951,52 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return new BatchSchema(originalFieldMap.values().stream().collect(Collectors.toList()));
   }
 
-  public BatchSchema changeType(Field newType) {
-    Map<String,Field> originalFieldMap = new LinkedHashMap<>();
+  public BatchSchema changeTypeRecursive(Field newType) {
+    return changeType(newType, true);
+  }
+
+  public BatchSchema changeTypeTopLevel(Field newType) {
+    return changeType(newType, false);
+  }
+
+  public BatchSchema changeType(Field newType, boolean isRecursive) {
+    LinkedHashMap<String,Field> originalFieldMap = new LinkedHashMap<>();
     for (Field field : getFields()) {
       originalFieldMap.put(field.getName().toLowerCase(), field);
     }
-    originalFieldMap.replace(newType.getName().toLowerCase(), newType);
+
+    if(!isRecursive) {
+      originalFieldMap.replace(newType.getName().toLowerCase(), newType);
+    } else {
+      changeTypeOfField(originalFieldMap, newType);
+    }
+
     return new BatchSchema(originalFieldMap.values().stream().collect(Collectors.toList()));
+  }
+
+  private void changeTypeOfField(Map<String,Field> originalFieldMap, Field newField) {
+    if(!newField.getType().isComplex()) {
+      originalFieldMap.replace(newField.getName().toLowerCase(), newField);
+      return;
+    }
+
+    Field field = originalFieldMap.get(newField.getName().toLowerCase());
+    Map<String,Field> childFieldMap = new LinkedHashMap<>();
+
+    if(field == null) {
+      return;
+    }
+
+    for (Field child: field.getChildren()){
+      childFieldMap.put(child.getName().toLowerCase(), child);
+    }
+
+    for (Field newChild: newField.getChildren()) {
+      changeTypeOfField(childFieldMap, newChild);
+    }
+
+    Field newFinalType = new Field(field.getName(), newField.getFieldType(), childFieldMap.values().stream().collect(Collectors.toList()));
+    originalFieldMap.replace(field.getName().toLowerCase(), newFinalType);
   }
 
   public BatchSchema dropField(Field field) {
@@ -876,4 +1047,24 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return newFieldList;
   }
 
+  private List<Field> addComplexTypes(List<Field> fields, List<String> nameSegments, int index, Field finalType) {
+    String name = nameSegments.get(index);
+    List<Field> newFieldList = new ArrayList<>(fields);
+    if(index == nameSegments.size() - 1) {
+      //last segment.
+      newFieldList.add(finalType);
+      return newFieldList;
+    }
+
+    for(int i = 0; i < fields.size(); i++) {
+      if(fields.get(i).getName().equalsIgnoreCase(name)) {
+        // the field to be manipulated
+        Field originalField = fields.get(i);
+        Field newField = new Field(originalField.getName(), originalField.getFieldType(),
+          addComplexTypes(originalField.getChildren(), nameSegments, ++index, finalType.getChildren().get(0)));
+        newFieldList.set(i, newField);
+      }
+    }
+    return newFieldList;
+  }
 }

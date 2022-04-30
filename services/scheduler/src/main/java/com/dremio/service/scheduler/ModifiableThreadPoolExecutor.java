@@ -17,6 +17,8 @@ package com.dremio.service.scheduler;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
+import javax.inject.Provider;
+
 import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
@@ -30,22 +32,18 @@ import com.dremio.options.TypeValidators.PositiveLongValidator;
 public class ModifiableThreadPoolExecutor implements OptionChangeListener {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ModifiableThreadPoolExecutor.class);
   private int currentPoolSize;
-  private OptionManager optionManager;
+  private Provider<OptionManager> optionManager;
   private PositiveLongValidator option;
   private ThreadPoolExecutor threadPoolExecutor;
 
-  public ModifiableThreadPoolExecutor(ThreadPoolExecutor threadPoolExecutor, PositiveLongValidator option, OptionManager optionManager) {
+  public ModifiableThreadPoolExecutor(ThreadPoolExecutor threadPoolExecutor, PositiveLongValidator option, Provider<OptionManager> optionManager) {
     this.threadPoolExecutor = threadPoolExecutor;
     this.option = option ;
     this.optionManager = optionManager;
-    currentPoolSize = (int) optionManager.getOption(option);
-    threadPoolExecutor.setCorePoolSize(currentPoolSize);
-    threadPoolExecutor.setMaximumPoolSize(currentPoolSize);
-    optionManager.addOptionChangeListener(this);
   }
 
   public synchronized void onChange() {
-    int newPoolSize = (int) optionManager.getOption(option);
+    int newPoolSize = (int) optionManager.get().getOption(option);
     if (currentPoolSize == newPoolSize) {
       return;
     }
@@ -62,4 +60,10 @@ public class ModifiableThreadPoolExecutor implements OptionChangeListener {
     currentPoolSize = newPoolSize;
   }
 
+  // for setting initial pool size
+  void setInitialPoolSize(int poolSize) {
+    currentPoolSize = poolSize;
+    threadPoolExecutor.setCorePoolSize(poolSize);
+    threadPoolExecutor.setMaximumPoolSize(poolSize);
+  }
 }

@@ -288,6 +288,16 @@ public class DremioSqlOperatorTable extends ReflectiveSqlOperatorTable {
       OperandTypes.ANY,
       SqlFunctionCategory.USER_DEFINED_FUNCTION);
 
+  public static final SqlFunction BITWISE_AND =
+    new SqlFunction(
+      "BITWISE_AND",
+      SqlKind.OTHER_FUNCTION,
+      ReturnTypes.ARG1,
+      null,
+      OperandTypes.NUMERIC_INTEGER,
+      SqlFunctionCategory.NUMERIC
+    );
+
   private DremioSqlOperatorTable() {
   }
   /**

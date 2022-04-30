@@ -17,9 +17,7 @@ import { shallow } from 'enzyme';
 import sinon from 'sinon';
 import Immutable from 'immutable';
 
-import SqlToggle from 'pages/ExplorePage/components/SqlEditor/SqlToggle';
 import SqlAutoComplete from 'pages/ExplorePage/components/SqlEditor/SqlAutoComplete';
-import SimpleButton from 'components/Buttons/SimpleButton';
 
 import { SqlEditorController } from './SqlEditorController';
 
@@ -53,7 +51,8 @@ describe('SqlEditorController', () => {
       toggleSqlError: sinon.spy(),
       queryContext: Immutable.List(),
       getDatasetChangeDetails: () => ({}),
-      location
+      location,
+      activeScript: {}
     };
     context = {
       router : {
@@ -85,23 +84,22 @@ describe('SqlEditorController', () => {
 
     describe('#receiveProps', () => {
       beforeEach(() => {
-        instance.refs = {
-          editor: {
+        instance.sqlEditorControllerRef =
+          {
             resetValue: sinon.spy(),
             focus: sinon.spy()
-          }
-        };
+          };
       });
       it('should call editor.resetValue if currentSql changes to null', () => {
 
         instance.receiveProps({...commonProps, currentSql: 'some sql'}, {});
-        expect(instance.refs.editor.resetValue).to.not.be.called;
+        expect(instance.sqlEditorControllerRef.resetValue).to.not.be.called;
 
         instance.receiveProps({...commonProps, currentSql: 'some sql'}, {...commonProps, currentSql: 'different sql'});
-        expect(instance.refs.editor.resetValue).to.not.be.called;
+        expect(instance.sqlEditorControllerRef.resetValue).to.not.be.called;
 
         instance.receiveProps({...commonProps, currentSql: null}, {...commonProps, currentSql: 'some sql'});
-        expect(instance.refs.editor.resetValue).to.be.called;
+        expect(instance.sqlEditorControllerRef.resetValue).to.be.called;
       });
 
       it('should call setQueryContext if old props are empty', () => {
@@ -120,43 +118,42 @@ describe('SqlEditorController', () => {
 
     describe('#componentDidUpdate()', () => {
       beforeEach(() => {
-        instance.refs = {
-          editor: {
+        instance.sqlEditorControllerRef =
+          {
             focus: sinon.spy(),
             resetValue: sinon.spy()
-          }
-        };
+          };
       });
 
       it('should focus editor when sql unchanged and dataset changed to isNewQuery', () => {
         instance.componentDidUpdate(commonProps);
-        expect(instance.refs.editor.focus).to.not.be.called;
+        expect(instance.sqlEditorControllerRef.focus).to.not.be.called;
 
         wrapper.setProps({dataset: commonProps.dataset.set('isNewQuery', true), currentSql: 'foo'});
         instance.componentDidUpdate(commonProps);
-        expect(instance.refs.editor.focus).to.not.be.called;
+        expect(instance.sqlEditorControllerRef.focus).to.not.be.called;
 
         wrapper.setProps({currentSql: null});
         instance.componentDidUpdate(commonProps);
-        expect(instance.refs.editor.focus).to.be.called;
+        expect(instance.sqlEditorControllerRef.focus).to.be.called;
       });
 
       it('should focus editor when sql unchanged, isNewQuery and exploreViewState changed', () => {
         instance.componentDidUpdate(commonProps);
-        expect(instance.refs.editor.focus).to.not.be.called;
+        expect(instance.sqlEditorControllerRef.focus).to.not.be.called;
         const newQueryDataset = commonProps.dataset.set('isNewQuery', true);
 
         wrapper.setProps({dataset: newQueryDataset, currentSql: 'foo'});
         instance.componentDidUpdate({...commonProps,
           dataset: newQueryDataset,
           exploreViewState: Immutable.Map({isFailed: true})});
-        expect(instance.refs.editor.focus).to.not.be.called;
+        expect(instance.sqlEditorControllerRef.focus).to.not.be.called;
 
         wrapper.setProps({currentSql: null});
         instance.componentDidUpdate({...commonProps,
           dataset: newQueryDataset,
           exploreViewState: Immutable.Map({isFailed: true})});
-        expect(instance.refs.editor.focus).to.be.called;
+        expect(instance.sqlEditorControllerRef.focus).to.be.called;
       });
     });
 
@@ -191,40 +188,6 @@ describe('SqlEditorController', () => {
         instance.toggleFunctionsHelpPanel();
         expect(instance.state.datasetsPanel).to.be.false;
         expect(instance.state.funcHelpPanel).to.be.true;
-      });
-    });
-
-    describe('SqlToggle', () => {
-      it('should show SqlToggle when sql expanded or collapsed', () => {
-        expect(wrapper.find(SqlToggle)).to.have.length(1);
-      });
-      it('should not hide SqlToggle when dataset panel is expanded and funcHelpPanel is collapsed', () => {
-        wrapper.setState({datasetsPanel: true});
-        expect(wrapper.find(SqlToggle)).to.have.length(1);
-      });
-      it('should not hide SqlToggle when funcHelpPanel is expanded and dataset panel is collapsed', () => {
-        wrapper.setState({funcHelpPanel: true});
-        expect(wrapper.find(SqlToggle)).to.have.length(1);
-      });
-    });
-
-    describe('renderEditOriginalButton', () => {
-      it('should hide edit button when sql is collapsed or dataset is not original', () => {
-        expect(wrapper.find('.sql-control').childAt(0).find(SimpleButton)).to.have.length(1);
-        wrapper.setProps({sqlState: false});
-        expect(wrapper.find('.sql-control').childAt(0).find(SimpleButton)).to.have.length(0);
-        wrapper.setProps({sqlState: true});
-        expect(wrapper.find('.sql-control').childAt(0).find(SimpleButton)).to.have.length(1);
-        wrapper.setProps({ dataset: commonProps.dataset.merge({canReapply: false})});
-        expect(wrapper.find('.sql-control').childAt(0).find(SimpleButton)).to.have.length(0);
-      });
-    });
-
-    describe('renderSqlBlocks', () => {
-      it('should hide sql blocks when sql is collapsed', () => {
-        expect(wrapper.find('.sql-btn')).to.have.length(1);
-        wrapper.setProps({sqlState: false});
-        expect(wrapper.find('.sql-btn')).to.have.length(0);
       });
     });
   });

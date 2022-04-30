@@ -15,9 +15,7 @@
  */
  package com.dremio.jdbc.test;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -44,30 +42,24 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   @Ignore
   public void testEmptyJsonFileDoesntSuppressNetSchema1() throws Exception {
     Statement stmt = getConnection().createStatement();
-    ResultSet results = stmt.executeQuery( "SELECT a, b, c, * FROM cp.\"empty.json\"" );
+    ResultSet results = stmt.executeQuery("SELECT a, b, c, * FROM cp.\"empty.json\"");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
-    assertThat( "ResultSetMetaData.getColumnCount() should have been > 0",
-                metadata.getColumnCount(), not( equalTo( 0 ) ) );
-
-    assertThat( "Unexpected non-empty results.  Test rot?",
-                false, equalTo( results.next() ) );
+    assertThat(metadata.getColumnCount()).isGreaterThan(0);
+    assertThat(results.next()).isFalse();
   }
 
   @Test
   @Ignore
   public void testEmptyJsonFileDoesntSuppressNetSchema2() throws Exception {
     Statement stmt = getConnection().createStatement();
-    ResultSet results = stmt.executeQuery( "SELECT a FROM cp.\"empty.json\"" );
+    ResultSet results = stmt.executeQuery("SELECT a FROM cp.\"empty.json\"");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
-    assertThat( "ResultSetMetaData.getColumnCount() should have been 1",
-                metadata.getColumnCount(), equalTo( 1 ) );
-
-    assertThat( "Unexpected non-empty results.  Test rot?",
-                false, equalTo( results.next() ) );
+    assertThat(metadata.getColumnCount()).isEqualTo(1);
+    assertThat(results.next()).isFalse();
   }
 
   /**
@@ -80,16 +72,13 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsBy_TABLE_SCHEMA_works() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-        stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""
-                           + " WHERE TABLE_SCHEMA = ''" );
+      stmt.executeQuery("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""
+        + " WHERE TABLE_SCHEMA = ''");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
-    assertThat( "ResultSetMetaData.getColumnCount() should have been > 0",
-                metadata.getColumnCount(), not( equalTo( 0 ) ) );
-
-    assertThat( "Unexpected non-empty results.  Test rot?",
-                false, equalTo( results.next() ) );
+    assertThat(metadata.getColumnCount()).isGreaterThan(0);
+    assertThat(results.next()).isFalse();
   }
 
   /** (Worked before (because TABLE_CATALOG test not pushed down).) */
@@ -97,34 +86,27 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsBy_TABLE_CATALOG_works() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-        stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""
-                           + " WHERE TABLE_CATALOG = ''" );
+      stmt.executeQuery("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""
+        + " WHERE TABLE_CATALOG = ''");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
-    assertThat( "ResultSetMetaData.getColumnCount() should have been > 0",
-                metadata.getColumnCount(), not( equalTo( 0 ) ) );
-
-    assertThat( "Unexpected non-empty results.  Test rot?",
-                false, equalTo( results.next() ) );
+    assertThat(metadata.getColumnCount()).isGreaterThan(0);
+    assertThat(results.next()).isFalse();
   }
 
   /** (Failed before (because TABLE_NAME test is pushed down).) */
   @Test
-  public void testInfoSchemaTablesZeroRowsBy_TABLE_NAME_works()
-      throws Exception {
+  public void testInfoSchemaTablesZeroRowsBy_TABLE_NAME_works() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-        stmt.executeQuery(
-            "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME = ''" );
+      stmt.executeQuery(
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME = ''");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
-    assertThat( "ResultSetMetaData.getColumnCount() should have been > 0",
-                metadata.getColumnCount(), not( equalTo( 0 ) ) );
-
-    assertThat( "Unexpected non-empty results.  Test rot?",
-                false, equalTo( results.next() ) );
+    assertThat(metadata.getColumnCount()).isGreaterThan(0);
+    assertThat(results.next()).isFalse();
   }
 
   /** (Worked before.) */
@@ -132,16 +114,13 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsByLimitWorks() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-        stmt.executeQuery(
-            "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" LIMIT 0" );
+      stmt.executeQuery(
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" LIMIT 0");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
-    assertThat( "ResultSetMetaData.getColumnCount() should have been > 0",
-                metadata.getColumnCount(), not( equalTo( 0 ) ) );
-
-    assertThat( "Unexpected non-empty results.  Test rot?",
-                false, equalTo( results.next() ) );
+    assertThat(metadata.getColumnCount()).isGreaterThan(0);
+    assertThat(results.next()).isFalse();
   }
 
   /** (Worked before.) */
@@ -149,16 +128,13 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testInfoSchemaTablesZeroRowsByWhereFalseWorks() throws Exception {
     Statement stmt = getConnection().createStatement();
     ResultSet results =
-        stmt.executeQuery(
-            "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE FALSE" );
+      stmt.executeQuery(
+        "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE FALSE");
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
-    assertThat( "ResultSetMetaData.getColumnCount() should have been > 0",
-                metadata.getColumnCount(), not( equalTo( 0 ) ) );
-
-    assertThat( "Unexpected non-empty results.  Test rot?",
-                false, equalTo( results.next() ) );
+    assertThat(metadata.getColumnCount()).isGreaterThan(0);
+    assertThat(results.next()).isFalse();
   }
 
   /** (Failed before (because table schema and name tests are pushed down).) */
@@ -166,16 +142,12 @@ public class Drill2288GetColumnsMetadataWhenNoRowsTest extends JdbcWithServerTes
   public void testGetTablesZeroRowsByTableSchemaOrNameWorks() throws Exception {
     DatabaseMetaData dbMetadata = getConnection().getMetaData();
 
-    ResultSet results = dbMetadata.getTables( "NoSuchCatalog", "NoSuchSchema",
-                                              "NoSuchTable", new String[0] );
+    ResultSet results = dbMetadata.getTables("NoSuchCatalog", "NoSuchSchema",
+      "NoSuchTable", new String[0]);
 
     // Result set should still have columns even though there are no rows:
     ResultSetMetaData metadata = results.getMetaData();
-    assertThat( "ResultSetMetaData.getColumnCount() should have been > 0",
-                metadata.getColumnCount(), not( equalTo( 0 ) ) );
-    assertThat( "Unexpected non-empty results.  Test rot?",
-                false, equalTo( results.next() ) );
+    assertThat(metadata.getColumnCount()).isGreaterThan(0);
+    assertThat(results.next()).isFalse();
   }
-
-
 }

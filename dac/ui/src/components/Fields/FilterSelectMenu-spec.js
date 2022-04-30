@@ -139,7 +139,7 @@ describe('FilterSelectMenu', () => {
   describe('renderSelectedLabel', () => {
     it('should render values in label', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-      expect(getSelectViewContent(wrapper).find('.filter-select-label').props().text).to.eql('item3, item2');
+      expect(getSelectViewContent(wrapper).find('.filter-select-label').props().text).to.eql('item3 +1');
     });
 
     it('should render All if none selected', () => {

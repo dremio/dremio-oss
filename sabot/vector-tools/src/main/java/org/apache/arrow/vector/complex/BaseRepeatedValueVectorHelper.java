@@ -86,7 +86,7 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
 
     vector.offsetBuffer = buffer.slice(0, actualLength);
     vector.offsetBuffer.writerIndex(actualLength);
-    vector.offsetBuffer.retain(1);
+    vector.offsetBuffer.getReferenceManager().retain(1);
   }
 
   /*
@@ -129,7 +129,7 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
     ArrowBuf newBuf = allocator.buffer(size);
     newBuf.setZero(0, newBuf.capacity());
     newBuf.setBytes(0, vector.offsetBuffer, 0, currentBufferCapacity);
-    vector.offsetBuffer.release(1);
+    vector.offsetBuffer.getReferenceManager().release(1);
     vector.offsetBuffer = newBuf;
     vector.offsetAllocationSizeInBytes = size;
   }

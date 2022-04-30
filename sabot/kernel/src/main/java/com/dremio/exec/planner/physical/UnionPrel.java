@@ -36,7 +36,7 @@ public abstract class UnionPrel extends UnionRelBase implements Prel {
 
   @Override
   public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
-    return logicalVisitor.visitPrel(this, value);
+    return logicalVisitor.visitUnion(this, value);
   }
 
   @Override

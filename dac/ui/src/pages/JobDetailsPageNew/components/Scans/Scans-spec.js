@@ -32,17 +32,17 @@ describe('Scans', () => {
 
   it('renders child correctly', () => {
     const scansForFilter = [
-      { label: 'Source Type:', content: 'Managed Reflection(Parque)' },
-      { label: 'Scan Thread:', content: '115' },
-      { label: 'Scan Time:', content: '00:00:01.50' },
-      { label: 'IO Wait Time:', content: '00:00:00.75' },
-      { label: 'Rows Scanned:', content: '143K' },
-      { label: 'Files Scanned:', content: '796' },
-      { label: 'Splits Scanned:', content: '3753' },
-      { label: 'Pruning Ratio:', content: '65%' },
-      { label: 'Runtime Filtering:', content: 'No' },
-      { label: 'Locality Percentage:', content: 'N/A' },
-      { label: 'Filter Pushdown:', content: 'Managed Reflection(Parque)' }
+      { label: 'Scans.SourceType', content: 'Managed Reflection(Parque)' },
+      { label: 'Scans.ScanThread', content: '115' },
+      { label: 'Scans.ScanTime', content: '00:00:01.50' },
+      { label: 'Scans.IoWaitTime', content: '00:00:00.75' },
+      { label: 'Scans.RowScanned', content: '143K' },
+      { label: 'Scans.FilesScanned', content: '796' },
+      { label: 'Scans.SplitsScanned', content: '3753' },
+      { label: 'Scans.PruningRatio', content: '65%' },
+      { label: 'Scans.RuntimeFiltering', content: 'No' },
+      { label: 'Scans.LocalityPercentage', content: 'N/A' },
+      { label: 'Scans.FilterPushdown', content: 'Managed Reflection(Parque)' }
     ];
     const scans = Immutable.fromJS([
       {

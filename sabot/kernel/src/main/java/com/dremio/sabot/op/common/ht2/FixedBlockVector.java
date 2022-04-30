@@ -59,17 +59,16 @@ public class FixedBlockVector implements AutoCloseable {
   }
 
   public void allocateNoClear(int count){
-    buf.release();
+    buf.close();
     buf = allocator.buffer(count * blockWidth);
     resetPositions();
   }
 
-  public void ensureAvailableBlocks(int count){
-    if (!allowExpansion) {
-      throw new RuntimeException("This buffer has fixed capacity. Not allowed to expand");
-    }
-
-    if(count > capacity){
+  public void ensureAvailableBlocks(int count) {
+    if (count > capacity) {
+      if (!allowExpansion) {
+        throw new RuntimeException("This buffer has fixed capacity. Not allowed to expand");
+      }
       resizeBuffer(count);
     }
   }
@@ -91,7 +90,7 @@ public class FixedBlockVector implements AutoCloseable {
     PlatformDependent.copyMemory(oldBuf.memoryAddress(), buf.memoryAddress(), oldCapacity * blockWidth);
 
     buf.writerIndex(oldBuf.writerIndex());
-    oldBuf.release();
+    oldBuf.close();
     this.capacity = newCapacity;
   }
 
@@ -124,7 +123,7 @@ public class FixedBlockVector implements AutoCloseable {
   @Override
   public synchronized void close() {
     if(buf != null){
-      buf.release();
+      buf.close();
       buf = null;
     }
   }

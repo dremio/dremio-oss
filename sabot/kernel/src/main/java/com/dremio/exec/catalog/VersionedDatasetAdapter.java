@@ -15,10 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
-import static com.dremio.options.OptionValue.OptionType.SYSTEM;
-import static com.dremio.service.nessie.NessieConfig.NESSIE_DEFAULT_BRANCH;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,9 +30,9 @@ import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
-import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -44,15 +41,13 @@ import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.VersionedDatasetAccessOptions;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValue;
 import com.dremio.service.namespace.MetadataProtoUtils;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.PartitionChunkMetadataImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.proto.IcebergFileConfig;
@@ -62,29 +57,29 @@ import com.google.common.collect.FluentIterable;
 
 import io.protostuff.ByteString;
 
-
 /**
  * Translates the Iceberg format dataset metadata into internal dremio defined classes
  * using the Filesystem(iceberg format) storage plugin interface. To get a specific version
  * of the tables, metadata, it passes in VersionedDatasetAccessOptions to be passed to Nessie
  * so the right version can be looked up.
  */
-public class VersionedDatasetAdapter {
+public final class VersionedDatasetAdapter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VersionedDatasetAdapter.class);
 
-  private String versionedTableKey;
-  private Optional<VersionContext> versionContext;
-  private final ManagedStoragePlugin fsStoragePlugin;
+  private final String versionedTableKey;
+  private final VersionContext versionContext;
+  private final StoragePlugin storagePlugin;
+  private final StoragePluginId storagePluginId;
   private final OptionManager optionManager;
-  private DatasetHandle datasetHandle;
+  private final DatasetHandle datasetHandle;
   private SplitsPointer splitsPointer;
   private DatasetConfig versionedDatasetConfig;
-
 
   private VersionedDatasetAdapter(Builder builder) {
     this.versionedTableKey = builder.versionedTableKey;
     this.versionContext = builder.versionContext;
-    this.fsStoragePlugin = builder.fsStoragePlugin;
+    this.storagePlugin = builder.storagePlugin;
+    this.storagePluginId = builder.storagePluginId;
     this.optionManager = builder.optionManager;
     this.splitsPointer = null;
     versionedDatasetConfig = builder.versionedDatasetConfig;
@@ -95,13 +90,12 @@ public class VersionedDatasetAdapter {
     return new VersionedDatasetAdapter.Builder();
   }
 
-
   public DremioTable getTable(final String accessUserName) {
     // Figure out the user we want to access the dataplane with.
     // *TBD*  Use the Filesystem(Iceberg) plugin to tell us the configuration/username
     //Similar to SchemaConfig , we need a config for DataPlane
-    //TBD check access to the dataset
-    checkAccesss(versionedTableKey, versionContext, accessUserName);
+    // TODO: check access to the dataset (and use return value or make method throw)
+    checkAccess(versionedTableKey, versionContext, accessUserName);
 
     // Retrieve the metadata
     try {
@@ -112,18 +106,18 @@ public class VersionedDatasetAdapter {
     }
     // Construct the TableMetadata
 
-    final TableMetadata tableMetadata = new TableMetadataImpl(fsStoragePlugin.getId(),
+    final TableMetadata tableMetadata = new TableMetadataImpl(storagePluginId,
       versionedDatasetConfig,
       accessUserName,
       splitsPointer);
-    //TBD - Need to determine if we return NamespaceTable (just liek the current getTableFromPlugin and
+    //TBD - Need to determine if we return NamespaceTable just like the current getTableFromPlugin and
     //why the contract in the interface shows DremioTable.
     return new NamespaceTable(tableMetadata, optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT));
   }
 
 
   private DatasetConfig getMutatedVersionedConfig(String nessieKey,
-                                                  Optional<VersionContext> versionContext,
+                                                  VersionContext versionContext,
                                                   DatasetConfig datasetConfig) throws ConnectorException {
     final DatasetMetadata datasetMetadata = getMetadata(nessieKey, versionContext, datasetConfig);
     final Optional<ByteString> readSignature = getReadSignature();
@@ -140,14 +134,14 @@ public class VersionedDatasetAdapter {
    *
    * @return read signature, not null
    */
-  private Optional<ByteString> getReadSignature() throws ConnectorException {
+  private Optional<ByteString> getReadSignature() {
     Preconditions.checkNotNull(datasetHandle);
     Optional<ByteString> readSignature = Optional.empty();
-    final SourceMetadata sourceMetadata = fsStoragePlugin.unwrap(StoragePlugin.class);
-    if (sourceMetadata instanceof SupportsReadSignature) {
+
+    if (storagePlugin instanceof SupportsReadSignature) {
       final BytesOutput output;
       try {
-        output = ((SupportsReadSignature) sourceMetadata).provideSignature(datasetHandle, null);
+        output = ((SupportsReadSignature) storagePlugin).provideSignature(datasetHandle, null);
       } catch (final ConnectorException e) {
         throw UserException.validationError(e)
           .message("Failure while retrieving dataset [%s].", datasetHandle.getDatasetPath())
@@ -157,6 +151,7 @@ public class VersionedDatasetAdapter {
         readSignature = Optional.of(MetadataObjectsUtils.toProtostuff(output));
       }
     }
+
     return readSignature;
   }
 
@@ -164,15 +159,11 @@ public class VersionedDatasetAdapter {
    * Given a key and VersionContext , return the {@link DatasetMetadata dataset metadata} for the versioned dataset
    * represented by the handle.
    *
-   * @param tableKey
-   * @param versionContext
-   * @param datasetConfig
    * @return Dataset metadata, not null
    */
   private DatasetMetadata getMetadata(final String tableKey,
-                                      Optional<VersionContext> versionContext,
+                                      VersionContext versionContext,
                                       DatasetConfig datasetConfig) throws ConnectorException {
-    final SourceMetadata sourceMetadata = fsStoragePlugin.unwrap(StoragePlugin.class);
     Preconditions.checkNotNull(datasetHandle);
 
     final VersionedDatasetAccessOptions versionedDatasetAccessOptions = new VersionedDatasetAccessOptions.Builder()
@@ -182,9 +173,9 @@ public class VersionedDatasetAdapter {
 
     final DatasetRetrievalOptions retrievalOptions = DatasetRetrievalOptions.DEFAULT.toBuilder()
       .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions).build();
-    final PartitionChunkListing chunkListing = sourceMetadata.listPartitionChunks(datasetHandle,
+    final PartitionChunkListing chunkListing = storagePlugin.listPartitionChunks(datasetHandle,
       retrievalOptions.asListPartitionChunkOptions(null));
-    final DatasetMetadata datasetMetadata = sourceMetadata.getDatasetMetadata(datasetHandle,
+    final DatasetMetadata datasetMetadata = storagePlugin.getDatasetMetadata(datasetHandle,
       chunkListing,
       retrievalOptions.asGetMetadataOptions(null));
     // Construct the split pointer from the PartitionChunkListing.
@@ -245,22 +236,17 @@ public class VersionedDatasetAdapter {
 
   /**
    * TBD We need to figure out how to do the access check with dataplane
-   *
-   * @param tableKey
-   * @param versionContext
-   * @param userName
-   * @return
    */
-  private boolean checkAccesss(final String tableKey, Optional<VersionContext> versionContext, String userName) {
-    //Needs to be implemented.
+  private boolean checkAccess(final String tableKey, VersionContext versionContext, String userName) {
+    // TODO: Needs to be implemented
     return true;
   }
 
-
-  static public class Builder {
+  public static class Builder {
     private String versionedTableKey;
-    private Optional<VersionContext> versionContext;
-    private ManagedStoragePlugin fsStoragePlugin;
+    private VersionContext versionContext;
+    private StoragePlugin storagePlugin;
+    private StoragePluginId storagePluginId;
     private OptionManager optionManager;
     private DatasetHandle datasetHandle;
     private DatasetConfig versionedDatasetConfig;
@@ -273,13 +259,18 @@ public class VersionedDatasetAdapter {
       return this;
     }
 
-    public Builder setVersionContext(Optional<VersionContext> versionContext) {
+    public Builder setVersionContext(VersionContext versionContext) {
       this.versionContext = versionContext;
       return this;
     }
 
-    public Builder setStoragePlugin(ManagedStoragePlugin plugin) {
-      fsStoragePlugin = plugin;
+    public Builder setStoragePlugin(StoragePlugin plugin) {
+      storagePlugin = plugin;
+      return this;
+    }
+
+    public Builder setStoragePluginId(StoragePluginId pluginId) {
+      storagePluginId = pluginId;
       return this;
     }
 
@@ -289,55 +280,52 @@ public class VersionedDatasetAdapter {
     }
 
     public VersionedDatasetAdapter build() {
-      Preconditions.checkNotNull(versionedTableKey, "Table name provided in invalid(null)");
-      Preconditions.checkNotNull(versionContext, "versionContext is null");
+      Preconditions.checkNotNull(versionedTableKey);
+      Preconditions.checkNotNull(versionContext);
+      Preconditions.checkNotNull(storagePlugin);
+      Preconditions.checkNotNull(storagePluginId);
 
-      if (!CatalogUtil.isVersionedDDPEntity(new NamespaceKey(PathUtils.parseFullPath(versionedTableKey)))) {
-        throw UserException.validationError()
-          .message("Invalid DDP key [%s].", versionedTableKey)
-          .build(logger);
-      }
-      if (!versionContext.isPresent()) {
-        versionContext = Optional.of(VersionContext.fromBranchName(NESSIE_DEFAULT_BRANCH));
-      }
-      versionedTableKey = CatalogUtil.removeVersionedCatalogPrefix(versionedTableKey); //mutate table key to get rid of "DDP" prefix
       versionedDatasetConfig = createShallowIcebergDatasetConfig(versionedTableKey);
-      datasetHandle = getHandleToIcebergFormatPlugin(versionedTableKey, fsStoragePlugin, versionedDatasetConfig);
+
+      if (!tryGetHandleToIcebergFormatPlugin(storagePlugin, versionedDatasetConfig)) {
+        return null;
+      }
 
       return new VersionedDatasetAdapter(this);
-
     }
 
     /**
      * Helper method that gets a handle to the Filesystem(Iceberg format) storage plugin
-     *
-     * @param key
-     * @return
      */
-    private DatasetHandle getHandleToIcebergFormatPlugin(String key, ManagedStoragePlugin plugin, DatasetConfig datasetConfig) {
+    private boolean tryGetHandleToIcebergFormatPlugin(StoragePlugin plugin, DatasetConfig datasetConfig) {
       final Optional<DatasetHandle> handle;
-      FileSystemPlugin fsPlugin = (FileSystemPlugin<?>)plugin.unwrap(StoragePlugin.class);
-      Preconditions.checkNotNull(fsPlugin);
-      OptionValue option_enable_iceberg = OptionValue.createBoolean(SYSTEM, ENABLE_ICEBERG.getOptionName(), true);
-      fsPlugin.getContext().getOptionManager().setOption(option_enable_iceberg);
+      final EntityPath entityPath = new EntityPath(datasetConfig.getFullPathList());
+
+      VersionedDatasetAccessOptions versionedDatasetAccessOptions = new VersionedDatasetAccessOptions.Builder()
+        .setVersionContext(versionContext)
+        .build();
 
       try {
         handle = plugin.getDatasetHandle(
-          new NamespaceKey(PathUtils.parseFullPath(key)),
-          datasetConfig,
-          plugin.getDefaultRetrievalOptions());
+          entityPath,
+          DatasetRetrievalOptions.DEFAULT.toBuilder()
+            .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions)
+            .build()
+            .asGetDatasetOptions(datasetConfig));
 
       } catch (ConnectorException e) {
         throw UserException.validationError(e)
-          .message("Failure while retrieving dataset [%s].", key)
+          .message("Failure while retrieving dataset [%s].", entityPath)
           .build(logger);
       }
       if (!handle.isPresent()) {
-        throw UserException.validationError()
-          .message("Failure while getting handle to iceberg table from source [%s].", key)
-          .build(logger);
+        return false;
+        /*throw UserException.validationError()
+          .message("Failure while getting handle to iceberg table from source [%s].", entityPath)
+          .build(logger);*/
       }
-      return handle.get();
+      datasetHandle = handle.get();
+      return true;
     }
 
     /**
@@ -348,17 +336,15 @@ public class VersionedDatasetAdapter {
      * @return DatasetConfig populated with the basic info needed by the Filessystem plugin to match and unwrap to Iceberg format plugin
      */
     private DatasetConfig createShallowIcebergDatasetConfig(String key) {
-      DatasetConfig datasetConfig = new DatasetConfig()
+      return new DatasetConfig()
         .setId(new EntityId().setId(UUID.randomUUID().toString()))
+        .setType(DatasetType.PHYSICAL_DATASET)
         .setName(key)
         .setFullPathList(PathUtils.parseFullPath(key))
-        //This format setting allows us to pick the Iceberg format explicity
+        //This format setting allows us to pick the Iceberg format explicitly
         .setPhysicalDataset(new PhysicalDataset().setFormatSettings(new IcebergFileConfig().asFileConfig()))
         .setLastModified(System.currentTimeMillis());
-
-      return datasetConfig;
     }
 
   }
-
 }

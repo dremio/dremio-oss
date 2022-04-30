@@ -18,18 +18,15 @@ package com.dremio.exec.planner.fragment;
 import static com.dremio.exec.ExecConstants.SLICE_TARGET_DEFAULT;
 import static com.dremio.exec.planner.fragment.HardAffinityFragmentParallelizer.INSTANCE;
 import static java.util.Arrays.asList;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -214,19 +211,14 @@ public class TestHardAffinityFragmentParallelizer {
   }
 
   @Test
-  public void noMatchHardAffinity() throws Exception {
-    try {
-      final Wrapper wrapper = newSplitWrapper(200, 1, 20,
-          Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 20)),
-          new ExecutionNodeMap(ImmutableList.of(N2_EP1))
-      );
-
-      INSTANCE.parallelizeFragment(wrapper, newParameters(SLICE_TARGET_DEFAULT, 5, 20),
-        ImmutableList.of(N2_EP1));
-      fail("Should throw exception as affinity endpoint does not match active endpoint");
-    } catch (UserException uex) {
-      assertTrue(uex.getMessage().startsWith("No executors are available for data with hard affinity."));
-    }
+  public void noMatchHardAffinity() {
+    assertThatThrownBy(
+      () -> newSplitWrapper(200, 1, 20,
+        Collections.singletonList(new EndpointAffinity(N1_EP1, 1.0, true, 20)),
+        new ExecutionNodeMap(ImmutableList.of(N2_EP1))
+      ))
+      .isInstanceOf(UserException.class)
+      .hasMessageStartingWith("No executors are available for data with hard affinity.");
   }
 
   @Test
@@ -267,11 +259,11 @@ public class TestHardAffinityFragmentParallelizer {
     // As there are 5 required eps and the width is 5, everyone gets assigned 1.
     final List<NodeEndpoint> assignedEps = wrapper.getAssignedEndpoints();
     assertEquals(5, assignedEps.size());
-    assertTrue(assignedEps.contains(N1_EP1));
-    assertTrue(assignedEps.contains(N1_EP2));
-    assertTrue(assignedEps.contains(N2_EP1));
-    assertTrue(assignedEps.contains(N3_EP2));
-    assertTrue(assignedEps.contains(N4_EP2));
+    assertThat(assignedEps).contains(N1_EP1);
+    assertThat(assignedEps).contains(N1_EP2);
+    assertThat(assignedEps).contains(N2_EP1);
+    assertThat(assignedEps).contains(N3_EP2);
+    assertThat(assignedEps).contains(N4_EP2);
   }
 
   @Test
@@ -299,11 +291,11 @@ public class TestHardAffinityFragmentParallelizer {
       counts.add(ep);
     }
     // Each node gets at max 5.
-    assertTrue(counts.count(N1_EP2) <= 5);
-    assertTrue(counts.count(N2_EP2) <= 5);
-    assertTrue(counts.count(N3_EP1) <= 5);
-    assertTrue(counts.count(N4_EP2) <= 5);
-    assertTrue(counts.count(N1_EP1) <= 5);
+    assertThat(counts.count(N1_EP2)).isLessThanOrEqualTo(5);
+    assertThat(counts.count(N2_EP2)).isLessThanOrEqualTo(5);
+    assertThat(counts.count(N3_EP1)).isLessThanOrEqualTo(5);
+    assertThat(counts.count(N4_EP2)).isLessThanOrEqualTo(5);
+    assertThat(counts.count(N1_EP1)).isLessThanOrEqualTo(5);
   }
 
   @Test
@@ -327,15 +319,13 @@ public class TestHardAffinityFragmentParallelizer {
     final List<NodeEndpoint> assignedEps = wrapper.getAssignedEndpoints();
     assertEquals(20, assignedEps.size());
     final HashMultiset<NodeEndpoint> counts = HashMultiset.create();
-    for(final NodeEndpoint ep : assignedEps) {
-      counts.add(ep);
-    }
+    counts.addAll(assignedEps);
     // Each node gets at max 5.
-    assertThat(counts.count(N1_EP2), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
-    assertThat(counts.count(N2_EP2), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
-    assertThat(counts.count(N3_EP1), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
-    assertThat(counts.count(N4_EP2), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
-    assertThat(counts.count(N1_EP1), CoreMatchers.allOf(greaterThan(1), lessThanOrEqualTo(5)));
+    assertThat(counts.count(N1_EP2)).isGreaterThan(1).isLessThanOrEqualTo(5);
+    assertThat(counts.count(N2_EP2)).isGreaterThan(1).isLessThanOrEqualTo(5);
+    assertThat(counts.count(N3_EP1)).isGreaterThan(1).isLessThanOrEqualTo(5);
+    assertThat(counts.count(N4_EP2)).isGreaterThan(1).isLessThanOrEqualTo(5);
+    assertThat(counts.count(N1_EP1)).isGreaterThan(1).isLessThanOrEqualTo(5);
   }
 
   @Test

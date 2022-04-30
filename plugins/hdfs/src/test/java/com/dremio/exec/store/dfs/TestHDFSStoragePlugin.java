@@ -15,8 +15,7 @@
  */
 package com.dremio.exec.store.dfs;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -55,9 +54,9 @@ public class TestHDFSStoragePlugin extends DremioTest {
       fileSystemPlugin.start();
 
       final Configuration fsConf = fileSystemPlugin.getFsConf();
-      assertThat(fsConf.get("dfs.client.read.shortcircuit"), is("true"));
-      assertThat(fsConf.get("dfs.domain.socket.path"), is("/tmp/dn.sock"));
-      assertThat(fsConf.get("foo"), is("bar"));
+      assertThat(fsConf.get("dfs.client.read.shortcircuit")).isEqualTo("true");
+      assertThat(fsConf.get("dfs.domain.socket.path")).isEqualTo("/tmp/dn.sock");
+      assertThat(fsConf.get("foo")).isEqualTo("bar");
     }
   }
 }

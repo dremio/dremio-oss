@@ -42,7 +42,7 @@ import com.google.common.base.Preconditions;
  * Copy of CustomHashAggDataGenerator but does Decimal computations.
  */
 public class CustomHashAggDataGeneratorDecimal implements Generator {
-  private final static FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9));
+  private final static FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9, 128));
   private final static ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
   private final static CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
 

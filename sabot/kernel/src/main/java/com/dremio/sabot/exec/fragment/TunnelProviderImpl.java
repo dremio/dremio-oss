@@ -15,14 +15,19 @@
  */
 package com.dremio.sabot.exec.fragment;
 
+import java.io.IOException;
 import java.util.Map;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.exec.FragmentWorkManager.ExecConnectionCreator;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.sabot.exec.rpc.AccountingExecToCoordTunnel;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
+import com.dremio.sabot.exec.rpc.AccountingFileTunnel;
+import com.dremio.sabot.exec.rpc.FileStreamManager;
+import com.dremio.sabot.exec.rpc.FileTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.SendingAccountor;
 import com.dremio.sabot.threads.SendingMonitor;
@@ -44,13 +49,15 @@ class TunnelProviderImpl implements TunnelProvider {
   private final ExecConnectionCreator connectionCreator;
   private final SharedResourceGroup resourceGroup;
   private final RpcOutcomeListener<Ack> statusHandler;
+  private final FileCursorManagerFactory cursorManagerFactory;
 
   public TunnelProviderImpl(
       SendingAccountor accountor,
       JobResultsTunnel tunnel,
       ExecConnectionCreator connectionCreator,
       RpcOutcomeListener<Ack> statusHandler,
-      SharedResourceGroup resourceGroup) {
+      SharedResourceGroup resourceGroup,
+      FileCursorManagerFactory cursorManagerFactory) {
     super();
     this.accountor = accountor;
     this.statusHandler = statusHandler;
@@ -60,6 +67,7 @@ class TunnelProviderImpl implements TunnelProvider {
 
     this.connectionCreator = connectionCreator;
     this.resourceGroup = resourceGroup;
+    this.cursorManagerFactory = cursorManagerFactory;
   }
 
   @Override
@@ -76,5 +84,13 @@ class TunnelProviderImpl implements TunnelProvider {
       tunnels.put(endpoint, tunnel);
     }
     return tunnel;
+  }
+
+  @Override
+  public AccountingFileTunnel getFileTunnel(FileStreamManager streamManager, int maxBatchesPerFile) throws IOException {
+    final SharedResource resource = resourceGroup.createResource("writer-file-" + streamManager.getId(),
+      SharedResourceType.SEND_MSG_DATA);
+    final FileTunnel fileTunnel = new FileTunnel(streamManager, maxBatchesPerFile);
+    return new AccountingFileTunnel(fileTunnel, cursorManagerFactory, resource);
   }
 }

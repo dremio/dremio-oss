@@ -32,17 +32,24 @@ public class TestMetricsCombiner {
     CoordExecRPC.QueryProgressMetrics metrics1 = CoordExecRPC.QueryProgressMetrics
       .newBuilder()
       .setRowsProcessed(100)
+      .setOutputRecords(20)
       .build();
     CoordExecRPC.QueryProgressMetrics metrics2 = CoordExecRPC.QueryProgressMetrics
       .newBuilder()
       .setRowsProcessed(120)
+      .setOutputRecords(30)
       .build();
 
-    assertEquals(0,
-      MetricsCombiner.combine(Stream.empty()).getRowsProcessed());
-    assertEquals(100,
-      MetricsCombiner.combine(Stream.of(metrics1)).getRowsProcessed());
-    assertEquals(220,
-      MetricsCombiner.combine(Stream.of(metrics1, metrics2)).getRowsProcessed());
+    CoordExecRPC.QueryProgressMetrics output1 = MetricsCombiner.combine(() -> Stream.empty());
+    assertEquals(0, output1.getRowsProcessed());
+    assertEquals(0, output1.getOutputRecords());
+
+    CoordExecRPC.QueryProgressMetrics output2 = MetricsCombiner.combine(() -> Stream.of(metrics1));
+    assertEquals(100, output2.getRowsProcessed());
+    assertEquals(20, output2.getOutputRecords());
+
+    CoordExecRPC.QueryProgressMetrics output3 = MetricsCombiner.combine(() -> Stream.of(metrics1, metrics2));
+    assertEquals(220, output3.getRowsProcessed());
+    assertEquals(50, output3.getOutputRecords());
   }
 }

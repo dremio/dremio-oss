@@ -51,7 +51,9 @@ export default class Modal extends Component {
     style: PropTypes.object,
     dataQa: PropTypes.string,
     headerClassName: PropTypes.string,
-    headerEndChildren: PropTypes.node
+    headerEndChildren: PropTypes.node,
+    closeButtonType: PropTypes.string,
+    headerIcon: PropTypes.node
   };
 
   static defaultProps = {
@@ -74,7 +76,9 @@ export default class Modal extends Component {
       classQa,
       dataQa,
       headerClassName,
-      headerEndChildren
+      headerEndChildren,
+      closeButtonType,
+      headerIcon
     } = this.props;
     const content = {
       ...smallModal.content,
@@ -119,6 +123,8 @@ export default class Modal extends Component {
             hideCloseButton={hideCloseButton}
             className={headerClassName}
             endChildren={headerEndChildren}
+            type={closeButtonType}
+            headerIcon={headerIcon}
           >
           </ModalHeader>
         }

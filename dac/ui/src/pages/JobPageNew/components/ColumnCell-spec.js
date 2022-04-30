@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React from 'react';
-import { mount } from 'enzyme';
-import ColumnCell from './ColumnCell';
+// import React from 'react';
+// import { mount } from 'enzyme';
+// import ColumnCell from './ColumnCell';
 
 describe('ColumnCell', () => {
-  let commonProps;
-  const context = { loggedInUser: {} };
-  const setTooltipOpen = sinon.spy();
-  const useStateSpy = sinon.stub(React, 'useState');
-  useStateSpy.callsFake(() => [false, setTooltipOpen]);
-  beforeEach(() => {
-    commonProps = {
-      data: 'test data'
-    };
-  });
+  // let commonProps;
+  // const context = { loggedInUser: {} };
+  // const setTooltipOpen = sinon.spy();
+  // const useStateSpy = sinon.stub(React, 'useState');
+  // useStateSpy.callsFake(() => [false, setTooltipOpen]);
+  // beforeEach(() => {
+  //   commonProps = {
+  //     data: 'test data'
+  //   };
+  // });
 
-  it('should render with props without exploding', () => {
-    const wrapper = mount(<ColumnCell {...commonProps} />, { context });
-    expect(wrapper).to.have.length(1);
-  });
+  // it('should render with props without exploding', () => {
+  //   const wrapper = mount(<ColumnCell {...commonProps} />, { context });
+  //   expect(wrapper).to.have.length(1);
+  // });
 });

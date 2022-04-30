@@ -40,7 +40,7 @@ export class CustomRedBox extends RedBox {
     ReactDOM.render(<div>
       <RedBoxError rel='' error={this.props.error} style={{message:{whiteSpace: 'pre'}}}/>
       <div style={styles.topRight}>
-        <FontIcon type='XBigWhite' onClick={this.props.onDismiss} style={styles.dismissButton}/>
+        <FontIcon type='XBig' onClick={this.props.onDismiss} style={styles.dismissButton}/>
       </div>
       <div style={styles.bottomRight}>
         <button style={styles.fileBugButton} onClick={this.handleFileABugClick}>{la('File a Bug')}</button>

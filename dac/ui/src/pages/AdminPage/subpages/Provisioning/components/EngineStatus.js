@@ -15,15 +15,16 @@
  */
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import {CLUSTER_STATE, CLUSTER_STATE_ICON} from '@inject/constants/provisioningPage/provisioningConstants';
+import {CLUSTER_STATE, CLUSTER_STATE_LEGEND_ICON, CLUSTER_STATE_ICON} from '@inject/constants/provisioningPage/provisioningConstants';
 import Art from '@app/components/Art';
 
 const unknownStateIcon = CLUSTER_STATE_ICON[CLUSTER_STATE.unknown];
 const spinnerIcon = { src: 'Loader.svg', text: 'working...', className: 'spinner' };
 
 export function EngineStatusIcon(props) {
-  const {status, isInProgress, style} = props;
-  let icon = (isInProgress) ? spinnerIcon : CLUSTER_STATE_ICON[status];
+  const {status, isInProgress, style, type} = props;
+  /*eslint no-nested-ternary: "off"*/
+  let icon = (isInProgress) ? spinnerIcon : type === 'legend' ? CLUSTER_STATE_LEGEND_ICON[status] : CLUSTER_STATE_ICON[status];
   if (!icon) {
     icon = {...unknownStateIcon, text: `${unknownStateIcon.text}, currentStatus: ${status}`};
   }
@@ -39,7 +40,8 @@ export function EngineStatusIcon(props) {
 EngineStatusIcon.propTypes = {
   status: PropTypes.string,
   isInProgress: PropTypes.bool,
-  style: PropTypes.object
+  style: PropTypes.object,
+  type: PropTypes.string
 };
 
 export default function EngineStatus(props) {

@@ -15,6 +15,7 @@
  */
 package com.dremio.services.credentials;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -22,9 +23,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -42,9 +41,6 @@ public class TestDataCredentialsProvider {
     INCORRECT, // incorrect data url representation in data credential provider
     INVALID    // invalid data url data credential provider, IllegalArgument expected
   }
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Parameters
   public static Collection<Object[]> data() {
@@ -84,8 +80,7 @@ public class TestDataCredentialsProvider {
         assertNotEquals("Return secret is not expected.", originalString, provider.lookup(uri));
         break;
       case INVALID:
-        thrown.expect(IllegalArgumentException.class);
-        provider.lookup(uri);
+        assertThatThrownBy(() -> provider.lookup(uri)).isInstanceOf(IllegalArgumentException.class);
         break;
       default:
         throw new UnsupportedOperationException("Unsupported Test type " + type.toString());

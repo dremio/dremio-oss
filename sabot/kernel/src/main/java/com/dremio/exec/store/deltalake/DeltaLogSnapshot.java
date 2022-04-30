@@ -61,6 +61,11 @@ public final class DeltaLogSnapshot implements Comparable<DeltaLogSnapshot> {
         this.totalFileEntries = totalFileEntries;
     }
 
+    public DeltaLogSnapshot() {
+      this("UNKNOWN", 0, 0, 0, 0, 0, false);
+      this.missingRequiredValues = false;
+    }
+
     public void setSchema(String schema, List<String> partitionColumns) {
         this.schema = schema;
         this.partitionColumns = partitionColumns;

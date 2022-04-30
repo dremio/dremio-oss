@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
+@import '~@app/uiTheme/less/color-schema.less';
 
- @sideNav-menu-width: 254px;
+ @sideNav-menu-width: 281px;
  @sideNav-menu-background-color: #fff;
  @sideNav-menu-border-color: #e5e5e5;
  @sideNav-menu-box-shadow-color: rgba(0, 0, 0, .1);
@@ -23,9 +23,9 @@
  :global { 
    .sideNav-menu {
      visibility: hidden;
-     position: fixed;
+     position: absolute;
      left: 6.4rem;
-     z-index: 10;
+     z-index: 100;
      width: @sideNav-menu-width;
      box-shadow:  0px 0px 16px @sideNav-menu-box-shadow-color;
      border: 1px solid @sideNav-menu-border-color;
@@ -33,12 +33,16 @@
      border-radius: 0 4px 4px 0;
      background-color: @sideNav-menu-background-color;
 
-     &.--show {
-       visibility: visible;
-     }
+    &.--show {
+      visibility: visible;
+    }
 
-     &.--wide {
-       left: 22.4rem;
-     }
-   }
- }
+    &.--wide {
+      left: 22.4rem;
+    }
+
+    .MuiList-root {
+      z-index: 100 !important;
+    }
+  }
+}

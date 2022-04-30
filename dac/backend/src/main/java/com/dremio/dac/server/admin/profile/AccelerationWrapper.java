@@ -67,6 +67,14 @@ public class AccelerationWrapper {
         .collect(Collectors.toList());
   }
 
+  public boolean isHintHiddenforLayoutId(String layoutId) {
+    ReflectionRelationship relationship = relationshipMap.getOrDefault(layoutId, null);
+    if(null == relationship){
+      return false;
+    }
+    return relationship.getHideHint();
+  }
+
   public boolean hasRelationship(String layoutId) {
     return relationshipMap.containsKey(layoutId);
   }

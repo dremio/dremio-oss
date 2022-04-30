@@ -23,7 +23,6 @@ import java.net.URI;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.config.DremioConfig;
@@ -36,9 +35,6 @@ public class TestEncrypt extends DremioTest {
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
 
   @Test
   public void testEncryptWithDefaultPassword() throws Exception {

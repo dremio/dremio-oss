@@ -30,6 +30,7 @@ export class AccelerationAdvanced extends Component {
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
     fields: PropTypes.object.isRequired,
     location: PropTypes.object.isRequired,
+    updateDirtyState: PropTypes.func.isRequired,
     updateFormDirtyState: PropTypes.func.isRequired,
     values: PropTypes.object.isRequired,
     initialValues: PropTypes.any,
@@ -66,14 +67,19 @@ export class AccelerationAdvanced extends Component {
   }
 
   componentDidUpdate(newProps) {
-    const { values, updateFormDirtyState } = newProps;
+    const { updateDirtyState, values, initialValues } = this.props;
+    const { updateFormDirtyState } = newProps;
     const aggregationReflections = Immutable.fromJS(values.aggregationReflections);
     const rawReflections = Immutable.fromJS(values.rawReflections);
     this.initialReflections = Immutable.fromJS({
-      aggregationReflections: this.props.initialValues === null ? this.props.values.aggregationReflections : this.props.initialValues.aggregationReflections,
-      rawReflections: this.props.initialValues === null ? this.props.values.rawReflections : this.props.initialValues.rawReflections
+      aggregationReflections: initialValues === null ? values.aggregationReflections : initialValues.aggregationReflections,
+      rawReflections: initialValues === null ? values.rawReflections : initialValues.rawReflections
     });
-    updateFormDirtyState(!this.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections)); // ! is needed. Returned value of true means not dirty, but would mean to dirty to updateFormDirtyState
+
+    updateFormDirtyState(!this.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections));// ! is needed. Returned value of true means not dirty, but would mean to dirty to updateDirtyState
+
+    // This updates the canSubmit state by updating the dirty state in <AccelerationForm />, do not remove.
+    updateDirtyState(!this.areAdvancedReflectionsFieldsEqual(aggregationReflections, rawReflections));
   }
 
 

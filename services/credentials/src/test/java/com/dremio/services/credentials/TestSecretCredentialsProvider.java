@@ -17,6 +17,7 @@ package com.dremio.services.credentials;
 
 import static com.dremio.config.DremioConfig.CREDENTIALS_KEYSTORE_PASSWORD;
 import static com.dremio.config.DremioConfig.LOCAL_WRITE_PATH_STRING;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedWriter;
@@ -27,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.config.DremioConfig;
@@ -54,9 +54,6 @@ public class TestSecretCredentialsProvider extends DremioTest {
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSecretProviderLookupWithDefaultPassword() throws Exception {
@@ -175,8 +172,8 @@ public class TestSecretCredentialsProvider extends DremioTest {
     SimpleCredentialsService credentialsService = SimpleCredentialsService.newInstance(conf, ImmutableSet.of(SecretCredentialsProvider.class, FileCredentialsProvider.class));
     SecretCredentialsProvider credentialsProvider = credentialsService.findProvider(SecretCredentialsProvider.class);
 
-    thrown.expect(SecretCredentialsException.class);
-    credentialsProvider.encrypt(originalString);
+    assertThatThrownBy(() -> credentialsProvider.encrypt(originalString))
+      .isInstanceOf(SecretCredentialsException.class);
   }
 
 }

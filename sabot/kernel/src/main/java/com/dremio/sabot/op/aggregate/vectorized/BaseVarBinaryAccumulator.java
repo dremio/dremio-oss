@@ -51,11 +51,14 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
   private boolean resizeAttempted;
   private int batches;
   private final BufferAllocator computationVectorAllocator;
-  private final int validityBufferSize;
-  private final int dataBufferSize;
-  private final int varLenAccumulatorCapacity;
   private final BaseVariableWidthVector tempAccumulatorHolder;
   private final int maxVarWidthVecUsagePercent;
+  private int estimatedVariableWidthKeySize;
+  private final int maxVariableWidthKeySize;
+  private long runtimeVarLenColumnSize = 0;
+  private int runtimeVarLenEntries = 0;
+  private final int accumIndex;
+  private final VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer;
 
   /**
    * @param input
@@ -63,8 +66,10 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
    */
   public BaseVarBinaryAccumulator(final FieldVector input, final FieldVector transferVector,
                                   final AccumulatorBuilder.AccumulatorType type, final int maxValuesPerBatch,
-                                  final BufferAllocator computationVectorAllocator, int varLenAccumulatorCapacity,
-                                  int maxVarWidthVecUsagePercent, BaseVariableWidthVector tempAccumulatorHolder) {
+                                  final BufferAllocator computationVectorAllocator, int estimatedVariableWidthKeySize,
+                                  int maxVariableWidthKeySize, int maxVarWidthVecUsagePercent,
+                                  int accumIndex, BaseVariableWidthVector tempAccumulatorHolder,
+                                  VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
     this.input = input;
     this.transferVector = transferVector;
     this.type = type;
@@ -73,12 +78,17 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
     initArrs(0);
     this.batches = 0;
     this.computationVectorAllocator = computationVectorAllocator;
-    this.varLenAccumulatorCapacity = varLenAccumulatorCapacity;
+    this.estimatedVariableWidthKeySize = estimatedVariableWidthKeySize;
+    this.maxVariableWidthKeySize = maxVariableWidthKeySize;
     this.maxVarWidthVecUsagePercent = maxVarWidthVecUsagePercent;
+    this.accumIndex = accumIndex;
     this.tempAccumulatorHolder = tempAccumulatorHolder;
-    Preconditions.checkArgument(tempAccumulatorHolder.getByteCapacity() >= varLenAccumulatorCapacity);
-    this.validityBufferSize = MutableVarcharVector.getValidityBufferSizeFromCount(maxValuesPerBatch);
-    this.dataBufferSize = MutableVarcharVector.getDataBufferSizeFromCount(maxValuesPerBatch, varLenAccumulatorCapacity);
+    this.varLenVectorResizer = varLenVectorResizer;
+  }
+
+  public void updateRunTimeVarLenColumnSize(int varLenColumnSize) {
+    runtimeVarLenColumnSize += varLenColumnSize;
+    ++runtimeVarLenEntries;
   }
 
   @Override
@@ -195,17 +205,36 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
    */
   private void loadAccumulatorForNewBatch(final FieldVector vector, final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
     MutableVarcharVector mv = (MutableVarcharVector) vector;
-    mv.loadBuffers(maxValuesPerBatch, varLenAccumulatorCapacity, dataBuffer, validityBuffer);
+    mv.loadBuffers(maxValuesPerBatch, estimatedVariableWidthKeySize * maxValuesPerBatch,
+      dataBuffer, validityBuffer);
   }
 
   @Override
   public int getValidityBufferSize() {
-    return validityBufferSize;
+    return MutableVarcharVector.getValidityBufferSizeFromCount(maxValuesPerBatch);
   }
 
   @Override
   public int getDataBufferSize() {
-    return dataBufferSize;
+
+    /*
+     * AccumulatorSet queries this before estimating and/or creating new vector. If at least 10% of
+     * entries for a batch are sampled, then use it to estimate new estimatedVariableWidthKeySize
+     */
+    if (runtimeVarLenEntries >= maxValuesPerBatch / 10 &&
+        /* estimatedVariableWidthKeySize value cannot do down */
+        estimatedVariableWidthKeySize < runtimeVarLenColumnSize / runtimeVarLenEntries) {
+      int newEstimatedVariableWidthKeySize = Math.min((int)(runtimeVarLenColumnSize / runtimeVarLenEntries), maxVariableWidthKeySize);
+      if (varLenVectorResizer.tryResize(accumIndex, newEstimatedVariableWidthKeySize * maxValuesPerBatch)) {
+        estimatedVariableWidthKeySize = newEstimatedVariableWidthKeySize;
+      }
+      Preconditions.checkArgument(tempAccumulatorHolder.getByteCapacity() >= estimatedVariableWidthKeySize * maxValuesPerBatch);
+    }
+    runtimeVarLenColumnSize = 0;
+    runtimeVarLenEntries = 0;
+
+    return MutableVarcharVector.getDataBufferSizeFromCount(maxValuesPerBatch,
+      estimatedVariableWidthKeySize * maxValuesPerBatch);
   }
 
   @Override
@@ -416,5 +445,10 @@ abstract class BaseVarBinaryAccumulator implements Accumulator {
       result += mv.getNumCompactions();
     }
     return result;
+  }
+
+  @Override
+  public int getMaxVarLenKeySize() {
+    return estimatedVariableWidthKeySize;
   }
 }

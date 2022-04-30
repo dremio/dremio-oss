@@ -48,7 +48,7 @@ const theme = {
         color: 'inherit'
       },
       rounded: {
-        borderRadius: '0px 0px 3px 3px'
+        borderRadius: '4px'
       }
     },
     MuiDialog: {
@@ -84,9 +84,31 @@ const theme = {
       }
     },
     MuiTooltip: {
+      arrow: {
+        color: '#32383E',
+        '&::before': {
+          backgroundColor: '#32383E !important'
+        }
+      },
       tooltip: {
-        backgroundColor: '#2A394A',
-        fontSize: '12px'
+        backgroundColor: '#32383E',
+        borderRadius: '2px',
+        minHeight: '32px',
+        display: 'flex',
+        fontWeight: '400',
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    },
+    MuiMenu: {
+      paper: {
+        borderRadius: '4px'
+      },
+      list: {
+        paddingTop: '4px',
+        paddingBottom: '4px'
       }
     },
     MuiBackdrop: {
@@ -96,7 +118,33 @@ const theme = {
     },
     MuiChip: {
       root: {
-        fontSize: 'unset'
+        fontSize: 'unset',
+        height: 'inherit'
+      }
+    },
+    MuiRadio: {
+      root: {
+        '&:hover': {
+          backgroundColor: '#F4FAFC'
+        },
+        '&:focus': {
+          backgroundColor: '#F4FAFC'
+        }
+      },
+      colorSecondary: {
+        '&$checked': {
+          color: '#6ECBD9',
+          '&:hover': {
+            backgroundColor: '#F4FAFC'
+          }
+        }
+      }
+    },
+    MuiOutlinedInput: {
+      root: {
+        '&$focused $notchedOutline': {
+          borderWidth: 1
+        }
       }
     }
   }

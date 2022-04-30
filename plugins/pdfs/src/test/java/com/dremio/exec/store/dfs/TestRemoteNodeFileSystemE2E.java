@@ -16,6 +16,7 @@
 package com.dremio.exec.store.dfs;
 
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -37,9 +38,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -53,7 +52,6 @@ import com.dremio.test.DremioTest;
 public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
 
   @ClassRule public static final  TemporaryFolder temporaryFolder = new TemporaryFolder();
-  @Rule public final ExpectedException exception = ExpectedException.none();
 
   private RemoteNodeFileSystem sabotFS;
 
@@ -111,9 +109,9 @@ public class TestRemoteNodeFileSystemE2E extends BaseTestFabric {
   }
 
   @Test
-  public void testGetStatusThrowIOException() throws IOException {
-    exception.expect(FileNotFoundException.class);
-    sabotFS.getFileStatus(new Path("/foo/bar/shouldnotexist"));
+  public void testGetStatusThrowIOException() {
+    assertThatThrownBy(() -> sabotFS.getFileStatus(new Path("/foo/bar/shouldnotexist")))
+      .isInstanceOf(FileNotFoundException.class);
   }
 
   @Test

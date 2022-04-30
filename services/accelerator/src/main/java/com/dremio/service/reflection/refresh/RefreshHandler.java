@@ -251,12 +251,12 @@ public class RefreshHandler implements SqlToPlanHandler {
     if (isIcebergInsertRefresh(materialization, refreshDecisions[0])) {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
         null, partitionColumns,
-        IcebergCommandType.INSERT, materialization.getBasePath(), null);
+        IcebergCommandType.INSERT, materialization.getBasePath(), null, null);
 
     } else {
       icebergTableProps = new IcebergTableProps(null, attemptId.toString(),
         null, partitionColumns,
-        IcebergCommandType.CREATE, materialization.getId().getId() + "_" + attemptId.getAttemptNum(), null);
+        IcebergCommandType.CREATE, materialization.getId().getId() + "_" + attemptId.getAttemptNum(), null, null);
     }
     return icebergTableProps;
   }

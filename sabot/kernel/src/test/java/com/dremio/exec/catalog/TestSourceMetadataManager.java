@@ -15,14 +15,16 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static com.dremio.options.TypeValidators.PositiveLongValidator;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -36,9 +38,8 @@ import java.util.Optional;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentMatchers;
 import org.mockito.stubbing.Answer;
 
 import com.dremio.common.AutoCloseables;
@@ -48,12 +49,14 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetNotFoundException;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.cost.ScanCostFactor;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
@@ -67,9 +70,10 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
+import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableSchedulerService;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -79,9 +83,6 @@ public class TestSourceMetadataManager {
   private OptionManager optionManager;
   private final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
   private ModifiableSchedulerService modifiableSchedulerService;
-
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
 
   @Before
   public void setup() {
@@ -93,7 +94,7 @@ public class TestSourceMetadataManager {
     PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
     when(optionManager.getOption(option)).thenReturn(1L);
     modifiableSchedulerService = new ModifiableLocalSchedulerService(1, "modifiable-scheduler-",
-        option, optionManager);
+        option, () -> optionManager);
   }
 
   @After
@@ -104,6 +105,8 @@ public class TestSourceMetadataManager {
   @Test
   public void deleteUnavailableDataset() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
+    Orphanage orphanage = mock(Orphanage.class);
+
     when(ns.getDataset(any()))
         .thenReturn(
             new DatasetConfig()
@@ -133,6 +136,8 @@ public class TestSourceMetadataManager {
       .thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService())
       .thenReturn(ns);
+    when(msp.getOrphanage())
+      .thenReturn(orphanage);
 
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
@@ -202,6 +207,7 @@ public class TestSourceMetadataManager {
   @Test
   public void deleteUnavailableDatasetWithoutDefinition() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
+    Orphanage orphanage = mock(Orphanage.class);
     when(ns.getDataset(any()))
         .thenReturn(
             new DatasetConfig()
@@ -230,6 +236,8 @@ public class TestSourceMetadataManager {
       .thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService())
       .thenReturn(ns);
+    when(msp.getOrphanage())
+      .thenReturn(orphanage);
 
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
@@ -329,13 +337,12 @@ public class TestSourceMetadataManager {
       () -> broadcaster
     );
 
-    thrownException.expect(DatasetNotFoundException.class);
-    manager.refreshDataset(new NamespaceKey("three"),
+    assertThatThrownBy(() -> manager.refreshDataset(new NamespaceKey("three"),
       DatasetRetrievalOptions.DEFAULT.toBuilder()
         .setForceUpdate(true)
         .setMaxMetadataLeafColumns(1)
-        .build());
-
+        .build()))
+      .isInstanceOf(DatasetNotFoundException.class);
   }
 
   @Test
@@ -346,32 +353,34 @@ public class TestSourceMetadataManager {
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
     doNothing().when(saver).saveDataset(any(), anyBoolean(), any(), any());
     when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong(), anyBoolean()))
-        .thenReturn(saver);
+      .thenReturn(saver);
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
-    when(sp.getDatasetHandle(any(), any(), any()))
-        .thenReturn(Optional.of(handle));
+    when(sp.getDatasetHandle(any(), ArgumentMatchers.<GetDatasetOption[]>any()))
+      .thenReturn(Optional.of(handle));
     when(sp.provideSignature(any(), any()))
-        .thenReturn(BytesOutput.NONE);
+      .thenReturn(BytesOutput.NONE);
 
     final boolean[] forced = new boolean[]{false};
     doAnswer(invocation -> {
       forced[0] = true;
       return DatasetMetadata.of(DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()), new Schema(new ArrayList<>()));
-    }).when(sp).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any(), any());
-    when(sp.listPartitionChunks(any(), any(), any(), any()))
-        .thenReturn(Collections::emptyIterator);
+    }).when(sp)
+      .getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class),
+        ArgumentMatchers.<GetMetadataOption[]>any());
+    when(sp.listPartitionChunks(any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
+      .thenReturn(Collections::emptyIterator);
     when(sp.validateMetadata(any(), any(), any()))
-        .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
+      .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
     when(msp.getMetadata())
-        .thenReturn(sp);
+      .thenReturn(sp);
     when(msp.getMetadataPolicy())
-        .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
+      .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
-        .thenReturn(MAX_COLUMNS);
+      .thenReturn(MAX_COLUMNS);
     when(msp.getMaxNestedLevels())
       .thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService()).thenReturn(ns);
@@ -410,13 +419,13 @@ public class TestSourceMetadataManager {
     ExtendedStoragePlugin mockStoragePlugin = mock(ExtendedStoragePlugin.class);
       when(mockStoragePlugin.listDatasetHandles())
         .thenReturn(Collections::emptyIterator);
-      when(mockStoragePlugin.getDatasetHandle(eq(capitalPath), any(), any()))
+    when(mockStoragePlugin.getDatasetHandle(eq(capitalPath), ArgumentMatchers.<GetDatasetOption[]>any()))
         .thenReturn(Optional.empty());
-      when(mockStoragePlugin.getDatasetHandle(eq(originalPath), any(), any()))
+    when(mockStoragePlugin.getDatasetHandle(eq(originalPath), ArgumentMatchers.<GetDatasetOption[]>any()))
         .thenReturn(Optional.of(datasetHandle));
       when(mockStoragePlugin.getState())
         .thenReturn(SourceState.GOOD);
-      when(mockStoragePlugin.listPartitionChunks(any(), any(), any()))
+    when(mockStoragePlugin.listPartitionChunks(any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
         .thenReturn(Collections::emptyIterator);
       when(mockStoragePlugin.validateMetadata(any(), any(), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
@@ -426,7 +435,7 @@ public class TestSourceMetadataManager {
       doAnswer(invocation -> {
         forced[0] = true;
         return DatasetMetadata.of(DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()), new Schema(new ArrayList<>()));
-      }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any(),any());
+      }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(), any(), any(),any());
 
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any()))
@@ -472,16 +481,16 @@ public class TestSourceMetadataManager {
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
 
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
-    when(sp.getDatasetHandle(any(), any(), any()))
+    when(sp.getDatasetHandle(any(), ArgumentMatchers.<GetDatasetOption[]>any()))
         .thenReturn(Optional.of(handle));
-    when(sp.listPartitionChunks(any(), any(), any()))
+    when(sp.listPartitionChunks(any(), ArgumentMatchers.<ListPartitionChunkOption>any()))
         .thenReturn(Collections::emptyIterator);
 
     when(sp.validateMetadata(any(), eq(handle), any()))
-        .thenReturn(SupportsReadSignature.MetadataValidity.INVALID);
+      .thenReturn(SupportsReadSignature.MetadataValidity.INVALID);
     doThrow(new ColumnCountTooLargeException(1))
-        .when(sp)
-        .getDatasetMetadata(eq(handle), any(PartitionChunkListing.class), any(), any(), any());
+      .when(sp)
+      .getDatasetMetadata(eq(handle), any(), ArgumentMatchers.<GetMetadataOption[]>any());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
     when(msp.getMetadata())
@@ -503,13 +512,13 @@ public class TestSourceMetadataManager {
         () -> broadcaster
     );
 
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-        "exceeded the maximum number of fields of 1"));
-    manager.refreshDataset(new NamespaceKey(""),
+    UserExceptionAssert.assertThatThrownBy(() -> manager.refreshDataset(new NamespaceKey(""),
         DatasetRetrievalOptions.DEFAULT.toBuilder()
             .setForceUpdate(true)
             .setMaxMetadataLeafColumns(1)
-            .build());
+            .build()))
+      .hasErrorType(VALIDATION)
+      .hasMessageContaining("exceeded the maximum number of fields of 1");
   }
 
   @Test
@@ -562,7 +571,7 @@ public class TestSourceMetadataManager {
 
     final MetadataRequestOptions metadataRequestOptions = ImmutableMetadataRequestOptions.newBuilder()
       .setNewerThan(0L)
-      .setSchemaConfig(SchemaConfig.newBuilder("dremio").build())
+      .setSchemaConfig(SchemaConfig.newBuilder(CatalogUser.from("dremio")).build())
       .setCheckValidity(false)
       .build();
     assertTrue(manager.isStillValid(metadataRequestOptions, datasetConfig, null, ns));

@@ -33,20 +33,20 @@ import com.google.common.collect.Lists;
  * portions of the footer that are no longer required
  */
 public class MutableParquetMetadata {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MutableParquetMetadata.class);
   private ParquetMetadata footer;
+  private String fileName;
   private boolean columnsTrimmed = false;
   private long numColumnsTrimmed = 0;
 
-  public MutableParquetMetadata(ParquetMetadata footer) {
+  public MutableParquetMetadata(ParquetMetadata footer, String fileName) {
     this.footer = footer;
+    this.fileName = fileName;
+    logger.info("Created parquet meatdata with row group size {} for file {}", footer.getBlocks().size(), this.fileName);
   }
 
   public List<BlockMetaData> getBlocks() {
     return footer.getBlocks();
-  }
-
-  public long getRowCount() {
-    return getBlocks().stream().mapToLong(BlockMetaData::getRowCount).sum();
   }
 
   public FileMetaData getFileMetaData() {
@@ -59,6 +59,7 @@ public class MutableParquetMetadata {
 
     for(int i = 0; i < blocks.size(); i++) {
       if (!rowGroupsToRetain.contains(i)) {
+        logger.info("Removing row group index {} for file {}", i, this.fileName);
         blocks.set(i, null);
         numRowGroupsRemoved++;
       }
@@ -128,6 +129,7 @@ public class MutableParquetMetadata {
   }
 
   public void removeRowGroupInformation(int rowGroupIndex) {
+    logger.info("Removing row group index {} for file {}", rowGroupIndex, this.fileName);
     List<BlockMetaData> blocks = getBlocks();
     blocks.set(rowGroupIndex, null);
 

@@ -46,24 +46,22 @@ public abstract class FieldBufferPreAllocedCopier {
     private int targetDataIndex;
   }
 
-  public abstract void copy(long offsetAddr, int count);
+  public abstract void copy(long sv2Addr, int count);
 
   // Copy data and set validity to 0 for all records in nullAddr
   // nullAddr is all the offsets of the records that are null
   // The action to set validity is only needed for BitCopier in FieldBufferCopier,
   // because validity data is copied in BitCopier
-  public abstract void copy(long offsetAddr, int count, long nullAddr, int nullCount);
+  public abstract void copy(long sv2Addr, int count, long nullAddr, int nullCount);
 
   /**
    * Copy starting from the previous cursor.
-   * @param offsetAddr offset addr of the selection vector
+   * @param sv2Addr offset addr of the selection vector
    * @param count  number of entries to copy
    * @param cursor cursor returned in the previous call (set to null on first call).
    * @return cursor after the copy.
    */
-  public Cursor copy(long offsetAddr, int count, Cursor cursor) {
-    throw new UnsupportedOperationException("copy with cursor not supported");
-  }
+  public abstract Cursor copy(long sv2Addr, int count, Cursor cursor);
 
   // Ensure that the vector is sized upto capacity 'size'.
   protected void ensure(FixedWidthVector vector, int size) {
@@ -83,25 +81,25 @@ public abstract class FieldBufferPreAllocedCopier {
       this.targetAlt = (FixedWidthVector) target;
     }
 
-    abstract void seekAndCopy(long offsetAddr, int count, int seekTo);
+    abstract void seekAndCopy(long sv2Addr, int count, int seekTo);
 
     @Override
-    public void copy(long offsetAddr, int count) {
-      seekAndCopy(offsetAddr, count, 0);
+    public void copy(long sv2Addr, int count) {
+      seekAndCopy(sv2Addr, count, 0);
     }
 
     @Override
-    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
-      copy(offsetAddr, count);
+    public void copy(long sv2Addr, int count, long nullAddr, int nullCount) {
+      copy(sv2Addr, count);
     }
 
     @Override
-    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
+    public Cursor copy(long sv2Addr, int count, Cursor cursor) {
       if (cursor == null) {
         cursor = new Cursor();
       }
       ensure(targetAlt, cursor.targetIndex + count);
-      seekAndCopy(offsetAddr, count, cursor.targetIndex);
+      seekAndCopy(sv2Addr, count, cursor.targetIndex);
       cursor.targetIndex += count;
       return cursor;
     }
@@ -115,11 +113,11 @@ public abstract class FieldBufferPreAllocedCopier {
     }
 
     @Override
-    void seekAndCopy(long offsetAddr, int count, int seekTo) {
-      final long max = offsetAddr + count * STEP_SIZE;
+    void seekAndCopy(long sv2Addr, int count, int seekTo) {
+      final long max = sv2Addr + count * STEP_SIZE;
       final long srcAddr = source.getDataBufferAddress();
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
-      for (long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
+      for (long addr = sv2Addr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
         PlatformDependent.putInt(
           dstAddr,
           PlatformDependent.getInt(
@@ -136,11 +134,11 @@ public abstract class FieldBufferPreAllocedCopier {
     }
 
     @Override
-    void seekAndCopy(long offsetAddr, int count, int seekTo) {
-      final long max = offsetAddr + count * STEP_SIZE;
+    void seekAndCopy(long sv2Addr, int count, int seekTo) {
+      final long max = sv2Addr + count * STEP_SIZE;
       final long srcAddr = source.getDataBufferAddress();
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
-      for (long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
+      for (long addr = sv2Addr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
         PlatformDependent.putLong(
           dstAddr,
           PlatformDependent.getLong(
@@ -157,11 +155,11 @@ public abstract class FieldBufferPreAllocedCopier {
     }
 
     @Override
-    void seekAndCopy(long offsetAddr, int count, int seekTo) {
-      final long max = offsetAddr + count * STEP_SIZE;
+    void seekAndCopy(long sv2Addr, int count, int seekTo) {
+      final long max = sv2Addr + count * STEP_SIZE;
       final long srcAddr = source.getDataBufferAddress();
       long dstAddr = target.getDataBufferAddress() + (seekTo * SIZE);
-      for (long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
+      for (long addr = sv2Addr; addr < max; addr += STEP_SIZE, dstAddr += SIZE) {
         final int offset = Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr + offset));
         PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(srcAddr + offset + 8));
@@ -180,7 +178,7 @@ public abstract class FieldBufferPreAllocedCopier {
       this.target = target;
     }
 
-    private Cursor seekAndCopy(long sv2, int count, Cursor cursor) {
+    private Cursor seekAndCopy(long sv2Addr, int count, Cursor cursor) {
       int targetIndex;
       int targetDataIndex;
       if (cursor == null) {
@@ -193,32 +191,32 @@ public abstract class FieldBufferPreAllocedCopier {
       // make sure vectors are internally consistent
       VariableLengthValidator.validateVariable(source, source.getValueCount());
 
-      final long maxSv2 = sv2 + count * STEP_SIZE;
+      final long maxSv2 = sv2Addr + count * STEP_SIZE;
       final long srcOffsetAddr = source.getOffsetBufferAddress();
       final long srcDataAddr = source.getDataBufferAddress();
 
       long dstOffsetAddr = target.getOffsetBufferAddress() + (targetIndex + 1) * 4;
-      long curDataAddr = target.getDataBufferAddress() + targetDataIndex; // start address for next copy in target
-      long maxDataAddr = target.getDataBufferAddress() + target.getDataBuffer().capacity(); // max bytes we can copy to target before we need to reallocate
+      long dstDataAddr = target.getDataBufferAddress() + targetDataIndex; // start address for next copy in target
+      long dstMaxDataAddr = target.getDataBufferAddress() + target.getDataBuffer().capacity(); // max bytes we can copy to target before we need to reallocate
 
-      for(; sv2 < maxSv2; sv2 += STEP_SIZE, dstOffsetAddr += 4){
+      for(; sv2Addr < maxSv2; sv2Addr += STEP_SIZE, dstOffsetAddr += 4){
         // copy from recordIndex to last available position in target
-        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(sv2));
+        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(sv2Addr));
         // retrieve start offset and length of value we want to copy
         final long startAndEnd = PlatformDependent.getLong(srcOffsetAddr + recordIndex * 4);
         final int firstOffset = (int) startAndEnd;
         final int secondOffset = (int) (startAndEnd >> 32);
         final int len = secondOffset - firstOffset;
-        // check if we need to reallocate target buffer
-        if (curDataAddr + len > maxDataAddr) {
-          throw new IllegalArgumentException("data size required " + (curDataAddr + len - target.getDataBufferAddress()) +
+        // check if sufficient space in target buffer
+        if (dstDataAddr + len > dstMaxDataAddr) {
+          throw new IllegalArgumentException("data size required " + (dstDataAddr + len - target.getDataBufferAddress()) +
             ", but found " + target.getDataBuffer().capacity());
         }
 
         targetDataIndex += len;
         PlatformDependent.putInt(dstOffsetAddr, targetDataIndex);
-        com.dremio.sabot.op.common.ht2.Copier.copy(srcDataAddr + firstOffset, curDataAddr, len);
-        curDataAddr += len;
+        com.dremio.sabot.op.common.ht2.Copier.copy(srcDataAddr + firstOffset, dstDataAddr, len);
+        dstDataAddr += len;
       }
 
       target.setValueCount(targetIndex + count);
@@ -230,17 +228,17 @@ public abstract class FieldBufferPreAllocedCopier {
     }
 
     @Override
-    public void copy(long sv2, int count) {
-      seekAndCopy(sv2, count, null);
+    public void copy(long sv2Addr, int count) {
+      seekAndCopy(sv2Addr, count, null);
     }
 
     @Override
-    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
-      copy(offsetAddr, count);
+    public void copy(long sv2Addr, int count, long nullAddr, int nullCount) {
+      copy(sv2Addr, count);
     }
 
     @Override
-    public Cursor copy(long sv2, int count, Cursor cursor) {
+    public Cursor copy(long sv2Addr, int count, Cursor cursor) {
       if (cursor == null) {
         cursor = new Cursor();
       }
@@ -248,7 +246,7 @@ public abstract class FieldBufferPreAllocedCopier {
         throw new IllegalArgumentException("vector size required " + cursor.targetDataIndex + count +
             ", but found " + targetAlt.getValueCapacity());
       }
-      return seekAndCopy(sv2, count, cursor);
+      return seekAndCopy(sv2Addr, count, cursor);
     }
   }
 
@@ -264,7 +262,7 @@ public abstract class FieldBufferPreAllocedCopier {
       this.bufferOrdinal = bufferOrdinal;
     }
 
-    private void seekAndCopy(long offsetAddr, int count, int seekTo) {
+    private void seekAndCopy(long sv2Addr, int count, int seekTo) {
       final long srcAddr;
       final long dstAddr;
       switch (bufferOrdinal) {
@@ -280,10 +278,10 @@ public abstract class FieldBufferPreAllocedCopier {
           throw new UnsupportedOperationException("unexpected buffer offset");
       }
 
-      final long maxAddr = offsetAddr + count * STEP_SIZE;
+      final long maxAddr = sv2Addr + count * STEP_SIZE;
       int targetIndex = seekTo;
-      for(; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++){
-        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
+      for(; sv2Addr < maxAddr; sv2Addr += STEP_SIZE, targetIndex++){
+        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(sv2Addr));
         final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
         final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
         final long addr = dstAddr + (targetIndex >>> 3);
@@ -292,12 +290,12 @@ public abstract class FieldBufferPreAllocedCopier {
     }
 
     @Override
-    public void copy(long offsetAddr, int count) {
-      seekAndCopy(offsetAddr, count, 0);
+    public void copy(long sv2Addr, int count) {
+      seekAndCopy(sv2Addr, count, 0);
     }
 
     @Override
-    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
+    public Cursor copy(long sv2Addr, int count, Cursor cursor) {
       if (cursor == null) {
         cursor = new Cursor();
       }
@@ -305,13 +303,13 @@ public abstract class FieldBufferPreAllocedCopier {
         throw new IllegalArgumentException("vector size required " + (cursor.targetIndex + count) +
           ", but found " + target.getValueCapacity());
       }
-      seekAndCopy(offsetAddr, count, cursor.targetIndex);
+      seekAndCopy(sv2Addr, count, cursor.targetIndex);
       cursor.targetIndex += count;
       return cursor;
     }
 
     @Override
-    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+    public void copy(long sv2Addr, int count, long nullAddr, int nullCount) {
       final long srcAddr;
       final long dstAddr;
       switch (bufferOrdinal) {
@@ -327,10 +325,10 @@ public abstract class FieldBufferPreAllocedCopier {
           throw new UnsupportedOperationException("unexpected buffer offset");
       }
 
-      final long maxAddr = offsetAddr + count * STEP_SIZE;
+      final long maxAddr = sv2Addr + count * STEP_SIZE;
       int targetIndex = 0;
-      for(; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++){
-        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
+      for(; sv2Addr < maxAddr; sv2Addr += STEP_SIZE, targetIndex++){
+        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(sv2Addr));
         final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
         final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
         final long addr = dstAddr + (targetIndex >>> 3);
@@ -343,8 +341,8 @@ public abstract class FieldBufferPreAllocedCopier {
         for (; nullAddr < maxKeyAddr; nullAddr += STEP_SIZE) {
           targetIndex = Short.toUnsignedInt(PlatformDependent.getShort(nullAddr));
           final long addr = dstAddr + (targetIndex >>> 3);
-          final int bitVal = ~(1 << (targetIndex & 7));
-          PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) & bitVal));
+          final int bitMask = ~(1 << (targetIndex & 7));
+          PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) & bitMask));
         }
       }
     }
@@ -359,10 +357,10 @@ public abstract class FieldBufferPreAllocedCopier {
       this.dst = dst;
     }
 
-    private void seekAndCopy(long offsetAddr, int count, int seekTo) {
-      final long max = offsetAddr + count * STEP_SIZE;
+    private void seekAndCopy(long sv2Addr, int count, int seekTo) {
+      final long max = sv2Addr + count * STEP_SIZE;
       int targetDataIndex = seekTo;
-      for (long addr = offsetAddr; addr < max; addr += STEP_SIZE) {
+      for (long addr = sv2Addr; addr < max; addr += STEP_SIZE) {
         int index = Short.toUnsignedInt(PlatformDependent.getShort(addr));
         transfer.copyValueSafe(index, targetDataIndex);
         ++targetDataIndex;
@@ -370,21 +368,21 @@ public abstract class FieldBufferPreAllocedCopier {
     }
 
     @Override
-    public void copy(long offsetAddr, int count) {
-      seekAndCopy(offsetAddr, count, 0);
+    public void copy(long sv2Addr, int count) {
+      seekAndCopy(sv2Addr, count, 0);
     }
 
     @Override
-    public void copy(long offsetAddr, int count, long nullKeyAddr, int nullKeyCount) {
-      copy(offsetAddr, count);
+    public void copy(long sv2Addr, int count, long nullKeyAddr, int nullKeyCount) {
+      copy(sv2Addr, count);
     }
 
     @Override
-    public Cursor copy(long offsetAddr, int count, Cursor cursor) {
+    public Cursor copy(long sv2Addr, int count, Cursor cursor) {
       if (cursor == null) {
         cursor = new Cursor();
       }
-      seekAndCopy(offsetAddr, count, cursor.targetIndex);
+      seekAndCopy(sv2Addr, count, cursor.targetIndex);
       cursor.targetIndex += count;
       return cursor;
     }

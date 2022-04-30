@@ -677,6 +677,22 @@ public class TestEnhancedFilterJoinRule {
       "=(CASE(IS NULL($0), $1, $4), 20)");
   }
 
+  @Test
+  public void testNoTopFilterJoinConditionDoesNotSatisfyPredicateExtractNothing() {
+    testNoTopFilter(
+      rAnd(
+        rEq(col_R_a, col_S_x),
+        rOr(rEq(col_R_b, col_S_y), rEq(col_R_c, col_S_z))),
+      JoinRelType.INNER,
+      JoinRelType.INNER,
+      "=($0, $4)",
+      "true",
+      "true",
+      "OR(=($1, $5), =($2, $6))"
+    );
+  }
+
+
   private void testWithTopFilter(RexNode inputFilterCondition, RexNode inputJoinCondition,
     JoinRelType joinRelType, JoinRelType expectedJoinType, String expectedJoinConditionString,
     String expectedLeftPushdownPredicateString, String expectedRightPushdownPredicateString,

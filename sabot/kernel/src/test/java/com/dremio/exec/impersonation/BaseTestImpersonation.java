@@ -16,10 +16,14 @@
 package com.dremio.exec.impersonation;
 
 
+import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.DEFAULT_PASSWORD;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.junit.BeforeClass;
 
 import com.dremio.exec.BaseTestMiniDFS;
+import com.dremio.service.users.SimpleUser;
 
 /**
  * Base class for impersonation tests
@@ -58,5 +62,18 @@ public class BaseTestImpersonation extends BaseTestMiniDFS {
     configuration.set(String.format("hadoop.proxyuser.%s.groups", processUser), "*");
     startMiniDfsCluster(testClass, configuration);
     return configuration;
+  }
+
+  @BeforeClass
+  public static void createUsers() throws Exception {
+    for (int i = 0; i < org1Users.length; i++) {
+      SimpleUser user = SimpleUser.newBuilder().setUserName(org1Users[i]).build();
+      getSabotContext().getUserService().createUser(user, DEFAULT_PASSWORD);
+    }
+
+    for (int i = 0; i < org2Users.length; i++) {
+      SimpleUser user = SimpleUser.newBuilder().setUserName(org2Users[i]).build();
+      getSabotContext().getUserService().createUser(user, DEFAULT_PASSWORD);
+    }
   }
 }

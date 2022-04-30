@@ -29,7 +29,10 @@ describe('ExploreTableColumnFilter', () => {
       updateColumnFilter: () => {},
       columnCount: 0,
       filteredColumnCount: 0,
-      location: {pathname: ''}
+      location: {pathname: ''},
+      intl: {
+        formatMessage: sinon.spy()
+      }
     };
   });
 
@@ -39,24 +42,6 @@ describe('ExploreTableColumnFilter', () => {
       const wrapper = shallow(<ExploreTableColumnFilter {...minimalProps}/>);
       expect(wrapper).to.have.length(1);
       expect(wrapper.find('div[data-qa=\'columnFilter\']')).to.have.length(1);
-    });
-
-    it('should hide column filter count w/o filter', () => {
-      const wrapper = shallow(<ExploreTableColumnFilter {...minimalProps}/>);
-      expect(wrapper.find('div[data-qa=\'columnFilterStats\']')).to.have.length(1);
-      expect(wrapper.find('span[data-qa=\'columnFilterCount\']')).to.have.length(0);
-    });
-
-    it('should render column full filter stats with filter', () => {
-      const props = {
-        ...minimalProps,
-        columnFilter: 'test',
-        columnCount: 4,
-        filteredColumnCount: 2
-      };
-      const wrapper = shallow(<ExploreTableColumnFilter {...props}/>);
-      expect(wrapper.find('span[data-qa=\'columnFilterCount\']')).to.have.length(1);
-      expect(wrapper.find('span[data-qa=\'columnFilterCount\']').text()).to.eql('2 of ');
     });
   });
 

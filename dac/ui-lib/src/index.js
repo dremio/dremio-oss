@@ -18,6 +18,10 @@ import './styles/common.scss';
 import './styles/overrides.scss';
 
 // Components
+export { default as Tooltip } from './components/Tooltip';
+
+export { default as BarChart } from './components/BarChart';
+
 export { default as Button } from './components/Button';
 
 export { default as ExpandableText } from './components/ExpandableText';
@@ -59,9 +63,14 @@ export { default as DialogTitle } from './components/Dialog/DialogTitle';
 
 export { default as FlexTable } from './components/FlexTable';
 export { default as HoverHelp } from './components/HoverHelp';
+export { default as CopyToClipboard } from './components/CopyToClipboard';
 
 export { default as SimpleMessage } from './components/SimpleMessage';
 export { default as SearchableMultiSelect } from './components/SearchableMultiSelect';
+
+export { default as ProgressBar } from './components/ProgressBar';
+
+export { default as PageSummary } from './components/PageSummary';
 
 // Utils
 

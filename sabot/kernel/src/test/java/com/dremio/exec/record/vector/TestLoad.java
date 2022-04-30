@@ -113,7 +113,7 @@ public class TestLoad extends ExecTest {
       }
     }
     assertEquals(100, recordCount);
-    byteBuf.release();
+    byteBuf.close();
     batchLoader.clear();
     writableBatch.clear();
   }

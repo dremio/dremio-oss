@@ -72,6 +72,36 @@ public class TestCreateTable extends PlanTestBase {
   }
 
   @Test
+  public void withDuplicateColumnsInStruct() throws Exception {
+    errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ROW(region_id  int, Region_id  int))", TEMP_SCHEMA, "testTableNameDupStruct"),
+      "Column [REGION_ID] specified multiple times.");
+  }
+
+  @Test
+  public void withDuplicateColumnsInListOfStruct() throws Exception {
+    errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ARRAY(ROW(region_id  int, Region_id  int)))",
+      TEMP_SCHEMA, "testTableNameDupListOfStruct"), "Column [REGION_ID] specified multiple times.");
+  }
+
+  @Test
+  public void withDuplicateColumnsInListOfListOfStruct() throws Exception {
+    errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ARRAY(ARRAY(ROW(region_id  int, Region_id  int))))",
+      TEMP_SCHEMA, "testTableNameDupListOfListOfStruct"), "Column [REGION_ID] specified multiple times.");
+  }
+
+  @Test
+  public void withDuplicateColumnsInStructOfListOfStruct() throws Exception {
+    errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ROW( x ARRAY(ROW(x int,region_id  int, Region_id  int))))",
+      TEMP_SCHEMA, "testTableNameDupStructOfListOfStruct"), "Column [REGION_ID] specified multiple times.");
+  }
+
+  @Test
+  public void withDuplicateColumnsInStructOfStruct() throws Exception {
+    errorMsgTestHelper(String.format("CREATE TABLE %s.%s (col1 ROW( x ROW(x int,region_id  int, Region_id  int)))",
+      TEMP_SCHEMA, "testTableNameDupStructOfStruct"), "Column [REGION_ID] specified multiple times.");
+  }
+
+  @Test
   public void createTableInvalidType() throws Exception {
     errorMsgTestHelper(String.format("CREATE TABLE %s.%s (region_id int, sales_city Decimal(39, 4))",
         TEMP_SCHEMA, "testTableName4"),"Precision larger than 38 is not supported.");
@@ -278,8 +308,8 @@ public class TestCreateTable extends PlanTestBase {
     final String newTblName = "createTableComplexTypes";
     try {
       final String ctasQuery =
-        String.format("create table %s.%s (point STRUCT<x:INT , y: DECIMAL(38,3)>, list LIST<BIGINT>, listoflist LIST<LIST<DECIMAL(34,4)>>, listofstruct LIST<STRUCT<x:BIGINT>>," +
-            "structofstruct STRUCT<x: STRUCT<z: INT>>, structoflist STRUCT<x:LIST<INT>>)",
+        String.format("create table %s.%s (point ROW(x INT , y  DECIMAL(38,3)), list ARRAY(BIGINT), listoflist ARRAY(ARRAY(DECIMAL(34,4))), listofstruct ARRAY(ROW(x BIGINT))," +
+            "structofstruct ROW(x ROW(z INT)), structoflist ROW(x ARRAY(INT)))",
           TEMP_SCHEMA, newTblName);
       test(ctasQuery);
     } finally {

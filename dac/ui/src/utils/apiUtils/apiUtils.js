@@ -112,12 +112,18 @@ class ApiUtils {
     throw error;
   };
 
+  prepareHeaders = () => {
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': localStorageUtils.getAuthToken()
+    };
+  };
+
   fetch = (endpoint, options = {}, version = 3) => {
     const apiVersion = this.getAPIVersion(version, options.customOptions);
 
     const headers = new Headers({
-      'Content-Type': 'application/json',
-      'Authorization': localStorageUtils.getAuthToken(),
+      ...this.prepareHeaders(),
       ...options.headers
     }); // protect against older chrome browsers
 

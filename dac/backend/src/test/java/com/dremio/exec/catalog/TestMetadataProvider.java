@@ -29,12 +29,14 @@ import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableThreadPool;
 import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.dac.service.flight.FlightCloseableBindableService;
@@ -67,6 +69,8 @@ public class TestMetadataProvider extends BaseTestQuery {
   @ClassRule
   public static final TestSysFlightResource SYS_FLIGHT_RESOURCE = new TestSysFlightResource();
 
+  private static AutoCloseable disableUnlimitedSplitsSupportFlags;
+
   @BeforeClass
   public static final void setupDefaultTestCluster() throws Exception {
     // register the SysFlight service on conduit
@@ -90,7 +94,13 @@ public class TestMetadataProvider extends BaseTestQuery {
     ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("sys"),
       CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
+    disableUnlimitedSplitsSupportFlags = disableUnlimitedSplitsSupportFlags();
     test("SELECT * from cp.\"tpch/customer.parquet\"");
+  }
+
+  @AfterClass
+  public static void resetFlags() throws Exception {
+    AutoCloseables.close(disableUnlimitedSplitsSupportFlags);
   }
 
   @Test
@@ -376,7 +386,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(259, columns1.size());
+    assertEquals(277, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
       columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }
@@ -390,7 +400,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(21, columns.size());
+    assertEquals(23, columns.size());
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
     verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "ORDINAL_POSITION", iterator.next());
@@ -401,7 +411,9 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     verifyColumn("cp", "tpch/customer.parquet", "c_phone", iterator.next());
 
+    verifyColumn("sys", "fragments", "rows_processed", iterator.next());
     verifyColumn("sys", "jobs", "execution_planning_ts", iterator.next());
+    verifyColumn("sys", "jobs", "execution_planning_epoch_millis", iterator.next());
     verifyColumn("sys", "materializations", "data_partitions", iterator.next());
     verifyColumn("sys", "materializations", "last_refresh_from_pds", iterator.next());
     verifyColumn("sys", "memory", "fabric_port", iterator.next());

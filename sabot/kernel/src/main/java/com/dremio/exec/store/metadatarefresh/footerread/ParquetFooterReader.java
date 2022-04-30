@@ -20,6 +20,7 @@ import static com.dremio.exec.ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -31,6 +32,7 @@ import org.apache.iceberg.FileFormat;
 import org.apache.parquet.arrow.schema.SchemaConverter;
 import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.hadoop.CodecFactory;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,9 +100,16 @@ public class ParquetFooterReader implements FooterReader {
   private long getRowCount(MutableParquetMetadata parquetMetadata, long fileSize) {
     Preconditions.checkState(!readFooter || parquetMetadata != null, "Unexpected state");
     if (parquetMetadata != null) {
-      return parquetMetadata.getRowCount();
+      return getRowCount(parquetMetadata);
     }
     return getEstimatedRowCount(fileSize);
+  }
+
+  private long getRowCount(MutableParquetMetadata footer) {
+    return footer.getBlocks().stream()
+      .filter(Objects::nonNull)
+      .mapToLong(BlockMetaData::getRowCount)
+      .sum();
   }
 
   private long getEstimatedRowCount(long fileSize) {

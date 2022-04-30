@@ -33,6 +33,7 @@ import org.apache.iceberg.io.CloseableIterator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.SplitGenManifestScanTableFunctionContext;
@@ -46,6 +47,7 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.tablefunction.TableFunctionOperator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 /**
  * Process ManifestFile. This class iterates over each datafile in manifest file and give to data processor one at a time
@@ -72,6 +74,7 @@ public class ManifestFileProcessor implements AutoCloseable {
     this.icebergRootPointerPlugin = getStoragePlugin(fec, functionConfig.getFunctionContext());
     this.opProps = props;
     this.conf = getConfiguration(icebergRootPointerPlugin);
+    Preconditions.checkState(context != null, "Unexpected state");
     this.context = context;
     this.operatorStats = context.getStats();
     this.dataset = getDataset(functionConfig);
@@ -137,10 +140,13 @@ public class ManifestFileProcessor implements AutoCloseable {
   }
 
   private DremioFileIO getFileIO(ManifestFile manifestFile) {
-    return new DremioFileIO(
-      createFs(manifestFile.path(), context, opProps, icebergRootPointerPlugin),
-      context, dataset, datasourcePluginUID, manifestFile.length(), conf);
+
+    FileSystem fs = createFs(manifestFile.path(), context, opProps, icebergRootPointerPlugin);
+    Preconditions.checkState(fs != null, "Unexpected state");
+    return new DremioFileIO(fs,
+      context, dataset, datasourcePluginUID, manifestFile.length(), conf, (MutablePlugin) icebergRootPointerPlugin);
   }
+
 
   private void nextDataFile() {
     currentFile = iterator.next();

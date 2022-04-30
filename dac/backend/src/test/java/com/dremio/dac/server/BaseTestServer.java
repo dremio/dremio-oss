@@ -20,16 +20,16 @@ import static com.dremio.common.utils.PathUtils.getPathJoiner;
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
+import static com.dremio.exec.planner.physical.PlannerSettings.UNLIMITED_SPLITS_SUPPORT;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -57,7 +57,6 @@ import javax.ws.rs.core.SecurityContext;
 import org.apache.arrow.memory.BufferAllocator;
 import org.eclipse.jetty.http.HttpHeader;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -479,6 +478,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, port)
               .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
               .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
+              .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
               .clusterMode(ClusterMode.DISTRIBUTED),
           DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule);
@@ -503,6 +503,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .isRemote(true)
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
               .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
+              .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
               .zk("localhost:" + zkPort),
               DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule);
@@ -530,6 +531,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
       executorDaemon.init();
     } else {
       logger.info("Running tests in local mode");
+      final String distpath = "file://" + folder0.getRoot().getAbsolutePath();
       currentDremioDaemon = DACDaemon.newDremioDaemon(
           DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
@@ -539,8 +541,11 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .addDefaultUser(addDefaultUser)
               .inMemoryStorage(inMemoryStorage)
               .writePath(folder1.getRoot().getAbsolutePath())
+              .with(DremioConfig.METADATA_PATH_STRING, distpath + "/metadata")
+              .with(DremioConfig.ACCELERATOR_PATH_STRING, distpath + "/accelerator")
               .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
               .with(DremioConfig.NESSIE_SERVICE_ENABLED_BOOLEAN, true)
+              .with(DremioConfig.NESSIE_SERVICE_IN_MEMORY_BOOLEAN, true)
               .clusterMode(DACDaemon.ClusterMode.LOCAL),
               DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule
@@ -724,11 +729,11 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   public static void assertContains(String expectedContains, String string) {
-    assertTrue(string + " should contain " + expectedContains, string.contains(expectedContains));
+    assertThat(string).contains(expectedContains);
   }
 
   public static void assertNotContains(String expectedNotContains, String string) {
-    assertFalse(string + " should not contain " + expectedNotContains, string.contains(expectedNotContains));
+    assertThat(string).doesNotContain(expectedNotContains);
   }
 
   protected UserLoginSession getUls() {
@@ -1025,14 +1030,13 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return new SqlQuery(sql, DEFAULT_USERNAME);
   }
 
-  protected void assertErrorMessage(final GenericErrorMessage errorMessage, final String expectedMoreInfo) {
-    assertEquals("error message should be '" + GenericErrorMessage.GENERIC_ERROR_MSG + "'", GenericErrorMessage.GENERIC_ERROR_MSG, errorMessage.getErrorMessage());
-    assertThat(errorMessage.getMoreInfo(), CoreMatchers.containsString(expectedMoreInfo));
+  protected void assertErrorMessage(final GenericErrorMessage error, final String errorMessage) {
+    assertEquals("error message should be '" + errorMessage + "'", errorMessage, error.getErrorMessage());
   }
 
   protected void assertErrorMessage(final GenericErrorMessage error, final String errorMessage, final String expectedMoreInfo) {
     assertEquals("error message should be '" + errorMessage + "'", errorMessage, error.getErrorMessage());
-    assertTrue("Unexpected more infos field", error.getMoreInfo().contains(expectedMoreInfo));
+    assertThat(error.getMoreInfo()).contains(expectedMoreInfo);
   }
 
   protected JobId submitAndWaitUntilSubmitted(JobRequest request, JobStatusListener listener) {
@@ -1125,11 +1129,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   protected static AutoCloseable enableIcebergTables() {
-    setSystemOption(ExecConstants.ENABLE_ICEBERG.getOptionName(), "true");
+    setSystemOption(ENABLE_ICEBERG.getOptionName(), "true");
     setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG.getOptionName(), "true");
     return () -> {
-      setSystemOption(ExecConstants.ENABLE_ICEBERG.getOptionName(),
-        ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+      setSystemOption(ENABLE_ICEBERG.getOptionName(), ENABLE_ICEBERG.getDefault().getBoolVal().toString());
       setSystemOption(ExecConstants.CTAS_CAN_USE_ICEBERG.getOptionName(),
         ExecConstants.CTAS_CAN_USE_ICEBERG.getDefault().getBoolVal().toString());
     };
@@ -1146,6 +1149,20 @@ public abstract class BaseTestServer extends BaseClientUtils {
         PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+    };
+  }
+
+  protected static AutoCloseable disableUnlimitedSplitsSupport() {
+    setSystemOption(UNLIMITED_SPLITS_SUPPORT.getOptionName(), "false");
+    setSystemOption(ENABLE_ICEBERG.getOptionName(), "false");
+    return () -> {
+      try {
+        setSystemOption(UNLIMITED_SPLITS_SUPPORT.getOptionName(),
+          UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
+        setSystemOption(ENABLE_ICEBERG.getOptionName(), ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+      } catch (Exception e) {
+        // ignore
+      }
     };
   }
 }

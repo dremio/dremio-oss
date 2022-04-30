@@ -281,6 +281,7 @@ export class SQLEditor extends PureComponent {
     this.monaco = monaco;
     this.setEditorTheme();
     editor.getDomNode()._monacoEditor = editor; // for e2e tests
+
     // if this is our first time using monaco it will lazy load
     // only once it's loaded can we set up languages, etc
     if (!haveLoaded) {
@@ -338,7 +339,7 @@ export class SQLEditor extends PureComponent {
     editor.addAction({
       id: 'keys-preview',
       label: 'Preview',
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter], // eslint-disable-line no-bitwise
+      keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter ], // eslint-disable-line no-bitwise
       precondition: null,
       keybindingContext: null,
       run: this.onKbdPreview
@@ -346,7 +347,7 @@ export class SQLEditor extends PureComponent {
     editor.addAction({
       id: 'keys-run',
       label: 'Run',
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter], // eslint-disable-line no-bitwise
+      keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter ], // eslint-disable-line no-bitwise
       precondition: null,
       keybindingContext: null,
       run: this.onKbdRun
@@ -391,6 +392,7 @@ export class SQLEditor extends PureComponent {
             },
             suggestLineHeight: 25,
             readOnly,
+            hideCursorInOverviewRuler: true,
             contextmenu: contextMenu, // a case is important here
             ...(this.props.customOptions && this.props.customOptions)
           }}

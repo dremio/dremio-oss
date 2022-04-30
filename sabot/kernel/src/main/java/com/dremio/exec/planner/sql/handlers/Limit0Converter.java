@@ -44,25 +44,25 @@ public class Limit0Converter extends BasePrelVisitor<Prel, Void, IOException> {
 
   @Override
   public Prel visitPrel(Prel prel, Void value) throws IOException {
-    if (prel instanceof LimitPrel) {
-      LimitPrel limit = (LimitPrel) prel;
-      if(isLimit0(limit.getFetch())){
-        PhysicalOperator op = PrelTransformer.convertToPop(config, prel);
-        BatchSchema schema = op.getProps().getSchema();
-
-        // make sure to remove any selection vector modes since we're now the leaf node.
-        schema = schema.clone(SelectionVectorMode.NONE);
-        return new EmptyPrel(prel.getCluster(), prel.getTraitSet(), prel.getRowType(), schema);
-      }
-
-    }
-
     List<RelNode> children = new ArrayList<>();
     for(Prel child : prel){
       children.add(child.accept(this, null));
     }
     return (Prel) prel.copy(prel.getTraitSet(), children);
+  }
 
+  @Override
+  public Prel visitLimit(LimitPrel limit, Void value) throws IOException {
+    if(isLimit0(limit.getFetch())){
+      PhysicalOperator op = PrelTransformer.convertToPop(config, limit);
+      BatchSchema schema = op.getProps().getSchema();
+
+      // make sure to remove any selection vector modes since we're now the leaf node.
+      schema = schema.clone(SelectionVectorMode.NONE);
+      return new EmptyPrel(limit.getCluster(), limit.getTraitSet(), limit.getRowType(), schema);
+    } else {
+      return visitPrel(limit, value);
+    }
   }
 
   private static boolean isLimit0(RexNode fetch) {
@@ -88,5 +88,4 @@ public class Limit0Converter extends BasePrelVisitor<Prel, Void, IOException> {
       throw new RelConversionException("Failure while attempting to convert limit 0 to empty rel.");
     }
   }
-
 }

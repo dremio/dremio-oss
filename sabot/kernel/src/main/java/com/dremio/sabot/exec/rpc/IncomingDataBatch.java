@@ -32,7 +32,7 @@ public class IncomingDataBatch {
 
   private final FragmentRecordBatch header;
   private final ArrowBuf body;
-  private final AckSender sender;
+  private final AckSenderImpl sender;
 
   /**
    * Create a new batch. Does not impact reference counts of body.
@@ -44,7 +44,7 @@ public class IncomingDataBatch {
    * @param sender
    *          AckSender to use for underlying RawFragmentBatches.
    */
-  public IncomingDataBatch(FragmentRecordBatch header, ArrowBuf body, AckSender sender) {
+  public IncomingDataBatch(FragmentRecordBatch header, ArrowBuf body, AckSenderImpl sender) {
     Preconditions.checkNotNull(header);
     Preconditions.checkNotNull(sender);
     this.header = header;

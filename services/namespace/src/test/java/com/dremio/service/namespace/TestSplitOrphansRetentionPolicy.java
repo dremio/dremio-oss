@@ -17,8 +17,7 @@ package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY;
 import static com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
 import java.util.UUID;
@@ -119,6 +118,6 @@ public class TestSplitOrphansRetentionPolicy {
   public void checkRetention() {
     Range<PartitionChunkId> range = policy.apply(metadataPolicy, config);
 
-    assertThat(range.contains(splitId), is(expected));
+    assertThat(range.contains(splitId)).isEqualTo(expected);
   }
 }

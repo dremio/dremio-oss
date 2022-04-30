@@ -229,7 +229,7 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
     final Map<Integer, Integer> percentileToCumCntMap = new HashMap<>();
 
     RelNode peek = relBuilder.peek();
-    List<RexNode> projNodes = MoreRelOptUtil.identityProjects(peek.getRowType(), null);
+    List<RexNode> projNodes = MoreRelOptUtil.identityProjects(peek.getRowType());
 
     projNodes.addAll(
       getCountWindowNodes(percentileAggs, groupByFields, origInput, peek,
@@ -237,7 +237,7 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
     relBuilder.project(projNodes);
 
     peek = relBuilder.peek();
-    projNodes = MoreRelOptUtil.identityProjects(peek.getRowType(), null);
+    projNodes = MoreRelOptUtil.identityProjects(peek.getRowType());
     List<String> fieldNames = new ArrayList<>(peek.getRowType().getFieldNames());
     List<List<RexNode>> caseExprs = getCaseExprs(percentileAggs, peek, rexBuilder, orderByCollationIndices, percentileToCumCntMap);
     for (int i = 0, discSuffix = 0, contSuffix = 0; i < percentileAggs.size(); i++) {

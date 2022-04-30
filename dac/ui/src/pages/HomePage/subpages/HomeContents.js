@@ -20,10 +20,11 @@ import Immutable from 'immutable';
 
 import { getUserName } from '@app/selectors/account';
 import { getHomeContents, getNormalizedEntityPathByUrl } from '@app/selectors/home';
-import { loadHomeContent } from '@app/actions/home';
+import { loadHomeContent as loadHomeContentAction } from '@app/actions/home';
 import { getViewState } from 'selectors/resources';
 import { getEntityType } from 'utils/pathUtils';
 import { ENTITY_TYPES } from '@app/constants/Constants';
+import { getRefQueryParams } from '@app/utils/nessieUtils';
 
 import { updateRightTreeVisibility } from 'actions/ui/ui';
 
@@ -43,7 +44,8 @@ class HomeContents extends Component {
     rightTreeVisible: PropTypes.bool,
     entity: PropTypes.instanceOf(Immutable.Map),
     entityType: PropTypes.oneOf(Object.values(ENTITY_TYPES)),
-    viewState: PropTypes.instanceOf(Immutable.Map)
+    viewState: PropTypes.instanceOf(Immutable.Map),
+    nessie: PropTypes.object
   };
 
   static contextTypes = {
@@ -64,10 +66,12 @@ class HomeContents extends Component {
     const {
       getContentUrl,
       entityType,
-      loadHomeContent: loadData
+      loadHomeContent,
+      nessie
     } = this.props;
 
-    loadData(getContentUrl, entityType, VIEW_ID);
+    const params = this.getParams(nessie, entityType, getContentUrl);
+    loadHomeContent(getContentUrl, entityType, VIEW_ID, params);
   }
 
   shouldComponentUpdate(nextProps) {
@@ -93,6 +97,11 @@ class HomeContents extends Component {
     return false;
   }
 
+  getParams(nessie, entityType, url) {
+    if (!['source', 'folder'].includes(entityType)) return null;
+    const [, , sourceName] = url.split('/');
+    return getRefQueryParams(nessie, sourceName);
+  }
 
   render() {
     const {entity, entityType, viewState, rightTreeVisible} = this.props;
@@ -119,11 +128,12 @@ function mapStateToProps(state, props) {
     // do not use getNormalizedEntityPath from selectors/home here until DX-16200 would be resolved
     // we must use router location value, as redux location could be out of sync
     getContentUrl: getNormalizedEntityPathByUrl(location.pathname, getUserName(state)),
-    viewState: getViewState(state, VIEW_ID)
+    viewState: getViewState(state, VIEW_ID),
+    nessie: state.nessie
   };
 }
 
 export default connect(mapStateToProps, {
-  loadHomeContent,
+  loadHomeContent: loadHomeContentAction,
   updateRightTreeVisibility
 })(HomeContents);

@@ -362,7 +362,7 @@ public class OperatorStats {
       .setOperatorSubtype(operatorSubType);
 
     if (allocator != null) {
-      b.setPeakLocalMemoryAllocated(allocator.getPeakMemoryAllocation());
+      b.setPeakLocalMemoryAllocated(Long.max(allocator.getPeakMemoryAllocation(), allocator.getInitReservation()));
     }
     if (withDetails && (profileDetails != null)) {
       b.setDetails(profileDetails);

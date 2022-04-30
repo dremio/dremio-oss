@@ -25,6 +25,7 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.datastore.DatastoreException;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
+import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
@@ -164,7 +165,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
               .withDescription("put executor profile failed " + e.getMessage())
               .asRuntimeException());
     } catch (Exception ex) {
-      logger.error("put executor profile failed", ex);
+      logger.error("put executor profile failed: ", ex);
       responseObserver.onError(
           Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
     }
@@ -175,6 +176,19 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       logger.debug("Updating progress metrics for query {}", QueryIdHelper.getQueryId(profile.getQueryId()));
     }
     metricsStore.put(profile.getQueryId(), EndpointHelper.getMinimalString(profile.getEndpoint()), profile.getProgress());
+  }
+
+  @Override
+  public void getQueryProgressMetricsUnary(GetQueryProgressMetricsRequest request, StreamObserver<GetQueryProgressMetricsResponse> responseObserver) {
+    try {
+      QueryProgressMetrics metrics = progressMetricsPublisher.fetchMetricsAndCombine(request.getQueryId());
+      responseObserver.onNext(GetQueryProgressMetricsResponse.newBuilder().setMetrics(metrics).build());
+      responseObserver.onCompleted();
+    } catch (Exception ex) {
+      logger.error("Get Query progress metrics failed: ", ex);
+      responseObserver.onError(
+        Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
+    }
   }
 
   @Override

@@ -145,5 +145,10 @@ class TracingKVStore<K, V> implements KVStore<K, V> {
     public List<Integer> getCounts(SearchTypes.SearchQuery... conditions) {
       return trace("getCounts", () -> indexedStore.getCounts(conditions));
     }
+
+    @Override
+    public Integer version() {
+      return indexedStore.version();
+    }
   }
 }

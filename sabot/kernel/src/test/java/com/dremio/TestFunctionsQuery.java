@@ -17,6 +17,7 @@ package com.dremio;
 
 import static com.dremio.common.util.JodaDateUtility.formatDate;
 import static com.dremio.common.util.JodaDateUtility.formatTimeStampMilli;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.joda.time.DateTimeZone.UTC;
 
 import java.math.BigDecimal;
@@ -30,9 +31,7 @@ import org.joda.time.Period;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -41,15 +40,12 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.util.TSI;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Longs;
 
 public class TestFunctionsQuery extends BaseTestQuery {
-
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
 
   // enable decimal data type
   @BeforeClass
@@ -1080,18 +1076,17 @@ public class TestFunctionsQuery extends BaseTestQuery {
   }
 
   @Test // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
-  public void timestampAddMicroSecond() throws Exception {
-    exception.expect(new UserExceptionMatcher(ErrorType.UNSUPPORTED_OPERATION,
-        "TIMESTAMPADD function supports the following time units: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND"));
-
-    test("select timestampadd(MICROSECOND, 2, timestamp '2015-03-30 20:49:59.000') as ts from (values(1))");
+  public void timestampAddMicroSecond() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("select timestampadd(MICROSECOND, 2, timestamp '2015-03-30 20:49:59.000') as ts from (values(1))"))
+      .hasErrorType(ErrorType.UNSUPPORTED_OPERATION)
+      .hasMessageContaining("TIMESTAMPADD function supports the following time units: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND");
   }
 
   @Test // TODO (DX-11268): Fix TIMESTAMPADD(SQL_TSI_FRAC_SECOND, ..., ...) function
-  public void timestampAddNanoSecond() throws Exception {
-      exception.expect(new UserExceptionMatcher(ErrorType.PARSE, "Failure parsing the query."));
-
-    test("select timestampadd(NANOSECOND, 2, timestamp '2015-03-30 20:49:59.000') as ts from (values(1))");
+  public void timestampAddNanoSecond() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("select timestampadd(NANOSECOND, 2, timestamp '2015-03-30 20:49:59.000') as ts from (values(1))"))
+      .hasErrorType(ErrorType.PARSE)
+      .hasMessageContaining("Failure parsing the query.");
   }
 
   @Test
@@ -1397,17 +1392,13 @@ public class TestFunctionsQuery extends BaseTestQuery {
       .baselineValues(byteArr)
       .go();
 
-    doubleToBits = Double.doubleToLongBits(-0.0);
-    byteArr = Longs.toByteArray(doubleToBits);
-    exception.expectMessage("did not find expected record in result set");
-    query = "select convert_toDOUBLE_BE(round(val, 12)) from cp" +
-      ".\"json/round_arg_zero.json\"";
-    testBuilder()
-      .sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("EXPR$0")
-      .baselineValues(byteArr)
-      .go();
+    assertThatThrownBy(() -> testBuilder()
+        .sqlQuery("select convert_toDOUBLE_BE(round(val, 12)) from cp.\"json/round_arg_zero.json\"")
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(Longs.toByteArray(Double.doubleToLongBits(-0.0)))
+        .go())
+      .hasMessageContaining("did not find expected record in result set");
   }
 
   @Test

@@ -31,6 +31,7 @@ import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.SuppressForbidden;
@@ -244,9 +245,9 @@ public abstract class HashAggTemplate implements HashAggregator {
           new FieldReference("dummy", valueFieldIds.get(0).getIntermediateType());
       for (TypedFieldId id : valueFieldIds) {
         if (id.getIntermediateType() == CompleteType.OBJECT) {
-          materializedValueFields[i++] = new Field(ref.getAsNamePart().getName(), true, id.getIntermediateType().getType(), null);
+          materializedValueFields[i++] = new Field(ref.getAsNamePart().getName(), new FieldType(true, id.getIntermediateType().getType(), null), null);
         } else {
-          materializedValueFields[i++] = new Field(ref.getAsNamePart().getName(), true, id.getIntermediateType().getType(), null);
+          materializedValueFields[i++] = new Field(ref.getAsNamePart().getName(), new FieldType(true, id.getIntermediateType().getType(), null), null);
         }
       }
     }

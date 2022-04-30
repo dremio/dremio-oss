@@ -15,6 +15,8 @@
  */
 package com.dremio.service.grpc;
 
+import static com.dremio.context.SupportContext.serializeSupportRoles;
+
 import com.dremio.context.RequestContext;
 import com.dremio.context.SupportContext;
 import com.dremio.context.TenantContext;
@@ -49,6 +51,7 @@ public class MultiTenantClientInterceptor implements ClientInterceptor {
         if (supportContext != null) {
           headers.put(HeaderKeys.SUPPORT_TICKET_HEADER_KEY, supportContext.getTicket());
           headers.put(HeaderKeys.SUPPORT_EMAIL_HEADER_KEY, supportContext.getEmail());
+          headers.put(HeaderKeys.SUPPORT_ROLES_HEADER_KEY, serializeSupportRoles(supportContext.getRoles()));
         }
 
         super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(responseListener) {

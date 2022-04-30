@@ -26,68 +26,67 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 public class TestParserAlterTableChangeColumnComplexType {
   @Test
   public void alterTableChangeStruct() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x:BIGINT NOT NULL>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x BIGINT NOT NULL )");
   }
 
   @Test
   public void alterTableAlterStruct() throws SqlParseException {
-    parse("ALTER TABLE a.b.c ALTER COLUMN point point STRUCT<x:BIGINT NOT NULL>");
+    parse("ALTER TABLE a.b.c ALTER COLUMN point point ROW(x BIGINT NOT NULL )");
   }
 
   @Test
   public void alterTableModifyStruct() throws SqlParseException {
-    parse("ALTER TABLE a.b.c MODIFY COLUMN point point STRUCT<x:BIGINT NOT NULL>");
+    parse("ALTER TABLE a.b.c MODIFY COLUMN point point ROW(x BIGINT NOT NULL )");
   }
 
   @Test
   public void alterTableChangeStructFieldName() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point2 STRUCT<x:BIGINT NOT NULL>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point2 ROW(x BIGINT NOT NULL )");
   }
 
   @Test
   public void alterTableChangeStructDecimal() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x:DECIMAL(38,10)>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x DECIMAL(38,10) )");
   }
 
   @Test
   public void alterTableChangeStructOfList() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x:LIST<BIGINT NOT NULL>>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x  ARRAY(BIGINT NOT NULL ) )");
   }
 
   @Test
   public void alterTableChangeStructOfStruct() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point STRUCT<x:BIGINT, y:STRUCT<x:int, y:int>>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point ROW(x BIGINT, y ROW(x int, y int ) )");
   }
 
   @Test
   public void alterTableChangeList() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point LIST<BIGINT NULL>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point  ARRAY(BIGINT NULL )");
   }
 
   @Test
   public void alterTableChangeListFieldName() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point2 LIST<BIGINT NULL>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point2  ARRAY(BIGINT NULL )");
   }
 
   @Test
   public void alterTableChangeListDecimal() throws SqlParseException {
-    parse("ALTER TABLE a.b.c MODIFY COLUMN point point LIST<DECIMAL(35,2) NULL>");
+    parse("ALTER TABLE a.b.c MODIFY COLUMN point point  ARRAY(DECIMAL(35,2) NULL )");
   }
 
   @Test
   public void alterTableChangeListOfStruct() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point LIST<STRUCT<x:int NULL,y:int>>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point  ARRAY(ROW(x int NULL,y int ) )");
   }
 
   @Test
   public void alterTableChangeListOfList() throws SqlParseException {
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point LIST<LIST<BIGINT>>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point  ARRAY( ARRAY(BIGINT ) )");
   }
 
   @Test
   public void alterTableChangeArrayOfArray() throws SqlParseException {
-    // ARRAY and LIST are interchangeable
-    parse("ALTER TABLE a.b.c CHANGE COLUMN point point ARRAY<ARRAY<BIGINT>>");
+    parse("ALTER TABLE a.b.c CHANGE COLUMN point point ARRAY(ARRAY(BIGINT ) )");
   }
 
   private SqlNode parse(String toParse) throws SqlParseException {

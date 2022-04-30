@@ -36,8 +36,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.WritePartition;
-import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.iceberg.IcebergFormatConfig;
+import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
@@ -71,16 +70,16 @@ public class ManifestFileRecordWriter implements RecordWriter {
   private UpdateIdWrapper updateIdWrapper = new UpdateIdWrapper();
   private long dataFilesSize = 0;
 
-  public ManifestFileRecordWriter(OperatorContext context, EasyWriter writer, IcebergFormatConfig formatConfig) {
+  public ManifestFileRecordWriter(OperatorContext context, IcebergManifestWriterPOP writer) {
     writerOptions = writer.getOptions();
     operatorStats = context.getStats();
-    manifestWritesHelper = getManifestWritesHelper(writer, formatConfig, (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+    manifestWritesHelper = getManifestWritesHelper(writer, (int) context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
     readMetadataVector = !writer.getOptions().getIcebergTableProps().isMetadataRefresh();
   }
 
   @VisibleForTesting
-  ManifestWritesHelper getManifestWritesHelper(EasyWriter writer, IcebergFormatConfig formatConfig, int columnLimit) {
-    return ManifestWritesHelper.getInstance(writer, formatConfig, columnLimit);
+  ManifestWritesHelper getManifestWritesHelper(IcebergManifestWriterPOP writer, int columnLimit) {
+    return ManifestWritesHelper.getInstance(writer, columnLimit);
   }
 
   @Override
@@ -144,7 +143,9 @@ public class ManifestFileRecordWriter implements RecordWriter {
 
   @Override
   public void abort() throws IOException {
-
+      if(manifestWritesHelper != null) {
+        manifestWritesHelper.abort();
+      }
   }
 
   @Override

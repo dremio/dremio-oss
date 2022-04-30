@@ -23,7 +23,6 @@ import { clearEntities } from '@app/actions/resources/entities';
 import { flexElementAuto } from '@app/uiTheme/less/layout.less';
 
 import './ExplorePage.less';
-import HistoryLineController from './components/Timeline/HistoryLineController';
 import ExplorePageContentWrapper from './subpages/ExplorePageContentWrapper';
 
 const EXPLORE_PAGE_MIN_HEIGHT = 700;
@@ -68,21 +67,21 @@ export class ExplorePageView extends PureComponent<ExplorePageViewProps, Explore
   initSqlEditor(props: ExplorePageViewProps) {
     const { pageType, location } = props;
     switch (pageType) {
-      case PageTypes.details:
-        return;
-      case PageTypes.wiki:
-      case PageTypes.reflections:
-      case PageTypes.default:
-      case PageTypes.graph: {
-        const newSize =
+    case PageTypes.details:
+      return;
+    case PageTypes.wiki:
+    case PageTypes.reflections:
+    case PageTypes.default:
+    case PageTypes.graph: {
+      const newSize =
           (hashHeightTopSplitter as any)[location.query.type] || this.locationIncludesNewQuery(location)
             ? hashHeightTopSplitter.getNewQueryDefaultSqlHeight()
             : hashHeightTopSplitter.getDefaultSqlHeight();
-        props.updateSqlPartSize(newSize);
-        break;
-      }
-      default:
-        throw new Error(`Not supported page type: '${pageType}'`);
+      props.updateSqlPartSize(newSize);
+      break;
+    }
+    default:
+      throw new Error(`Not supported page type: '${pageType}'`);
     }
   }
   startDrag() {}
@@ -100,8 +99,8 @@ export class ExplorePageView extends PureComponent<ExplorePageViewProps, Explore
     };
     // Note the DocumentTitle for this page lives in ExploreInfoHeader
     return (
-      <div id='grid-page'
-        className={classNames('grid-wrap', flexElementAuto)}
+      <main id='grid-page'
+        className={classNames('mainContent', flexElementAuto, `-${this.props.pageType}`)}
         style={{ ...dragStyle, cursor, ...minHeightOverride }}
       >
         <ExplorePageContentWrapper
@@ -117,11 +116,7 @@ export class ExplorePageView extends PureComponent<ExplorePageViewProps, Explore
           updateSqlPartSize={this.props.updateSqlPartSize}
           toggleRightTree={this.props.toggleRightTree}
         />
-        <HistoryLineController
-          dataset={dataset}
-          location={this.props.location}
-        />
-      </div>
+      </main>
     );
   }
 }

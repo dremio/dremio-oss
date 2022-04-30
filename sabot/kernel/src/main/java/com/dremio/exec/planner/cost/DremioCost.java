@@ -39,6 +39,7 @@ public class DremioCost implements RelOptCost {
   public static final int BASE_CPU_COST = 1;                        // base cpu cost per 'operation'
   public static final int BYTE_DISK_READ_COST = 32 * BASE_CPU_COST;    // disk read cost per byte
   public static final int BYTE_NETWORK_COST = 16 * BYTE_DISK_READ_COST; // network transfer cost per byte
+  public static final int BYTE_DISK_WRITE_COST = 35 * BASE_CPU_COST;    // disk write cost per byte
 
 
   public static final int SVR_CPU_COST = 8 * BASE_CPU_COST;          // cpu cost for SV remover

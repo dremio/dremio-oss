@@ -82,7 +82,7 @@ public class Values extends AbstractBase implements SubScan {
   @Override
   public List<List<String>> getReferencedTables() {
     final List<String> values = Collections.singletonList("values");
-    Preconditions.checkNotNull(values, String.format("Null values."));
+    Preconditions.checkNotNull(values, "Null values.");
     return ImmutableList.of(values);
   }
 

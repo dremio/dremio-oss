@@ -25,6 +25,7 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
+import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.EagerCachingOptionManager;
 import com.dremio.exec.server.options.OptionManagerWrapper;
@@ -56,7 +57,7 @@ public class TestQueryContext extends BaseTestQuery {
         new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
         getSabotContext().getOptionManager())
       .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
       .setSupportComplexTypes(true)
       .build();
   }

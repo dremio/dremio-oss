@@ -18,6 +18,7 @@ package com.dremio.service.jobs;
 import static com.dremio.dac.server.UIOptions.JOBS_UI_CHECK;
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static com.google.common.collect.Iterables.isEmpty;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
@@ -33,9 +34,7 @@ import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.modelmapper.internal.util.Assert;
 
 import com.dremio.dac.explore.model.DatasetPath;
@@ -94,9 +93,6 @@ public class TestReflectionJob extends BaseTestReflection {
 
   private static final AtomicInteger DATA_ID = new AtomicInteger();
   private static final long REFRESH_DELAY_IN_SECONDS = 2;
-
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
 
   private ReflectionMonitor monitor = newReflectionMonitor(100, 10000);
   private WebSocketClient client = new WebSocketClient();
@@ -328,8 +324,8 @@ public class TestReflectionJob extends BaseTestReflection {
     ReflectionEntry reflectionEntry1 = createAggReflection();
     ReflectionId reflectionId1 = reflectionEntry1.getId();
 
-    thrownException.expect(ReflectionJobValidationException.class);
-    JobDetails jobDetails = getJobDetails(reflectionEntry.getRefreshJobId(), reflectionId1.getId(), DEFAULT_USERNAME);
+    assertThatThrownBy(() -> getJobDetails(reflectionEntry.getRefreshJobId(), reflectionId1.getId(), DEFAULT_USERNAME))
+      .isInstanceOf(ReflectionJobValidationException.class);
   }
 
   @Test
@@ -340,8 +336,8 @@ public class TestReflectionJob extends BaseTestReflection {
     ReflectionEntry reflectionEntry1 = createAggReflection();
     ReflectionId reflectionId1 = reflectionEntry1.getId();
 
-    thrownException.expect(ReflectionJobValidationException.class);
-    UserBitShared.QueryProfile queryProfile = getQueryProfile(reflectionEntry.getRefreshJobId(), reflectionId1.getId(), DEFAULT_USERNAME);
+    assertThatThrownBy(() -> getQueryProfile(reflectionEntry.getRefreshJobId(), reflectionId1.getId(), DEFAULT_USERNAME))
+      .isInstanceOf(ReflectionJobValidationException.class);
   }
 
   @Test

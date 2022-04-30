@@ -59,7 +59,7 @@ public class ProgressMetricsPublisher implements AutoCloseable {
     // subscribe for periodic updates.
     ScheduledFuture scheduledFuture = scheduledContextMigratingExecutorService.scheduleWithFixedDelay(
       publishToSubcriber(queryId, querySubscriber), publishFrequencyMillis, publishFrequencyMillis, TimeUnit.MILLISECONDS);
-    subscriberInfoMap.put(querySubscriber, new SubscriberInfo(scheduledFuture, QueryProgressMetrics.getDefaultInstance()));
+    subscriberInfoMap.put(querySubscriber, new SubscriberInfo(scheduledFuture, getDefaultMetrics()));
   }
 
   @VisibleForTesting
@@ -103,10 +103,14 @@ public class ProgressMetricsPublisher implements AutoCloseable {
     };
   }
 
-  private QueryProgressMetrics fetchMetricsAndCombine(UserBitShared.QueryId queryId) {
+  QueryProgressMetrics fetchMetricsAndCombine(UserBitShared.QueryId queryId) {
     return metricsStore.get(queryId)
-      .map(map -> MetricsCombiner.combine(map.getMetricsMapMap().values().stream()))
-      .orElse(QueryProgressMetrics.getDefaultInstance());
+      .map(map -> MetricsCombiner.combine(() -> map.getMetricsMapMap().values().stream()))
+      .orElse(getDefaultMetrics());
+  }
+
+  private QueryProgressMetrics getDefaultMetrics() {
+    return QueryProgressMetrics.newBuilder().setRowsProcessed(-1).setOutputRecords(-1).build();
   }
 
   @Override

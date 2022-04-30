@@ -84,6 +84,7 @@ public class WriterOptionManager {
       validateAndPluckNames(details.getSortFieldList(), availableFieldsToName),
       validateAndPluckNames(details.getDistributionFieldList(), availableFieldsToName),
       dist,
+      null,
       false,
       Long.MAX_VALUE,
       icebergWriterOperation,

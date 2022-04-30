@@ -19,6 +19,7 @@ import static com.dremio.dac.proto.model.dataset.TransformType.updateSQL;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.core.SecurityContext;
 
@@ -55,6 +56,7 @@ import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsVersionContext;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
@@ -338,7 +340,14 @@ public class Transformer {
 
     if (!actor.hasMetadata()) {
       VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
-      final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
+      final SqlQuery query;
+      if (transform instanceof TransformUpdateSQL) {
+        TransformUpdateSQL transformUpdateSQL = (TransformUpdateSQL) transform;
+        Map<String, JobsVersionContext> sourceVersionMapping = TransformerUtils.createSourceVersionMapping(transformUpdateSQL.getReferencesList());
+        query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext, sourceVersionMapping);
+      } else {
+        query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
+      }
       actor.getMetadata(query);
     }
     final TransformResultDatsetAndData resultToReturn = new TransformResultDatsetAndData(actor.getJobData(),

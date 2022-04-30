@@ -29,9 +29,18 @@ public class HeaderUtils<T> {
 
   public static <T extends AbstractStub<T>> T attachHeaders(T stub, String serviceName,
                                                             String releaseName) {
+    Metadata extraHeaders = createRoutingHeaders(serviceName, releaseName);
+    return stub.withInterceptors(newAttachHeadersInterceptor(extraHeaders));
+  }
+
+  public static ClientInterceptor createRoutingInterceptor(String serviceName, String releaseName) {
+    return newAttachHeadersInterceptor(createRoutingHeaders(serviceName, releaseName));
+  }
+
+  private static Metadata createRoutingHeaders(String serviceName, String releaseName) {
     Metadata extraHeaders = new Metadata();
     extraHeaders.put(HeaderKeys.RELEASE_NAME_HEADER_KEY, releaseName);
     extraHeaders.put(HeaderKeys.SERVICE_NAME_HEADER_KEY, serviceName);
-    return stub.withInterceptors(new ClientInterceptor[]{newAttachHeadersInterceptor(extraHeaders)});
+    return extraHeaders;
   }
 }

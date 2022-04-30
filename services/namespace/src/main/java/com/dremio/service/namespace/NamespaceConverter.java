@@ -59,6 +59,13 @@ import io.protostuff.ByteString;
  * Namespace search indexing. for now only support pds, vds, source and space indexing.
  */
 public class NamespaceConverter implements DocumentConverter<String, NameSpaceContainer> {
+  private Integer version = 0;
+
+  @Override
+  public Integer getVersion() {
+    return version;
+  }
+
   @Override
   public void convert(DocumentWriter writer, String key, NameSpaceContainer container) {
     writer.write(NamespaceIndexKeys.ENTITY_TYPE, container.getType().getNumber());

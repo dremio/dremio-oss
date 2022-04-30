@@ -23,6 +23,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -48,14 +49,24 @@ public class ReflectionExplanationManager {
   }
 
   public Stream<ReflectionExplanationsAndQueryDistance> generateDisplayExplanations() {
-    return reflectionExplanationFeatureGatherer.reflectionIdToFeatureList.entrySet()
+    List<ReflectionExplanationsAndQueryDistance> reflectionExplanationsAndQueryDistanceList
+      = reflectionExplanationFeatureGatherer.reflectionIdToFeatureList.entrySet()
       .stream()
       .filter(e -> e.getValue().size() <= MAX_NUMBER_OF_HINTS_PER_REFLECTION)
       .map(this::entryToDisplayHint)
       .filter(this::nonZeroDistance)
       .sorted()
-      .limit(MAX_REFLECTIONS_TO_DISPLAY_TO_SHOW)
-      .peek(this::decorateWithDisplayMessages);
+      .collect(Collectors.toList());
+
+    for (int i = 0; i < reflectionExplanationsAndQueryDistanceList.size(); i++) {
+      ReflectionExplanationsAndQueryDistance r = reflectionExplanationsAndQueryDistanceList.get(i);
+      if (i < MAX_REFLECTIONS_TO_DISPLAY_TO_SHOW) {
+        decorateWithDisplayMessages(r);
+      } else {
+        r.hintHidden = true;
+      }
+    }
+    return reflectionExplanationsAndQueryDistanceList.stream();
   }
 
   private ReflectionExplanationsAndQueryDistance entryToDisplayHint(

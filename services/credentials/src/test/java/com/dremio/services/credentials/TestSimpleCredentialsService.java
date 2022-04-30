@@ -15,12 +15,11 @@
  */
 package com.dremio.services.credentials;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.test.DremioTest;
 
@@ -32,9 +31,6 @@ import com.dremio.test.DremioTest;
  */
 public class TestSimpleCredentialsService extends DremioTest {
   private CredentialsService credentialsService;
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void setUp() {
@@ -55,9 +51,8 @@ public class TestSimpleCredentialsService extends DremioTest {
     ldap = credentialsService.lookup(base64Pattern);
     assertEquals(originalString, ldap);
 
-    thrown.expect(IllegalArgumentException.class);
-    ldap = credentialsService.lookup(example1);
-
+    assertThatThrownBy(() -> credentialsService.lookup(example1))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -79,9 +74,7 @@ public class TestSimpleCredentialsService extends DremioTest {
     // emulate bindPassword like ad.json
     final String bindPassword = originalString;
 
-    thrown.expect(IllegalArgumentException.class);
-    String ldap = credentialsService.lookup(bindPassword);
-
+    assertThatThrownBy(() -> credentialsService.lookup(bindPassword))
+      .isInstanceOf(IllegalArgumentException.class);
   }
-
 }

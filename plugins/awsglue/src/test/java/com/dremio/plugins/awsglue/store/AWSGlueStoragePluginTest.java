@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.awsglue.store;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,9 +27,7 @@ import java.util.List;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
@@ -49,10 +49,6 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
 
   private static Integer port;
   private static S3Mock s3Mock;
-
-
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
 
   @BeforeClass
   public static void setupDefaultTestCluster() throws Exception {
@@ -121,36 +117,36 @@ public class AWSGlueStoragePluginTest extends BaseTestQuery {
 
   // json table - unsupported
   @Test
-  public void testUnsupportedFormat() throws Exception {
-    expectedEx.expectMessage("UNSUPPORTED_OPERATION ERROR: AWS Glue table [testglue.default.json_table] uses an unsupported file format");
-    testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT * FROM \"testglue\".\"default\".json_table")
-      .baselineColumns("col1", "col2")
-      .baselineValues(1, 1)
-      .baselineValues(2, 2)
-      .baselineValues(3, 3)
-      .go();
+  public void testUnsupportedFormat() {
+    assertThatThrownBy(() -> testBuilder()
+        .unOrdered()
+        .sqlQuery("SELECT * FROM \"testglue\".\"default\".json_table")
+        .baselineColumns("col1", "col2")
+        .baselineValues(1, 1)
+        .baselineValues(2, 2)
+        .baselineValues(3, 3)
+        .go())
+      .hasMessageContaining("UNSUPPORTED_OPERATION ERROR: AWS Glue table [testglue.default.json_table] uses an unsupported file format");
   }
 
   // empty input format
   @Test
   public void testNoInputFormat() throws Exception {
-    expectedEx.expectMessage("DATA_READ ERROR: Unable to get Hive table InputFormat class.");
-    testBuilder()
-      .unOrdered()
-      .sqlQuery("SELECT * FROM \"testglue\".\"default\".no_inputformat_table")
-      .baselineColumns("col1", "col2")
-      .baselineValues(1, 1)
-      .baselineValues(2, 2)
-      .baselineValues(3, 3)
-      .go();
+    assertThatThrownBy(() -> testBuilder()
+        .unOrdered()
+        .sqlQuery("SELECT * FROM \"testglue\".\"default\".no_inputformat_table")
+        .baselineColumns("col1", "col2")
+        .baselineValues(1, 1)
+        .baselineValues(2, 2)
+        .baselineValues(3, 3)
+        .go())
+      .hasMessageContaining("DATA_READ ERROR: Unable to get Hive table InputFormat class.");
   }
 
   private static void setupS3Mock() {
     port = Integer.getInteger("s3mock.reserved.port");
     if (port == null) {
-      throw new RuntimeException("Can't start test since s3.reserved.port property is not available.");
+      throw new RuntimeException("Can't start test since s3mock.reserved.port property is not available.");
     }
 
     s3Mock = new S3Mock.Builder()

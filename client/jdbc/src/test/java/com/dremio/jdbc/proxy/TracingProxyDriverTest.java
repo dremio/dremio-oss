@@ -15,17 +15,8 @@
  */
 package com.dremio.jdbc.proxy;
 
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -45,6 +36,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.dremio.exec.ExecTest;
+import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.jdbc.SabotNodeRule;
 
 /**
@@ -65,7 +57,7 @@ public class TracingProxyDriverTest extends ExecTest {
         DriverManager.getDriver(
             "jdbc:proxy:com.dremio.jdbc.Driver:" + sabotNode.getJDBCConnectionString() );
     proxyConnection =
-        DriverManager.getConnection( "jdbc:proxy::" + sabotNode.getJDBCConnectionString() );
+        DriverManager.getConnection( "jdbc:proxy::" + sabotNode.getJDBCConnectionString(), UserServiceTestImpl.ANONYMOUS, "");
   }
 
   @Test
@@ -73,9 +65,9 @@ public class TracingProxyDriverTest extends ExecTest {
     try ( final Statement stmt = proxyConnection.createStatement() ) {
       final ResultSet rs =
           stmt.executeQuery( "SELECT * FROM INFORMATION_SCHEMA.CATALOGS" );
-      assertTrue( rs.next() );
-      assertThat( rs.getString( 1 ), equalTo( "DREMIO" ) );
-      assertThat( rs.getObject( 1 ), equalTo( (Object) "DREMIO" ) );
+      assertThat(rs.next()).isTrue();
+      assertThat(rs.getString(1)).isEqualTo("DREMIO");
+      assertThat(rs.getObject(1)).isEqualTo((Object) "DREMIO");
     }
   }
 
@@ -90,20 +82,20 @@ public class TracingProxyDriverTest extends ExecTest {
     }
 
     void redirect() {
-      assertFalse( redirected );
+      assertThat(redirected).isFalse();
       redirected = true;
-      System.setErr( capturingStream );
+      System.setErr(capturingStream);
     }
 
     void unredirect() {
-      assertTrue( redirected );
+      assertThat(redirected).isTrue();
       redirected = false;
-      System.setErr( savedStdErr );
+      System.setErr(savedStdErr);
     }
 
     String getOutput() {
-      assertFalse( redirected );
-      return new String( buffer.toByteArray(), StandardCharsets.UTF_8 );
+      assertThat(redirected).isFalse();
+      return new String(buffer.toByteArray(), StandardCharsets.UTF_8);
     }
   }
 
@@ -123,8 +115,7 @@ public class TracingProxyDriverTest extends ExecTest {
 
     final String output = nameThis.getOutput();
     final String[] lines = output.split( "\n" );
-    assertThat( "Not 2 lines: \"\"\"" + output + "\"\"\"",
-                lines.length, equalTo( 2 ) );
+    assertThat(lines).hasSize(2);
     final String callLine = lines[ 0 ];
     final String returnLine = lines[ 1 ];
 
@@ -132,16 +123,16 @@ public class TracingProxyDriverTest extends ExecTest {
     // TRACER: CALL:   ((Connection) <id=3> ...) . isClosed()
     // TRACER: RETURN: ((Connection) <id=3> ...) . isClosed(), RESULT: (boolean) false
 
-    assertThat( callLine,   containsString( " CALL:" ) );
-    assertThat( returnLine, containsString( " RETURN:" ) );
-    assertThat( callLine,   containsString( "(Connection)" ) );
-    assertThat( returnLine, containsString( "(Connection)" ) );
-    assertThat( callLine,   containsString( "isClosed()" ) );
-    assertThat( returnLine, containsString( "isClosed()" ) );
-    assertThat( callLine,   not( containsString( " (boolean) " ) ) );
-    assertThat( returnLine,      containsString( " (boolean) " ) );
-    assertThat( callLine,   not( containsString( "false" ) ) );
-    assertThat( returnLine,      containsString( "false" ) );
+    assertThat(callLine).contains(" CALL:");
+    assertThat(returnLine).contains(" RETURN:");
+    assertThat(callLine).contains("(Connection)");
+    assertThat(returnLine).contains("(Connection)");
+    assertThat(callLine).contains("isClosed()");
+    assertThat(returnLine).contains("isClosed()");
+    assertThat(callLine).doesNotContain(" (boolean) ");
+    assertThat(returnLine).contains(" (boolean) ");
+    assertThat(callLine).doesNotContain("false");
+    assertThat(returnLine).contains("false");
   }
 
   @Test
@@ -166,8 +157,7 @@ public class TracingProxyDriverTest extends ExecTest {
 
     final String output = stdErrCapturer.getOutput();
     final String[] lines = output.split( "\n" );
-    assertThat( "Not 2 lines: \"\"\"" + output + "\"\"\"",
-                lines.length, equalTo( 2 ) );
+    assertThat(lines).hasSize(2);
     final String callLine = lines[ 0 ];
     final String returnLine = lines[ 1 ];
 
@@ -177,22 +167,18 @@ public class TracingProxyDriverTest extends ExecTest {
     // rew: (com.dremio.jdbc.AlreadyClosedSqlException) org.apache.dri\
     // ll.jdbc.AlreadyClosedSqlException: Statement is already closed.
 
-    assertThat( callLine,   containsString( " CALL:" ) );
-    assertThat( returnLine, containsString( " THROW:" ) );
-    assertThat( callLine,   containsString( "(Statement)" ) );
-    assertThat( returnLine, containsString( "(Statement)" ) );
-    assertThat( callLine,   containsString( "execute(" ) );
-    assertThat( returnLine, containsString( "execute(" ) );
-    assertThat( callLine,   not( containsString( "threw:" ) ) );
-    assertThat( returnLine,      containsString( "threw:" ) );
-    assertThat( callLine,   not( anyOf( containsString( "exception" ),
-                                        containsString( "Exception" ) ) ) );
-    assertThat( returnLine,      anyOf( containsString( "exception" ),
-                                        containsString( "Exception" ) )  );
-    assertThat( callLine,   not( anyOf( containsString( "closed" ),
-                                        containsString( "Closed" ) ) ) );
-    assertThat( returnLine,      anyOf( containsString( "closed" ),
-                                        containsString( "Closed" ) )  );
+    assertThat(callLine).contains(" CALL:");
+    assertThat(returnLine).contains(" THROW:");
+    assertThat(callLine).contains("(Statement)");
+    assertThat(returnLine).contains("(Statement)");
+    assertThat(callLine).contains("execute(");
+    assertThat(returnLine).contains("execute(");
+    assertThat(callLine).doesNotContain("threw:");
+    assertThat(returnLine).contains("threw:");
+    assertThat(callLine).doesNotContain("xception");
+    assertThat(returnLine).contains("xception");
+    assertThat(callLine).doesNotContain("losed");
+    assertThat(returnLine).contains("losed");
   }
 
   // TODO:  Clean up these assorted remnants; probably move into separate test
@@ -208,47 +194,35 @@ public class TracingProxyDriverTest extends ExecTest {
     proxyDriver.getPropertyInfo( "jdbc:proxy::" + sabotNode.getJDBCConnectionString(), new Properties() );
 
     final DatabaseMetaData dbMetaData = proxyConnection.getMetaData();
-    assertThat( dbMetaData, instanceOf( DatabaseMetaData.class ) );
-    assertThat( dbMetaData, notNullValue() );
+    assertThat(dbMetaData).isNotNull().isInstanceOf(DatabaseMetaData.class);
 
-    assertThat( dbMetaData.getConnection(), sameInstance( proxyConnection ) );
-
+    assertThat(dbMetaData.getConnection()).isSameAs(proxyConnection);
 
     dbMetaData.allTablesAreSelectable();
-    try {
-      dbMetaData.ownUpdatesAreVisible( ResultSet.TYPE_FORWARD_ONLY );
-      fail();
-    }
-    catch ( SQLException | RuntimeException e ) {
-      // expected
-    }
+    assertThatThrownBy(() -> dbMetaData.ownUpdatesAreVisible(ResultSet.TYPE_FORWARD_ONLY))
+      .satisfiesAnyOf(t -> assertThat(t).isInstanceOf(SQLException.class),
+        t -> assertThat(t).isInstanceOf(RuntimeException.class));
 
     final ResultSet catalogsResultSet = dbMetaData.getCatalogs();
-    assertThat( catalogsResultSet, notNullValue() );
-    assertThat( catalogsResultSet, instanceOf( ResultSet.class ) );
+    assertThat(catalogsResultSet).isNotNull().isInstanceOf(ResultSet.class);
 
     catalogsResultSet.next();
-    catalogsResultSet.getString( 1 );
-    catalogsResultSet.getObject( 1 );
+    catalogsResultSet.getString(1);
+    catalogsResultSet.getObject(1);
 
     final ResultSetMetaData rsMetaData = catalogsResultSet.getMetaData();
-    assertThat( rsMetaData, notNullValue() );
-    assertThat( rsMetaData, instanceOf( ResultSetMetaData.class ) );
+    assertThat(rsMetaData).isNotNull().isInstanceOf(ResultSetMetaData.class);
 
     int colCount = rsMetaData.getColumnCount();
-    for ( int cx = 1; cx <= colCount; cx++ ) {
-      catalogsResultSet.getObject( cx );
-      catalogsResultSet.getString( cx );
-      try {
-        catalogsResultSet.getInt( cx );
-        fail( "Expected some kind of string-to-int exception.");
-      }
-      catch ( SQLException e ) {
-        // expected;
-      }
+    for (int cx = 1; cx <= colCount; cx++) {
+      catalogsResultSet.getObject(cx);
+      catalogsResultSet.getString(cx);
+      int finalcx = cx;
+      assertThatThrownBy(() -> catalogsResultSet.getInt(finalcx))
+        .isInstanceOf(SQLException.class);
     }
 
-    assertThat( proxyConnection.getMetaData(), sameInstance( dbMetaData ) );
-    assertThat( catalogsResultSet.getMetaData(), sameInstance( rsMetaData ) );
+    assertThat(proxyConnection.getMetaData()).isSameAs(dbMetaData);
+    assertThat(catalogsResultSet.getMetaData()).isSameAs(rsMetaData);
   }
 } // class ProxyDriverTest

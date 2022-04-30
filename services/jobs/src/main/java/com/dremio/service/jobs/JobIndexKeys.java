@@ -19,6 +19,7 @@ import static com.dremio.service.job.proto.QueryType.ACCELERATOR_CREATE;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_DROP;
 import static com.dremio.service.job.proto.QueryType.ACCELERATOR_EXPLAIN;
 import static com.dremio.service.job.proto.QueryType.FLIGHT;
+import static com.dremio.service.job.proto.QueryType.INTERNAL_ICEBERG_METADATA_DROP;
 import static com.dremio.service.job.proto.QueryType.JDBC;
 import static com.dremio.service.job.proto.QueryType.METADATA_REFRESH;
 import static com.dremio.service.job.proto.QueryType.ODBC;
@@ -83,6 +84,7 @@ public final class JobIndexKeys {
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_INITIAL_PREVIEW.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", PREPARE_INTERNAL.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", METADATA_REFRESH.toString()),
+      SearchQueryUtils.newTermQuery("QUERY_TYPE", INTERNAL_ICEBERG_METADATA_DROP.toString()),
       SearchQueryUtils.newTermQuery("QUERY_TYPE", UNKNOWN.toString()));
 
   public static final SearchQuery DOWNLOAD_JOBS_FILTER = SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_EXPORT.toString());

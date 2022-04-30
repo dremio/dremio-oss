@@ -19,13 +19,11 @@ import Radium from 'radium';
 
 import PropTypes from 'prop-types';
 
-import FontIcon from 'components/Icon/FontIcon';
 import Spinner from 'components/Spinner';
 import DragSource from 'components/DragComponents/DragSource';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import { constructFullPath } from 'utils/pathUtils';
 import { bodySmall } from 'uiTheme/radium/typography';
-import { PALE_ORANGE } from 'uiTheme/radium/colors';
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
 @Radium
@@ -36,11 +34,10 @@ export default class DatasetList extends PureComponent {
     changeSelectedNode: PropTypes.func.isRequired,
     isInProgress: PropTypes.bool.isRequired,
     inputValue: PropTypes.string,
-    style: PropTypes.object,
     dragType: PropTypes.string,
     showParents: PropTypes.bool,
-    showAddIcon: PropTypes.bool,
-    addFullPathToSqlEditor: PropTypes.func
+    shouldAllowAdd: PropTypes.bool,
+    addtoEditor: PropTypes.func
   };
 
   constructor(props) {
@@ -63,83 +60,36 @@ export default class DatasetList extends PureComponent {
   }
 
   getDatasetsList(data, inputValue) {
-    const { showAddIcon, addFullPathToSqlEditor } = this.props;
+    const { shouldAllowAdd, addtoEditor } = this.props;
     return data && data.map && data.map((value, key) => {
-      const fullPath = constructFullPath(value.get('fullPath'));
-      const isActive = this.state.activeDataset === fullPath ? {
-        background: PALE_ORANGE
-      } : {};
       const name = value.get('fullPath').get(value.get('fullPath').size - 1);
       const displayFullPath = value.get('displayFullPath') || value.get('fullPath');
-      const parentItems = this.getParentItems(value, inputValue);
 
       return (
         <DragSource dragType={this.props.dragType || ''} key={key} id={displayFullPath}>
           <div
-            key={key} style={[styles.datasetItem, bodySmall, isActive]}
+            key={key} style={[styles.datasetItem, bodySmall]}
             className='dataset-item'
             onClick={this.setActiveDataset.bind(this, value)}>
-            {
-              showAddIcon
-              && <FontIcon
-                style={{ height: 24 - 2 }} // fudge factor makes it look v-aligned better
-                type='Add'
-                hoverType='AddHover'
-                theme={styles.addIcon}
-                onClick={addFullPathToSqlEditor.bind(this, displayFullPath)}/>
-            }
-            <div style={{
-              minWidth: parentItems ? 200 : null,
-              width: parentItems ? '30%' : null,
-              marginLeft: 6,
-              flexShrink: parentItems ? 0 : 1,
-              overflow: 'hidden' // make sure sub-element ellipsis happens
-            }}>
-              <DatasetItemLabel
-                dragType={this.props.dragType}
-                name={name}
-                showFullPath
-                inputValue={inputValue}
-                fullPath={value.get('fullPath')}
-                typeIcon={getIconDataTypeFromDatasetType(value.get('datasetType'))}
-                placement='right'/>
-            </div>
-            {parentItems && (
-              <div style={styles.parentDatasetsHolder}>
-                {parentItems}
-              </div>
-            )}
+
+            <DatasetItemLabel
+              dragType={this.props.dragType}
+              name={name}
+              showFullPath
+              inputValue={inputValue}
+              fullPath={value.get('fullPath')}
+              typeIcon={getIconDataTypeFromDatasetType(value.get('datasetType'))}
+              placement='right'
+              isExpandable
+              shouldShowOverlay
+              shouldAllowAdd={shouldAllowAdd}
+              addtoEditor={addtoEditor}
+              displayFullPath={displayFullPath} />
+
           </div>
         </DragSource>
       );
     });
-  }
-
-  // always returns null if it has nothing to show
-  getParentItems(dataset, inputValue) {
-    if (!this.props.showParents) return null;
-    const parents = dataset && dataset.get && dataset.get('parents');
-    if (!parents) return null;
-    // todo: chris: is this right? `value.get('type')` here, but `value.get('datasetType')` above?
-    // denis b: Yes, this is correct. `type` attribute belongs to `parents` item from `/search` response.
-    // chris: we should fix that API
-    const parentItems = parents.map((value) => {
-      if (!value.has('type')) return; // https://dremio.atlassian.net/browse/DX-7233
-      return (
-        <div style={styles.parentDataset}>
-          <DatasetItemLabel
-            name={value.get('datasetPathList').last()}
-            inputValue={inputValue}
-            fullPath={value.get('datasetPathList')}
-            typeIcon={getIconDataTypeFromDatasetType(value.get('type'))}
-            showFullPath />
-        </div>
-      );
-    }).toJS().filter(Boolean);
-
-
-    if (!parentItems.length) return null;
-    return parentItems;
   }
 
   resetSelectedData() {
@@ -148,12 +98,12 @@ export default class DatasetList extends PureComponent {
   }
 
   render() {
-    const { data, inputValue, style, isInProgress } = this.props;
+    const { data, inputValue, isInProgress } = this.props;
     const searchBlock = data && data.size && data.size > 0
       ? this.getDatasetsList(data, inputValue)
-      : <div style={styles.notFound}>{la('Not found')}</div>;
+      : <div style={styles.notFound}>{la('No results found')}</div>;
     return (
-      <div style={style} className='datasets-list'>
+      <div style={styles.dataSetsList} className='datasets-list'>
         {isInProgress ? <Spinner /> : searchBlock}
       </div>
     );
@@ -161,15 +111,24 @@ export default class DatasetList extends PureComponent {
 }
 
 const styles = {
+  dataSetsList: {
+    background: '#fff',
+    maxHeight: '50vh',
+    overflow: 'auto',
+    boxShadow: 'rgb(0 0 0 / 10%) 0px 0px 8px 0px',
+    borderRadius: 5,
+    padding: 10,
+    minWidth: 480
+  },
   datasetItem: {
-    borderBottom: '1px solid rgba(0,0,0,.1)',
-    height: 45,
+    borderBottom: '1px solid #E9EDF0',
     width: '100%',
-    display: 'flex',
-    alignItems: 'center',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(0,1fr))',
     cursor: 'pointer',
+    padding: '10px 0',
     ':hover': {
-      background: PALE_ORANGE
+      background: '#F1FAFB'
     }
   },
   datasetData: {

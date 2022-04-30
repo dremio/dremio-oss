@@ -54,6 +54,7 @@ const styles = {
     alignItems: 'center',
     width: '100%',
     height: '100%',
+    top: 1,
     zIndex: 99
   },
   containerStyle: {},

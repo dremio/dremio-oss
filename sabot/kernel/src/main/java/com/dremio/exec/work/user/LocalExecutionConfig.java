@@ -20,9 +20,12 @@ import static com.dremio.options.OptionValue.createBoolean;
 import static com.dremio.options.OptionValue.createLong;
 import static com.dremio.options.OptionValue.createString;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.options.OptionManager;
@@ -44,6 +47,8 @@ public class LocalExecutionConfig implements OptionProvider {
   private final SubstitutionSettings substitutionSettings;
   private final boolean exposeInternalSources;
   private final String engineName;
+  private final String sessionId;
+  private final Map<String, VersionContext> sourceVersionMapping;
 
   LocalExecutionConfig(final boolean enableLeafLimits,
                        final boolean enableOutputLimits,
@@ -55,7 +60,9 @@ public class LocalExecutionConfig implements OptionProvider {
                        final boolean allowPartitionPruning,
                        final boolean exposeInternalSources,
                        final SubstitutionSettings substitutionSettings,
-                       final String engineName) {
+                       final String engineName,
+                       final String sessionId,
+                       final Map<String, VersionContext> sourceVersionMapping) {
     this.enableLeafLimits = enableLeafLimits;
     this.enableOutputLimits = enableOutputLimits;
     this.failIfNonEmptySent = failIfNonEmptySent;
@@ -67,6 +74,8 @@ public class LocalExecutionConfig implements OptionProvider {
     this.allowPartitionPruning = allowPartitionPruning;
     this.exposeInternalSources = exposeInternalSources;
     this.engineName = engineName;
+    this.sessionId = sessionId;
+    this.sourceVersionMapping = new HashMap<>(sourceVersionMapping);
   }
 
   public String getUsername() {
@@ -91,6 +100,14 @@ public class LocalExecutionConfig implements OptionProvider {
 
   public String getEngineName() {
     return engineName;
+  }
+
+  public String getSessionId() {
+    return sessionId;
+  }
+
+  public Map<String, VersionContext> getSourceVersionMapping() {
+    return sourceVersionMapping;
   }
 
   @Override
@@ -128,12 +145,14 @@ public class LocalExecutionConfig implements OptionProvider {
     private boolean failIfNonEmptySent;
     private String username;
     private List<String> sqlContext;
+    private Map<String, VersionContext> sourceVersionMapping = new HashMap<>();
     private boolean internalSingleThreaded;
     private String queryResultsStorePath;
     private boolean allowPartitionPruning;
     private boolean exposeInternalSources;
     private SubstitutionSettings substitutionSettings;
     private String engineName;
+    private String sessionId;
 
     private Builder() {
     }
@@ -191,6 +210,17 @@ public class LocalExecutionConfig implements OptionProvider {
      */
     public Builder setSqlContext(List<String> sqlContext) {
       this.sqlContext = sqlContext;
+      return this;
+    }
+
+    /**
+     * Sets the default schema to 'use' for the query.
+     *
+     * @param sourceVersionMapping reference the mapping of source to each reference in dataplane
+     * @return this builder
+     */
+    public Builder setSourceVersionMapping(Map<String, VersionContext> sourceVersionMapping) {
+      this.sourceVersionMapping = sourceVersionMapping;
       return this;
     }
 
@@ -259,19 +289,32 @@ public class LocalExecutionConfig implements OptionProvider {
       return this;
     }
 
+    /**
+     * set session ID.
+     * @param sessionId
+     * @return
+     */
+    public Builder setSessionId(String sessionId) {
+      this.sessionId = sessionId;
+      return this;
+    }
+
     public LocalExecutionConfig build() {
       return new LocalExecutionConfig(
-          enableLeafLimits,
-          enableOutputLimits,
-          failIfNonEmptySent,
-          username,
-          sqlContext,
-          internalSingleThreaded,
-          queryResultsStorePath,
-          allowPartitionPruning,
-          exposeInternalSources,
-          substitutionSettings,
-          engineName);
+        enableLeafLimits,
+        enableOutputLimits,
+        failIfNonEmptySent,
+        username,
+        sqlContext,
+        internalSingleThreaded,
+        queryResultsStorePath,
+        allowPartitionPruning,
+        exposeInternalSources,
+        substitutionSettings,
+        engineName,
+        sessionId,
+        sourceVersionMapping
+        );
     }
   }
 

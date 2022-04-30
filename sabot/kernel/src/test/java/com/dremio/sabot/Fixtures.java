@@ -45,6 +45,7 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.arrow.vector.util.Text;
 import org.joda.time.DateTimeZone;
@@ -676,7 +677,7 @@ public final class Fixtures {
 
     @Override
     public Field toField(String name) {
-      return new Field(name, true, getType(), Collections.<Field>emptyList());
+      return new Field(name, new FieldType(true, getType(), null), Collections.<Field>emptyList());
     }
 
 
@@ -765,7 +766,7 @@ public final class Fixtures {
 
     @Override
     public Field toField(String name) {
-      return new Field(name, true, getType(), ImmutableList.of(CompleteType.BIGINT.toField("$data$")));
+      return new Field(name, new FieldType(true, getType(), null), ImmutableList.of(CompleteType.BIGINT.toField("$data$")));
     }
   }
 
@@ -1071,7 +1072,7 @@ public final class Fixtures {
 
     @Override
     ArrowType getType() {
-      return new ArrowType.Decimal(precision, scale);
+      return new ArrowType.Decimal(precision, scale, 128);
     }
 
     @Override

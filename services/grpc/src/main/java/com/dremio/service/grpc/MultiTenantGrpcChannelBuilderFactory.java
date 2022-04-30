@@ -33,4 +33,10 @@ public final class MultiTenantGrpcChannelBuilderFactory extends BaseGrpcChannelB
   public MultiTenantGrpcChannelBuilderFactory(Tracer tracer, Provider<Map<String, Object>> defaultServiceConfigProvider) {
     super(tracer, Sets.newHashSet(mtInterceptor), defaultServiceConfigProvider);
   }
+
+  public MultiTenantGrpcChannelBuilderFactory(Tracer tracer,
+                                              Provider<Map<String, Object>> defaultServiceConfigProvider,
+                                              ClientInterceptor interceptor) {
+    super(tracer, Sets.newHashSet(mtInterceptor, interceptor), defaultServiceConfigProvider);
+  }
 }

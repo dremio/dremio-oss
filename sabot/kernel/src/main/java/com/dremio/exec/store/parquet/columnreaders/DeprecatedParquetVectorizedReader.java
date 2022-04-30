@@ -33,6 +33,7 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.compression.CompressionCodecFactory;
@@ -410,8 +411,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
           col = projectedColumns.get(i);
           assert col!=null;
           if ( ! columnsFound[i] && !col.equals(STAR_COLUMN)) {
-            nullFilledVectors.add((IntVector)output.addField(new Field(col.getAsUnescapedPath(), true,
-                    getArrowMinorType(MinorType.INT).getType(), null),
+            nullFilledVectors.add((IntVector)output.addField(new Field(col.getAsUnescapedPath(), new FieldType(true, getArrowMinorType(MinorType.INT).getType(), null), null),
                 (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(getArrowMinorType(TypeProtos.MinorType.INT))));
 
           }

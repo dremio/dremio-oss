@@ -15,11 +15,7 @@
  */
 package com.dremio.io;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
 
 import java.io.FileNotFoundException;
@@ -47,14 +43,11 @@ public class AsyncByteReaderTest {
       }
     };
 
-    try {
-      byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join();
-      fail("Expect to throw exception");
-    } catch (Exception e) {
-      assertThat(e, is(instanceOf(CompletionException.class)));
-      assertThat(e.getCause(), is(instanceOf(RuntimeException.class)));
-      assertTrue(e.getCause().getMessage().equals("Something went wrong"));
-    }
+    assertThatExceptionOfType(CompletionException.class)
+      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+      .havingCause()
+      .isInstanceOf(RuntimeException.class)
+      .withMessage("Something went wrong");
   }
 
   @Test
@@ -73,14 +66,11 @@ public class AsyncByteReaderTest {
       }
     };
 
-    try {
-      byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join();
-      fail("Expect to throw exception");
-    } catch (Exception e) {
-      assertThat(e, is(instanceOf(CompletionException.class)));
-      assertThat(e.getCause(), is(instanceOf(FileNotFoundException.class)));
-      assertTrue(e.getCause().getMessage().equals("Not found"));
-    }
+    assertThatExceptionOfType(CompletionException.class)
+      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+      .havingCause()
+      .isInstanceOf(FileNotFoundException.class)
+      .withMessage("Not found");
   }
 
   @Test
@@ -101,14 +91,11 @@ public class AsyncByteReaderTest {
       }
     };
 
-    try {
-      byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join();
-      fail("Expect to throw exception");
-    } catch (Exception e) {
-      assertThat(e, is(instanceOf(CompletionException.class)));
-      assertThat(e.getCause(), is(instanceOf(FileNotFoundException.class)));
-      assertTrue(e.getCause().getMessage().equals("Not found"));
-    }
+    assertThatExceptionOfType(CompletionException.class)
+      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+      .havingCause()
+      .isInstanceOf(FileNotFoundException.class)
+      .withMessage("Not found");
   }
 
   @Test
@@ -129,13 +116,10 @@ public class AsyncByteReaderTest {
       }
     };
 
-    try {
-      byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join();
-      fail("Expect to throw exception");
-    } catch (Exception e) {
-      assertThat(e, is(instanceOf(CompletionException.class)));
-      assertThat(e.getCause(), is(instanceOf(FileNotFoundException.class)));
-    }
+    assertThatExceptionOfType(CompletionException.class)
+      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+      .havingCause()
+      .isInstanceOf(FileNotFoundException.class);
   }
 
   @Test
@@ -156,14 +140,11 @@ public class AsyncByteReaderTest {
       }
     };
 
-    try {
-      byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join();
-      fail("Expect to throw exception");
-    } catch (Exception e) {
-      assertThat(e, is(instanceOf(CompletionException.class)));
-      assertThat(e.getCause(), is(instanceOf(RuntimeException.class)));
-      assertTrue(e.getCause().getMessage().equals("Something went wrong"));
-    }
+    assertThatExceptionOfType(CompletionException.class)
+      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+      .havingCause()
+      .isInstanceOf(RuntimeException.class)
+      .withMessage("Something went wrong");
   }
 
   @Test
@@ -184,13 +165,10 @@ public class AsyncByteReaderTest {
       }
     };
 
-    try {
-      byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join();
-      fail("Expect to throw exception");
-    } catch (Exception e) {
-      assertThat(e, is(instanceOf(CompletionException.class)));
-      assertThat(e.getCause(), is(instanceOf(Exception.class)));
-    }
+    assertThatExceptionOfType(CompletionException.class)
+      .isThrownBy(() -> byteReader.versionedReadFully("1", 0, mock(ByteBuf.class), 100, 100).join())
+      .havingCause()
+      .isInstanceOf(Exception.class);
   }
 
   @Test

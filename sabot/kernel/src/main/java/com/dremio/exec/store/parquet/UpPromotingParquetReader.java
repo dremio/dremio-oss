@@ -17,11 +17,13 @@ package com.dremio.exec.store.parquet;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 
 import com.dremio.common.AutoCloseables;
@@ -36,6 +38,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.google.common.base.Preconditions;
 
 /**
@@ -43,6 +46,7 @@ import com.google.common.base.Preconditions;
  * coercion reader to support up promotion of column data types.
  */
 public class UpPromotingParquetReader implements RecordReader {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UpPromotingParquetReader.class);
   private final FileSystem fs;
   private final boolean vectorize;
   private final OperatorContext context;
@@ -61,7 +65,10 @@ public class UpPromotingParquetReader implements RecordReader {
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
   private final String filePath;
   private final List<String> tableSchemaPath;
+  private final boolean isSchemaLearningDisabledByUser;
   private UnifiedParquetReader currentReader;
+  private List<Field> droppedColumns = Collections.emptyList();
+  private List<Field> updatedColumns = Collections.emptyList();
 
   public UpPromotingParquetReader(OperatorContext context, ParquetReaderFactory readerFactory,
                                   BatchSchema tableSchema, ParquetScanProjectedColumns projectedColumns,
@@ -69,7 +76,7 @@ public class UpPromotingParquetReader implements RecordReader {
                                   List<ParquetFilterCondition> filterConditions, ParquetDatasetSplitScanXAttr readEntry,
                                   FileSystem fs, MutableParquetMetadata footer, String filePath, List<String> tableSchemaPath, GlobalDictionaries dictionaries,
                                   SchemaDerivationHelper schemaHelper, boolean vectorize, boolean enableDetailedTracing,
-                                  boolean supportsColocatedReads, InputStreamProvider inputStreamProvider) {
+                                  boolean supportsColocatedReads, InputStreamProvider inputStreamProvider, UserDefinedSchemaSettings userDefinedSchemaSettings) {
     this.fs = fs;
     this.footer = footer;
     this.filePath = filePath;
@@ -88,14 +95,23 @@ public class UpPromotingParquetReader implements RecordReader {
     this.supportsColocatedReads = supportsColocatedReads;
     this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
     this.columnResolver = projectedColumns.getColumnResolver(footer.getFileMetaData().getSchema());
+    if (userDefinedSchemaSettings != null && userDefinedSchemaSettings.getDroppedColumns() != null) {
+      droppedColumns = BatchSchema.deserialize(userDefinedSchemaSettings.getDroppedColumns()).getFields();
+    }
+    if (userDefinedSchemaSettings != null && userDefinedSchemaSettings.getModifiedColumns() != null) {
+      updatedColumns = BatchSchema.deserialize(userDefinedSchemaSettings.getModifiedColumns()).getFields();
+    }
+    this.isSchemaLearningDisabledByUser = userDefinedSchemaSettings != null && !userDefinedSchemaSettings.getSchemaLearningEnabled();
   }
 
   public void setupMutator(OutputMutator outputMutator) {
     MutatorSetupManager mutatorSetupManager = new MutatorSetupManager(context, tableSchema, footer, filePath, tableSchemaPath, schemaHelper, columnResolver);
     AdditionalColumnResolver additionalColumnResolver = new AdditionalColumnResolver(tableSchema, columnResolver);
+
+    logger.info("F[setupMutator] Footer size is {} for file {}, current row group index is {}",(footer.getBlocks() == null)? -1:footer.getBlocks().size(), filePath, readEntry.getRowGroupIndex());
     BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
     Collection<SchemaPath> resolvedColumns = additionalColumnResolver.resolveColumns(block.getColumns());
-    mutatorSetupManager.setupMutator(outputMutator, resolvedColumns);
+    mutatorSetupManager.setupMutator(outputMutator, resolvedColumns, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser);
   }
 
   @Override

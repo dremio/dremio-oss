@@ -141,6 +141,13 @@ public class CollaborationTagStore {
   }
 
   private static final class CollaborationTagConverter implements DocumentConverter<String, CollaborationTag> {
+    private Integer version = 0;
+
+    @Override
+    public Integer getVersion() {
+      return version;
+    }
+
     @Override
     public void convert(DocumentWriter writer, String id, CollaborationTag record) {
       writer.write(ENTITY_ID, record.getEntityId());

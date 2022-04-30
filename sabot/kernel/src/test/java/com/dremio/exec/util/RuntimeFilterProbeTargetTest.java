@@ -19,13 +19,13 @@ package com.dremio.exec.util;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
 
-import com.dremio.exec.planner.physical.filter.RuntimeFilterEntry;
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.planner.physical.filter.RuntimeFilterInfo;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
@@ -41,25 +41,24 @@ public class RuntimeFilterProbeTargetTest {
         int majorFragment2 = 2;
         int opId2 = 202;
 
-        List<RuntimeFilterEntry> partitionColEntries = new ArrayList<>();
-        List<RuntimeFilterEntry> nonPartitionColEntries = new ArrayList<>();
+        RuntimeFilterInfo filterInfo = new RuntimeFilterInfo.Builder()
+          .isBroadcastJoin(false)
+          .setRuntimeFilterProbeTargets(ImmutableList.of(
+            new RuntimeFilterProbeTarget.Builder(majorFragment1,opId1)
+              .addNonPartitionKey("np_build_field1_target1", "np_probe_field1_target1")
+              .addNonPartitionKey("np_build_field2_target1", "np_probe_field2_target1")
+              .addPartitionKey("p_build_field1_target1", "p_probe_field1_target1")
+              .addPartitionKey("p_build_field2_target1", "p_probe_field2_target1")
+              .build(),
+            new RuntimeFilterProbeTarget.Builder(majorFragment2,opId2)
+              .addNonPartitionKey("np_build_field1_target2", "np_probe_field1_target2")
+              .addNonPartitionKey("np_build_field2_target2", "np_probe_field2_target2")
+              .addPartitionKey("p_build_field1_target2", "p_probe_field1_target2")
+              .addPartitionKey("p_build_field2_target2", "p_probe_field2_target2")
+              .build()))
+          .build();
 
-        partitionColEntries.add(new RuntimeFilterEntry("p_probe_field1_target1", "p_build_field1_target1", majorFragment1, opId1));
-        partitionColEntries.add(new RuntimeFilterEntry("p_probe_field2_target1", "p_build_field2_target1", majorFragment1, opId1));
-
-        partitionColEntries.add(new RuntimeFilterEntry("p_probe_field1_target2", "p_build_field1_target2", majorFragment2, opId2));
-        partitionColEntries.add(new RuntimeFilterEntry("p_probe_field2_target2", "p_build_field2_target2", majorFragment2, opId2));
-
-        nonPartitionColEntries.add(new RuntimeFilterEntry("np_probe_field1_target1", "np_build_field1_target1", majorFragment1, opId1));
-        nonPartitionColEntries.add(new RuntimeFilterEntry("np_probe_field2_target1", "np_build_field2_target1", majorFragment1, opId1));
-
-        nonPartitionColEntries.add(new RuntimeFilterEntry("np_probe_field1_target2", "np_build_field1_target2", majorFragment2, opId2));
-        nonPartitionColEntries.add(new RuntimeFilterEntry("np_probe_field2_target2", "np_build_field2_target2", majorFragment2, opId2));
-
-        RuntimeFilterInfo filterInfo = (new RuntimeFilterInfo.Builder()).isBroadcastJoin(false)
-                .nonPartitionJoinColumns(nonPartitionColEntries).partitionJoinColumns(partitionColEntries).build();
-
-        List<RuntimeFilterProbeTarget> probeTargets = RuntimeFilterProbeTarget.getProbeTargets(filterInfo);
+        List<RuntimeFilterProbeTarget> probeTargets = filterInfo.getRuntimeFilterProbeTargets();
         assertEquals(2, probeTargets.size());
 
         RuntimeFilterProbeTarget target1 = probeTargets.stream()
@@ -90,22 +89,23 @@ public class RuntimeFilterProbeTargetTest {
         int majorFragment2 = 2;
         int opId2 = 202;
 
-        List<RuntimeFilterEntry> partitionColEntries = new ArrayList<>();
-        List<RuntimeFilterEntry> nonPartitionColEntries = new ArrayList<>();
-
         /*
          * build_field1 is mapped against partition and non-partition columns in both probe targets.
          */
-        partitionColEntries.add(new RuntimeFilterEntry("p_probe_field1_target1", "build_field1", majorFragment1, opId1));
-        partitionColEntries.add(new RuntimeFilterEntry("p_probe_field1_target2", "build_field1", majorFragment2, opId2));
+      RuntimeFilterInfo filterInfo = new RuntimeFilterInfo.Builder()
+        .isBroadcastJoin(false)
+        .setRuntimeFilterProbeTargets(ImmutableList.of(
+          new RuntimeFilterProbeTarget.Builder(majorFragment1,opId1)
+            .addNonPartitionKey("build_field1", "np_probe_field1_target1")
+            .addPartitionKey("build_field1", "p_probe_field1_target1")
+            .build(),
+          new RuntimeFilterProbeTarget.Builder(majorFragment2,opId2)
+            .addNonPartitionKey("build_field1", "np_probe_field1_target2")
+            .addPartitionKey("build_field1", "p_probe_field1_target2")
+            .build()))
+        .build();
 
-        nonPartitionColEntries.add(new RuntimeFilterEntry("np_probe_field1_target1", "build_field1", majorFragment1, opId1));
-        nonPartitionColEntries.add(new RuntimeFilterEntry("np_probe_field1_target2", "build_field1", majorFragment2, opId2));
-
-        RuntimeFilterInfo filterInfo = (new RuntimeFilterInfo.Builder()).isBroadcastJoin(false)
-                .nonPartitionJoinColumns(nonPartitionColEntries).partitionJoinColumns(partitionColEntries).build();
-
-        List<RuntimeFilterProbeTarget> probeTargets = RuntimeFilterProbeTarget.getProbeTargets(filterInfo);
+        List<RuntimeFilterProbeTarget> probeTargets = filterInfo.getRuntimeFilterProbeTargets();
         assertEquals(2, probeTargets.size());
         RuntimeFilterProbeTarget target1 = probeTargets.stream()
                 .filter(t -> t.isSameProbeCoordinate(majorFragment1, opId1))
@@ -134,22 +134,24 @@ public class RuntimeFilterProbeTargetTest {
         int majorFragment2 = 2;
         int opId2 = 202;
 
-        List<RuntimeFilterEntry> partitionColEntries = new ArrayList<>();
-        List<RuntimeFilterEntry> nonPartitionColEntries = new ArrayList<>();
-
         /*
          * build_field1 is mapped against partition and non-partition columns in both probe targets.
          */
-        partitionColEntries.add(new RuntimeFilterEntry("probe_field", "p_build_field1_target1", majorFragment1, opId1));
-        partitionColEntries.add(new RuntimeFilterEntry("probe_field", "p_build_field1_target2", majorFragment2, opId2));
 
-        nonPartitionColEntries.add(new RuntimeFilterEntry("probe_field", "np_build_field1_target1", majorFragment1, opId1));
-        nonPartitionColEntries.add(new RuntimeFilterEntry("probe_field", "np_build_field1_target2", majorFragment2, opId2));
+      RuntimeFilterInfo filterInfo = new RuntimeFilterInfo.Builder()
+        .isBroadcastJoin(false)
+        .setRuntimeFilterProbeTargets(ImmutableList.of(
+          new RuntimeFilterProbeTarget.Builder(majorFragment1,opId1)
+            .addPartitionKey("p_build_field1_target1", "probe_field")
+            .addNonPartitionKey("np_build_field1_target1", "probe_field")
+            .build(),
+          new RuntimeFilterProbeTarget.Builder(majorFragment2,opId2)
+            .addPartitionKey("p_build_field1_target2", "probe_field")
+            .addNonPartitionKey("np_build_field1_target2", "probe_field")
+            .build()))
+        .build();
 
-        RuntimeFilterInfo filterInfo = (new RuntimeFilterInfo.Builder()).isBroadcastJoin(false)
-                .nonPartitionJoinColumns(nonPartitionColEntries).partitionJoinColumns(partitionColEntries).build();
-
-        List<RuntimeFilterProbeTarget> probeTargets = RuntimeFilterProbeTarget.getProbeTargets(filterInfo);
+        List<RuntimeFilterProbeTarget> probeTargets = filterInfo.getRuntimeFilterProbeTargets();
         assertEquals(2, probeTargets.size());
         RuntimeFilterProbeTarget target1 = probeTargets.stream()
                 .filter(t -> t.isSameProbeCoordinate(majorFragment1, opId1))
@@ -172,23 +174,20 @@ public class RuntimeFilterProbeTargetTest {
 
     @Test
     public void testSinglePartitionCol() {
-        List<RuntimeFilterEntry> partitionColEntries = new ArrayList<>();
-        partitionColEntries.add(new RuntimeFilterEntry("probe_field", "buildField", 1, 101));
 
-        RuntimeFilterInfo filterInfo = (new RuntimeFilterInfo.Builder()).isBroadcastJoin(false)
-                .partitionJoinColumns(partitionColEntries).build();
+      RuntimeFilterInfo filterInfo = new RuntimeFilterInfo.Builder()
+        .isBroadcastJoin(false)
+        .setRuntimeFilterProbeTargets(ImmutableList.of(
+          new RuntimeFilterProbeTarget.Builder(1,101)
+            .addPartitionKey("buildField", "probe_field")
+            .build()))
+        .build();
 
-        List<RuntimeFilterProbeTarget> probeTargets = RuntimeFilterProbeTarget.getProbeTargets(filterInfo);
+        List<RuntimeFilterProbeTarget> probeTargets = filterInfo.getRuntimeFilterProbeTargets();
         assertEquals(1, probeTargets.size());
         assertEquals(Lists.newArrayList("buildField"), probeTargets.get(0).getPartitionBuildTableKeys());
         assertEquals(Lists.newArrayList("probe_field"), probeTargets.get(0).getPartitionProbeTableKeys());
         assertTrue(probeTargets.get(0).getNonPartitionBuildTableKeys().isEmpty());
         assertTrue(probeTargets.get(0).getNonPartitionProbeTableKeys().isEmpty());
-    }
-
-    @Test
-    public void testNullRuntimeFilterInfoObj() {
-        List<RuntimeFilterProbeTarget> probeTargets = RuntimeFilterProbeTarget.getProbeTargets(null);
-        assertTrue(probeTargets.isEmpty());
     }
 }

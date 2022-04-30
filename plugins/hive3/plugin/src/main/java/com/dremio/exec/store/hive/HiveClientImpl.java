@@ -29,10 +29,18 @@ import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
+import org.apache.hadoop.hive.metastore.api.LockRequest;
+import org.apache.hadoop.hive.metastore.api.LockResponse;
 import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.NoSuchLockException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.NoSuchTxnException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
+import org.apache.hadoop.hive.metastore.api.TxnOpenException;
 import org.apache.hadoop.hive.metastore.utils.SecurityUtils;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAuthzContext;
@@ -313,6 +321,34 @@ class HiveClientImpl implements HiveClient, AutoCloseable {
   public List<HivePrivilegeObject> getRowFilterAndColumnMasking(
     List<HivePrivilegeObject> inputHiveObjects) throws SemanticException {
     return Collections.emptyList();
+  }
+
+  @Override
+  public void createTable(Table tbl) throws AlreadyExistsException, InvalidObjectException, MetaException, NoSuchObjectException, TException {
+    doCommand((RetryableClientCommand<Void>) client -> {
+      client.createTable(tbl);
+      return null;
+    });
+  }
+
+  @Override
+  public LockResponse lock(LockRequest request) throws NoSuchTxnException, TxnAbortedException, TException {
+    return doCommand((RetryableClientCommand<LockResponse>)
+      client -> client.lock(request));
+  }
+
+  @Override
+  public void unlock(long lockid) throws NoSuchLockException, TxnOpenException, TException {
+    doCommand((RetryableClientCommand<Void>) client -> {
+      client.unlock(lockid);
+      return null;
+    });
+  }
+
+  @Override
+  public LockResponse checkLock(long lockid) throws NoSuchTxnException, TxnAbortedException, NoSuchLockException, TException {
+    return doCommand((RetryableClientCommand<LockResponse>)
+      client -> client.checkLock(lockid));
   }
 
   private interface RetryableClientCommand<T> {

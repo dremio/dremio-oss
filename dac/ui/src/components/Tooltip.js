@@ -84,6 +84,7 @@ export class Tooltip extends PureComponent {
                   ...finalStyle,
                   ...overlayProps.style
                 }}
+                className='tooltip-content'
               >
                 <div style={placementStyle.tooltip}>
                   <div

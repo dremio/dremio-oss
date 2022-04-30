@@ -74,7 +74,7 @@ public class TestSQLCreateEmptyTable {
     SqlCreateEmptyTable sqlCreateEmptyTable = (SqlCreateEmptyTable) sqlNode;
     Assert.assertArrayEquals(new String[]{"`id` INTEGER", "`name` VARCHAR"},
       sqlCreateEmptyTable.getFieldNames().toArray(new String[0]));
-    Assert.assertArrayEquals(new String[]{"name"}, sqlCreateEmptyTable.getPartitionColumns(null, null).toArray(new String[0]));
+    Assert.assertArrayEquals(new String[]{"name"}, sqlCreateEmptyTable.getPartitionColumns(null).toArray(new String[0]));
   }
 
   @Test
@@ -85,7 +85,7 @@ public class TestSQLCreateEmptyTable {
     SqlCreateEmptyTable sqlCreateEmptyTable = (SqlCreateEmptyTable) sqlNode;
     Assert.assertArrayEquals(new String[]{"`id` DECIMAL(38, 2)", "`name` VARCHAR"},
       sqlCreateEmptyTable.getFieldNames().toArray(new String[0]));
-    Assert.assertArrayEquals(new String[]{"name"}, sqlCreateEmptyTable.getPartitionColumns(null, null).toArray(new String[0]));
+    Assert.assertArrayEquals(new String[]{"name"}, sqlCreateEmptyTable.getPartitionColumns(null).toArray(new String[0]));
   }
 
 }

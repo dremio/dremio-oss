@@ -146,7 +146,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
       bits.setValueCount(count);
 
       ArrowBuf oldBuf = bits.getDataBuffer();
-      oldBuf.retain();
+      oldBuf.getReferenceManager().retain();
       SerializedField.Builder fieldBuilder = TypeHelper.getMetadataBuilder(bits);
       ArrowBuf newBuf = convertBitsToBytes(allocator, fieldBuilder, NettyArrowBuf.unwrapBuffer(oldBuf)).arrowBuf();
       bytes.setValueCount(count);
@@ -155,7 +155,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
       for (int i = 0; i < count ; i++) {
         assertEquals(i % 2, bytes.get(i));
       }
-      newBuf.release();
+      newBuf.close();
     }
   }
 
@@ -232,7 +232,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
     assertEquals(bd, decimal8);
 
     final ArrowBuf validityBuffer = decimalVector.getValidityBuffer();
-    validityBuffer.release();
+    validityBuffer.close();
     newBuffer.release();
   }
 
@@ -251,7 +251,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
       bytes.setValueCount(count * 8);
 
       ArrowBuf oldBuf = bytes.getDataBuffer();
-      oldBuf.retain();
+      oldBuf.getReferenceManager().retain();
       SerializedField.Builder fieldBuilder = TypeHelper.getMetadataBuilder(bytes);
       ArrowBuf newBuf = padValues(allocator, fieldBuilder, NettyArrowBuf.unwrapBuffer(oldBuf), originalTypeByteWidth,
         targetTypeByteWidth).arrowBuf();
@@ -264,7 +264,7 @@ public class TestBackwardsCompatibilityHandler extends DremioTest {
           assertEquals((i * 8 + byteIndex) % 8, bytes.get(i * 12 + byteIndex));
         }
       }
-      newBuf.release();
+      newBuf.close();
     }
   }
 }

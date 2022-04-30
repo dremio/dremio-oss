@@ -274,6 +274,7 @@ message GetColumnsReq {
   optional LikeFilter schema_name_filter = 2;
   optional LikeFilter table_name_filter = 3;
   optional LikeFilter column_name_filter = 4;
+  optional bool supports_complex_types = 5;
 }
 
 /*
@@ -306,6 +307,7 @@ message GetColumnsResp {
   optional RequestStatus status = 1;
   repeated ColumnMetadata columns = 2;
   optional exec.shared.DremioPBError error = 3;
+  optional bool supports_complex_types = 4;
   optional exec.shared.QueryId query_id = 13;
 }
 

@@ -20,20 +20,17 @@ import static java.sql.Connection.TRANSACTION_READ_COMMITTED;
 import static java.sql.Connection.TRANSACTION_READ_UNCOMMITTED;
 import static java.sql.Connection.TRANSACTION_REPEATABLE_READ;
 import static java.sql.Connection.TRANSACTION_SERIALIZABLE;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.sql.Savepoint;
 
 import org.junit.Test;
 
 
 /**
- * Test for Dremio's implementation of Connection's main transaction-related
- * methods.
+ * Test for Dremio's implementation of Connection's main transaction-related methods.
  */
 public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
 
@@ -45,12 +42,12 @@ public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetTransactionIsolationSaysNone() throws SQLException {
-    assertThat( getConnection().getTransactionIsolation(), equalTo( TRANSACTION_NONE ) );
+    assertThat(getConnection().getTransactionIsolation()).isEqualTo(TRANSACTION_NONE);
   }
 
   @Test
   public void testSetTransactionIsolationNoneExitsNormally() throws SQLException {
-    getConnection().setTransactionIsolation( TRANSACTION_NONE );
+    getConnection().setTransactionIsolation(TRANSACTION_NONE);
   }
 
   // Test trying to set to unsupported isolation levels:
@@ -59,41 +56,39 @@ public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
   // Connection.TRANSACTION_REPEATABLE_READ (from Connection.TRANSACTION_NONE).
   // (Dremio is not transactional.)" (as of 2015-04-22))
 
-  @Test( expected = SQLFeatureNotSupportedException.class )
-  public void testSetTransactionIsolationReadUncommittedThrows() throws SQLException {
-    try {
-      getConnection().setTransactionIsolation( TRANSACTION_READ_UNCOMMITTED );
-    }
-    catch ( SQLFeatureNotSupportedException e ) {
-      // Check a few things in an error message:
-      assertThat( "Missing requested-level string",
-                  e.getMessage(), containsString( "TRANSACTION_READ_UNCOMMITTED" ) );
-      assertThat( "Missing (or reworded) expected description",
-                  e.getMessage(), containsString( "transaction isolation level" ) );
-      assertThat( "Missing current-level string",
-                  e.getMessage(), containsString( "TRANSACTION_NONE" ) );
-      throw e;
-    }
+  @Test
+  public void testSetTransactionIsolationReadUncommittedThrows() {
+    assertThatThrownBy(() -> getConnection().setTransactionIsolation(TRANSACTION_READ_UNCOMMITTED))
+      .isInstanceOf(SQLFeatureNotSupportedException.class)
+      .hasMessageContaining("TRANSACTION_READ_UNCOMMITTED")
+      .hasMessageContaining("transaction isolation level")
+      .hasMessageContaining("TRANSACTION_NONE");
   }
 
-  @Test( expected = SQLFeatureNotSupportedException.class )
-  public void testSetTransactionIsolationReadCommittedThrows() throws SQLException {
-    getConnection().setTransactionIsolation( TRANSACTION_READ_COMMITTED );
-  }
-  @Test( expected = SQLFeatureNotSupportedException.class )
-  public void testSetTransactionIsolationRepeatableReadThrows() throws SQLException {
-    getConnection().setTransactionIsolation( TRANSACTION_REPEATABLE_READ );
-  }
-  @Test( expected = SQLFeatureNotSupportedException.class )
-  public void testSetTransactionIsolationSerializableThrows() throws SQLException {
-    getConnection().setTransactionIsolation( TRANSACTION_SERIALIZABLE );
+  @Test
+  public void testSetTransactionIsolationReadCommittedThrows() {
+    assertThatThrownBy(() -> getConnection().setTransactionIsolation(TRANSACTION_READ_COMMITTED))
+      .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
-  @Test( expected = JdbcApiSqlException.class )
-  public void testSetTransactionIsolationBadIntegerThrows() throws SQLException {
-    getConnection().setTransactionIsolation( 15 );  // not any TRANSACTION_* value
+  @Test
+  public void testSetTransactionIsolationRepeatableReadThrows() {
+    assertThatThrownBy(() -> getConnection().setTransactionIsolation(TRANSACTION_REPEATABLE_READ))
+      .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
+  @Test
+  public void testSetTransactionIsolationSerializableThrows() {
+    assertThatThrownBy(() -> getConnection().setTransactionIsolation(TRANSACTION_SERIALIZABLE))
+      .isInstanceOf(SQLFeatureNotSupportedException.class);
+  }
+
+  @Test
+  public void testSetTransactionIsolationBadIntegerThrows() {
+    // not any TRANSACTION_* value
+    assertThatThrownBy(() -> getConnection().setTransactionIsolation(15))
+      .isInstanceOf(JdbcApiSqlException.class);
+  }
 
   //////////
   // Auto-commit mode.
@@ -101,55 +96,57 @@ public class ConnectionTransactionMethodsTest extends JdbcWithServerTestBase {
   @Test
   public void testGetAutoCommitSaysAuto() throws SQLException {
     // Auto-commit should always be true.
-    assertThat( getConnection().getAutoCommit(), equalTo( true ) );
+    assertThat(getConnection().getAutoCommit()).isEqualTo(true);
   }
 
   @Test
   public void testSetAutoCommitTrueExitsNormally() throws SQLException {
     // Setting auto-commit true (redundantly) shouldn't throw exception.
-    getConnection().setAutoCommit( true );
+    getConnection().setAutoCommit(true);
   }
-
 
   ////////////////////////////////////////
   // Transaction operation methods:
 
-  @Test( expected = JdbcApiSqlException.class )
-  public void testCommitThrows() throws SQLException {
-    // Should fail saying because in auto-commit mode (or maybe because not
-    // supported).
-    getConnection().commit();
+  @Test
+  public void testCommitThrows() {
+    // Should fail saying because in auto-commit mode (or maybe because not supported).
+    assertThatThrownBy(() -> getConnection().commit())
+      .isInstanceOf(JdbcApiSqlException.class);
   }
 
-  @Test( expected = JdbcApiSqlException.class )
-  public void testRollbackThrows() throws SQLException {
-    // Should fail saying because in auto-commit mode (or maybe because not
-    // supported).
-    getConnection().rollback();
+  @Test
+  public void testRollbackThrows() {
+    // Should fail saying because in auto-commit mode (or maybe because not supported).
+    assertThatThrownBy(() -> getConnection().rollback())
+      .isInstanceOf(JdbcApiSqlException.class);
   }
-
 
   ////////////////////////////////////////
   // Savepoint methods:
 
-  @Test( expected = SQLFeatureNotSupportedException.class )
-  public void testSetSavepointUnamed() throws SQLException {
-    getConnection().setSavepoint();
+  @Test
+  public void testSetSavepointUnamed() {
+    assertThatThrownBy(() -> getConnection().setSavepoint())
+      .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
-  @Test( expected = SQLFeatureNotSupportedException.class )
-  public void testSetSavepointNamed() throws SQLException {
-    getConnection().setSavepoint( "savepoint name" );
+  @Test
+  public void testSetSavepointNamed() {
+    assertThatThrownBy(() -> getConnection().setSavepoint("savepoint name"))
+      .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
-  @Test( expected = SQLFeatureNotSupportedException.class )
-  public void testRollbackSavepoint() throws SQLException {
-    getConnection().rollback( (Savepoint) null );
+  @Test
+  public void testRollbackSavepoint() {
+    assertThatThrownBy(() -> getConnection().rollback(null))
+      .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
-  @Test( expected = SQLFeatureNotSupportedException.class )
-  public void testReleaseSavepoint() throws SQLException {
-    getConnection().releaseSavepoint( (Savepoint) null );
+  @Test
+  public void testReleaseSavepoint() {
+    assertThatThrownBy(() -> getConnection().releaseSavepoint(null))
+      .isInstanceOf(SQLFeatureNotSupportedException.class);
   }
 
 }

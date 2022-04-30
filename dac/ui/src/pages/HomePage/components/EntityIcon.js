@@ -20,6 +20,7 @@ import { getIconAltTextByEntityIconType, getIconTypeByEntityTypeAndStatus } from
 import { ENTITY_TYPES } from '@app/constants/Constants';
 import { getEntity } from '@app/selectors/resources';
 import { getRootEntityTypeByIdV3 } from '@app/selectors/home';
+import { Tooltip } from 'dremio-ui-lib';
 
 import FontIcon from '@app/components/Icon/FontIcon';
 
@@ -71,7 +72,13 @@ export class PureEntityIcon extends PureComponent {
     const iconType = getIconTypeByEntityTypeAndStatus(entityType, sourceStatus);
     const iconAltText = getIconAltTextByEntityIconType(iconType) || '';
 
-    return <FontIcon type={iconType} tooltip={iconAltText} theme={{...iconStyle, ...style}} />;
+    return (
+      <Tooltip title={iconAltText}>
+        <>
+          <FontIcon type={iconType}  theme={{...iconStyle, ...style}} />
+        </>
+      </Tooltip>
+    );
   }
 }
 

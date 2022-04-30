@@ -15,8 +15,7 @@
  */
 package com.dremio.jdbc;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.SQLException;
 import java.sql.Types;
@@ -33,12 +32,13 @@ import com.dremio.jdbc.test.JdbcAssert;
  */
 @Ignore("DX-2490")
 public class LegacyDatabaseMetaDataGetColumnsTest extends DatabaseMetaDataGetColumnsTest {
+
   @BeforeClass
   public static void setUpConnection() throws SQLException {
     Properties defaultProperties = JdbcAssert.getDefaultProperties();
     defaultProperties.setProperty("server.metadata.disabled", "true");
 
-    setupConnection(defaultProperties );
+    setupConnection(defaultProperties);
     setUpMetadataToCheck();
   }
 
@@ -47,19 +47,18 @@ public class LegacyDatabaseMetaDataGetColumnsTest extends DatabaseMetaDataGetCol
   @Override
   @Test
   public void test_SOURCE_DATA_TYPE_hasRightTypeString() throws SQLException {
-    assertThat( rowsMetadata.getColumnTypeName( 22 ), equalTo( "INTEGER" ) );
+    assertThat(rowsMetadata.getColumnTypeName(22)).isEqualTo("INTEGER");
   }
 
   @Override
   @Test
   public void test_SOURCE_DATA_TYPE_hasRightTypeCode() throws SQLException {
-    assertThat( rowsMetadata.getColumnType( 22 ), equalTo( Types.INTEGER ) );
+    assertThat(rowsMetadata.getColumnType(22)).isEqualTo(Types.INTEGER);
   }
 
   @Override
   @Test
   public void test_SOURCE_DATA_TYPE_hasRightClass() throws SQLException {
-    assertThat( rowsMetadata.getColumnClassName( 22 ),
-                equalTo( Integer.class.getName() ) );
+    assertThat(rowsMetadata.getColumnClassName(22)).isEqualTo(Integer.class.getName());
   }
 }

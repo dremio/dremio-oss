@@ -57,7 +57,7 @@ public class TestGandivaFunctionRegistry extends ExecTest {
    */
   @Test
   public void testGandivaRegistry() throws Exception {
-    GandivaFunctionRegistry fnRegistry = new GandivaFunctionRegistry(true);
+    GandivaFunctionRegistry fnRegistry = new GandivaFunctionRegistry(true, optionManager);
 
     FunctionCall fnCall = getGandivaOnlyFn();
     FunctionResolver resolver = FunctionResolverFactory.getResolver(fnCall);
@@ -101,7 +101,7 @@ public class TestGandivaFunctionRegistry extends ExecTest {
    */
   @Test
   public void testNonDecimalGandivaRegistry() {
-    GandivaFunctionRegistry fnRegistry = new GandivaFunctionRegistry(false);
+    GandivaFunctionRegistry fnRegistry = new GandivaFunctionRegistry(false, optionManager);
     FunctionCall fnCall = getDecimalAddFn();
     FunctionResolver resolver = FunctionResolverFactory.getExactResolver(fnCall);
     GandivaFunctionHolder holder = (GandivaFunctionHolder)resolver.getBestMatch(fnRegistry

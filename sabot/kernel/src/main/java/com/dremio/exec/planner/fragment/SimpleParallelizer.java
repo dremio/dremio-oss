@@ -235,7 +235,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     final Stopwatch stopwatch = Stopwatch.createStarted();
     // NB: OK to close resources in unit tests only
     try (final ExecutionPlanningResources resources = getExecutionPlanningResources(queryContext, observer, executorSelectionService,
-      resourceSchedulingDecisionInfo, rootFragment)) {
+      resourceSchedulingDecisionInfo, rootFragment, null)) {
       observer.planParallelized(resources.getPlanningSet());
       stopwatch.stop();
       observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -295,11 +295,12 @@ public class SimpleParallelizer implements ParallelizationParameters {
                                                                          MaestroObserver observer,
                                                                          ExecutorSelectionService executorSelectionService,
                                                                          ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo,
-                                                                         Fragment rootFragment) throws ExecutionSetupException {
+                                                                         Fragment rootFragment,
+                                                                         AssignFragmentPriorityVisitor priorityAssigner) throws ExecutionSetupException {
     SimpleParallelizer parallelizer = new SimpleParallelizer(context, observer, executorSelectionService, resourceSchedulingDecisionInfo, context.getGroupResourceInformation());
     PlanningSet planningSet = new PlanningSet();
     parallelizer.initFragmentWrappers(rootFragment, planningSet);
-    final Set<Wrapper> leafFragments = constructFragmentDependencyGraph(planningSet);
+    final Set<Wrapper> leafFragments = constructFragmentDependencyGraph(planningSet, priorityAssigner);
     // NB: for queries with hard affinity, we need to use all endpoints, so the parallelizer, below, is given an
     //     opportunity to find the nodes that match said affinity
     // Start parallelizing from leaf fragments
@@ -350,26 +351,49 @@ public class SimpleParallelizer implements ParallelizationParameters {
     }
   }
 
+  private static void setFragmentDependency(Wrapper sender, Wrapper receiver, ParallelizationDependency dependency) {
+    switch (dependency) {
+      case RECEIVER_DEPENDS_ON_SENDER:
+        receiver.addFragmentDependency(sender);
+        break;
+
+      case RECEIVER_MUST_MATCH_SENDER:
+        receiver.addFragmentDependency(sender);
+        receiver.setStrictDependency();
+        break;
+
+      case SENDER_DEPENDS_ON_RECEIVER:
+        sender.addFragmentDependency(receiver);
+        break;
+    }
+  }
+
   /**
    * Based on the affinity of the Exchange that separates two fragments, setup fragment dependencies.
    *
-   * @param planningSet
+   * @param planningSet the full set of major fragments in the query
+   * @param priorityAssigner priority assignment, if any
    * @return Returns a list of leaf fragments in fragment dependency graph.
    */
-  private static Set<Wrapper> constructFragmentDependencyGraph(PlanningSet planningSet) {
+  private static Set<Wrapper> constructFragmentDependencyGraph(PlanningSet planningSet,
+                                                               AssignFragmentPriorityVisitor priorityAssigner) {
 
     // Set up dependency of fragments based on the affinity of exchange that separates the fragments.
     for(Wrapper currentFragmentWrapper : planningSet) {
-      ExchangeFragmentPair sendingExchange = currentFragmentWrapper.getNode().getSendingExchangePair();
-      if (sendingExchange != null) {
-        ParallelizationDependency dependency = sendingExchange.getExchange().getParallelizationDependency();
-        Wrapper receivingFragmentWrapper = planningSet.get(sendingExchange.getNode());
+      if (priorityAssigner != null) {
+        currentFragmentWrapper.setAssignedWeight(
+          priorityAssigner.getFragmentWeight(currentFragmentWrapper.getMajorFragmentId()));
+      }
 
-        if (dependency == ParallelizationDependency.RECEIVER_DEPENDS_ON_SENDER) {
-          receivingFragmentWrapper.addFragmentDependency(currentFragmentWrapper);
-        } else if (dependency == ParallelizationDependency.SENDER_DEPENDS_ON_RECEIVER) {
-          currentFragmentWrapper.addFragmentDependency(receivingFragmentWrapper);
-        }
+      ExchangeFragmentPair sendToExchange = currentFragmentWrapper.getNode().getSendingExchangePair();
+      if (sendToExchange != null) {
+        ParallelizationDependency dependency = sendToExchange.getExchange().getParallelizationDependency();
+        Wrapper receivingFragmentWrapper = planningSet.get(sendToExchange.getNode());
+        setFragmentDependency(currentFragmentWrapper, receivingFragmentWrapper, dependency);
+      }
+
+      for (Fragment sibling : currentFragmentWrapper.getNode().getSiblingBridgeFragments()) {
+        setFragmentDependency(currentFragmentWrapper, planningSet.get(sibling), ParallelizationDependency.RECEIVER_MUST_MATCH_SENDER);
       }
     }
 
@@ -448,6 +472,15 @@ public class SimpleParallelizer implements ParallelizationParameters {
       for(Wrapper dependency : fragmentDependencies) {
         parallelizePhase(dependency, planningSet, activeEndpoints);
       }
+    }
+
+    if (fragmentWrapper.isStrictDependency()) {
+      // copy from dependency
+      Wrapper dependency = fragmentDependencies.get(0);
+
+      fragmentWrapper.setWidth(dependency.getWidth());
+      fragmentWrapper.assignEndpoints(this, dependency.getAssignedEndpoints());
+      return;
     }
 
     fragmentWrapper.getStats().getDistributionAffinity()
@@ -593,6 +626,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
                   .setCredentials(session.getCredentials())
                   .setPriority(queryContextInfo.getPriority())
                   .setFragmentCodec(fragmentCodec)
+                  .setFragmentExecWeight(wrapper.getAssignedWeight())
                   .addAllAllAssignment(assignments)
                   .addAllExtFragmentAssignments(extFragmentAssignments)
                   .build();
@@ -652,12 +686,15 @@ public class SimpleParallelizer implements ParallelizationParameters {
 
     @Override
     public Void visitReceiver(Receiver receiver, List<Collector> collectors) throws RuntimeException {
-      collectors.add(Collector.newBuilder()
-        .setIsSpooling(receiver.isSpooling())
-        .setOppositeMajorFragmentId(receiver.getSenderMajorFragmentId())
-        .setSupportsOutOfOrder(receiver.supportsOutOfOrderExchange())
-        .addAllIncomingMinorFragmentIndex(receiver.getProvidingEndpoints())
-        .build());
+      if (!receiver.getProvidingEndpoints().isEmpty()) {
+        // FileReaderReceiver has no providing endpoints, and hence does not require a collector.
+        collectors.add(Collector.newBuilder()
+          .setIsSpooling(receiver.isSpooling())
+          .setOppositeMajorFragmentId(receiver.getSenderMajorFragmentId())
+          .setSupportsOutOfOrder(receiver.supportsOutOfOrderExchange())
+          .addAllIncomingMinorFragmentIndex(receiver.getProvidingEndpoints())
+          .build());
+      }
       return null;
     }
 

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.hadoop;
 
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
@@ -83,6 +85,8 @@ public final class FSErrorTestUtils {
           params[i] = new FileStatusWrapper(null);
         } else if (parameterType == Path.class) {
           params[i] = Path.of(".");
+        } else if (parameterType == OutputStream.class) {
+          params[i] = new ByteArrayOutputStream();
         } else {
           params[i] = null;
         }

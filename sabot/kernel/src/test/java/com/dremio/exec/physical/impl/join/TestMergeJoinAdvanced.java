@@ -36,6 +36,7 @@ import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.resource.GroupResourceInformation;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
@@ -81,16 +82,19 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
         .baselineValues(1l)
         .go();
 
-    query = "select count(*) col1 from " +
+    try (AutoCloseable c = disableUnlimitedSplitsSupportFlags()) {
+      // date_dictionary.parquet file has implicit partition columns and the partition value is not same as
+      // value in the file.
+      query = "select count(*) col1 from " +
         "(select t1.date_opt from cp.\"parquet/date_dictionary.parquet\" t1, cp.\"parquet/timestamp_table.parquet\" t2 " +
         "where t1.date_opt = cast(t2.timestamp_col as date))"; // join condition contains date and timestamp
-
-    testBuilder()
+      testBuilder()
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("col1")
         .baselineValues(4l)
         .go();
+    }
   }
 
   @Test
@@ -99,7 +103,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
     setSessionOption(PlannerSettings.BROADCAST.getOptionName(), "false");
     setSessionOption(PlannerSettings.HASHJOIN.getOptionName(), "false");
     setSessionOption(ExecConstants.SLICE_TARGET, "1");
-    setSessionOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY, "23");
+    setSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "23");
 
     final String TEST_RES_PATH = TestTools.getWorkingPath() + "/src/test/resources";
 
@@ -112,8 +116,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
       setSessionOption(PlannerSettings.HASHJOIN.getOptionName(), String.valueOf(PlannerSettings.HASHJOIN.getDefault()
         .getBoolVal()));
       setSessionOption(ExecConstants.SLICE_TARGET, String.valueOf(ExecConstants.SLICE_TARGET_DEFAULT));
-      setSessionOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY, String.valueOf(ExecConstants.MAX_WIDTH_PER_NODE
-        .getDefault().getNumVal()));
+      resetSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 

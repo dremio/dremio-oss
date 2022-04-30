@@ -129,7 +129,7 @@ public class TestUserServices extends BaseTestServer {
 
     doc("delete with missing version");
     final GenericErrorMessage errorDelete = expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path("user/" + testUserName("test11"))).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete, "missing version param");
+    assertErrorMessage(errorDelete, GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
 
     doc("delete with bad version");
     long badVersion = 1234L;

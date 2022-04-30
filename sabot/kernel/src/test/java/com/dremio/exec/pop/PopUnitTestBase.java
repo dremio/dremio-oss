@@ -51,6 +51,6 @@ public abstract class PopUnitTestBase extends ExecTest {
       throws FragmentSetupException, IOException, ForemanSetupException {
     PhysicalPlan plan = reader.readPhysicalPlan(planString);
     PhysicalOperator o = plan.getSortedOperators(false).iterator().next();
-    return o.accept(MakeFragmentsVisitor.INSTANCE, null);
+    return MakeFragmentsVisitor.makeFragments(o);
   }
 }

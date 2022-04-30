@@ -108,7 +108,7 @@ import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
  */
 public class S3FileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
   public static final String S3_PERMISSION_ERROR_MSG = "Access was denied by S3";
-  static final String COMPATIBILITY_MODE = "dremio.s3.compat";
+  public static final String COMPATIBILITY_MODE = "dremio.s3.compat";
   static final String REGION_OVERRIDE = "dremio.s3.region";
 
   private static final Logger logger = LoggerFactory.getLogger(S3FileSystem.class);

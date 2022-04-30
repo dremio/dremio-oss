@@ -311,4 +311,21 @@ public class GroupSetTest extends BaseTestQuery {
       .go();
   }
 
+  @Test
+  public void testGroupingSetWithAvgFunctionOnGroupColumn() throws Exception {
+    String query = "select n_regionkey, avg(n_regionkey) \"avg\" from cp.\"tpch/nation.parquet\" group by rollup (n_regionkey);";
+    test("explain plan for " + query);
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("n_regionkey", "avg")
+      .baselineValues(null, 2.0)
+      .baselineValues(0, 0.0)
+      .baselineValues(1, 1.0)
+      .baselineValues(2, 2.0)
+      .baselineValues(3, 3.0)
+      .baselineValues(4, 4.0)
+      .go();
+  }
+
 }

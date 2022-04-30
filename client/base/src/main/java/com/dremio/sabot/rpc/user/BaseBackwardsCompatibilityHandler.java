@@ -112,7 +112,7 @@ abstract class BaseBackwardsCompatibilityHandler {
       }
       vc.buildSchema();
       vc.setAllCount(batch.getHeader().getRowCount());
-      buf.release();
+      buf.close();
       return WritableBatch.get(vc).getBuffers();
     }
   }

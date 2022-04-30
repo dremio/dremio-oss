@@ -16,12 +16,18 @@
 package com.dremio.exec.cache;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -106,6 +112,104 @@ public class TestVectorAccessibleFlatBufSerializable extends ExecTest {
       }
 
       container.close();
+    }
+  }
+
+  @Test
+  public void testListReadWrite() throws Exception {
+    BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+
+    try (ListVector listVector = ListVector.empty("listInt", allocator)) {
+      listVector.allocateNew();
+
+      // write data to vector
+      // [[0, 0, 0, 0, 0, null], [0, 1, 2, 3, 4, null], [0, 2, 4, 6, 8, null], [null, null, null, null, null],
+      // [0, null, 2, null, 4, null], null]
+
+      UnionListWriter writer = listVector.getWriter();
+      for (int i = 0; i < 4; i++) {
+        writer.startList();
+        writer.setPosition(i);
+        for (int j = 0; j < 5; j++) {
+          if (i != 3) {
+            writer.writeInt(j * i);
+          } else {
+            writer.writeNull();
+          }
+        }
+        writer.writeNull();
+        writer.setValueCount(6);
+        writer.endList();
+      }
+      writer.startList();
+      writer.setPosition(4);
+      for(int i = 0; i < 6; i++) {
+        if(i%2 == 0) {
+          writer.writeInt(i);
+        } else {
+          writer.writeNull();
+        }
+      }
+      writer.setValueCount(6);
+      writer.endList();
+
+      writer.startList();
+      writer.setPosition(5);
+      writer.writeNull();
+      writer.setValueCount(1);
+      writer.endList();
+
+      listVector.setValueCount(6);
+      VectorContainer container = new VectorContainer();
+      container.add(listVector);
+      container.buildSchema();
+      container.setRecordCount(6);
+
+
+      VectorAccessibleFlatBufSerializable writeSerializable = new VectorAccessibleFlatBufSerializable(container, allocator);
+
+      Configuration conf = new Configuration();
+      conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
+
+      VectorContainer readContainer = new VectorContainer(allocator);
+      readContainer.setRecordCount(container.getRecordCount());
+      readContainer.addSchema(container.getSchema());
+      readContainer.buildSchema();
+
+      try (final FileSystem fs = FileSystem.get(conf)) {
+        final File tempDir = Files.createTempDir();
+        tempDir.deleteOnExit();
+        final Path path = new Path(tempDir.getAbsolutePath(), "dremioSerializable");
+        try (final FSDataOutputStream out = fs.create(path)) {
+          writeSerializable.writeToStream(out);
+        }
+
+        VectorAccessibleFlatBufSerializable readSerializable = new VectorAccessibleFlatBufSerializable(readContainer, allocator);
+        try (final FSDataInputStream in = fs.open(path)) {
+          readSerializable.readFromStream(in);
+        }
+      }
+
+      ArrayList<ArrayList<Integer>> expectedOutPut = new ArrayList<ArrayList<Integer>>();
+      expectedOutPut.add(new ArrayList<Integer>(Arrays.asList(0, 0, 0, 0, 0, null)));
+      expectedOutPut.add(new ArrayList<Integer>(Arrays.asList(0, 1, 2, 3, 4, null)));
+      expectedOutPut.add(new ArrayList<Integer>(Arrays.asList(0, 2, 4, 6, 8, null)));
+      expectedOutPut.add(new ArrayList<Integer>(Arrays.asList(null, null, null, null, null, null)));
+      expectedOutPut.add(new ArrayList<Integer>(Arrays.asList(0, null, 2, null, 4, null)));
+
+      ArrayList<Integer> nullList = new ArrayList<>();
+      nullList.add(null);
+      expectedOutPut.add(nullList);
+
+      Assert.assertEquals(6, readContainer.getRecordCount());
+      for (VectorWrapper<?> w : readContainer) {
+        try (ListVector vv = (ListVector)w.getValueVector()) {
+          for (int i = 0; i < listVector.getValueCount(); i++) {
+            Assert.assertTrue(listVector.getObject(i).equals(expectedOutPut.get(i)));
+          }
+        }
+      }
+
     }
   }
 }

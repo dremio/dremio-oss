@@ -17,6 +17,7 @@ package com.dremio.exec.expr;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
@@ -42,9 +43,11 @@ class SplitDependencyTracker {
   // case condition number. The list handles multiple level of nesting of case
   private final Deque<CaseBlock> caseBlocks = new ArrayDeque<>();
 
-  SplitDependencyTracker(SupportedEngines executionEngine, List<IfExprBranch> branchList) {
+  SplitDependencyTracker(SupportedEngines executionEngine, List<IfExprBranch> branchList,
+                         Collection<CaseBlock> caseBlocks) {
     this.executionEngine = executionEngine;
     this.ifExprBranches.addAll(branchList);
+    this.caseBlocks.addAll(caseBlocks);
   }
 
   SplitDependencyTracker(SplitDependencyTracker parent) {
@@ -73,7 +76,15 @@ class SplitDependencyTracker {
   SupportedEngines getExecutionEngine() {
     return executionEngine;
   }
-  List<IfExprBranch> getIfExprBranches() { return ifExprBranches; }
+
+  List<IfExprBranch> getIfExprBranches() {
+    return ifExprBranches;
+  }
+
+  Collection<CaseBlock> getCaseBlocks() {
+    return caseBlocks;
+  }
+
   List<ExpressionSplit> getTransfersIn() {
     return transfersIn;
   }

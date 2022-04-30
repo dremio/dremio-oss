@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
+import java.util.Collections;
 import java.util.stream.StreamSupport;
 
 import com.dremio.common.Version;
@@ -22,7 +23,6 @@ import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.CoreStoreProviderImpl;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 /**
  * Re-indexes all stores that are indexed stores.
@@ -33,7 +33,7 @@ public class ReIndexAllStores extends UpgradeTask implements LegacyUpgradeTask {
   static final String taskUUID = "5522c3bc-195f-41ba-8bfd-a33f91b1219a";
 
   public ReIndexAllStores() {
-    super("Re index all stores", ImmutableList.of(DatasetConfigUpgrade.taskUUID));
+    super("Re index all stores", Collections.emptyList());
   }
 
   @Override

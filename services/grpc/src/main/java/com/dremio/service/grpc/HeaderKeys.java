@@ -46,4 +46,7 @@ public class HeaderKeys {
   public static final Metadata.Key<String> SUPPORT_EMAIL_HEADER_KEY =
     Metadata.Key.of("x-dremio-support-email-key", Metadata.ASCII_STRING_MARSHALLER);
 
+  public static final Metadata.Key<String> SUPPORT_ROLES_HEADER_KEY =
+    Metadata.Key.of("x-dremio-support-roles-key", Metadata.ASCII_STRING_MARSHALLER);
+
 }

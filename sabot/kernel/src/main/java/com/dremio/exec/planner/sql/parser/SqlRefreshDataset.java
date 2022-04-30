@@ -142,15 +142,16 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
         }
       }
     }
-    if (deleteUnavail.getValue() != null) {
-      if (deleteUnavail.booleanValue()) {
-        writer.keyword("DELETE");
+
+    if (promotion.getValue() != null) {
+      if (promotion.booleanValue()) {
+        writer.keyword("AUTO");
       } else {
-        writer.keyword("MAINTAIN");
+        writer.keyword("AVOID");
       }
-      writer.keyword("WHEN");
-      writer.keyword("MISSING");
+      writer.keyword("PROMOTION");
     }
+
     if (forceUp.getValue() != null) {
       if (forceUp.booleanValue()) {
         writer.keyword("FORCE");
@@ -159,13 +160,15 @@ public class SqlRefreshDataset extends SqlCall implements SqlToPlanHandler.Creat
       }
       writer.keyword("UPDATE");
     }
-    if (promotion.getValue() != null) {
-      if (promotion.booleanValue()) {
-        writer.keyword("AUTO");
+
+    if (deleteUnavail.getValue() != null) {
+      if (deleteUnavail.booleanValue()) {
+        writer.keyword("DELETE");
       } else {
-        writer.keyword("AVOID");
+        writer.keyword("MAINTAIN");
       }
-      writer.keyword("PROMOTION");
+      writer.keyword("WHEN");
+      writer.keyword("MISSING");
     }
   }
 

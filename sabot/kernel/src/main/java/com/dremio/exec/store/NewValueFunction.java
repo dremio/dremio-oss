@@ -59,7 +59,7 @@ public class NewValueFunction {
       if (initialized && // it's not the first value
         previous.isSet == in.isSet && // nullability didn't change
         (previous.isSet == 0 || // it's either a null partition or the partition value is the same
-          org.apache.arrow.vector.util.ByteFunctionHelpers.compare(previous.buffer, 0, previous.end, in.buffer, in.start, in.end) == 0)
+          org.apache.arrow.memory.util.ByteFunctionHelpers.compare(previous.buffer, 0, previous.end, in.buffer, in.start, in.end) == 0)
         ) {
         out.value = 0; // it's the same partition
       } else {
@@ -99,7 +99,7 @@ public class NewValueFunction {
       if (initialized && // it's not the first value
         previous.isSet == in.isSet && // nullability didn't change
         (previous.isSet == 0 || // it's either a null partition or the partition value is the same
-          org.apache.arrow.vector.util.ByteFunctionHelpers.compare(previous.buffer, 0, previous.end, in.buffer, in.start, in.end) == 0)
+          org.apache.arrow.memory.util.ByteFunctionHelpers.compare(previous.buffer, 0, previous.end, in.buffer, in.start, in.end) == 0)
         ) {
         out.value = 0; // it's the same partition
       } else {

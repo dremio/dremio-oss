@@ -22,17 +22,12 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>dremio-accelerator-api</artifactId>
   <name>Services - Accelerator API</name>
-
-  <properties>
-    <maven.compiler.source>8</maven.compiler.source>
-    <maven.compiler.target>8</maven.compiler.target>
-  </properties>
 
   <dependencies>
     <dependency>

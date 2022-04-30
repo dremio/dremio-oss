@@ -146,7 +146,7 @@ public abstract class AbstractExchange extends AbstractSingle implements Exchang
   }
 
   @Override
-  public final <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
     return physicalVisitor.visitExchange(this, value);
   }
 

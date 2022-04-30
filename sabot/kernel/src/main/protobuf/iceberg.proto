@@ -34,3 +34,7 @@ message IcebergDatasetXAttr {
   optional string partition_stats_file = 3;  // path to partition stats file for the latest snapshot
 }
 
+message IcebergDatasetSplitXAttr {
+  optional string path = 1;
+  optional bytes extended_property = 2; // source specific information about this split
+}

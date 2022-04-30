@@ -22,12 +22,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import com.dremio.exec.catalog.VersionContext;
+import com.dremio.service.job.SqlQuery;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobCancellationInfo;
 import com.dremio.service.job.proto.JobFailureInfo;
@@ -146,5 +150,45 @@ public class TestJobsProtoUtil {
     //test for jobCancellationinfo (-ve test case)
     JobCancellationInfo jobCancellationInfo = toStuff(jobCancellationInfoProtobuf);
     assertNotEquals(jobCancellationInfoProtoStuff, jobCancellationInfo);
+  }
+
+  @Test
+  public void testToSourceVersionMapping() {
+    Map<String, SqlQuery.VersionContext> sourceWithVersionContextMap = new HashMap<>();
+    sourceWithVersionContextMap.put("source1", SqlQuery.VersionContext.newBuilder().setType(
+      SqlQuery.VersionContextType.BRANCH).setValue("branch").build());
+    sourceWithVersionContextMap.put("source3", SqlQuery.VersionContext.newBuilder().setType(
+      SqlQuery.VersionContextType.BARE_COMMIT).setValue("d0628f078890fec234b98b873f9e1f3cd140988a").build());
+    sourceWithVersionContextMap.put("source2", SqlQuery.VersionContext.newBuilder().setType(
+      SqlQuery.VersionContextType.TAG).setValue("tag").build());
+
+    Map<String, VersionContext> sourceVersionMappingExpected = new HashMap<>();
+    sourceVersionMappingExpected.put("source1", VersionContext.ofBranch("branch"));
+    sourceVersionMappingExpected.put("source2", VersionContext.ofTag("tag"));
+    sourceVersionMappingExpected.put("source3", VersionContext.ofBareCommit("d0628f078890fec234b98b873f9e1f3cd140988a"));
+
+    assertEquals(sourceVersionMappingExpected, JobsProtoUtil.toSourceVersionMapping(sourceWithVersionContextMap));
+  }
+
+  @Test
+  public void testSqlQuerySourceVersionMapping() {
+    Map<String, JobsVersionContext> references = new HashMap<>();
+    references.put("source1", new JobsVersionContext(JobsVersionContext.VersionContextType.BARE_COMMIT,
+      "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    references.put("source2", new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, "branch"));
+    references.put("source3", new JobsVersionContext(JobsVersionContext.VersionContextType.TAG, "tag"));
+    com.dremio.service.jobs.SqlQuery sqlQuery = new com.dremio.service.jobs.SqlQuery("create tag tagName in source1", null, null, null, null, references);
+
+
+    Map<String, SqlQuery.VersionContext> sourceVersionMappingExpected = new HashMap<>();
+    sourceVersionMappingExpected.put("source1", SqlQuery.VersionContext.newBuilder().setType(
+      SqlQuery.VersionContextType.BARE_COMMIT).setValue("d0628f078890fec234b98b873f9e1f3cd140988a").build());
+    sourceVersionMappingExpected.put("source2", SqlQuery.VersionContext.newBuilder().setType(
+      SqlQuery.VersionContextType.BRANCH).setValue("branch").build());
+    sourceVersionMappingExpected.put("source3", SqlQuery.VersionContext.newBuilder().setType(
+      SqlQuery.VersionContextType.TAG).setValue("tag").build());
+
+    SqlQuery sqlQueryResult = JobsProtoUtil.toBuf(sqlQuery);
+    assertEquals(sourceVersionMappingExpected, sqlQueryResult.getSourceVersionMappingMap());
   }
 }

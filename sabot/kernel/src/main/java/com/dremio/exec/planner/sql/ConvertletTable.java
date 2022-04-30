@@ -96,7 +96,7 @@ public class ConvertletTable extends ReflectiveConvertletTable {
         case TIME:
         case TIMESTAMP:
           // if DATETIME - INTERVAL, then use special logic
-          // Note that although DATETIME_MINUS special operator is mapped to
+          // Note that although MINUS_DATE special operator is mapped to
           // "-" function, this is also required for JDBC pushdown as special
           // care is taken to make valid SQL depending on dialect when unparsing
           // expression
@@ -106,7 +106,7 @@ public class ConvertletTable extends ReflectiveConvertletTable {
             case INTERVAL_YEAR_MONTH:
               final RexBuilder rexBuilder = cx.getRexBuilder();
               return rexBuilder.makeCall(
-                  e.getType(), SqlStdOperatorTable.DATETIME_MINUS, e.getOperands());
+                  e.getType(), SqlStdOperatorTable.MINUS_DATE, e.getOperands());
 
             default:
               return e;

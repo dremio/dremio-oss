@@ -34,6 +34,7 @@ export class TableControls extends PureComponent {
     dataset: PropTypes.instanceOf(Immutable.Map),
     currentSql: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
+    tableColumns: PropTypes.instanceOf(Immutable.List),
     defaultColumnName: PropTypes.string, // would be used for addField button as default value
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     pageType: pageTypesProp.isRequired,
@@ -44,6 +45,7 @@ export class TableControls extends PureComponent {
     location: PropTypes.object.isRequired,
     rightTreeVisible: PropTypes.bool,
     approximate: PropTypes.bool,
+    disableButtons: PropTypes.bool,
 
     // actions
     performTransform: PropTypes.func.isRequired
@@ -105,7 +107,16 @@ export class TableControls extends PureComponent {
   union() {}
 
   render() {
-    const { dataset, sqlState, approximate, rightTreeVisible, exploreViewState } = this.props;
+    const {
+      dataset,
+      sqlState,
+      approximate,
+      rightTreeVisible,
+      exploreViewState,
+      tableColumns,
+      disableButtons
+    } = this.props;
+
     return (
       <TableControlsView
         dataset={dataset}
@@ -116,6 +127,8 @@ export class TableControls extends PureComponent {
         join={this.join}
         approximate={approximate}
         rightTreeVisible={rightTreeVisible}
+        tableColumns={tableColumns}
+        disableButtons={disableButtons}
       />
     );
   }
@@ -125,12 +138,13 @@ function mapStateToProps(state, props) {
   const location = state.routing.locationBeforeTransitions || {};
   const datasetVersion = props.dataset.get('datasetVersion');
   const explorePageState = getExploreState(state);
-  const tableColumns = getTableColumns(state, datasetVersion, location);
+  const retrieveTableColumns = getTableColumns(state, datasetVersion, location);
 
   return {
     currentSql: explorePageState.view.currentSql,
     queryContext: explorePageState.view.queryContext,
-    defaultColumnName: tableColumns && tableColumns.getIn([0, 'name']) || '',
+    defaultColumnName: retrieveTableColumns && retrieveTableColumns.getIn([0, 'name']) || '',
+    tableColumns: getTableColumns(state, datasetVersion),
     approximate: getApproximate(state, datasetVersion)
   };
 }

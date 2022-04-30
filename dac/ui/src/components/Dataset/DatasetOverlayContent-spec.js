@@ -59,11 +59,10 @@ describe('DatasetOverlayContent', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render dataset-label-overlay, ColumnMenuItem, DatasetItemLabel', () => {
+  it('should render dataset-label-overlay, ColumnMenuItem', () => {
     const wrapper = shallow(<DatasetOverlayContent {...commonProps}/>);
     expect(wrapper.find('.dataset-label-overlay')).to.have.length(1);
     expect(wrapper.find('ColumnMenuItem')).to.have.length(2);
-    expect(wrapper.find('DatasetItemLabel')).to.have.length(1);
     expect(wrapper.find('BreadCrumbs')).to.have.length(0);
   });
 });

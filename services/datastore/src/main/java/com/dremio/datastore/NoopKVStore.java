@@ -25,10 +25,17 @@ import com.dremio.datastore.api.KVStore;
  * Noop KVStore, shouldn't ever be accessed.
  */
 public class NoopKVStore<K, V> implements KVStore<K, V> {
+  private static final String NOOP_NAME = "NoopKVStore";
+  private final String name;
 
   @SuppressWarnings("unchecked")
   public NoopKVStore() {
+    this.name = NOOP_NAME;
+  }
 
+  @SuppressWarnings("unchecked")
+  public NoopKVStore(StoreBuilderHelper helper) {
+    this.name = helper.getName();
   }
 
   @Override
@@ -73,7 +80,7 @@ public class NoopKVStore<K, V> implements KVStore<K, V> {
 
   @Override
   public String getName() {
-    return "NoopKVStore";
+    return name;
   }
 
 }

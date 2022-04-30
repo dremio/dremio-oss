@@ -29,6 +29,7 @@ import java.util.TreeMap;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
@@ -206,8 +207,8 @@ public class ParquetTypeHelper {
       SchemaPath columnSchemaPath = SchemaPath.getCompoundPath(parquetField.getName());
       Field field = createField(columnSchemaPath, parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper);
       if (parquetField.isRepetition(REPEATED)) {
-        Field listChild = new Field("$data$", true, field.getType(), field.getChildren());
-        return Optional.of(new Field(field.getName(), true, new ArrowType.List(), Arrays.asList(listChild)));
+        Field listChild = new Field("$data$", new FieldType(true, field.getType(), field.getDictionary()), field.getChildren());
+        return Optional.of(new Field(field.getName(), new FieldType(true, new ArrowType.List(), field.getDictionary()), Arrays.asList(listChild)));
       }
       return Optional.of(field);
     }
@@ -217,17 +218,17 @@ public class ParquetTypeHelper {
     if (OriginalType.LIST == complexField.getOriginalType() && LogicalListL1Converter.isSupportedSchema(complexField)) {
       GroupType repeatedField = (GroupType) complexField.getFields().get(0);
       Optional<Field> subField = toField(repeatedField.getFields().get(0), schemaHelper);
-      subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
-      return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+      subField = subField.map(sf -> new Field("$data$", new FieldType(true, sf.getType(), sf.getDictionary()), sf.getChildren()));
+      return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
     } else if (OriginalType.LIST == complexField.getOriginalType()) {
       if (complexField.getFieldCount() == 1) {
         Type type = complexField.getType(0);
         Optional<Field> subField = toField(type, schemaHelper);
         if (complexField.isRepetition(REPEATED)) {
-          subField = subField.map(sf -> new Field("$data$", true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
-          return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+          subField = subField.map(sf -> new Field("$data$", new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
+          return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
         } else {
-          return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
+          return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
         }
       }
       throw UserException.unsupportedError()
@@ -247,14 +248,14 @@ public class ParquetTypeHelper {
 
       Optional<Field> subField = toField(repeatedField, schemaHelper,true);
       if (complexField.isRepetition(REPEATED)) {
-        subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
-        subField = subField.map(sf -> new Field(repeatedField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
-        subField = subField.map(sf -> new Field("$data$", true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
-        return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
+        subField = subField.map(sf -> new Field("$data$", new FieldType(true, sf.getType(), sf.getDictionary()), sf.getChildren()));
+        subField = subField.map(sf -> new Field(repeatedField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
+        subField = subField.map(sf -> new Field("$data$", new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
+        return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
       } else {
-        subField = subField.map(sf -> new Field("$data$", true, sf.getType(), sf.getChildren()));
-        subField = subField.map(sf -> new Field(repeatedField.getName(), true, new ArrowType.List(), Arrays.asList(new Field[] {sf})));
-        return subField.map(sf -> new Field(complexField.getName(), true, new ArrowType.Struct(), Arrays.asList(new Field[] {sf})));
+        subField = subField.map(sf -> new Field("$data$", new FieldType(true, sf.getType(), sf.getDictionary()), sf.getChildren()));
+        subField = subField.map(sf -> new Field(repeatedField.getName(), new FieldType(true, new ArrowType.List(), null), Arrays.asList(new Field[] {sf})));
+        return subField.map(sf -> new Field(complexField.getName(), new FieldType(true, new ArrowType.Struct(), null), Arrays.asList(new Field[] {sf})));
       }
     }
 
@@ -277,14 +278,14 @@ public class ParquetTypeHelper {
         subFields.add(subField.get());
       }
     }
-    Field field = new Field(complexField.getName(), true, arrowType, subFields);
+    Field field = new Field(complexField.getName(), new FieldType(true, arrowType, null), subFields);
     if (complexField.isRepetition(REPEATED)
       && !convertToStruct
       && OriginalType.MAP_KEY_VALUE != complexField.getOriginalType()
       && OriginalType.MAP != complexField.getOriginalType()
       && OriginalType.LIST != complexField.getOriginalType()) {
-      Field listChild = new Field("$data$", true, field.getType(), field.getChildren());
-      return Optional.of(new Field(field.getName(), true, new ArrowType.List(), Arrays.asList(listChild)));
+      Field listChild = new Field("$data$", new FieldType(true, field.getType(), field.getDictionary()), field.getChildren());
+      return Optional.of(new Field(field.getName(), new FieldType(true, new ArrowType.List(), field.getDictionary()), Arrays.asList(listChild)));
     }
     return Optional.of(field);
   }

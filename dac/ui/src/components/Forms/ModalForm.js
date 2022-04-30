@@ -52,7 +52,8 @@ export default class ModalForm extends Component {
     formBodyStyle: PropTypes.object,
     isNestedForm: PropTypes.bool.isRequired, // <form> not allowed in <form> in html
     // styling
-    isModal: PropTypes.bool
+    isModal: PropTypes.bool,
+    hideError: PropTypes.bool
   };
 
   static defaultProps = { // todo: loc
@@ -69,7 +70,7 @@ export default class ModalForm extends Component {
   };
 
   componentWillReceiveProps(nextProps) {
-    if (nextProps.error !== this.props.error) {
+    if (nextProps.error !== this.props.error && !this.props.hideError) {
       this.setState({ messageDismissed: false });
     }
   }
@@ -96,7 +97,7 @@ export default class ModalForm extends Component {
     } = this.props;
 
     const internalChildren = [
-      error && <Message
+      error && !this.props.hideError && <Message
         messageType='error'
         message={error.message}
         messageId={error.id}

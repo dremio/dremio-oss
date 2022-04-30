@@ -17,10 +17,7 @@ package com.dremio;
 
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.hamcrest.CoreMatchers;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -215,124 +211,91 @@ public class TestFrameworkTest extends BaseTestQuery{
   }
 
   @Test
-  public void testCSVVerification_missing_records_fails() throws Exception {
-    try {
-    testBuilder()
-        .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
-        .ordered()
-        .csvBaselineFile("testframework/small_test_data_extra.tsv")
-        .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
-        .baselineColumns("employee_id", "first_name", "last_name")
-        .build().run();
-    } catch (AssertionError ex) {
-      assertTrue(ex.getMessage(), ex.getMessage().startsWith("Incorrect number of rows returned by query."));
-      assertTrue(ex.getMessage(), ex.getMessage().contains("expected:<7> but was:<5>"));
-      // this indicates successful completion of the test
-      return;
-    }
-    throw new Exception("Test framework verification failed, expected failure on missing records.");
+  public void testCSVVerification_missing_records_fails() {
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery(
+        "select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
+      .ordered()
+      .csvBaselineFile("testframework/small_test_data_extra.tsv")
+      .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
+      .baselineColumns("employee_id", "first_name", "last_name")
+      .build().run())
+      .hasMessageStartingWith("Incorrect number of rows returned by query.")
+      .hasMessageContaining("expected:<7> but was:<5>");
   }
 
   @Test
-  public void testCSVVerification_extra_records_fails() throws Exception {
-    try {
-      testBuilder()
-          .sqlQuery("select " + CSV_COLS + " from cp.\"testframework/small_test_data_extra.tsv\"")
-          .ordered()
-          .csvBaselineFile("testframework/small_test_data.tsv")
-          .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
-          .baselineColumns("employee_id", "first_name", "last_name")
-          .build().run();
-    } catch (AssertionError ex) {
-      assertTrue(ex.getMessage(), ex.getMessage().startsWith("Incorrect number of rows returned by query."));
-      assertTrue(ex.getMessage(), ex.getMessage().contains("expected:<5> but was:<7>"));
-      // this indicates successful completion of the test
-      return;
-    }
-    fail("Test framework verification failed, expected failure for extra records.");
+  public void testCSVVerification_extra_records_fails() {
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery("select " + CSV_COLS + " from cp.\"testframework/small_test_data_extra.tsv\"")
+      .ordered()
+      .csvBaselineFile("testframework/small_test_data.tsv")
+      .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
+      .baselineColumns("employee_id", "first_name", "last_name")
+      .build().run())
+      .hasMessageStartingWith("Incorrect number of rows returned by query.")
+      .hasMessageContaining("expected:<5> but was:<7>");
   }
 
   @Test
-  public void testCSVVerification_extra_column_fails() throws Exception {
-    try {
-      testBuilder()
-          .sqlQuery("select " + CSV_COLS + ", columns[3] as address from cp.\"testframework/small_test_data_extra_col.tsv\"")
-          .ordered()
-          .csvBaselineFile("testframework/small_test_data.tsv")
-          .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
-          .baselineColumns("employee_id", "first_name", "last_name")
-          .build().run();
-    } catch (AssertionError ex) {
-      assertEquals(""
-              + "Incorrect keys, "
-              + "expected:(`employee_id`,`first_name`,`last_name`) "
-              + "actual:(`address`,`employee_id`,`first_name`,`last_name`)",
-          ex.getMessage());
-      // this indicates successful completion of the test
-      return;
-    }
-    throw new Exception("Test framework verification failed, expected failure on extra column.");
+  public void testCSVVerification_extra_column_fails() {
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery("select " + CSV_COLS
+        + ", columns[3] as address from cp.\"testframework/small_test_data_extra_col.tsv\"")
+      .ordered()
+      .csvBaselineFile("testframework/small_test_data.tsv")
+      .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
+      .baselineColumns("employee_id", "first_name", "last_name")
+      .build().run())
+      .hasMessage(
+        "Incorrect keys, "
+          + "expected:(`employee_id`,`first_name`,`last_name`) "
+          + "actual:(`address`,`employee_id`,`first_name`,`last_name`)");
   }
 
   @Test
-  public void testCSVVerification_missing_column_fails() throws Exception {
-    try {
-      testBuilder()
-          .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
-          .ordered()
-          .csvBaselineFile("testframework/small_test_data_extra_col.tsv")
-          .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR, MinorType.VARCHAR)
-          .baselineColumns("employee_id", "first_name", "last_name", "address")
-          .build().run();
-    } catch (AssertionError ex) {
-      assertTrue(ex.getMessage(),
-          ex.getMessage().startsWith(""
-              + "Incorrect keys,"
-              + " expected:(`address`,`employee_id`,`first_name`,`last_name`)"
-              + " actual:(`employee_id`,`first_name`,`last_name`"));
-      // this indicates successful completion of the test
-      return;
-    }
-    throw new Exception("Test framework verification failed, expected failure on missing column.");
+  public void testCSVVerification_missing_column_fails() {
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery(
+        "select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
+      .ordered()
+      .csvBaselineFile("testframework/small_test_data_extra_col.tsv")
+      .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR, MinorType.VARCHAR)
+      .baselineColumns("employee_id", "first_name", "last_name", "address")
+      .build().run())
+      .hasMessageStartingWith(
+        "Incorrect keys,"
+          + " expected:(`address`,`employee_id`,`first_name`,`last_name`)"
+          + " actual:(`employee_id`,`first_name`,`last_name`");
   }
 
   @Test
-  public void testCSVVerificationOfTypes() throws Throwable {
-    try {
-    testBuilder()
-        .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
-        .ordered()
-        .csvBaselineFile("testframework/small_test_data.tsv")
-        .baselineTypes(MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR)
-        .baselineColumns("employee_id", "first_name", "last_name")
-        .build().run();
-    } catch (Exception ex) {
-      assertThat(ex.getMessage(), CoreMatchers.containsString("at position 0 column '`employee_id`' mismatched values,"));
-      assertThat(ex.getMessage(), CoreMatchers.containsString("expected (Integer)"));
-      assertThat(ex.getMessage(), CoreMatchers.containsString("but received (Long):"));
-      // this indicates successful completion of the test
-      return;
-    }
-    throw new Exception("Test framework verification failed, expected failure on type check.");
+  public void testCSVVerificationOfTypes() {
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery(
+        "select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
+      .ordered()
+      .csvBaselineFile("testframework/small_test_data.tsv")
+      .baselineTypes(MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR)
+      .baselineColumns("employee_id", "first_name", "last_name")
+      .build().run())
+      .hasMessageContaining("at position 0 column '`employee_id`' mismatched values,")
+      .hasMessageContaining("expected (Integer)")
+      .hasMessageContaining("but received (Long):");
   }
 
   @Test
-  public void testCSVVerificationOfOrder_checkFailure() throws Throwable {
-    try {
-      testBuilder()
-          .sqlQuery("select columns[0] as employee_id, columns[1] as first_name, columns[2] as last_name from cp.\"testframework/small_test_data_reordered.tsv\"")
-          .ordered()
-          .csvBaselineFile("testframework/small_test_data.tsv")
-          .baselineColumns("employee_id", "first_name", "last_name")
-          .build().run();
-    } catch (Exception ex) {
-      assertThat(ex.getMessage(), CoreMatchers.containsString("at position 0 column '`employee_id`' mismatched values,"));
-      assertThat(ex.getMessage(), CoreMatchers.containsString("expected (String):"));
-      assertThat(ex.getMessage(), CoreMatchers.containsString("but received (String):"));
-      // this indicates successful completion of the test
-      return;
-    }
-    throw new Exception("Test framework verification failed, expected failure on order check.");
+  public void testCSVVerificationOfOrder_checkFailure() {
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery(
+        "select columns[0] as employee_id, columns[1] as first_name, columns[2] as last_name from cp.\"testframework/small_test_data_reordered.tsv\"")
+      .ordered()
+      .csvBaselineFile("testframework/small_test_data.tsv")
+      .baselineColumns("employee_id", "first_name", "last_name")
+      .build().run())
+      .hasMessageContaining("at position 0 column '`employee_id`' mismatched values,")
+      .hasMessageContaining("expected (String):")
+      .hasMessageContaining("but received (String):");
   }
 
   @Test
@@ -383,45 +346,33 @@ public class TestFrameworkTest extends BaseTestQuery{
   }
 
   @Test
-  public void testRepeatedColumnMatching() throws Exception {
-    try {
-      testBuilder()
-          .sqlQuery("select * from cp.\"store/json/schema_change_int_to_string.json\"")
-          .optionSettingQueriesForTestQuery("alter system set \"store.json.all_text_mode\" = true")
-          .ordered()
-          .jsonBaselineFile("testframework/schema_change_int_to_string_non-matching.json")
-          .optionSettingQueriesForBaseline("alter system set \"store.json.all_text_mode\" = true")
-          .build().run();
-    } catch (Exception ex) {
-      assertThat(ex.getMessage(), CoreMatchers.containsString("at position 1 column '`field_1`' mismatched values,"));
-      assertThat(ex.getMessage(), CoreMatchers.containsString("expected (JsonStringArrayList):"));
-      assertThat(ex.getMessage(), CoreMatchers.containsString("[\"5\",\"2\",\"3\",\"4\",\"1\",\"2\"]"));
-      assertThat(ex.getMessage(), CoreMatchers.containsString("but received (JsonStringArrayList):"));
-      assertThat(ex.getMessage(), CoreMatchers.containsString("[\"5\"]"));
-      // this indicates successful completion of the test
-      test("alter system set \"store.json.all_text_mode\" = false");
-      return;
-    }
-    throw new Exception("Test framework verification failed, expected failure on order check.");
+  public void testRepeatedColumnMatching() {
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery("select * from cp.\"store/json/schema_change_int_to_string.json\"")
+      .optionSettingQueriesForTestQuery("alter system set \"store.json.all_text_mode\" = true")
+      .ordered()
+      .jsonBaselineFile("testframework/schema_change_int_to_string_non-matching.json")
+      .optionSettingQueriesForBaseline("alter system set \"store.json.all_text_mode\" = true")
+      .build().run())
+      .hasMessageContaining("at position 1 column '`field_1`' mismatched values,")
+      .hasMessageContaining("expected (JsonStringArrayList):")
+      .hasMessageContaining("[\"5\",\"2\",\"3\",\"4\",\"1\",\"2\"]")
+      .hasMessageContaining("but received (JsonStringArrayList):")
+      .hasMessageContaining("[\"5\"]");
   }
 
   @Test
   public void testEmptyResultSet() throws Exception {
     testBuilder()
-        .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\" where 1=0")
-        .expectsEmptyResultSet()
-        .build().run();
-    try {
-      testBuilder()
-          .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\"")
-          .expectsEmptyResultSet()
-          .build().run();
-    } catch (AssertionError ex) {
-      assertTrue(ex.getMessage().contains("Different number of records returned - expected:<0> but was:<4>"));
-      // this indicates successful completion of the test
-      return;
-    }
-    throw new Exception("Test framework verification failed, expected failure on unexpected records.");
+      .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\" where 1=0")
+      .expectsEmptyResultSet()
+      .build().run();
+
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\"")
+      .expectsEmptyResultSet()
+      .build().run())
+      .hasMessageContaining("Different number of records returned - expected:<0> but was:<4>");
   }
 
   @Test
@@ -447,19 +398,14 @@ public class TestFrameworkTest extends BaseTestQuery{
     typeMap.put(TestBuilder.parsePath("employee_id"), Types.optional(MinorType.VARCHAR));
     typeMap.put(TestBuilder.parsePath("last_name"), Types.optional(MinorType.VARCHAR));
 
-    try {
-    testBuilder()
-        .sqlQuery("select cast(columns[0] as int) employee_id, columns[1] as first_name, columns[2] as last_name from cp.\"testframework/small_test_data_reordered.tsv\"")
-        .unOrdered()
-        .csvBaselineFile("testframework/small_test_data.tsv")
-        .baselineColumns("employee_id", "first_name", "last_name")
-        .baselineTypes(typeMap)
-        .build().run();
-    } catch (Exception ex) {
-      // this indicates successful completion of the test
-      return;
-    }
-    throw new Exception("Test framework verification failed, expected failure on type check.");
+    assertThatThrownBy(() -> testBuilder()
+      .sqlQuery(
+        "select cast(columns[0] as int) employee_id, columns[1] as first_name, columns[2] as last_name from cp.\"testframework/small_test_data_reordered.tsv\"")
+      .unOrdered()
+      .csvBaselineFile("testframework/small_test_data.tsv")
+      .baselineColumns("employee_id", "first_name", "last_name")
+      .baselineTypes(typeMap)
+      .build().run())
+      .isInstanceOf(Exception.class);
   }
-
 }

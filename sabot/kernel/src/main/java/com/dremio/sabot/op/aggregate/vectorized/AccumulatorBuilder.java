@@ -130,10 +130,26 @@ public class AccumulatorBuilder {
    * @param materializedAggExpressions holder for materialized aggregate expressions and info on input/output vectors
    * @param outgoing Outgoing vector container
    * @param maxValuesPerBatch maximum records that can be stored in a hashtable block/batch
-   *
+   * @param jointAllocationMin Minimum size of combined accumulators buffers in AccumulatorSet
+   * @param jointAllocationLimit Maximum size of combined accumulators buffers in AccumulatorSet
    * @param decimalV2Enabled
-   * @param varLenAccumulatorCapacity
-   * @param tempAccumulatorHolder needed for varlen accumulation vectors
+   * @param estimatedVariableWidthKeySize Default estimated size of variable length column key size.
+   * @param maxVariableWidthKeySize Maximum estimated size for variable length column key size that
+   *                                variable vector can allocate.
+   * @param maxVarWidthVecUsagePercent Maximum percent of space to be used by MutableVarchar vector
+   *                                   to avoid too much garbage collection cycles.
+   * @param tempAccumulatorHolder Temporary accumulator to copy the variable records from Mutable
+   *                              varchar vector, where the records were not stored in record order.
+   *                              These temporary accumulator buffers hold the data to be spilled.
+   * @param varLenVectorResizer Interface to be called by BaseVarBinaryAccumulator when it increase the
+   *                            estimatedVariableWidthKeySize for new batches. (VarBinaryAccumulator
+   *                            does this to have better total size for variable length records, which
+   *                            in turn help HashAgg to reduce the wastage in fixedBlock vectors as well as
+   *                            reduce splices, which is very memory/cpu sensitive op). varLenVectorResize
+   *                            internally increase the tempAccumulatorHolder and parititonToLoadAccumulator
+   *                            to the new size so that when spilling or reading the data from disk, these
+   *                            accumulators won't run out of space.
+   *
    * @return A Nested accumulator that holds individual sub-accumulators.
    *
    * With partitioning in VectorizedHashAgg operator, accumulators are handled on a
@@ -151,9 +167,11 @@ public class AccumulatorBuilder {
                                               final long jointAllocationMin,
                                               final long jointAllocationLimit,
                                               boolean decimalV2Enabled,
-                                              int varLenAccumulatorCapacity,
+                                              int estimatedVariableWidthKeySize,
+                                              int maxVariableWidthKeySize,
                                               int maxVarWidthVecUsagePercent,
-                                              BaseVariableWidthVector[] tempAccumulatorHolder) {
+                                              BaseVariableWidthVector[] tempAccumulatorHolder,
+                                              VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
     final byte[] accumulatorTypes = materializedAggExpressions.accumulatorTypes;
     final List<FieldVector> inputVectors = materializedAggExpressions.inputVectors;
     final List<Field> outputVectorFields = materializedAggExpressions.outputVectorFields;
@@ -166,9 +184,11 @@ public class AccumulatorBuilder {
       final FieldVector transferVector = outgoing.addOrGet(outputVector.getField());
       final byte accumulatorType = accumulatorTypes[i];
 
+      /* this step doesn't allocate any memory for accumulators */
       accums[i] = getAccumulator(accumulatorType, inputVector, outputVector, transferVector,
         maxValuesPerBatch, computationVectorAllocator, decimalV2Enabled,
-        varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder[i]);
+        estimatedVariableWidthKeySize, maxVariableWidthKeySize, maxVarWidthVecUsagePercent,
+        i, tempAccumulatorHolder[i], varLenVectorResizer);
       if (accums[i] == null) {
         throw new IllegalStateException("ERROR: invalid accumulator state");
       }
@@ -183,9 +203,12 @@ public class AccumulatorBuilder {
                                             final int maxValuesPerBatch,
                                             final BufferAllocator computationVectorAllocator,
                                             boolean decimalCompleteEnabled,
-                                            int varLenAccumulatorCapacity,
+                                            int estimatedVariableWidthKeySize,
+                                            int maxVariableWidthKeySize,
                                             int maxVarWidthVecUsagePercent,
-                                            BaseVariableWidthVector tempAccumulatorHolder) {
+                                            int accumIndex,
+                                            BaseVariableWidthVector tempAccumulatorHolder,
+                                            VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
     if (accumulatorType == AccumulatorType.COUNT1.ordinal()) {
       return new CountOneAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                      computationVectorAllocator);
@@ -270,8 +293,9 @@ public class AccumulatorBuilder {
 
           case VARCHAR:
           case VARBINARY:
-            return new MinAccumulators.VarLenMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
-              computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
+            return new MinAccumulators.VarLenMinAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, estimatedVariableWidthKeySize, maxVariableWidthKeySize, maxVarWidthVecUsagePercent,
+              accumIndex, tempAccumulatorHolder, varLenVectorResizer);
         }
         break;
       }
@@ -326,8 +350,9 @@ public class AccumulatorBuilder {
                                                          computationVectorAllocator);
           case VARCHAR:
           case VARBINARY:
-            return new MaxAccumulators.VarLenMaxAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
-              computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
+            return new MaxAccumulators.VarLenMaxAccumulator(incomingValues, transferVector, maxValuesPerBatch,
+              computationVectorAllocator, estimatedVariableWidthKeySize, maxVariableWidthKeySize, maxVarWidthVecUsagePercent,
+              accumIndex, tempAccumulatorHolder, varLenVectorResizer);
         }
         break;
       }
@@ -419,8 +444,8 @@ public class AccumulatorBuilder {
       }
 
       case 7 /* HLL_MERGE */: {
-        return new NdvAccumulators.NdvUnionAccumulators(incomingValues, transferVector,
-          maxValuesPerBatch, computationVectorAllocator, tempAccumulatorHolder);
+        return new NdvAccumulators.NdvUnionAccumulators(incomingValues, transferVector, maxValuesPerBatch,
+          computationVectorAllocator, tempAccumulatorHolder);
       }
     }
 

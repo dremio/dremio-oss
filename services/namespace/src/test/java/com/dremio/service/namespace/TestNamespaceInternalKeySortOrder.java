@@ -16,10 +16,8 @@
 package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.NamespaceInternalKeyDumpUtil.extractKey;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
@@ -248,8 +246,8 @@ public class TestNamespaceInternalKeySortOrder {
   private void assertSortOrderEqualBytes(List<byte[]> actual) {
     assertEquals(expected.size(), actual.size());
     for (int i = 0; i < expected.size(); i++) {
-      assertThat(actual.get(i),
-        is(equalTo(expected.get(i).getValue().getKey().getBytes(StandardCharsets.UTF_8))));
+      assertThat(actual.get(i))
+        .isEqualTo(expected.get(i).getValue().getKey().getBytes(StandardCharsets.UTF_8));
     }
   }
 }

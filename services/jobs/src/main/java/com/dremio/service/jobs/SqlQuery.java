@@ -16,7 +16,9 @@
 package com.dremio.service.jobs;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.core.SecurityContext;
 
@@ -28,27 +30,38 @@ public class SqlQuery {
   private final List<String> context;
   private final String username;
   private final String engineName;
+  private final String sessionId;
+  private final Map<String, JobsVersionContext> references = new HashMap<>();
 
   public SqlQuery(String sql, List<String> context, String username) {
-    this.sql = sql;
-    this.context = context;
-    this.username = username;
-    this.engineName = null;
+    this(sql, context, username, null, null);
   }
 
-  public SqlQuery(String sql, List<String> context, String userName, String engineName) {
+  public SqlQuery(String sql, List<String> context, String userName, String engineName, String sessionId) {
+    this(sql, context, userName, engineName, sessionId, null);
+  }
+
+  public SqlQuery(String sql, List<String> context, String userName, String engineName, String sessionId, Map<String, JobsVersionContext> references) {
     this.sql = sql;
     this.context = context;
     this.username = userName;
     this.engineName = engineName;
+    this.sessionId = sessionId;
+    if (references != null) {
+      this.references.putAll(references);
+    }
   }
 
   public SqlQuery(String sql, List<String> context, SecurityContext securityContext) {
     this(sql, context, securityContext.getUserPrincipal().getName());
   }
 
-  public SqlQuery(String sql, List<String> context, SecurityContext securityContext, String engineName) {
-    this(sql, context, securityContext.getUserPrincipal().getName(), engineName);
+  public SqlQuery(String sql, List<String> context, SecurityContext securityContext, Map<String, JobsVersionContext> references) {
+    this(sql, context, securityContext.getUserPrincipal().getName(), null, null, references);
+  }
+
+  public SqlQuery(String sql, List<String> context, SecurityContext securityContext, String engineName, String sessionId) {
+    this(sql, context, securityContext.getUserPrincipal().getName(), engineName, sessionId);
   }
 
   public SqlQuery(String sql, String username) {
@@ -68,16 +81,30 @@ public class SqlQuery {
   }
 
   public SqlQuery cloneWithNewSql(String sql) {
-    return new SqlQuery(sql, context, username);
+    return new SqlQuery(sql, context, username, engineName, sessionId);
   }
 
   public String getEngineName() {
     return engineName;
   }
 
+  public String getSessionId() {
+    return sessionId;
+  }
+
+  public Map<String, JobsVersionContext> getReferences() {
+    return references;
+  }
+
   @Override
   public String toString() {
-    return String.format("SqlQuery [sql=%s, context=%s, username=%s]", sql, context, username);
+    return "SqlQuery [sql=" + sql +
+      ", context=" + context +
+      ", username=" + username +
+      (engineName == null ? "" : ", engineName=" + engineName) +
+      (sessionId == null ? "" : ", sessionId=" + sessionId) +
+      ", references=" + references +
+      "]";
   }
 
 }

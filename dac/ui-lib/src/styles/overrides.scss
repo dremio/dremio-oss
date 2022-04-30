@@ -16,7 +16,7 @@
  @import './constants/index.scss';
 
 .MuiTooltip-arrow::before {
-  background-color: $brand-color !important;
+  background-color: $tooltip-color !important;
 }
 
 .MuiListItem-root:hover {

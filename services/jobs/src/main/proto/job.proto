@@ -48,8 +48,9 @@ enum JobState {
 }
 
 message JobId {
-  required string id =  1;
+  required string id =  1; // The Job Id
   optional string name = 2; // TODO: used at all ?
+  optional string sessionId = 3; // Session Id
 }
 
 enum JobType {
@@ -162,6 +163,10 @@ message JobInfo {
   repeated ExecutionNode nodeDetails = 38;
   repeated DurationDetails durationDetails = 39;
   repeated ScannedDataset scannedDataset = 40;
+  optional int64 execution_cpu_time_ns = 41; // Sum of processNanos across all fragments
+  optional int64 setup_time_ns = 42; //Sum of setupNanos across all minor fragments.
+  optional int64 wait_time_ns = 43; //Sum of waitNanos across all minor fragments.
+  optional int64 memory_allocated = 44; // Memory allocated by WLM (sum of peakLocalMemoryAllocated per node)
 }
 
 message ResourceSchedulingInfo {
@@ -249,6 +254,7 @@ enum QueryType {
   UI_INITIAL_PREVIEW = 14;
   FLIGHT = 15; // for queries submitted outside of dac using a FlightClient
   METADATA_REFRESH = 16; // Queries related to metadata refresh
+  INTERNAL_ICEBERG_METADATA_DROP = 17; // Queries related to internal iceberg metadata drop
 }
 
 message JobStats {
@@ -342,6 +348,8 @@ message JobDetails {
   repeated TableDatasetProfile tableDatasetProfiles = 7;
   repeated FileSystemDatasetProfile fsDatasetProfiles = 8;
   repeated TopOperation topOperations = 9;
+  optional int64 totalMemory = 10;
+  optional int64 cpuUsed = 11;
 }
 
 message JobUpdate {

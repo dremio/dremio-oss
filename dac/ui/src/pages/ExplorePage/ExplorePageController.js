@@ -22,11 +22,11 @@ import { withRouter } from 'react-router';
 import domHelpers  from 'dom-helpers';
 
 import { getExploreViewState } from 'selectors/resources';
+import { getActiveScript } from '@app/selectors/scripts';
 import { moduleStateHOC } from '@app/containers/ModuleStateContainer';
 import explore from '@app/reducers/explore';
 import { getHistory, exploreStateKey, getExploreState, getExplorePageDataset } from 'selectors/explore';
 import { performLoadDataset } from 'actions/explore/dataset/get';
-import { setCurrentSql } from 'actions/explore/view';
 import { resetViewState } from 'actions/resources';
 import { withDatasetChanges } from '@app/pages/ExplorePage/DatasetChanges';
 import { withRouteLeaveSubscription, withRouteLeaveEvent } from '@app/containers/RouteLeave.js';
@@ -42,6 +42,8 @@ import { updateRightTreeVisibility } from 'actions/ui/ui';
 import { hasDatasetChanged } from 'utils/datasetUtils';
 
 import { PageTypes, pageTypeValuesSet } from '@app/pages/ExplorePage/pageTypes';
+
+import explorePageControllerConfig from '@inject/pages/ExplorePage/explorePageControllerConfig';
 
 import QlikStateModal from './components/modals/QlikStateModal';
 
@@ -65,13 +67,14 @@ export class ExplorePageControllerComponent extends Component {
     updateSqlPartSize: PropTypes.func.isRequired,
     exploreViewState: PropTypes.instanceOf(Immutable.Map),
     performLoadDataset: PropTypes.func.isRequired,
-    setCurrentSql: PropTypes.func.isRequired,
     resetViewState: PropTypes.func.isRequired,
     showConfirmationDialog: PropTypes.func,
     router: PropTypes.object,
     addHasChangesHook: PropTypes.func, // (hasChangesCallback[: (nextLocation) => bool]) => void
     // provided by withDatasetChanges
-    getDatasetChangeDetails: PropTypes.func.isRequired
+    getDatasetChangeDetails: PropTypes.func.isRequired,
+    activeScript: PropTypes.object,
+    currentSql: PropTypes.string
   };
 
   static defaultProps = {
@@ -117,14 +120,12 @@ export class ExplorePageControllerComponent extends Component {
       // reset the view state in case we had an error, but now we are navigating to a properly loaded and cached version
       // or a New Query.
       nextProps.resetViewState(nextProps.exploreViewState.get('viewId'));
-      // also clear sql changes
-      nextProps.setCurrentSql({sql: undefined});
     }
 
     const needsLoad = nextProps.dataset.get('needsLoad');
     const prevNeedsLoad = prevProps.dataset ? prevProps.dataset.get('needsLoad') : false;
-
-    if (needsLoad && (needsLoad !== prevNeedsLoad || datasetChanged)) {
+    const { runPreviewOnDatasetSelect } = explorePageControllerConfig;
+    if (runPreviewOnDatasetSelect && needsLoad && (needsLoad !== prevNeedsLoad || datasetChanged)) {
       //todo move viewId handling in handlePerformLoadDataset saga. See /dac/ui/src/sagas/performLoadDataset.js
       const {exploreViewState} = nextProps;
       const viewId = exploreViewState.get('viewId');
@@ -146,18 +147,20 @@ export class ExplorePageControllerComponent extends Component {
   }
 
   _areLocationsSameDataset(history, oldLocation, newLocation) {
-
     // eg /space/myspace/path.to.dataset
     // Compare fullPath in pathname. Ignore prefix/suffix like /details
     const oldParts = oldLocation.pathname.split('/');
     const newParts = newLocation.pathname.split('/');
-    if (newParts[2] === oldParts[2] && newParts[3] === oldParts[3]) return true;
+    const hasMoreParts = newParts.length > 2 || oldParts.length > 2;
+    if (hasMoreParts) {
+      if (newParts[2] === oldParts[2] && newParts[3] === oldParts[3]) return true;
 
-    if (newParts[2] === 'tmp' && newParts[3] === 'UNTITLED') return true;
-    const {version: newVersion } = newLocation.query || {};
-    // special case to allow going back to previous version to handle back from New Query => physical dataset
-    if (newVersion && history && newVersion === history.getIn(['items', 1])) {
-      return true;
+      if (newParts[2] === 'tmp' && newParts[3] === 'UNTITLED') return true;
+      const {version: newVersion } = newLocation.query || {};
+      // special case to allow going back to previous version to handle back from New Query => physical dataset
+      if (newVersion && history && newVersion === history.getIn(['items', 1])) {
+        return true;
+      }
     }
     return false;
   }
@@ -167,7 +170,8 @@ export class ExplorePageControllerComponent extends Component {
       dataset,
       location,
       history,
-      getDatasetChangeDetails
+      getDatasetChangeDetails,
+      activeScript
     } = this.props;
 
     if (this.discardUnsavedChangesConfirmed) {
@@ -182,6 +186,11 @@ export class ExplorePageControllerComponent extends Component {
 
     const {tipVersion: nextTipVersion, version: nextVersion} = nextLocation.query || {};
     const historyTipVersion = history && history.get('tipVersion');
+    const isDiscard = nextLocation.state && nextLocation.state.discard;
+
+    if (isDiscard) {
+      return false;
+    }
 
     // Check if we are navigating within same history or this hook was called after saving dataset
     if (nextTipVersion && nextTipVersion === historyTipVersion) {
@@ -198,9 +207,14 @@ export class ExplorePageControllerComponent extends Component {
       return false;
     }
 
-    if (sqlChanged) {
+    if (sqlChanged && !activeScript.id) {
       return true;
     }
+
+    if (activeScript.id) {
+      return activeScript.content !== this.props.currentSql;
+    }
+
     return historyChanged;
   };
 
@@ -261,7 +275,9 @@ function mapStateToProps(state, ownProps) {
     sqlSize: sqlHeight,
     isResizeInProgress: explorePageState.ui.get('isResizeInProgress'),
     rightTreeVisible: state.ui.get('rightTreeVisible'),
-    exploreViewState: getExploreViewState(state)
+    exploreViewState: getExploreViewState(state),
+    activeScript: getActiveScript(state),
+    currentSql: explorePageState.view.currentSql
   };
 }
 
@@ -271,7 +287,6 @@ const Connected = compose(
   withRouteLeaveEvent,
   connect(mapStateToProps, {
     performLoadDataset,
-    setCurrentSql,
     resetViewState,
     updateSqlPartSize,
     updateRightTreeVisibility,

@@ -36,6 +36,7 @@ public class EndpointAffinity {
    * Maximum allowed assignments for this endpoint. Default is {@link Integer#MAX_VALUE}
    */
   private int maxWidth = Integer.MAX_VALUE;
+  private int minWidth = 0;
 
   public static EndpointAffinity fromHostAndPort(HostAndPort hostAndPort, double affinity) {
     return new EndpointAffinity(hostAndPort, getNodeEndpointFromHostPort(hostAndPort), affinity, false, Integer.MAX_VALUE);
@@ -183,6 +184,10 @@ public class EndpointAffinity {
     return maxWidth;
   }
 
+  public int getMinWidth() {
+    return minWidth;
+  }
+
   /**
    * Set the new max width as the minimum of the the given value and current max width.
    * @param maxWidth
@@ -190,6 +195,10 @@ public class EndpointAffinity {
   public void setMaxWidth(final int maxWidth) {
     Preconditions.checkArgument(maxWidth >= 1, "MaxWidth for given endpoint should be at least one.");
     this.maxWidth = Math.min(this.maxWidth, maxWidth);
+  }
+
+  public void setMinWidth(final int minWidth) {
+    this.minWidth = Math.max(this.minWidth, minWidth);
   }
 
   @Override

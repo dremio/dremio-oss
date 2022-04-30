@@ -15,8 +15,7 @@
  */
 package com.dremio.jdbc.test;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -30,6 +29,7 @@ import com.dremio.jdbc.JdbcWithServerTestBase;
 
 
 public class Drill2439GetBooleanFailsSayingWrongTypeBugTest extends JdbcWithServerTestBase {
+
   private static Statement statement;
 
   @BeforeClass
@@ -47,28 +47,28 @@ public class Drill2439GetBooleanFailsSayingWrongTypeBugTest extends JdbcWithServ
   @Test
   public void testGetBooleanGetsTrue() throws Exception {
     ResultSet rs =
-        statement.executeQuery( "SELECT TRUE FROM INFORMATION_SCHEMA.CATALOGS" );
+      statement.executeQuery("SELECT TRUE FROM INFORMATION_SCHEMA.CATALOGS");
     rs.next();
-    assertThat( "getBoolean(...) for TRUE", rs.getBoolean( 1 ), equalTo( true ) );
-    assertThat( "wasNull", rs.wasNull(), equalTo( false ) );
+    assertThat(rs.getBoolean(1)).isTrue();
+    assertThat(rs.wasNull()).isFalse();
   }
 
   @Test
   public void testGetBooleanGetsFalse() throws Exception {
     ResultSet rs =
-        statement.executeQuery( "SELECT FALSE FROM INFORMATION_SCHEMA.CATALOGS" );
+      statement.executeQuery("SELECT FALSE FROM INFORMATION_SCHEMA.CATALOGS");
     rs.next();
-    assertThat( "getBoolean(...) for FALSE", rs.getBoolean( 1 ), equalTo( false ) );
-    assertThat( "wasNull", rs.wasNull(), equalTo( false ) );
+    assertThat(rs.getBoolean(1)).isFalse();
+    assertThat(rs.wasNull()).isFalse();
   }
 
   @Test
   public void testGetBooleanGetsNull() throws Exception {
     ResultSet rs = statement.executeQuery(
-        "SELECT CAST( NULL AS BOOLEAN ) FROM INFORMATION_SCHEMA.CATALOGS" );
+      "SELECT CAST( NULL AS BOOLEAN ) FROM INFORMATION_SCHEMA.CATALOGS");
     rs.next();
-    assertThat( "getBoolean(...) for BOOLEAN NULL", rs.getBoolean( 1 ), equalTo( false ) );
-    assertThat( "wasNull", rs.wasNull(), equalTo( true ) );
+    assertThat(rs.getBoolean(1)).isFalse();
+    assertThat(rs.wasNull()).isTrue();
   }
 
 }

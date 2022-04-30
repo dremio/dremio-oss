@@ -64,6 +64,10 @@ public class SourceFolderPath extends NamespacePath {
     return new FolderName(name);
   }
 
+  public FolderPath getPathWithoutRoot() {
+    return new FolderPath(toPathList().subList(1, toPathList().size()));
+  }
+
   public SourceName getSourceName() {
     return new SourceName(getRoot().getName());
   }

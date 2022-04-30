@@ -22,7 +22,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.ColumnOperations;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -39,22 +41,22 @@ public abstract class IcebergBaseModel implements IcebergModel {
     protected final Configuration configuration;
     protected final FileSystem fs; /* if fs is null it will use iceberg HadoopFileIO class instead of DremioFileIO class */
     protected final OperatorContext context;
-    protected final List<String> dataset;
     private final DatasetCatalogGrpcClient client;
+    private final MutablePlugin plugin;
 
   protected IcebergBaseModel(String namespace,
                                Configuration configuration,
-                               FileSystem fs, OperatorContext context, List<String> dataset,
-                               DatasetCatalogGrpcClient datasetCatalogGrpcClient) {
+                               FileSystem fs, OperatorContext context,
+                               DatasetCatalogGrpcClient datasetCatalogGrpcClient, MutablePlugin plugin) {
         this.namespace = namespace;
         this.configuration = configuration;
         this.fs = fs;
         this.context = context;
-        this.dataset = dataset;
         this.client = datasetCatalogGrpcClient;
+        this.plugin = plugin;
     }
 
-    protected abstract IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier);
+  protected abstract IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier);
 
     @Override
     public IcebergOpCommitter getCreateTableCommitter(String tableName, IcebergTableIdentifier tableIdentifier,
@@ -76,7 +78,7 @@ public abstract class IcebergBaseModel implements IcebergModel {
                                                             DatasetConfig datasetConfig, OperatorStats operatorStats) {
     IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
     return new FullMetadataRefreshCommitter(tableName, datasetPath, tableLocation, tableUuid, batchSchema, configuration,
-      partitionColumnNames, icebergCommand, client, datasetConfig, operatorStats);
+      partitionColumnNames, icebergCommand, client, datasetConfig, operatorStats, plugin);
   }
 
   @Override
@@ -86,7 +88,15 @@ public abstract class IcebergBaseModel implements IcebergModel {
                                                                    boolean isFileSystem, DatasetConfig datasetConfig) {
     IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
     return new IncrementalMetadataRefreshCommitter(operatorContext, tableName, datasetPath, tableLocation, tableUuid, batchSchema, configuration,
-      partitionColumnNames, icebergCommand, isFileSystem, client, datasetConfig);
+      partitionColumnNames, icebergCommand, isFileSystem, client, datasetConfig, plugin);
+  }
+
+
+  @Override
+  public IcebergOpCommitter getAlterTableCommitter(IcebergTableIdentifier tableIdentifier, ColumnOperations.AlterOperationType alterOperationType, BatchSchema droppedColumns, BatchSchema updatedColumns,
+                                                   String columnName, List<Field> columnTypes) {
+    IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+    return new AlterTableCommitter(icebergCommand, alterOperationType, columnName, columnTypes, droppedColumns, updatedColumns);
   }
 
     @Override
@@ -102,27 +112,37 @@ public abstract class IcebergBaseModel implements IcebergModel {
     }
 
     @Override
-    public void addColumns(IcebergTableIdentifier tableIdentifier, List<Types.NestedField> columnsToAdd) {
+    public void deleteTableRootPointer(IcebergTableIdentifier tableIdentifier) {
+      IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
+      icebergCommand.deleteTableRootPointer();
+    }
+
+    @Override
+    public String addColumns(IcebergTableIdentifier tableIdentifier, List<Types.NestedField> columnsToAdd) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
         icebergCommand.addColumns(columnsToAdd);
+        return icebergCommand.getRootPointer();
     }
 
     @Override
-    public void dropColumn(IcebergTableIdentifier tableIdentifier, String columnToDrop) {
+    public String dropColumn(IcebergTableIdentifier tableIdentifier, String columnToDrop) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
         icebergCommand.dropColumn(columnToDrop);
+        return icebergCommand.getRootPointer();
     }
 
     @Override
-    public void changeColumn(IcebergTableIdentifier tableIdentifier, String columnToChange, Field newDef) {
+    public String changeColumn(IcebergTableIdentifier tableIdentifier, String columnToChange, Field newDef) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
         icebergCommand.changeColumn(columnToChange, newDef);
+        return icebergCommand.getRootPointer();
     }
 
     @Override
-    public void renameColumn(IcebergTableIdentifier tableIdentifier, String name, String newName) {
+    public String renameColumn(IcebergTableIdentifier tableIdentifier, String name, String newName) {
         IcebergCommand icebergCommand = getIcebergCommand(tableIdentifier);
         icebergCommand.renameColumn(name, newName);
+        return icebergCommand.getRootPointer();
     }
 
     @Override

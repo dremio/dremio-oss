@@ -89,7 +89,7 @@ public class DeltaLakeSchemaConverter {
         // Complex fields result into an ObjectNode
         if (!typeNode.isObject()) {
             final FieldType fieldType = fromPrimitiveType(typeNode.asText(), isNullable);
-            return fieldType == null ? null : new Field(name, isNullable, fieldType.getType(), new ArrayList<>());
+            return fieldType == null ? null : new Field(name, new FieldType(isNullable, fieldType.getType(), fieldType.getDictionary()), new ArrayList<>());
         } else if (DELTA_STRUCT.equalsIgnoreCase(typeNode.get(SCHEMA_STRING_FIELDS_TYPE).asText(""))) {
             final JsonNode structField = typeNode.get(SCHEMA_STRING_FIELDS);
             final List<Field> children = StreamSupport.stream(structField.spliterator(), false)
@@ -114,7 +114,7 @@ public class DeltaLakeSchemaConverter {
       if (type.startsWith("decimal")) {
         // extract precision and scale
         String[] scaleAndPrecision = type.split("\\s*[()]\\s*")[1].split(",");
-        ArrowType decimal = new ArrowType.Decimal(Integer.parseInt(scaleAndPrecision[0]), Integer.parseInt(scaleAndPrecision[1]));
+        ArrowType decimal = new ArrowType.Decimal(Integer.parseInt(scaleAndPrecision[0]), Integer.parseInt(scaleAndPrecision[1]), 128);
         return new FieldType(isNullable, decimal, null);
       }
 

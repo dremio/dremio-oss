@@ -20,6 +20,7 @@ import org.apache.calcite.plan.RelOptRuleCall;
 
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.Prel;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Rule that converts System logical to physical scan
@@ -42,7 +43,8 @@ public class InfoSchemaScanPrule extends RelOptRule {
         logicalScan.getTableMetadata(),
         null,
         logicalScan.getProjectedColumns(),
-        logicalScan.getObservedRowcountAdjustment()
+        logicalScan.getObservedRowcountAdjustment(),
+        ImmutableList.of()
         );
 
     call.transformTo(physicalScan);

@@ -110,18 +110,18 @@ public class TestProtocolBuilder extends BaseTestFabric {
                 throw new RpcException("Objects not same.");
               }
               assertEqualsRpc(r1B, dBody);
-              random2.retain();
+              random2.getReferenceManager().retain();
               return new SentResponseMessage<>(expectedQ, NettyArrowBuf.unwrapBuffer(random2));
             }
           });
 
       builder.register(fabric);
 
-      random1.retain();
+      random1.getReferenceManager().retain();
       ReceivedResponseMessage<QueryId> resp2 = ep2.getEndpoint(address, fabric.getPort()).send(expectedD, random1);
       assertEquals(resp2.getBody(), expectedQ);
       assertEqualsBytes(r2B, resp2.getBuffer());
-      resp2.getBuffer().release();
+      resp2.getBuffer().close();
     }
   }
 

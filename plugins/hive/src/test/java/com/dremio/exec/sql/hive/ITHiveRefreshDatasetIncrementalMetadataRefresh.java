@@ -20,11 +20,8 @@ import static com.dremio.exec.sql.hive.ITHiveRefreshDatasetMetadataRefresh.verif
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDelete;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
-import static org.hamcrest.Matchers.containsString;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -39,6 +36,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -393,7 +391,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         Types.NestedField.optional(2, "col2", new Types.StringType()),
         Types.NestedField.optional(3, "col3", new Types.IntegerType())));
 
-      verifyMetadata(expectedSchema, 1);
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 0, 0, expectedSchema, new HashSet<>(),1);
 
       String selectQuery = "SELECT * from " + HIVE + tableName;
       testBuilder()
@@ -435,7 +433,7 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
         Types.NestedField.optional(3, "col3", new Types.StringType()),
         Types.NestedField.optional(4, "year", new Types.IntegerType())));
 
-      verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema, Sets.newHashSet("year"), 1);
+      verifyIcebergMetadata(finalIcebergMetadataLocation, 0, 0, expectedSchema, Sets.newHashSet("year"), 1);
 
       String selectQuery = "SELECT * from " + HIVE + tableName;
       testBuilder()
@@ -466,12 +464,9 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       final String alterPartition = "ALTER TABLE " + tableName + " partition column (year DOUBLE)";
       dataGenerator.executeDDL(alterPartition);
 
-      try {
-        runFullRefresh(tableName);
-        fail("query is expected to fail");
-      } catch (Exception e) {
-        assertTrue(e.getMessage().contains("Change in Hive partition definition detected for table"));
-      }
+      assertThatThrownBy(() -> runFullRefresh(tableName))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("Change in Hive partition definition detected for table");
     }
     finally {
       forgetMetadata(tableName);
@@ -657,14 +652,16 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       runFullRefresh(tableName);
 
       final Path partitionDir = new Path(dataGenerator.getWhDir() + "/" + tableName + "/year=2021/month=Feb");
+
       try {
         // no exec on dir
         fs.setPermission(partitionDir, new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE));
-        test("SELECT * from " + HIVE + tableName);
-        fail("query is expected to fail");
-      } catch (UserRemoteException e) {
-        assertEquals(UserBitShared.DremioPBError.ErrorType.PERMISSION, e.getErrorType());
-        assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset"));
+        assertThatThrownBy(() -> test("SELECT * from " + HIVE + tableName))
+          .isInstanceOf(UserRemoteException.class)
+          .hasMessageContaining("PERMISSION ERROR: Access denied reading dataset")
+          .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+          .extracting(UserRemoteException::getErrorType)
+          .isEqualTo(UserBitShared.DremioPBError.ErrorType.PERMISSION);
       } finally {
         fs.setPermission(partitionDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
       }
@@ -689,14 +686,16 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       runPartialRefresh(tableName, "(\"year\" = '2021', \"month\" = 'Feb')");
 
       final Path partitionDir = new Path(dataGenerator.getWhDir() + "/" + tableName + "/year=2021/month=Feb");
+
       try {
         // no exec on dir
         fs.setPermission(partitionDir, new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE));
-        test("SELECT * from " + HIVE + tableName);
-        fail("query is expected to fail");
-      } catch (UserRemoteException e) {
-        assertEquals(UserBitShared.DremioPBError.ErrorType.PERMISSION, e.getErrorType());
-        assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset"));
+        assertThatThrownBy(() -> test("SELECT * from " + HIVE + tableName))
+          .isInstanceOf(UserRemoteException.class)
+          .hasMessageContaining("PERMISSION ERROR: Access denied reading dataset")
+          .asInstanceOf(InstanceOfAssertFactories.type(UserRemoteException.class))
+          .extracting(UserRemoteException::getErrorType)
+          .isEqualTo(UserBitShared.DremioPBError.ErrorType.PERMISSION);
       } finally {
         fs.setPermission(partitionDir, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
       }
@@ -755,12 +754,9 @@ public class ITHiveRefreshDatasetIncrementalMetadataRefresh extends LazyDataGene
       final String insertCmd2 = "INSERT INTO " + tableName + " PARTITION(year=30, month='JAN') VALUES(1)";
       dataGenerator.executeDDL(insertCmd2);
 
-      try {
-        runPartialRefresh(tableName, "(\"year\" = '20', \"month\" = 'FEB')");
-        fail("query is expected to fail");
-      } catch (Exception e) {
-        assertTrue(e.getMessage().contains("VALIDATION ERROR: Partition 'year=20/month=FEB' does not exist in default." + tableName));
-      }
+      assertThatThrownBy(() -> runPartialRefresh(tableName, "(\"year\" = '20', \"month\" = 'FEB')"))
+        .isInstanceOf(Exception.class)
+        .hasMessageContaining("VALIDATION ERROR: Partition 'year=20/month=FEB' does not exist in default." + tableName);
     }
     finally {
       forgetMetadata(tableName);

@@ -17,10 +17,12 @@ package com.dremio.exec.store.iceberg.manifestwriter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.ListVector;
@@ -34,16 +36,19 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.VersionedPlugin;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.iceberg.model.IcebergOpCommitter;
+import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.io.file.FileSystem;
@@ -68,6 +73,8 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     protected Predicate<String> partitionExistsPredicate = path -> true;
     private FileSystem fsToCheckIfPartitionExists;
     protected ReadSignatureProvider readSigProvider = (added, deleted) -> ByteString.EMPTY;
+    protected List<ManifestFile> icebergManifestFiles = new ArrayList<>();
+    protected boolean success;
 
     public static IcebergCommitOpHelper getInstance(OperatorContext context, WriterCommitterPOP config) {
         if (config.getIcebergTableProps() == null) {
@@ -86,8 +93,18 @@ public class IcebergCommitOpHelper implements AutoCloseable {
 
     public void setup(VectorAccessible incoming) {
         // TODO: doesn't track wait times currently. need to use dremioFileIO after implementing newOutputFile method
-      IcebergModel icebergModel = config.getPlugin().getIcebergModel(context);
       IcebergTableProps icebergTableProps = config.getIcebergTableProps();
+      List<String> tableKeyAsList = Arrays.asList(icebergTableProps.getTableName().split(Pattern.quote(".")));
+
+      final IcebergModel icebergModel;
+      final IcebergTableIdentifier icebergTableIdentifier;
+      if(config.getPlugin() instanceof VersionedPlugin) {
+        icebergModel = config.getPlugin().getVersionedIcebergModel(context, tableKeyAsList, icebergTableProps.getVersion());
+        icebergTableIdentifier = icebergModel.getTableIdentifier(config.getPlugin().getRootLocation());
+      } else {
+        icebergModel = config.getPlugin().getIcebergModel(context);
+        icebergTableIdentifier = icebergModel.getTableIdentifier(icebergTableProps.getTableLocation());
+      }
 
         TypedFieldId id = RecordWriter.SCHEMA.getFieldId(SchemaPath.getSimplePath(RecordWriter.ICEBERG_METADATA_COLUMN));
         icebergMetadataVector = incoming.getValueAccessorById(VarBinaryVector.class, id.getFieldIds()).getValueVector();
@@ -97,7 +114,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
             case CREATE:
                 icebergOpCommitter = icebergModel.getCreateTableCommitter(
                         icebergTableProps.getTableName(),
-                        icebergModel.getTableIdentifier(icebergTableProps.getTableLocation()),
+                        icebergTableIdentifier,
                         icebergTableProps.getFullSchema(),
                         icebergTableProps.getPartitionColumnNames(),
                         context.getStats()
@@ -168,6 +185,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
     }
 
     protected void consumeManifestFile(ManifestFile manifestFile) {
+        icebergManifestFiles.add(manifestFile);
         icebergOpCommitter.consumeManifestFile(manifestFile);
     }
 
@@ -190,6 +208,7 @@ public class IcebergCommitOpHelper implements AutoCloseable {
       try (AutoCloseable ac = OperatorStats.getWaitRecorder(context.getStats())) {
             icebergOpCommitter.commit();
         }
+      success = true;
     }
 
   protected void createReadSignProvider(IcebergTableProps icebergTableProps, boolean isFullRefresh) {
@@ -256,12 +275,6 @@ public class IcebergCommitOpHelper implements AutoCloseable {
       return fsToCheckIfPartitionExists;
     }
 
-    @Override
-    public void close() throws Exception {
-        icebergOpCommitter = null;
-        AutoCloseables.close(fsToCheckIfPartitionExists);
-    }
-
     public void cleanUpManifestFiles(FileSystem fs) throws IOException, ClassNotFoundException {
         if (icebergMetadataVector == null) {
             return;
@@ -276,4 +289,35 @@ public class IcebergCommitOpHelper implements AutoCloseable {
             }
         }
     }
+
+  @Override
+  public void close() throws Exception {
+    try {
+      // cleanup the files if having exception before the committer commits snapshot
+      if (!success) {
+        // check the commit status from the icebergOpCommiter if status is not NOT_STARTED
+        // we can safely delete the files as exception thrown before
+        if ((icebergOpCommitter == null || (icebergOpCommitter != null
+          && !icebergOpCommitter.isIcebergTableUpdated()))) {
+          deleteManifestFiles();
+        }
+      }
+    } catch (Exception e) {
+      logger.warn("Cleaning manifest files failed", e);
+    }
+    icebergManifestFiles.clear();
+    icebergOpCommitter = null;
+    AutoCloseables.close(fsToCheckIfPartitionExists);
+  }
+
+  protected void deleteManifestFiles() {
+    try {
+      DremioFileIO dremioFileIO = new DremioFileIO(config.getPlugin().getFsConfCopy(), config.getPlugin());
+      for (ManifestFile filePath : icebergManifestFiles) {
+        ManifestWritesHelper.deleteManifestFileIfExists(dremioFileIO, filePath.path());
+      }
+    } catch (Exception e) {
+      logger.warn("Failed to clean up manifest files", e);
+    }
+  }
 }

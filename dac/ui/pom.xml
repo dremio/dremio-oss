@@ -18,17 +18,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
-
   <artifactId>dremio-dac-ui</artifactId>
   <packaging>jar</packaging>
   <name>Analyst Center - UI</name>
-
   <dependencies>
     <dependency>
       <groupId>com.dremio</groupId>
@@ -36,12 +33,11 @@
       <version>${project.version}</version>
     </dependency>
   </dependencies>
-
   <properties>
     <npm.buildscript>buildprod</npm.buildscript>
+    <npm.installscript>run install-ci</npm.installscript>
     <dremio.beta>false</dremio.beta>
   </properties>
-
   <build>
     <plugins>
       <plugin>
@@ -59,7 +55,6 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0</version>
         <configuration>
           <includes combine.children="append">
             <include>**</include>
@@ -71,6 +66,10 @@
             <exclude>coverage/**</exclude>
             <exclude>.nyc_output/**</exclude>
             <exclude>**/*.pattern</exclude>
+            <exclude>*.code-workspace</exclude>
+            <exclude>src/services/nessie/client/**</exclude>
+            <exclude>**/*.json</exclude>
+            <exclude>**/*.md</exclude>
           </excludes>
           <mapping>
             <!-- full file names -->
@@ -124,34 +123,26 @@
       <plugin>
         <groupId>com.github.eirslett</groupId>
         <artifactId>frontend-maven-plugin</artifactId>
-
         <configuration>
-          <workingDirectory>${project.basedir}</workingDirectory>
           <environmentVariables>
-            <NPM_CONFIG_REGISTRY>${npm.registry.url}</NPM_CONFIG_REGISTRY>
-            <DREMIO_BETA>${dremio.beta}</DREMIO_BETA>
-            <DREMIO_RELEASE>${dremio.release}</DREMIO_RELEASE>
-            <DREMIO_VERSION>${project.version}</DREMIO_VERSION>
             <EDITION_TYPE>ce</EDITION_TYPE>
-            <SENTRY_AUTH_TOKEN>${project.sentry.token}</SENTRY_AUTH_TOKEN>
-            <SKIP_SENTRY_STEP>${project.sentry.skip}</SKIP_SENTRY_STEP>
           </environmentVariables>
         </configuration>
-
         <executions>
           <execution>
             <id>npm install</id>
             <phase>initialize</phase>
             <goals>
+              <goal>install-node-and-npm</goal>
               <goal>npm</goal>
             </goals>
             <!-- Optional configuration which provides for running any npm
               command -->
             <configuration>
-              <arguments>install --no-save  --prefer-offline --no-audit</arguments>
+              <nodeVersion>v14.18.2</nodeVersion>
+              <arguments>${npm.installscript}</arguments>
             </configuration>
           </execution>
-
           <execution>
             <id>run js linter and unit tests</id>
             <phase>process-sources</phase>
@@ -163,7 +154,6 @@
               <skip>${skipTests}</skip>
             </configuration>
           </execution>
-
           <execution>
             <id>make sure there is no outdated/GPL OSS</id>
             <phase>process-sources</phase>
@@ -175,7 +165,6 @@
               <skip>${skipTests}</skip>
             </configuration>
           </execution>
-
           <execution>
             <id>build minimized webpack bundle</id>
             <phase>generate-resources</phase>
@@ -190,7 +179,6 @@
       </plugin>
     </plugins>
   </build>
-
   <profiles>
     <profile>
       <id>precommit</id>

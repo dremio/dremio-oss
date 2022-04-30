@@ -26,7 +26,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Pair;
 import org.junit.Assert;
 import org.junit.Test;
@@ -62,68 +61,60 @@ public class TestEnhancedFilterJoinSimplifier {
 
   @Test
   public void testAndRootNoPush() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConjunction(
+      rexBuilder, Arrays.asList(
         rEq(col_R_a, intLit10),
         rEq(col_R_b, intLit20)),
       Arrays.asList(
         Pair.of(rexBuilder.makeLiteral(true), rEq(col_R_a, intLit10)),
         Pair.of(rexBuilder.makeLiteral(true), rEq(col_R_b, intLit20))),
-      SqlKind.AND,
-      true,
-      rexBuilder);
+      true);
     Assert.assertEquals("AND(=($0, 10), =($1, 20))", simplifiedFilter.toString());
   }
 
   @Test
   public void testAndRootAllPush() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConjunction(
+      rexBuilder, Arrays.asList(
         rEq(col_R_a, intLit10),
         rEq(col_R_b, intLit20)),
       Arrays.asList(
         Pair.of(rEq(col_R_a, intLit10), rEq(col_R_a, intLit10)),
         Pair.of(rEq(col_R_b, intLit20), rEq(col_R_b, intLit20))),
-      SqlKind.AND,
-      true,
-      rexBuilder);
+      true);
     Assert.assertEquals("true", simplifiedFilter.toString());
   }
 
   @Test
   public void testAndRootPartialPush() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConjunction(
+      rexBuilder, Arrays.asList(
         rEq(col_R_a, intLit10),
         rEq(col_S_x, intLit20)),
       Arrays.asList(
         Pair.of(rEq(col_R_a, intLit10), rEq(col_R_a, intLit10)),
         Pair.of(rexBuilder.makeLiteral(true), rEq(col_S_x, intLit20))),
-      SqlKind.AND,
-      true,
-      rexBuilder);
+      true);
     Assert.assertEquals("=($3, 20)", simplifiedFilter.toString());
   }
 
   @Test
   public void testAndNotRootPartialPush() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConjunction(
+      rexBuilder, Arrays.asList(
         rEq(col_R_a, intLit10),
         rEq(col_S_x, intLit20)),
       Arrays.asList(
         Pair.of(rEq(col_R_a, intLit10), rEq(col_R_a, intLit10)),
         Pair.of(rexBuilder.makeLiteral(true), rEq(col_S_x, intLit20))),
-      SqlKind.AND,
-      false,
-      rexBuilder);
+      false);
     Assert.assertEquals("AND(=($0, 10), =($3, 20))", simplifiedFilter.toString());
   }
 
   @Test
   public void testOrRootAllEntirelyPushed() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyDisjunction(
+      rexBuilder, Arrays.asList(
         rEq(col_R_a, intLit10),
         rEq(col_R_b, intLit20),
         rEq(col_R_c, intLit30)),
@@ -131,16 +122,14 @@ public class TestEnhancedFilterJoinSimplifier {
         Pair.of(rEq(col_R_a, intLit10), rEq(col_R_a, intLit10)),
         Pair.of(rEq(col_R_b, intLit20), rEq(col_R_b, intLit20)),
         Pair.of(rEq(col_R_c, intLit30), rEq(col_R_c, intLit30))),
-      SqlKind.OR,
-      true,
-      rexBuilder);
+      true);
     Assert.assertEquals("true", simplifiedFilter.toString());
   }
 
   @Test
   public void testOrNotRootAllEntirelyPushed() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyDisjunction(
+      rexBuilder, Arrays.asList(
         rEq(col_R_a, intLit10),
         rEq(col_R_b, intLit20),
         rEq(col_R_c, intLit30)),
@@ -148,16 +137,14 @@ public class TestEnhancedFilterJoinSimplifier {
         Pair.of(rEq(col_R_a, intLit10), rEq(col_R_a, intLit10)),
         Pair.of(rEq(col_R_b, intLit20), rEq(col_R_b, intLit20)),
         Pair.of(rEq(col_R_c, intLit30), rEq(col_R_c, intLit30))),
-      SqlKind.OR,
-      false,
-      rexBuilder);
+      false);
     Assert.assertEquals("OR(=($0, 10), =($1, 20), =($2, 30))", simplifiedFilter.toString());
   }
 
   @Test
   public void testOrNonEntirelyPushedHasCommonExtraction() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyDisjunction(
+      rexBuilder, Arrays.asList(
         rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit20)),
         rAnd(rEq(col_R_a, intLit10), rEq(col_S_y, intLit30)),
         rEq(col_R_b, intLit40)),
@@ -165,16 +152,14 @@ public class TestEnhancedFilterJoinSimplifier {
         Pair.of(rEq(col_R_a, intLit10), rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit20))),
         Pair.of(rEq(col_R_a, intLit10), rAnd(rEq(col_R_a, intLit10), rEq(col_S_y, intLit30))),
         Pair.of(rEq(col_R_b, intLit40), rEq(col_R_b, intLit40))),
-      SqlKind.OR,
-      true,
-      rexBuilder);
+      true);
     Assert.assertEquals("OR(=($3, 20), =($4, 30), =($1, 40))", simplifiedFilter.toString());
   }
 
   @Test
   public void testOrNonEntirelyPushedHasNoCommonExtraction() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyDisjunction(
+      rexBuilder, Arrays.asList(
         rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit20)),
         rAnd(rEq(col_R_a, intLit20), rEq(col_S_y, intLit30)),
         rEq(col_R_b, intLit40)),
@@ -182,17 +167,15 @@ public class TestEnhancedFilterJoinSimplifier {
         Pair.of(rEq(col_R_a, intLit10), rAnd(rEq(col_R_a, intLit10), rEq(col_S_x, intLit20))),
         Pair.of(rEq(col_R_a, intLit20), rAnd(rEq(col_R_a, intLit20), rEq(col_S_y, intLit30))),
         Pair.of(rEq(col_R_b, intLit40), rEq(col_R_b, intLit40))),
-      SqlKind.OR,
-      true,
-      rexBuilder);
+      true);
     Assert.assertEquals("OR(AND(=($0, 10), =($3, 20)), AND(=($0, 20), =($4, 30)), =($1, 40))",
       simplifiedFilter.toString());
   }
 
   @Test
   public void testOrNonEntirelyPushedHasCommonButNotExactExtraction() {
-    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyConDisjunction(
-      Arrays.asList(
+    RexNode simplifiedFilter = EnhancedFilterJoinSimplifier.simplifyDisjunction(
+      rexBuilder, Arrays.asList(
         rAnd(
           rOr(
             rAnd(rEq(col_S_x, intLit10), rEq(col_S_y, intLit10), rEq(col_R_a, intLit10)),
@@ -208,9 +191,7 @@ public class TestEnhancedFilterJoinSimplifier {
           rAnd(rOr(rEq(col_R_a, intLit10), rEq(col_R_b, intLit10)), rEq(col_S_w, intLit10))),
         Pair.of(rAnd(rEq(col_S_x, intLit10), rEq(col_S_z, intLit10), rEq(col_S_w, intLit10)),
           rAnd(rOr(rEq(col_R_a, intLit10), rEq(col_R_c, intLit10)), rEq(col_S_w, intLit10)))),
-      SqlKind.OR,
-      true,
-      rexBuilder);
+      true);
     Assert.assertEquals("OR(AND(OR(=($0, 10), =($1, 10)), =($4, 10)), " +
         "AND(OR(=($0, 10), =($2, 10)), =($5, 10)))",
       simplifiedFilter.toString());

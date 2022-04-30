@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.join.vhash.spill.list;
 
 import static com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap.getCarryAlongId;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
@@ -198,14 +199,14 @@ public class TestPageListMultimap extends ExecTest {
 
   @Test
   public void largeBatchNeg() {
-    thrownException.expect(IllegalArgumentException.class);
-    list.insert(0, getCarryAlongId(1, 65536));
+    assertThatThrownBy(() -> list.insert(0, getCarryAlongId(1, 65536)))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
   public void minusKeyNeg() {
-    thrownException.expect(IllegalArgumentException.class);
-    list.insert(-1, getCarryAlongId(1, 0));
+    assertThatThrownBy(() -> list.insert(-1, getCarryAlongId(1, 0)))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   private List<CarryAlongId> find(int key) {

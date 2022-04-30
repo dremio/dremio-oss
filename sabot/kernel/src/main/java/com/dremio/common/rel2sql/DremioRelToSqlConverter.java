@@ -146,7 +146,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
   // This is used in builder as context information to figure out whether it needs a new subquery.
   protected final Deque<RelNode> windowStack = new ArrayDeque<>();
 
-  private int projectLevel = 0;
+  protected int projectLevel = 0;
 
   public DremioRelToSqlConverter(DremioSqlDialect dremioDialect) {
     super(dremioDialect);
@@ -350,7 +350,7 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
     final RexNode condition = e.getCondition() == null ?
       null :
       this.simplifyDatetimePlus(e.getCondition(), e.getCluster().getRexBuilder());
-    final SqlNode sqlCondition = joinContext.toSql(null, condition);
+    final SqlNode sqlCondition = processJoinCondition(joinContext, condition);
 
     final SqlNode join =
       new SqlJoin(POS,
@@ -361,6 +361,10 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         condType,
         sqlCondition);
     return result(join, leftResult, rightResult);
+  }
+
+  protected SqlNode processJoinCondition(Context joinContext, RexNode condition) {
+    return joinContext.toSql(null, condition);
   }
 
   /**
@@ -843,12 +847,15 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
           if (stripNumericCastFromInputRef && (expr.getKind() == SqlKind.CAST)) {
             final SqlNode operand = ((SqlBasicCall)expr).getOperands()[0];
             if (shouldAddExplicitCast(operand)) {
-              // If an explicit cast would have been added for this node, then ignore it since this is a case where it
+              // If an explicit cast has been added for this node, then ignore it since this is a case where it
               // should not have been present.
               return operand;
             }
           } else if (expr.getKind() == SqlKind.IDENTIFIER) {
-            expr = addCastIfNeeded((SqlIdentifier) expr, rex.getType());
+            if (!stripNumericCastFromInputRef || !SqlTypeUtil.isNumeric(rex.getType())) {
+              // Skip adding the cast if the value is numeric and the cast would be removed anyway.
+              expr = addCastIfNeeded((SqlIdentifier) expr, rex.getType());
+            }
           }
           return expr;
         }

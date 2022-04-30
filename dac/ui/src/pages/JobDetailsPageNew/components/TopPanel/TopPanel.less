@@ -30,96 +30,55 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      width: 385px;
+      width: 400px;
       &__jobsIcon {
-        height: 14px !important;
+        height: 14px;
       }
     }
-    &__overview {
-      width: 113px;
-      height: 56px;
-      &__content {
-        cursor: pointer;
-        padding: 18px 0px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      &__overviewIcon {
-        filter: invert(14%) sepia(80%) saturate(7282%) hue-rotate(181deg) brightness(90%) contrast(80%);
-      }
-      &__header {
-        color: @pale-sky !important;
-      }
-      &__headerLite {
-        color: @font-color1;
-      }
+    &__jobId{
+      position: relative;
+      width: 100%;
     }
-    &__sql {
-      width: 78px;
-      height: 56px;
-      &__content {
-        cursor: pointer;
-        padding: 18px 0px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      &__sqlIcon {
-          filter: invert(14%) sepia(80%) saturate(7282%) hue-rotate(181deg) brightness(90%) contrast(80%);
-      }
-    }
-    &__rawProfile {
-      cursor: pointer;
-      width: 115px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      &__rawProfileIcon {
-        height: 20px !important;
-        margin-bottom: 4px;
-      }
-      &__content {
-        cursor: pointer;
-        padding: 14px 0px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      &__rawProfileSelectedIcon {
-        filter: invert(14%) sepia(80%) saturate(7282%) hue-rotate(181deg) brightness(90%) contrast(80%);
-        height: 20px !important;
-      }
-      &__header {
-        color: @pale-sky !important;
-      }
-      &__headerLite {
-        color: @font-color1;
-        margin-top: 4px;
-      }
-    }
-    &__title {
+
+    &__header {
       color: @pale-sky;
     }
-    &__icons {
+
+    &__tab {
+      cursor: pointer;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      margin-left: 8px;
+      padding: 0px 8px;
+      white-space: nowrap;
+      color: @font-color1;
+      &.--unselected {
+        height: 56px;
+        border-bottom: 4px solid @TRANSPARENT_COLOR;
+      }
+      &.--selected {
+        height: 56px;
+        border-bottom: 4px solid @bluemine;
+      }
+    }
+
+    &__icon {
       cursor: pointer;
       height:15px;
       padding-right: 5px;
+      &.--selected {
+        filter: invert(14%) sepia(80%) saturate(7282%) hue-rotate(181deg) brightness(90%) contrast(80%);
+      }
     }
-    &__border {
-      border-bottom: 4px solid @bluemine;
-    }
+   
+    
     &__openResults {
       flex-basis: 40%;
       display: flex;
       align-items: center;
       justify-content: flex-end;
       margin-right: 20px;
-      &__virtualDatasetIcon {
-        width: 24px;
-        height: 24px;
-        padding-right: 0px;
-      }
     }
   }
 }

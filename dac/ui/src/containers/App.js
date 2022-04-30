@@ -18,7 +18,7 @@ import { Component, Fragment } from 'react';
 import { compose } from 'redux';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { MuiThemeProvider, createMuiTheme } from '@material-ui/core/styles';
+import { ThemeProvider, createMuiTheme as createTheme } from '@material-ui/core/styles';
 import { replace } from 'react-router-redux';
 import DocumentTitle from 'react-document-title';
 import urlParse from 'url-parse';
@@ -38,7 +38,7 @@ import enableFatalPropTypes from '@app/enableFatalPropTypes';
 
 import ModalsContainer from '@app/components/Modals/ModalsContainer';
 import AboutModal from '@app/pages/HomePage/components/modals/AboutModal/AboutModal';
-import InviteHOC from '@inject/containers/InviteHOC';
+import AppHOC from '@inject/containers/AppHOC';
 import NotificationContainer from '@app/containers/Notification';
 import ConfirmationContainer from '@app/containers/Confirmation';
 import ProdErrorContainer from '@app/containers/ProdError';
@@ -47,6 +47,7 @@ import { LocationProvider } from '@app/containers/dremioLocation';
 import { withHookProvider } from '@app/containers/RouteLeave';
 
 import { themeStyles } from 'dremio-ui-lib';
+import 'react-datepicker/dist/react-datepicker.css';
 
 DocumentTitle.join = (tokens) => {
   return [...tokens, formatMessage('App.Dremio')].filter(Boolean).join(' - ');
@@ -57,7 +58,7 @@ const {
   ...otherStyles
 } = themeStyles;
 
-const theme = createMuiTheme({
+const theme = createTheme({
   ...otherStyles,
   palette: {
     primary: {
@@ -71,6 +72,12 @@ const theme = createMuiTheme({
         height: 'auto'
       }
     }
+  },
+  typography: {
+    body1: {
+      fontSize: 12
+    },
+    fontFamily: '\'Inter var\', sans-serif'
   }
 });
 
@@ -152,7 +159,9 @@ export class App extends Component {
     sentryUtil.logException(error);
 
     console.error('UnhandledRejection', error);
-    this.displayError(error);
+    if (error.status !== 401) {
+      this.displayError(error);
+    }
   };
 
   displayError(error) {
@@ -199,12 +208,13 @@ export class App extends Component {
           <Suspense>
             <LocationProvider location={this.props.location}>
               <div style={{height: '100%'}}>
-                <MuiThemeProvider theme={theme}>
+                <ThemeProvider theme={theme}>
                   {children}
-                </MuiThemeProvider>
+                </ThemeProvider>
                 <NotificationContainer/>
                 <ConfirmationContainer/>
                 <ModalsContainer modals={{AboutModal}} />
+                <div className='popup-notifications'/>
               </div>
             </LocationProvider>
           </Suspense>
@@ -235,7 +245,7 @@ function mapStateToProps(state) {
 }
 
 export default compose(
-  InviteHOC,
+  AppHOC,
   withHookProvider,
   connect(mapStateToProps),
   DnDContextDecorator

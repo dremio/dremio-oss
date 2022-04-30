@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.exec.planner.physical.AggPrelBase.OperatorPhase;
+import com.dremio.exec.planner.physical.AggregatePrel.OperatorPhase;
 import com.google.common.collect.ImmutableList;
 
 public class HashAggPrule extends AggPruleBase {

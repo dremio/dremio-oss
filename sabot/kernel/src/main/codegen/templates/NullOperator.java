@@ -21,7 +21,7 @@
 <#if supported>
 <#assign className="GNullOpNullable${minor.class}Holder" />
 
-<#if !minor.class?starts_with("UInt") && !minor.class?starts_with("SmallInt") && !minor.class?starts_with("TinyInt") >
+<#if !minor.class?starts_with("UInt") && !minor.class?starts_with("SmallInt") && !minor.class?starts_with("TinyInt") && !minor.class?starts_with("IntervalMonthDayNano") >
 <@pp.changeOutputFile name="/com/dremio/exec/expr/fn/impl/${className}.java" />
 
 <#include "/@includes/license.ftl" />
@@ -33,7 +33,7 @@ import com.dremio.exec.expr.annotations.*;
 import org.apache.arrow.vector.holders.*;
 
 /**
- * generated from ${.template_name} 
+ * generated from ${.template_name}
  */
 public class ${className} {
 

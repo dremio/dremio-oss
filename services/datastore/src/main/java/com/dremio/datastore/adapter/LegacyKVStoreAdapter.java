@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.dremio.common.AutoCloseables;
+import com.dremio.datastore.DatastoreException;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.Document;
@@ -41,6 +43,7 @@ import com.google.common.collect.Iterables;
  */
 public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
 
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(LegacyKVStoreAdapter.class);
   private KVStore<K, V> underlyingStore;
   private VersionExtractor<V> versionExtractor;
 
@@ -66,19 +69,29 @@ public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
   @Override
   public void put(K key, V v) {
     if (versionExtractor != null) {
-      String tag = versionExtractor.getTag(v);
-      final KVStore.PutOption putOption;
-      if (Strings.isNullOrEmpty(tag)) {
-        putOption = KVStore.PutOption.CREATE;
-      } else {
-        putOption = new ImmutableVersionOption.Builder().setTag(tag).build();
+      try (AutoCloseables.RollbackCloseable rollback = new AutoCloseables.RollbackCloseable()) {
+        String tag = versionExtractor.getTag(v);
+
+        // run pre-commit
+        rollback.add(versionExtractor.preCommit(v));
+
+        final KVStore.PutOption putOption;
+        if (Strings.isNullOrEmpty(tag)) {
+          putOption = KVStore.PutOption.CREATE;
+        } else {
+          putOption = new ImmutableVersionOption.Builder().setTag(tag).build();
+        }
+        // Update the tag on the original, because the underlying store
+        // may create a new instance of the value, which our user would not
+        // have a reference to.
+        final Document<K, V> document = underlyingStore.put(key, v, putOption);
+        versionExtractor.setTag(v, document.getTag());
+        rollback.commit();
+      } catch (RuntimeException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new DatastoreException(e);
       }
-      // Update the tag on the original, because the underlying store
-      // may create a new instance of the value, which our user would not
-      // have a reference to.
-      final Document<K, V> document = underlyingStore.put(key, v, putOption);
-      versionExtractor.preCommit(v);
-      versionExtractor.setTag(v, document.getTag());
     } else {
       underlyingStore.put(key, v);
     }
@@ -142,7 +155,6 @@ public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
       return null;
     }
     if (versionExtractor != null) {
-      versionExtractor.preCommit(document.getValue());
       versionExtractor.setTag(document.getValue(), document.getTag());
     }
     return document.getValue();

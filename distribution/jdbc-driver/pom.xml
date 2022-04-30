@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -399,13 +399,17 @@
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
 
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <configLocation>src/main/checkstyle/checkstyle-config.xml</configLocation>
@@ -483,7 +487,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
         <executions>
           <execution>
@@ -495,19 +498,10 @@
         </executions>
 
         <configuration>
-          <argLine>
-            -Xms512m
-            -Xmx3g
-            -Xss2048k
-            -Ddremio.exec.http.enabled=false
-            -Djava.net.preferIPv4Stack=true
-            -XX:MaxDirectMemorySize=3072M
-            -XX:+CMSClassUnloadingEnabled -ea
-            @{argLine}
-          </argLine>
           <additionalClasspathElements>
             <additionalClasspathElement>${junit:junit:jar}</additionalClasspathElement>
             <additionalClasspathElement>${org.hamcrest:hamcrest-core:jar}</additionalClasspathElement>
+            <additionalClasspathElement>${org.assertj:assertj-core:jar}</additionalClasspathElement>
             <additionalClasspathElement>${org.slf4j:slf4j-api:jar}</additionalClasspathElement>
             <additionalClasspathElement>${ch.qos.logback:logback-classic:jar}</additionalClasspathElement>
             <additionalClasspathElement>${ch.qos.logback:logback-core:jar}</additionalClasspathElement>
@@ -533,8 +527,10 @@
             <classpathDependencyExclude>*:*</classpathDependencyExclude>
           </classpathDependencyExcludes>
 
+          <systemProperties>
+            <dremio.exec.http.enabled>false</dremio.exec.http.enabled>
+          </systemProperties>
           <systemPropertyVariables>
-            <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
             <app.class.path>${app.class.path}</app.class.path>
             <project.version>${project.version}</project.version>
           </systemPropertyVariables>
@@ -572,7 +568,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
@@ -621,6 +616,7 @@
               <exclude>org.slf4j:jul-to-slf4j</exclude>
               <exclude>org.slf4j:log4j-over-slf4j</exclude>
               <exclude>org.hamcrest:hamcrest-core</exclude>
+              <exclude>org.assertj:assertj-core</exclude>
               <exclude>org.mockito:mockito-core</exclude>
               <exclude>org.objenesis:objenesis</exclude>
               <exclude>org.apache.httpcomponents:*</exclude>
@@ -804,7 +800,6 @@
       </plugin>
 
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
         <executions>
           <execution>
@@ -823,7 +818,7 @@
                     This is likely due to you adding new dependencies to a sabot-kernel and not updating the excludes in this module. This is important as it minimizes the size of the dependency of Dremio application users.
 
                   </message>
-                  <maxsize>32000000</maxsize>
+                  <maxsize>40000000</maxsize>
                   <minsize>15000000</minsize>
                   <files>
                     <file>${project.build.directory}/dremio-jdbc-driver-${project.version}.jar</file>
@@ -838,4 +833,26 @@
 
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>jdk9-or-higher</id>
+      <activation>
+        <jdk>[9,)</jdk>
+      </activation>
+
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <jdkToolchain>
+                <version>1.8</version>
+              </jdkToolchain>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

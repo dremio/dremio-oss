@@ -13,38 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-
 import PropTypes from 'prop-types';
 
+import { RawIntlProvider } from 'react-intl';
 import { Provider } from 'react-redux';
 
 import { Router, browserHistory } from 'react-router';
 import { syncHistoryWithStore } from 'react-router-redux';
+import { useProjectContext } from '@inject/utils/storageUtils/localStorageUtils';
 import routes from 'routes';
 
+import { intl } from '@app/utils/intl';
 import intercomUtils from 'utils/intercomUtils';
+import { oc } from 'ts-optchain';
 
-import {IntlProvider } from 'react-intl';
-import { getLocale } from '../utils/locale';
-export default class Root extends Component {
-  static propTypes = {
-    store: PropTypes.object.isRequired
-  };
+function Root({ store }) {
+  const history = syncHistoryWithStore(browserHistory, store);
+  history.listen(() => {
+    intercomUtils.update();
+  });
+  const projectContext = useProjectContext();
+  //Re-render routes when project context changes
+  const renderKey = oc(projectContext).id('root');
 
-  render() {
-    const { store } = this.props;
-    const history = syncHistoryWithStore(browserHistory, store);
-    history.listen(() => {
-      intercomUtils.update();
-    });
-
-    return <IntlProvider locale={getLocale().language} messages={getLocale().localeStrings}>
-      <Provider store={store}>
-        <div style={{height: '100%'}}>
-          <Router history={history}>{routes(store.dispatch)}</Router>
-        </div>
-      </Provider>
-    </IntlProvider>;
-  }
+  return <RawIntlProvider value={intl}>
+    <Provider store={store}>
+      <div style={{height: '100%'}}>
+        <Router key={renderKey} history={history}>{routes(store.dispatch, projectContext)}</Router>
+      </div>
+    </Provider>
+  </RawIntlProvider>;
 }
+Root.propTypes = {
+  store: PropTypes.object.isRequired
+};
+export default Root;

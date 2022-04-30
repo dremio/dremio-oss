@@ -15,14 +15,13 @@
  */
 package com.dremio.dac.cmd;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 /**
  * Test admin command runner.
@@ -45,9 +44,6 @@ public class AdminCommandRunnerTest {
     }
   }
 
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
-
   @Test
   public void runCommand() throws Exception {
     assertFalse(TestCommand.invokedCorrectly);
@@ -56,12 +52,11 @@ public class AdminCommandRunnerTest {
   }
 
   @Test
-  public void runCommandExceptionMessage() throws Exception {
+  public void runCommandExceptionMessage() {
     String errorMessage = "cannot run command";
-    thrownException.expect(IOException.class);
-    thrownException.expectMessage(errorMessage);
-
-    AdminCommandRunner.runCommand("test-command", TestCommand.class, new String[]{"arg0", "arg1", errorMessage});
+    assertThatThrownBy(() -> AdminCommandRunner.runCommand("test-command", TestCommand.class, new String[]{"arg0", "arg1", errorMessage}))
+      .isInstanceOf(IOException.class)
+      .hasMessageContaining(errorMessage);
   }
 
 }

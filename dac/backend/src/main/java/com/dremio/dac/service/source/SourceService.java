@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Collections.singletonList;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,7 @@ import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.namespace.NamespaceTree;
+import com.dremio.dac.model.resourcetree.ResourceTreeEntity;
 import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.PhysicalDatasetName;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
@@ -59,6 +61,7 @@ import com.dremio.dac.service.errors.SourceFolderNotFoundException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.SourceCatalog;
@@ -87,11 +90,14 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 
 /**
  * Source service.
@@ -128,12 +134,13 @@ public class SourceService {
 
   private Catalog createCatalog() {
     return catalogService.getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(security.getUserPrincipal().getName())
+        SchemaConfig.newBuilder(CatalogUser.from(security.getUserPrincipal().getName()))
             .build()));
   }
 
   private Catalog createCatalog(String userName) {
-    return catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(userName).build()));
+    return catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(userName))
+      .build()));
   }
 
 
@@ -188,7 +195,7 @@ public class SourceService {
   public SourceConfig createSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
     validateSourceConfig(sourceConfig);
 
-    Preconditions.checkArgument(sourceConfig.getId().getId() == null, "Source id is immutable.");
+    Preconditions.checkArgument(sourceConfig.getId() == null || Strings.isNullOrEmpty(sourceConfig.getId().getId()), "Source id is immutable.");
     Preconditions.checkArgument(sourceConfig.getTag() == null, "Source tag is immutable.");
 
     // check if source already exists with the given name.
@@ -373,8 +380,13 @@ public class SourceService {
     return file;
   }
 
-  public NamespaceTree listSource(SourceName sourceName, SourceConfig sourceConfig, String userName)
-    throws IOException, PhysicalDatasetNotFoundException, NamespaceException {
+  public NamespaceTree listSource(
+      SourceName sourceName,
+      SourceConfig sourceConfig,
+      String userName,
+      String refType,
+      String refValue)
+      throws IOException, PhysicalDatasetNotFoundException, NamespaceException {
     try {
       final StoragePlugin plugin = checkNotNull(catalogService.getSource(sourceName.getName()), "storage plugin %s not found", sourceName);
       if (plugin instanceof FileSystemPlugin) {
@@ -392,13 +404,25 @@ public class SourceService {
     }
   }
 
+  public NamespaceTree listSource(SourceName sourceName, SourceConfig sourceConfig, String userName)
+      throws NamespaceException, IOException {
+    return listSource(sourceName, sourceConfig, userName, null, null);
+  }
+
   /**
    * Get properties for folder in source.
    * @param sourceName source name
    * @param folderPath folder path
    * @return folder properties
    */
-  public Folder getFolder(SourceName sourceName, SourceFolderPath folderPath, boolean includeContents, String userName) throws SourceFolderNotFoundException, NamespaceException, PhysicalDatasetNotFoundException, IOException {
+  public Folder getFolder(
+      SourceName sourceName,
+      SourceFolderPath folderPath,
+      boolean includeContents,
+      String userName,
+      String refType,
+      String refValue)
+      throws SourceFolderNotFoundException, NamespaceException, PhysicalDatasetNotFoundException, IOException {
     final StoragePlugin plugin = catalogService.getSource(sourceName.getName());
     if(plugin == null) {
       throw new SourceFolderNotFoundException(sourceName, folderPath, null);
@@ -432,7 +456,7 @@ public class SourceService {
     }
 
     // TODO: why do we need to look up the dataset again in isPhysicalDataset?
-    NamespaceTree contents = includeContents ? listFolder(sourceName, folderPath, userName) : null;
+    NamespaceTree contents = includeContents ? listFolder(sourceName, folderPath, userName, refType, refValue) : null;
     return newFolder(folderPath, folderConfig, contents, isPhysicalDataset(sourceName, folderPath), isFileSystemPlugin);
   }
 
@@ -447,7 +471,12 @@ public class SourceService {
     return NamespaceTree.newInstance(datasetService, children, SOURCE, collaborationService, isFileSystemSource, isImpersonationEnabled);
   }
 
-  public NamespaceTree listFolder(SourceName sourceName, SourceFolderPath folderPath, String userName)
+  public NamespaceTree listFolder(
+      SourceName sourceName,
+      SourceFolderPath folderPath,
+      String userName,
+      String refType,
+      String refValue)
     throws IOException, PhysicalDatasetNotFoundException, NamespaceException {
     final String name = sourceName.getName();
     final String prefix = folderPath.toPathString();
@@ -468,6 +497,30 @@ public class SourceService {
     } catch (IOException | DatasetNotFoundException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public NamespaceTree listFolder(SourceName sourceName, SourceFolderPath folderPath, String userName)
+      throws NamespaceException, IOException {
+    return listFolder(sourceName, folderPath, userName, null, null);
+  }
+
+  public List<ResourceTreeEntity> listPath(
+      NamespaceKey path,
+      boolean showDatasets,
+      String refType,
+      String refValue)
+      throws NamespaceException, UnsupportedEncodingException {
+    final List<ResourceTreeEntity> resources = Lists.newArrayList();
+
+    for (NameSpaceContainer container : namespaceService.list(path)) {
+      if (container.getType() == Type.FOLDER) {
+        resources.add(new ResourceTreeEntity(container.getFolder()));
+      } else if (showDatasets && container.getType() == Type.DATASET) {
+        resources.add(new ResourceTreeEntity(container.getDataset()));
+      }
+    }
+
+    return resources;
   }
 
   // Process all items in the namespacetree and get their tags in one go
@@ -537,7 +590,7 @@ public class SourceService {
       namespaceService,
       new NamespaceKey(filePath.getSourceName().getName()),
       new PhysicalDatasetPath(filePath).toNamespaceKey(),
-      toDatasetConfig(datasetConfig, null));
+      toDatasetConfig(datasetConfig, security.getUserPrincipal().getName()));
   }
 
   public void createPhysicalDataset(SourceFolderPath folderPath, PhysicalDatasetConfig datasetConfig)
@@ -546,7 +599,7 @@ public class SourceService {
       namespaceService,
       new NamespaceKey(folderPath.getSourceName().getName()),
       new PhysicalDatasetPath(folderPath).toNamespaceKey(),
-      toDatasetConfig(datasetConfig, null));
+      toDatasetConfig(datasetConfig, security.getUserPrincipal().getName()));
   }
 
   public PhysicalDatasetConfig getFilesystemPhysicalDataset(NamespacePath path, DatasetType type) throws NamespaceException {
@@ -617,30 +670,14 @@ public class SourceService {
     return catalogService.getManagedSource(METADATA_STORAGE_PLUGIN_NAME).unwrap(FileSystemPlugin.class);
   }
 
-  public void deletePhysicalDataset(SourceName sourceName, PhysicalDatasetPath datasetPath, String version) throws PhysicalDatasetNotFoundException {
-    String tableUuid = "";
-    NamespaceKey key = datasetPath.toNamespaceKey();
+  public void deletePhysicalDataset(SourceName sourceName, PhysicalDatasetPath datasetPath, String version ,NamespaceService.DeleteCallback deleteCallback) throws PhysicalDatasetNotFoundException {
     try {
-      DatasetConfig dataset = namespaceService.getDataset(key);
-      boolean isIcebergMetadata = false;
-      if (dataset.getPhysicalDataset().getIcebergMetadataEnabled() != null &&
-          dataset.getPhysicalDataset().getIcebergMetadataEnabled() &&
-          dataset.getPhysicalDataset().getIcebergMetadata() != null) {
-        tableUuid = dataset.getPhysicalDataset().getIcebergMetadata().getTableUuid();
-        isIcebergMetadata = true;
-      }
+      DatasetConfig datasetConfig = namespaceService.getDataset(datasetPath.toNamespaceKey());
+      deleteCallback.onDatasetDelete(datasetConfig);
       namespaceService.deleteDataset(datasetPath.toNamespaceKey(), version);
-      if (isIcebergMetadata) {
-        FileSystemPlugin plugin = getMetadataPlugin();
-        plugin.deleteMetadataIcebergTable(tableUuid);
-      }
     }
       catch (NamespaceException nse) {
       throw new PhysicalDatasetNotFoundException(sourceName, datasetPath, nse);
-    } catch (ExecutionSetupException e) {
-      String message = String.format("The dataset %s is now forgotten by dremio, but there was an error while cleaning up respective metadata files for %s.", key, tableUuid);
-      logger.error(message);
-      throw new RuntimeException(e);
     }
   }
 

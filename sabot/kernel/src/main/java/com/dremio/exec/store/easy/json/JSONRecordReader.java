@@ -84,7 +84,7 @@ public class JSONRecordReader extends AbstractRecordReader {
 
   @Override
   public String getFilePath() {
-    return fsPath.toString();
+    return fsPath != null ? fsPath.toString() : "";
   }
 
   /**

@@ -20,25 +20,26 @@ import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 import Art from '@app/components/Art';
 import EllipsedText from 'components/EllipsedText';
-import { AutoSizer, List } from 'react-virtualized';
+import { AutoSizer, List, CellMeasurer } from 'react-virtualized';
 import { memoOne } from 'utils/memoUtils';
 
 import FontIcon from 'components/Icon/FontIcon';
 import Checkbox from 'components/Fields/Checkbox';
 import { SearchField } from 'components/Fields';
-import { SelectView } from './SelectView';
 import './FilterSelectMenu.less';
+import { Tooltip } from 'dremio-ui-lib';
+import { SelectView } from './SelectView';
 
 const FILTER_ITEM_HEIGHT = 32;
 const VIRTUAL_LIST_MAX = 10;
 
 // Limit height of dropdown
-const getPopoverHeight = memoOne((numItems, hasSearch) => {
+const getPopoverHeight = memoOne((numItems, hasSearch, filterItemHeight) => {
   const num = numItems;
   const { paddingBottom, paddingTop } = styles.popoverContent;
   const searchHeight = hasSearch ? styles.searchInput.height : 0;
 
-  const itemsHeight = Math.min(num, VIRTUAL_LIST_MAX) * FILTER_ITEM_HEIGHT;
+  const itemsHeight = Math.min(num, VIRTUAL_LIST_MAX) * filterItemHeight;
   return paddingBottom + paddingTop + searchHeight + itemsHeight;
 });
 
@@ -52,7 +53,8 @@ FilterSelectMenuItem.propTypes = {
   className: PropTypes.string,
   checkBoxClass: PropTypes.string,
   showCheckIcon: PropTypes.bool,
-  disabled: PropTypes.bool
+  disabled: PropTypes.bool,
+  ellipsedTextClass: PropTypes.string
 };
 
 export function FilterSelectMenuItem({
@@ -65,18 +67,32 @@ export function FilterSelectMenuItem({
   className,
   checkBoxClass,
   showCheckIcon,
-  disabled
+  disabled,
+  ellipsedTextClass
 }) {
   const menuClass = clsx('filterSelectMenu', className);
   return (
-    <div className={menuClass} >
+    <div className={menuClass}>
       <span className='filterSelectMenu__checkbox' key={item.id}>
         <Checkbox
           onChange={() => onChange(checked, item.id)}
           label={[
-            item.icon && <FontIcon type={item.icon} key={'fi_' + item.id} theme={{ Container: styles.checkboxLabelContainer }} />,
-            item.label
+            item.icon && (
+              <FontIcon
+                type={item.icon}
+                key={'fi_' + item.id}
+                theme={{ Container: styles.checkboxLabelContainer }}
+              />
+            ),
+            item.label.length > 24 ? (
+              <Tooltip title={item.label}>
+                <EllipsedText text={item.label} className='ellipseLabel' />
+              </Tooltip>
+            ) : (
+              item.label
+            )
           ]}
+          key={`CheckBox-${item.id}`}
           checked={checked}
           dataQa={getDataQaForFilterItem(item.id)}
           checkBoxClass={checkBoxClass}
@@ -85,21 +101,26 @@ export function FilterSelectMenuItem({
         />
       </span>
       <span className='filterSelectMenu__vectorColumns'>
-        {
-          name === 'col' && <>
-            <Art src='UpVector.svg' alt='icon' title='icon'
+        {name === 'col' && (
+          <>
+            <Art
+              src='UpVector.svg'
+              alt='icon'
+              title='icon'
               className='filterSelectMenu__upVector'
               onClick={() => onClick('up', itemIndex)}
               data-qa='UpVector'
             />
-            <Art src='DownVector.svg' alt='icon' title='icon'
+            <Art
+              src='DownVector.svg'
+              alt='icon'
+              title='icon'
               className='filterSelectMenu__downVector'
               onClick={() => onClick('down', itemIndex)}
               data-qa='DownVector'
             />
           </>
-        }
-
+        )}
       </span>
     </div>
   );
@@ -107,8 +128,9 @@ export function FilterSelectMenuItem({
 
 @injectIntl
 export default class FilterSelectMenu extends Component {
-
   static propTypes = {
+    wrapWithCellMeasurer: PropTypes.bool,
+    cellCache: PropTypes.object,
     items: PropTypes.array, // [{label: string, id: string, icon: component}]
     hideOnSelect: PropTypes.bool,
     selectedValues: PropTypes.instanceOf(Immutable.List),
@@ -120,6 +142,10 @@ export default class FilterSelectMenu extends Component {
     checkBoxClass: PropTypes.string,
     iconClass: PropTypes.string,
     showCheckIcon: PropTypes.bool,
+    filterItemHeight: PropTypes.number,
+    listClass: PropTypes.string,
+    popoverContentClass: PropTypes.string,
+    popoverContentHeight: PropTypes.number,
 
     alwaysShowLabel: PropTypes.bool,
     preventSelectedLabel: PropTypes.bool,
@@ -141,32 +167,47 @@ export default class FilterSelectMenu extends Component {
     selectViewBeforeOpen: PropTypes.func,
     selectViewBeforeClose: PropTypes.func,
     setBackGroundColorForLabel: PropTypes.bool,
+    disableReorderOnSelect: PropTypes.bool,
     ellipsedTextClass: PropTypes.string
   };
 
-  static defaultProps = { // todo: `la` loc not building correctly here
+  static defaultProps = {
+    // todo: `la` loc not building correctly here
     items: [],
     selectedValues: Immutable.List(),
     searchPlaceholder: 'Search',
-    showSelectedLabel: true
+    showSelectedLabel: true,
+    wrapWithCellMeasurer: false
   };
 
   state = {
-    pattern: ''
+    pattern: '',
+    itemsList: this.props.items || []
   };
+
+  componentDidUpdate(prevProps) {
+    const { items: prevItems } = prevProps;
+    const { items: newItems } = this.props;
+    const shouldUpdateState = !newItems.every(({ id: newId }) =>
+      prevItems.find(({ id: prevId }) => newId && prevId && prevId === newId)
+    );
+    if (shouldUpdateState) {
+      this.setState({ itemsList: newItems }); // eslint-disable-line
+    }
+  }
 
   getSelectedItems = memoOne((items, selectedValues) => {
     const selectedMap = this.getSelectedMap(items, selectedValues);
-    return items.filter(item => !!selectedMap[item.id]);
+    return items.filter((item) => !!selectedMap[item.id]);
   });
 
   getUnselectedItems = memoOne((items, selectedValues, pattern) => {
     const selectedMap = this.getSelectedMap(items, selectedValues);
     return items.filter(
-      item =>
+      (item) =>
         !selectedMap[item.id] &&
         (!pattern ||
-          item.label.toLowerCase().indexOf(pattern.trim().toLowerCase()) === 0)
+          item.label.toLowerCase().includes(pattern.trim().toLowerCase()))
     );
   });
 
@@ -178,14 +219,20 @@ export default class FilterSelectMenu extends Component {
   });
 
   getOrderedItems = memoOne((items, selectedValues, pattern) => {
-    return [
-      ...this.getSelectedItems(items, selectedValues),
-      ...this.getUnselectedItems(items, selectedValues, pattern)
-    ];
+    return pattern
+      ? items.filter(
+        (item) =>
+          item.label.toLowerCase().includes(pattern.trim().toLowerCase())
+      )
+      : items;
   });
 
-  handleSearchForItem = value => {
+  handleSearchForItem = (value) => {
+    const { name, loadItemsForFilter } = this.props;
     this.setState({ pattern: value });
+    if (name === 'usr') {
+      loadItemsForFilter(value, '1000');
+    }
   };
 
   handleItemChange = (checked, id) => {
@@ -206,18 +253,23 @@ export default class FilterSelectMenu extends Component {
     if (selectViewBeforeClose && typeof selectViewBeforeClose === 'function') {
       selectViewBeforeClose();
     }
-    this.setState({
-      pattern: ''
-    });
+    this.setState({ pattern: '' });
   };
   beforeDDOpen = () => {
-    const { selectViewBeforeOpen } = this.props;
+    const { selectViewBeforeOpen, selectedValues } = this.props;
+    const { itemsList } = this.state;
     if (selectViewBeforeOpen && typeof selectViewBeforeOpen === 'function') {
       selectViewBeforeOpen();
     }
+    this.setState({
+      itemsList: [
+        ...this.getSelectedItems(itemsList, selectedValues),
+        ...this.getUnselectedItems(itemsList, selectedValues, '')
+      ]
+    });
   };
 
-  renderItems = ({ index, key, style }) => {
+  renderItems = ({ index, key, style, parent }) => {
     const {
       items,
       selectedValues,
@@ -225,19 +277,26 @@ export default class FilterSelectMenu extends Component {
       className,
       checkBoxClass,
       showCheckIcon,
-      onClick
+      onClick,
+      cellCache,
+      wrapWithCellMeasurer,
+      ellipsedTextClass
     } = this.props;
 
     if (!items.length) return null;
 
-    const { pattern } = this.state;
+    const { pattern, itemsList } = this.state;
 
-    const orderedItems = this.getOrderedItems(items, selectedValues, pattern);
-    const selectedMap = this.getSelectedMap(items, selectedValues);
+    const orderedItems = this.getOrderedItems(
+      itemsList,
+      selectedValues,
+      pattern
+    );
+    const selectedMap = this.getSelectedMap(itemsList, selectedValues);
 
     const item = orderedItems[index];
 
-    return (
+    const renderItemCell = () => (
       <div style={style} key={key}>
         <FilterSelectMenuItem
           key={index}
@@ -251,21 +310,59 @@ export default class FilterSelectMenu extends Component {
           checkBoxClass={checkBoxClass}
           showCheckIcon={showCheckIcon}
           disabled={item.disabled}
+          ellipsedTextClass={ellipsedTextClass}
         />
       </div>
     );
-  }
 
-  renderSelectedLabel() { // todo: better loc
-    const { ellipsedTextClass, items, selectedValues } = this.props;
+    if (wrapWithCellMeasurer) {
+      return (
+        <CellMeasurer
+          key={key}
+          cache={cellCache}
+          parent={parent}
+          rowIndex={index}
+          columnIndex={0}
+        >
+          {renderItemCell()}
+        </CellMeasurer>
+      );
+    }
+    return renderItemCell();
+  };
+
+  renderSelectedLabel() {
+    // todo: better loc
+    const {
+      alwaysShowLabel,
+      ellipsedTextClass,
+      intl: { formatMessage },
+      preventSelectedLabel,
+      selectedValues
+    } = this.props;
+
+    const { itemsList } = this.state;
+
+    const getSelectedItemsLabel = (allItems, values) => {
+      const selectedItems = this.getSelectedItems(allItems, values);
+      const { label, label: { props: { label: propsLabel } = {} } = {} } =
+        selectedItems[0] || {};
+      const selectedItemsLable =
+        propsLabel && typeof propsLabel === 'string'
+          ? formatMessage({ id: `${propsLabel}.name` })
+          : label;
+      return selectedItems.length > 1
+        ? `${selectedItemsLable} +${selectedItems.length - 1}`
+        : selectedItemsLable;
+    };
+
     const selectedItems = !this.props.selectedValues.size
-      ? `: ${this.props.intl.formatMessage({ id: 'Common.All' })}`
-      : (this.props.alwaysShowLabel ? ': ' : '') +
-        this.getSelectedItems(items, selectedValues)
-          .map(item => item.label)
-          .join(', ');
+      ? `: ${formatMessage({ id: 'Common.All' })}`
+      : (alwaysShowLabel ? ': ' : '') +
+        getSelectedItemsLabel(itemsList, selectedValues);
+
     return (
-      !this.props.preventSelectedLabel && (
+      !preventSelectedLabel && (
         <EllipsedText
           className={clsx('filter-select-label', ellipsedTextClass)}
           style={styles.infoLabel}
@@ -286,23 +383,37 @@ export default class FilterSelectMenu extends Component {
       selectClass,
       isArtIcon,
       iconClass,
-      items,
       selectedValues,
       preventSelectedLabel,
       alwaysShowLabel,
       noSearch,
-      searchPlaceholder
+      searchPlaceholder,
+      filterItemHeight,
+      listClass,
+      popoverContentClass,
+      popoverContentHeight,
+      cellCache
     } = this.props;
 
-    const { pattern } = this.state;
+    const { pattern, itemsList } = this.state;
 
-    const orderedItems = this.getOrderedItems(items, selectedValues, pattern);
-    const unSelectedItems = this.getUnselectedItems(items, selectedValues);
-    const selectedMap = this.getSelectedMap(items, selectedValues);
+    const orderedItems = this.getOrderedItems(
+      itemsList,
+      selectedValues,
+      pattern
+    );
+    const unSelectedItems = this.getUnselectedItems(itemsList, selectedValues);
+    const selectedMap = this.getSelectedMap(itemsList, selectedValues);
 
     const className = clsx('filter-select-menu field', selectClass);
     const hasSearch = !noSearch && (!!unSelectedItems.length || !!pattern);
-    const pHeight = getPopoverHeight(orderedItems.length, hasSearch);
+    const pHeight =
+      popoverContentHeight ||
+      getPopoverHeight(
+        orderedItems.length,
+        hasSearch,
+        filterItemHeight || FILTER_ITEM_HEIGHT
+      );
 
     return (
       <SelectView
@@ -324,7 +435,10 @@ export default class FilterSelectMenu extends Component {
         isArtIcon={isArtIcon}
         iconClass={iconClass}
       >
-        <div style={{ ...styles.popoverContent, height: pHeight }}>
+        <div
+          style={{ ...styles.popoverContent, height: pHeight }}
+          className={popoverContentClass}
+        >
           {hasSearch && (
             <SearchField
               style={styles.searchStyle}
@@ -340,12 +454,17 @@ export default class FilterSelectMenu extends Component {
               {({ width, height }) => (
                 <List
                   selectedMap={selectedMap} //Rerender when selection changes
-                  ref={ref => (this.virtualList = ref)}
+                  ref={(ref) => (this.virtualList = ref)}
                   rowCount={orderedItems.length}
-                  rowHeight={FILTER_ITEM_HEIGHT}
+                  rowHeight={
+                    (cellCache ? cellCache.rowHeight : null) ||
+                    filterItemHeight ||
+                    FILTER_ITEM_HEIGHT
+                  }
                   rowRenderer={this.renderItems}
                   width={width}
                   height={height}
+                  className={listClass}
                 />
               )}
             </AutoSizer>

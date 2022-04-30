@@ -16,8 +16,11 @@
 package com.dremio.exec.physical.config;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.calcite.linq4j.Ord;
 
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.AbstractExchange;
@@ -34,6 +37,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -58,9 +62,12 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
   protected Map<Integer, MinorFragmentIndexEndpoint> senderToReceiverMapping;
   protected ArrayListMultimap<Integer, MinorFragmentIndexEndpoint> receiverToSenderMapping;
   private boolean isSenderReceiverMappingCreated;
+  protected final int fragmentsPerEndpoint;
 
-  public AbstractMuxExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema, PhysicalOperator child, OptionManager optionManager) {
+  public AbstractMuxExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema,
+                             PhysicalOperator child, OptionManager optionManager, int fragmentsPerEndpoint) {
     super(props, senderProps, receiverProps, schema, child, optionManager);
+    this.fragmentsPerEndpoint = fragmentsPerEndpoint;
   }
 
   @Override
@@ -75,13 +82,16 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
       Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
         "Sender fragment endpoint list should not be empty");
 
-      // We want to run one mux receiver per SabotNode endpoint.
+      // We want to run fragmentPerEndpoint mux receivers per SabotNode endpoint.
       // Identify the number of unique SabotNode endpoints in sender fragment endpoints.
       List<NodeEndpoint> nodeEndpoints = ImmutableSet.copyOf(senderFragmentEndpoints).asList();
 
       List<EndpointAffinity> affinities = Lists.newArrayList();
-      for(NodeEndpoint ep : nodeEndpoints) {
-        affinities.add(new EndpointAffinity(ep, Double.POSITIVE_INFINITY));
+      for (NodeEndpoint ep : nodeEndpoints) {
+        EndpointAffinity ea = new EndpointAffinity(ep, Double.POSITIVE_INFINITY);
+        ea.setMinWidth(fragmentsPerEndpoint);
+        ea.setMaxWidth(fragmentsPerEndpoint);
+        affinities.add(ea);
       }
       return affinities;
     };
@@ -107,26 +117,30 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
     receiverToSenderMapping = ArrayListMultimap.create();
 
     // Find the list of sender fragment ids assigned to each SabotNode endpoint.
-    ArrayListMultimap<NodeEndpoint, Integer> endpointSenderList = ArrayListMultimap.create();
+    ArrayListMultimap<NodeEndpoint, Integer> endpointSenderListMap = ArrayListMultimap.create();
+    ArrayListMultimap<NodeEndpoint, Integer> endpointReceiverListMap = ArrayListMultimap.create();
 
-    int senderFragmentId = 0;
-    for(NodeEndpoint senderLocation : senderLocations) {
-      endpointSenderList.put(senderLocation, senderFragmentId);
-      senderFragmentId++;
+    for (Ord<NodeEndpoint> ep : Ord.zip(senderLocations)) {
+      endpointSenderListMap.put(ep.e, ep.i);
     }
 
-    int receiverFragmentId = 0;
-    for(NodeEndpoint receiverLocation : receiverLocations) {
-      List<Integer> senderFragmentIds = endpointSenderList.get(receiverLocation);
+    for (Ord<NodeEndpoint> ep : Ord.zip(receiverLocations)) {
+      endpointReceiverListMap.put(ep.e, ep.i);
+    }
 
+    for(NodeEndpoint receiverLocation : endpointReceiverListMap.keySet()) {
+      List<Integer> senderFragmentIds = endpointSenderListMap.get(receiverLocation);
+      List<Integer> receiverFragmentIds = endpointReceiverListMap.get(receiverLocation);
+
+      Iterator<Integer> iter = Iterators.cycle(receiverFragmentIds);
       for(Integer senderId : senderFragmentIds) {
+        int receiverFragmentId = iter.next();
         senderToReceiverMapping.put(senderId,
           indexBuilder.addFragmentEndpoint(receiverFragmentId, receiverLocation));
 
         receiverToSenderMapping.put(receiverFragmentId,
           indexBuilder.addFragmentEndpoint(senderId, senderLocations.get(senderId)));
       }
-      receiverFragmentId++;
     }
 
     isSenderReceiverMappingCreated = true;

@@ -73,6 +73,10 @@ public abstract class AbstractMaestroObserver implements MaestroObserver {
   }
 
   @Override
+  public void recordsOutput(long recordCount) {
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
   }
 

@@ -38,6 +38,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
 import com.dremio.service.maestroservice.MaestroClientFactory;
@@ -169,6 +170,10 @@ public class MaestroProxy implements AutoCloseable {
    */
   public Optional<ListenableFuture<Empty>> sendQueryProfile(QueryId queryId) {
     return trackers.getUnchecked(queryId).sendQueryProfile();
+  }
+
+  public FileCursorManagerFactory getFileCursorMangerFactory(QueryId queryId) {
+    return trackers.getUnchecked(queryId).getFileCursorManagerFactory();
   }
 
   @Override

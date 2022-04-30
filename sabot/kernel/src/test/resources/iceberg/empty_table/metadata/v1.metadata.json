@@ -1,7 +1,7 @@
 {
   "format-version" : 1,
   "table-uuid" : "d0e95278-0cf6-4f91-8457-874d742e67ce",
-  "location" : "/some/path",
+  "location" : "/tmp/empty_iceberg",
   "last-updated-ms" : 1626948645618,
   "last-column-id" : 5,
   "schema" : {

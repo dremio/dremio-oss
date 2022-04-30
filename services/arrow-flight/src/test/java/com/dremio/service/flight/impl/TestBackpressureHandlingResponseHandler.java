@@ -28,9 +28,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 
 import com.dremio.exec.proto.GeneralRPCProtos;
@@ -47,16 +45,13 @@ public class TestBackpressureHandlingResponseHandler extends BaseTestRunQueryRes
   protected BackpressureHandlingResponseHandler createHandler() {
     return new BackpressureHandlingResponseHandler(
       getExternalId(), getUserSession(), getWorkerProvider(),
-      getListener(), getAllocator());
+      getListener(), getAllocator(), () -> {});
   }
 
   @Before
   public void setUp() {
     super.setUp();
   }
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testClientIsReady() {

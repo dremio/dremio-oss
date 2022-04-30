@@ -123,7 +123,7 @@ public class UnlimitedSplitsBoostPlanCreator {
       null,
        columnsToBoost,
       null, null,
-      null, false, false, true);
+      null, false, false, true, functionConfig.getFunctionContext().getUserDefinedSchemaSettings());
 
 
     TableFunctionConfig config = new TableFunctionConfig(TableFunctionConfig.FunctionType.BOOST_TABLE_FUNCTION, false, functionContext);

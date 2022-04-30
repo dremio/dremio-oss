@@ -77,6 +77,14 @@ public class ArrowDsUtil {
     return list;
   }
 
+  public static JsonStringArrayList<Text> textList(String... texts) {
+    JsonStringArrayList<Text> list = new JsonStringArrayList<>(texts.length);
+    for (String text : texts) {
+      list.add(new Text(text));
+    }
+    return list;
+  }
+
   public static JsonStringHashMap<String, Object> longStruct(String fieldName, Long... longs) {
     JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
     for (Long aLong : longs) {
@@ -84,6 +92,21 @@ public class ArrowDsUtil {
     }
     return structrow;
   }
+
+  public static JsonStringHashMap<String, Object> nullStruct(String fieldName) {
+    JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
+    structrow.put(fieldName, null);
+    return structrow;
+  }
+
+  public static JsonStringHashMap<String, Object> intStruct(String fieldName, Integer... integers) {
+    JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
+    for (Integer aInt : integers) {
+      structrow.put(fieldName, aInt);
+    }
+    return structrow;
+  }
+
 
   public static JsonStringHashMap<String, Object> doubleStruct(String fieldName, Double... doubles) {
     JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
@@ -96,7 +119,16 @@ public class ArrowDsUtil {
   public static JsonStringHashMap<String, Object> textStruct(String fieldName, String... texts) {
     JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
     for (String text : texts) {
-      structrow.put(fieldName, text);
+      org.apache.arrow.vector.util.Text value = new Text(text);
+      structrow.put(fieldName, value);
+    }
+    return structrow;
+  }
+
+  public static JsonStringHashMap<String, Object> decimalStruct(String fieldName, String... texts) {
+    JsonStringHashMap<String, Object> structrow = new JsonStringHashMap<>();
+    for (String text : texts) {
+      structrow.put(fieldName, new BigDecimal(text));
     }
     return structrow;
   }
@@ -109,6 +141,12 @@ public class ArrowDsUtil {
 
   public static JsonStringArrayList<JsonStringArrayList<Double>> wrapDoubleListInList(JsonStringArrayList<Double> underlying) {
     JsonStringArrayList<JsonStringArrayList<Double>> list = new JsonStringArrayList<>();
+    list.add(underlying);
+    return list;
+  }
+
+  public static JsonStringArrayList<JsonStringArrayList<Text>> wrapTextListInList(JsonStringArrayList<Text> underlying) {
+    JsonStringArrayList<JsonStringArrayList<Text>> list = new JsonStringArrayList<>();
     list.add(underlying);
     return list;
   }

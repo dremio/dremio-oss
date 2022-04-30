@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.metadatarefresh.committer;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
@@ -73,11 +74,12 @@ public class PartialRefreshReadSignatureProvider extends AbstractReadSignaturePr
   }
 
   private void handleAddedPartitions(Set<IcebergPartitionData> added) {
-    added.stream().map(partitionToPathMapper).forEach(partitionsToModify::add);
+    added.stream().map(fileSystemPartitionToPathMapper)
+      .flatMap(Collection::stream).forEach(partitionsToModify::add);
   }
 
   private void handleDeletedPartitions(Set<IcebergPartitionData> deleted) {
-    deleted.stream().map(partitionToPathMapper).forEach(partitionsToModify::add);
+    deleted.stream().map(fileSystemPartitionToPathMapper).flatMap(x -> x.stream()).forEach(partitionsToModify::add);
     partitionsToModify.stream().filter(doesPartitionExist.negate()).forEach(partitionsToDelete::add);
     partitionsToModify.removeAll(partitionsToDelete);
   }

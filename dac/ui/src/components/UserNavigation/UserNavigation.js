@@ -36,8 +36,7 @@ const UserNavigation = (props) => {
       const className = classNames(
         'userNavigation__link',
         'userNavigation__item',
-        { '--selected': selected },
-        'text-small'
+        { '--selected': selected }
       );
       return (
         <li key={i}>
@@ -54,10 +53,12 @@ const UserNavigation = (props) => {
 
   const renderMenuHeader = (section, index, isNavigation) => {
     if (!section.url) {
-      return (<div className='userNavigation__header'>
-        {section.icon && <Art src={section.icon} alt={section.title} className='userNavigation__icon' />}
-        <span className='text-small'><FormattedMessage id={section.title}  defaultMessage={section.title}/></span>
-      </div>);
+      return (
+        <div className='userNavigation__header'>
+          {section.icon && <Art src={section.icon} alt={section.title} className='userNavigation__icon' />}
+          <span><FormattedMessage id={section.title}  defaultMessage={section.title}/></span>
+        </div>
+      );
     }
 
     const selected = location.pathname === section.url || location.pathname.startsWith(`${section.url}/`);
@@ -75,7 +76,7 @@ const UserNavigation = (props) => {
       >
         <div className={itemClassName}>
           {section.icon && <Art src={section.icon} alt={section.title} id={selected ? 'selected' : null} className={selected || section.icon === 'Back.svg' ? 'userNavigation__icon' : 'userNavigation__icon --unselected'} />}
-          <span className='text-small'><FormattedMessage id={section.title}  defaultMessage={section.title}/></span>
+          <span><FormattedMessage id={section.title}  defaultMessage={section.title}/></span>
           {section.rightIcon && <Art src={section.rightIcon} alt={section.title} className='userNavigation__icon' />}
         </div>
       </Link>
@@ -87,20 +88,29 @@ const UserNavigation = (props) => {
       {
         titleObject ? (
           <div className='userNavigation__title'>
-            <Art src={titleObject.icon} alt={titleObject.title} className='userNavigation__title-icon' />
-            <span className='text-ellipsis'>
-              {titleObject.title}
-            </span>
+            <div className='userNavigation__iconContainer'>
+              <Link to={titleObject.url} >
+                <Art src={titleObject.icon} alt={titleObject.title} className='userNavigation__title-icon' />
+              </Link>
+            </div>
+            <div className='userNavigation__titleContainer'>
+              <span className='userNavigation__location'>
+                <FormattedMessage id={titleObject.topTitle} />
+              </span>
+              <p className='text-ellipsis' title={titleObject.title}>
+                {titleObject.title}
+              </p>
+            </div>
           </div>
         ) : (
-          <div className='userNavigation__title'>
+          <div className='userNavigation__title userNavigation__loneTitle'>
             <span className='text-ellipsis'>
               {title}
             </span>
           </div>
         )
       }
-      <ul>
+      <ul className='userNavigation__itemList'>
         {sections.map((section, sectionIndex) => (
           <li key={`left-nav-section-${sectionIndex}`} data-qa={`left-nav-section-${sectionIndex}`}>
             {renderMenuHeader(section, sectionIndex)}

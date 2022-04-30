@@ -17,10 +17,11 @@
 
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .menu-item-inner{
+  .menu-item-inner {
     background: #fff;
     overflow: hidden;
     width: 100%;
+
     &.disabled{
       background: #fff !important;
       color: #999 !important;
@@ -29,6 +30,7 @@
         color: #999 !important;
       }
     }
+
     &.disabled::after {
       content: '';
       position: absolute;
@@ -39,7 +41,8 @@
       cursor: default;
       z-index: 10;
     }
-    &:hover{
+    
+    &:hover, &.--selected {
       background: @MENU-HOVER;
     }
   }

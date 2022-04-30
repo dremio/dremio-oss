@@ -82,7 +82,12 @@ public class SqlCreateRole extends SqlCall implements SimpleDirectHandler.Creato
   @Override
   public SimpleDirectHandler toDirectHandler(QueryContext context) {
     try {
-      final Class<?> cl = Class.forName("com.dremio.exec.planner.sql.handlers.RoleCreateHandler");
+      Class<?> cl = null;
+      if (context.isCloud()) {
+        cl = Class.forName("com.dremio.exec.planner.sql.handlers.DCSCreateRoleHandler");
+      } else {
+        cl = Class.forName("com.dremio.exec.planner.sql.handlers.RoleCreateHandler");
+      }
       Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException

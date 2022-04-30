@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,6 +55,15 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
   private static void nextUntilEnd(final ResultSet resultSet) throws SQLException {
     while (resultSet.next()) {
     }
+  }
+
+  @BeforeClass
+  public static void initRefresh() throws Exception {
+    //Refresh Dataset for support of unlimited splits
+    testQuery(String.format("REFRESH DATASET "
+            + "dfs_root.\"%s/../../sample-data/regionsSF/\"", WORKING_PATH));
+    testQuery(String.format("REFRESH DATASET "
+            + "dfs_root.\"%s/../../sample-data/regionsMF/\"", WORKING_PATH));
   }
 
   @Test
@@ -183,7 +193,7 @@ public class TestJdbcDistQuery extends JdbcWithServerTestBase {
         + "limit 2", WORKING_PATH));
   }
 
- private void testQuery(String sql) throws Exception{
+ private static void testQuery(String sql) throws Exception{
     boolean success = false;
     try {
       // ???? TODO:  What is this currently redundant one-time loop for?  (If

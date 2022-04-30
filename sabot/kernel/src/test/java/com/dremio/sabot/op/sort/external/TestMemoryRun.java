@@ -128,7 +128,7 @@ public class TestMemoryRun extends BaseTestOperator {
       Answer<Void> spillAnswer = new Answer<Void>() {
         @Override
         public Void answer(InvocationOnMock invocation) throws Throwable {
-          VectorContainer hyperBatch = invocation.getArgumentAt(0, VectorContainer.class);
+          VectorContainer hyperBatch = invocation.getArgument(0, VectorContainer.class);
           validateHyperBatch(hyperBatch, totalAdded);
           return null;
         }
@@ -194,7 +194,7 @@ public class TestMemoryRun extends BaseTestOperator {
     Answer<Void> spillAnswer = new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
-        VectorContainer hyperBatch = invocation.getArgumentAt(0, VectorContainer.class);
+        VectorContainer hyperBatch = invocation.getArgument(0, VectorContainer.class);
         validateHyperBatch(hyperBatch, expectedRecordCount);
         return null;
       }

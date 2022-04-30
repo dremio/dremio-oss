@@ -19,6 +19,14 @@
   padding: 4px 0px;
   &__select {
     @include input-size();
+    &.--disabled {
+      border-color: $border-color !important;
+      background-color: $disabled-color !important;
+      color: $oslo-gray !important;
+      select {
+        background-color: $disabled-color !important;
+      }
+    }
   }
 
   .MuiInputBase-root {

@@ -18,7 +18,11 @@ package com.dremio.exec.store.iceberg.hadoop;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.iceberg.TableOperations;
 
+import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.store.iceberg.model.IcebergBaseCommand;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
@@ -30,19 +34,27 @@ import com.dremio.sabot.exec.context.OperatorContext;
  * Entry point for Hadoop based Iceberg tables
  */
 public class IcebergHadoopModel extends IcebergBaseModel {
-
-    public IcebergHadoopModel(Configuration configuration) {
-        this(EMPTY_NAMESPACE, configuration, null, null, null, null);
+    private final MutablePlugin plugin;
+    public IcebergHadoopModel(Configuration configuration, MutablePlugin plugin) {
+        this(EMPTY_NAMESPACE, configuration, null, null, null, null, plugin);
     }
 
     public IcebergHadoopModel(String namespace, Configuration configuration,
                               FileSystem fs, OperatorContext context, List<String> dataset,
-                              DatasetCatalogGrpcClient datasetCatalogGrpcClient) {
-        super(namespace, configuration, fs, context, dataset, datasetCatalogGrpcClient);
+                              DatasetCatalogGrpcClient datasetCatalogGrpcClient, MutablePlugin plugin) {
+        super(namespace, configuration, fs, context, datasetCatalogGrpcClient, plugin);
+        this.plugin = plugin;
     }
 
     protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
-        return new IcebergHadoopCommand(tableIdentifier, configuration, fs, context, dataset);
+      TableOperations tableOperations = new IcebergHadoopTableOperations(
+        new Path(((IcebergHadoopTableIdentifier)tableIdentifier).getTableFolder()),
+        configuration,
+        fs,
+        context, plugin);
+        return new IcebergBaseCommand(configuration,
+        ((IcebergHadoopTableIdentifier)tableIdentifier).getTableFolder(), fs, tableOperations
+        );
     }
 
     @Override

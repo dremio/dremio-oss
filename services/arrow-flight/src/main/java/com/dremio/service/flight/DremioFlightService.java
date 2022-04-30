@@ -15,6 +15,8 @@
  */
 package com.dremio.service.flight;
 
+import static com.dremio.config.DremioConfig.FLIGHT_USE_SESSION_SERVICE;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,9 +37,6 @@ import javax.inject.Provider;
 import org.apache.arrow.flight.FlightServer;
 import org.apache.arrow.flight.FlightServerMiddleware;
 import org.apache.arrow.flight.Location;
-import org.apache.arrow.flight.ServerHeaderMiddleware;
-import org.apache.arrow.flight.auth.BasicServerAuthHandler;
-import org.apache.arrow.flight.auth.BasicServerAuthHandler.BasicAuthValidator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.util.io.pem.PemObject;
@@ -49,11 +48,9 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.options.OptionManager;
 import com.dremio.service.Service;
-import com.dremio.service.flight.auth.DremioFlightServerBasicAuthValidator;
-import com.dremio.service.flight.auth2.DremioBearerTokenAuthenticator;
 import com.dremio.service.flight.impl.FlightWorkManager.RunQueryResponseHandlerFactory;
 import com.dremio.service.tokens.TokenManager;
-import com.dremio.service.users.UserService;
+import com.dremio.service.usersessions.UserSessionService;
 import com.dremio.ssl.SSLConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -73,16 +70,19 @@ public class DremioFlightService implements Service {
   public static final String FLIGHT_AUTH2_AUTH_MODE = "arrow.flight.auth2";
 
   public static final String FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE = "client-properties-middleware";
+  public static final FlightServerMiddleware.Key<ServerCookieMiddleware> FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE_KEY
+    = FlightServerMiddleware.Key.of(FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE);
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFlightService.class);
 
   private final Provider<DremioConfig> configProvider;
   private final Provider<BufferAllocator> bufferAllocator;
-  private final Provider<UserService> userServiceProvider;
   private final Provider<UserWorker> userWorkerProvider;
   private final Provider<SabotContext> sabotContextProvider;
   private final Provider<TokenManager> tokenManagerProvider;
   private final Provider<OptionManager> optionManagerProvider;
+  private final Provider<UserSessionService> userSessionServiceProvider;
+  private final Provider<DremioFlightAuthProvider> authProvider;
   private final RunQueryResponseHandlerFactory runQueryResponseHandlerFactory;
 
   private DremioFlightSessionsManager dremioFlightSessionsManager;
@@ -92,34 +92,37 @@ public class DremioFlightService implements Service {
 
   public DremioFlightService(Provider<DremioConfig> configProvider,
                              Provider<BufferAllocator> bufferAllocator,
-                             Provider<UserService> userServiceProvider,
                              Provider<UserWorker> userWorkerProvider,
                              Provider<SabotContext> sabotContextProvider,
                              Provider<TokenManager> tokenManagerProvider,
-                             Provider<OptionManager> optionManagerProvider) {
-    this(configProvider, bufferAllocator, userServiceProvider, userWorkerProvider,
-      sabotContextProvider, tokenManagerProvider, optionManagerProvider,
-      RunQueryResponseHandlerFactory.DEFAULT);
+                             Provider<OptionManager> optionManagerProvider,
+                             Provider<UserSessionService> userSessionServiceProvider,
+                             Provider<DremioFlightAuthProvider> authProvider) {
+    this(configProvider, bufferAllocator, userWorkerProvider,
+      sabotContextProvider, tokenManagerProvider, optionManagerProvider, userSessionServiceProvider,
+      authProvider, RunQueryResponseHandlerFactory.DEFAULT);
   }
 
   @VisibleForTesting
   DremioFlightService(Provider<DremioConfig> configProvider,
                       Provider<BufferAllocator> bufferAllocator,
-                      Provider<UserService> userServiceProvider,
                       Provider<UserWorker> userWorkerProvider,
                       Provider<SabotContext> sabotContextProvider,
                       Provider<TokenManager> tokenManagerProvider,
                       Provider<OptionManager> optionManagerProvider,
+                      Provider<UserSessionService> userSessionServiceProvider,
+                      Provider<DremioFlightAuthProvider> authProvider,
                       RunQueryResponseHandlerFactory runQueryResponseHandlerFactory
   ) {
     this.configProvider = configProvider;
     this.bufferAllocator = bufferAllocator;
-    this.userServiceProvider = userServiceProvider;
     this.sabotContextProvider = sabotContextProvider;
     this.tokenManagerProvider = tokenManagerProvider;
     this.userWorkerProvider = userWorkerProvider;
     this.optionManagerProvider = optionManagerProvider;
     this.runQueryResponseHandlerFactory = runQueryResponseHandlerFactory;
+    this.userSessionServiceProvider = userSessionServiceProvider;
+    this.authProvider = authProvider;
   }
 
   @Override
@@ -127,10 +130,15 @@ public class DremioFlightService implements Service {
     Preconditions.checkArgument(server == null, "Flight Service should not be started more than once.");
     logger.info("Starting Flight Service");
 
-    allocator = bufferAllocator.get().newChildAllocator("flight-service-allocator", 0, Long.MAX_VALUE);
-    dremioFlightSessionsManager = new DremioFlightSessionsManager(sabotContextProvider, tokenManagerProvider);
-
     final DremioConfig config = configProvider.get();
+
+    allocator = bufferAllocator.get().newChildAllocator("flight-service-allocator", 0, Long.MAX_VALUE);
+    if (config.hasPath(FLIGHT_USE_SESSION_SERVICE) && config.getBoolean(FLIGHT_USE_SESSION_SERVICE)) {
+      dremioFlightSessionsManager = new SessionServiceFlightSessionsManager(sabotContextProvider, tokenManagerProvider, userSessionServiceProvider);
+    } else {
+      dremioFlightSessionsManager = new TokenCacheFlightSessionManager(sabotContextProvider, tokenManagerProvider);
+    }
+
     final int port = config.getInt(DremioConfig.FLIGHT_SERVICE_PORT_INT);
     // Get the wildcard address which is usually 0.0.0.0.
     final String wildcardAddress = new InetSocketAddress(port).getHostName();
@@ -142,22 +150,10 @@ public class DremioFlightService implements Service {
       .producer(new DremioFlightProducer(location, dremioFlightSessionsManager, userWorkerProvider,
         optionManagerProvider, allocator, runQueryResponseHandlerFactory));
 
-    builder.middleware(FlightServerMiddleware.Key.of(FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE),
-      new ServerHeaderMiddleware.Factory());
+    builder.middleware(FLIGHT_CLIENT_PROPERTIES_MIDDLEWARE_KEY,
+      new ServerCookieMiddleware.Factory());
 
-    final String authMode = config.getString(DremioConfig.FLIGHT_SERVICE_AUTHENTICATION_MODE);
-    if (FLIGHT_LEGACY_AUTH_MODE.equals(authMode)) {
-      builder.authHandler(new BasicServerAuthHandler(
-        createBasicAuthValidator(userServiceProvider, tokenManagerProvider, dremioFlightSessionsManager)));
-      logger.info("Using basic authentication with ServerAuthHandler.");
-    } else if (FLIGHT_AUTH2_AUTH_MODE.equals(authMode)) {
-      builder.headerAuthenticator(new DremioBearerTokenAuthenticator(userServiceProvider,
-        tokenManagerProvider, dremioFlightSessionsManager));
-      logger.info("Using bearer token authentication with CallHeaderAuthenticator.");
-    } else {
-      throw new RuntimeException(authMode
-        + " is not a supported authentication mode for the Dremio FlightServer Endpoint.");
-    }
+    authProvider.get().addAuthHandler(builder, dremioFlightSessionsManager);
 
     if (config.getBoolean(FLIGHT_SSL_ENABLED)) {
       final SSLConfig sslConfig = getSSLConfig(config, new SSLConfigurator(config, FLIGHT_SSL_PREFIX, "flight"));
@@ -189,20 +185,6 @@ public class DremioFlightService implements Service {
       return Location.forGrpcInsecure(address, port);
     }
     return Location.forGrpcTls(address, port);
-  }
-
-  /**
-   * Factory method for creating an instance of BasicAuthValidator.
-   *
-   * @param userServiceProvider         The UserService Provider.
-   * @param tokenManagerProvider        The TokenManager Provider.
-   * @param dremioFlightSessionsManager An instance of DremioFlightSessionsManager.
-   * @return An Instance of BasicAuthValidator.
-   */
-  protected BasicAuthValidator createBasicAuthValidator(Provider<UserService> userServiceProvider,
-                                                        Provider<TokenManager> tokenManagerProvider,
-                                                        DremioFlightSessionsManager dremioFlightSessionsManager) {
-    return new DremioFlightServerBasicAuthValidator(userServiceProvider, tokenManagerProvider, dremioFlightSessionsManager);
   }
 
   @VisibleForTesting

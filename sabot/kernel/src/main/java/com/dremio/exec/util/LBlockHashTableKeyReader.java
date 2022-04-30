@@ -304,7 +304,8 @@ public class LBlockHashTableKeyReader implements AutoCloseable {
             keyReader.isCompositeKey = fieldNames.size() > 1;
 
             prepareKeyPositions(fieldNames);
-            checkArgument(!keyReader.isVarWidthColPresent || (keyReader.isVarWidthColPresent && !ArrayUtils.isEmpty(keyReader.tableVarAddresses)), "TableVarAddresses not set");
+            checkArgument(!keyReader.isVarWidthColPresent ||
+              (keyReader.isVarWidthColPresent && !ArrayUtils.isEmpty(keyReader.tableVarAddresses)), "TableVarAddresses not set");
             checkArgument(!ArrayUtils.isEmpty(keyReader.tableFixedAddresses), "TableFixedAddresses not set");
             sliceKeyLenToFitInMaxSize();
             try {

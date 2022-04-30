@@ -22,11 +22,12 @@ import HoverHelp from '../HoverHelp';
 
 import './label.scss';
 
-const Label = ({ helpText, value, className, style, ...props }) => {
+const Label = ({ helpText, value, className, labelInnerClass,  style, ...props }) => {
   const containerClasses = clsx('label', { [className]: className });
+  const labelClasses = clsx( { [labelInnerClass]: labelInnerClass });
   return (
     <div className={containerClasses}>
-      <div style={style} role='label' {...props}>
+      <div role='label' className={labelClasses} style={style} {...props}>
         {value}
       </div>
       {helpText && (
@@ -42,6 +43,7 @@ const Label = ({ helpText, value, className, style, ...props }) => {
 Label.propTypes = {
   value: PropTypes.string.isRequired,
   className: PropTypes.string,
+  labelInnerClass: PropTypes.string,
   style: PropTypes.object,
   helpText: PropTypes.string
 };

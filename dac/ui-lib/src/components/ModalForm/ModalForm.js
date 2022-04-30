@@ -52,9 +52,10 @@ const ModalForm = (props) => {
     onExiting,
     open,
     size,
+    type,
     title,
     children: childComponent,
-
+    endChildren,
     disableUnsavedWarning
   } = props;
 
@@ -99,6 +100,8 @@ const ModalForm = (props) => {
               open={open}
               size={size}
               title={title}
+              endChildren={endChildren}
+              type={type}
             >
               { childComponent(formikProps) }
             </DialogComp>
@@ -141,13 +144,16 @@ ModalForm.propTypes = {
   title: PropTypes.string,
   classes: PropTypes.object,
 
-  disableUnsavedWarning: PropTypes.bool
+  disableUnsavedWarning: PropTypes.bool,
+  endChildren: PropTypes.node,
+  type: PropTypes.oneOf(['default', 'info', 'warning', 'error'])
 };
 
 ModalForm.defaultProps = {
   disableUnsavedWarning: false,
   size: 'sm',
-  classes: {}
+  classes: {},
+  type: 'default'
 };
 
 export default ModalForm;

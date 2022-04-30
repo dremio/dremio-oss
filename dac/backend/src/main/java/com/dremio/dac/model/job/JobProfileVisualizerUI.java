@@ -15,24 +15,36 @@
  */
 package com.dremio.dac.model.job;
 
+import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcRateAtPhaseHostLevel;
+import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcRateAtPhaseOperatorHostLevel;
+
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+
+import com.dremio.dac.server.admin.profile.HostProcessingRate;
 import com.dremio.dac.util.QueryProfileConstant;
 import com.dremio.dac.util.QueryProfileUtil;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobAnalysis.proto.BaseMetrics;
 import com.dremio.service.jobAnalysis.proto.GraphNodeDetails;
 import com.dremio.service.jobAnalysis.proto.OperatorData;
-import com.dremio.service.jobAnalysis.proto.OperatorDataList;
 import com.dremio.service.jobAnalysis.proto.PhaseData;
 import com.dremio.service.jobAnalysis.proto.PhaseNode;
 import com.dremio.service.jobAnalysis.proto.SuccessorNodes;
 import com.dremio.service.jobAnalysis.proto.ThreadData;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -43,9 +55,8 @@ public class JobProfileVisualizerUI {
 
   //Class level variable declaration
   Map<String, Object> graphObjectMap = new HashMap<>();
-  List<PhaseData> phaseData = new ArrayList<>();
+  List<PhaseData> phaseDataList = new ArrayList<>();
   UserBitShared.QueryProfile profile;
-  Map<String, Object> nodeMap = new HashMap<>();
 
   //constructor
   public JobProfileVisualizerUI(UserBitShared.QueryProfile profile) {
@@ -188,86 +199,118 @@ public class JobProfileVisualizerUI {
     } else {
       buildPhaseDataOnlyForGraph();
     }
-    return phaseData;
+    return phaseDataList;
   }
 
   private void buildPhaseData(UserBitShared.MajorFragmentProfile major) {
     int majorId = major.getMajorFragmentId();
     String phaseId = QueryProfileUtil.getStringIds(majorId);
-    OperatorDataList operatorDataList = new OperatorDataList();
     List<OperatorData> operatorData = new ArrayList<>();
     List<ThreadData> threadLevelMetricsList = new ArrayList<>();
+    final Map<ImmutablePair<Integer, Integer>, List<ImmutablePair<UserBitShared.OperatorProfile, Integer>>> opmap = new HashMap<>();
+    Table <Integer, Integer, String> majorMinorHostTable = HashBasedTable.create();
 
     //Below Function with build ThreadLevel Metrics of required fields
-    buildTheadLevelMetrics(major, threadLevelMetricsList);
+    QueryProfileUtil.buildTheadLevelMetrics(major, threadLevelMetricsList);
+
+    Map<Integer, Set<HostProcessingRate>> majorHostProcRateSetMap = getMajorHostProcRateSetMap(majorId, opmap, majorMinorHostTable);
+
+    Set<HostProcessingRate> unAggregatedSetForMajor = majorHostProcRateSetMap.get(major.getMajorFragmentId());
+    Set<HostProcessingRate> hostProcessingRateSet = computeRecordProcRateAtPhaseHostLevel(major.getMajorFragmentId(), unAggregatedSetForMajor);
 
     threadLevelMetricsList.stream().collect(Collectors.groupingBy(thread -> thread.getOperatorId(), Collectors.toList())).forEach(
-      (operatorId, ThreadLevelMetrics) -> {
+      (operatorId, threadLevelMetrics) -> {
+        int operatorType = threadLevelMetrics.stream().findFirst().get().getOperatorType();
         BaseMetrics baseMetrics = new BaseMetrics();
-        long processTime = ThreadLevelMetrics.stream().collect(Collectors.summarizingLong(pt -> pt.getProcessingTime())).getMax();
-        long peakMemory = ThreadLevelMetrics.stream().collect(Collectors.summarizingLong(memory -> memory.getPeakMemory())).getMax();
-        long waitTime = ThreadLevelMetrics.stream().collect(Collectors.summarizingLong(wtTime -> wtTime.getIoWaitTime())).getMax();
-        long setupTime = ThreadLevelMetrics.stream().collect(Collectors.summarizingLong(stTime -> stTime.getSetupTime())).getMax();
-        long recordsProcessed = ThreadLevelMetrics.stream().collect(Collectors.summarizingLong(row -> row.getRecordsProcessed())).getSum();
-        int operatorType = ThreadLevelMetrics.stream().findFirst().get().getOperatorType();
+       QueryProfileUtil.buildBaseMetrics(threadLevelMetrics, baseMetrics); //build BaseMetrics
 
-        baseMetrics.setNumThreads(-1L);
-        baseMetrics.setProcessingTime(processTime);
-        baseMetrics.setRecordsProcessed(recordsProcessed);
-        baseMetrics.setPeakMemory(peakMemory);
-        baseMetrics.setSetupTime(setupTime);
-        baseMetrics.setIoWaitTime(waitTime);
+        //This will build OperatorDataList for Phase.
+        buildOperatorDataList(phaseId, operatorId, operatorType, baseMetrics, operatorData, graphObjectMap);
 
-        buildOperatorDataList(phaseId, operatorId, operatorType, baseMetrics, operatorDataList, operatorData, graphObjectMap);
       }
     );
-    long processTime = threadLevelMetricsList.stream().collect(Collectors.summarizingLong(pt -> pt.getProcessingTime())).getSum();
-    long peakMemory = major.getNodePhaseProfileList().stream().collect(Collectors.summarizingLong(memory -> memory.getMaxMemoryUsed())).getSum();
-    long recordsProcessed = operatorDataList.getOperatorDataList().stream().collect(Collectors.summarizingLong(row -> row.getBaseMetrics().getRecordsProcessed())).getSum();
 
-    phaseData.add(new PhaseData(
-      phaseId, processTime, peakMemory, recordsProcessed, -1L, operatorDataList
+    long processTime = hostProcessingRateSet.stream().collect(Collectors.summarizingLong(processTiming->Long.valueOf(String.valueOf(processTiming.getProcessNanos())))).getMax();
+    long runTime = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getRunDuration()).max().getAsLong();
+    long peakMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxMemoryUsed()).max().getAsLong();
+    long totalMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxMemoryUsed()).sum();
+    long recordsProcessed = hostProcessingRateSet.stream().collect(Collectors.summarizingLong(records->Long.valueOf(String.valueOf(records.getNumRecords())))).getSum();
+
+    phaseDataList.add(new PhaseData(
+      phaseId, processTime, peakMemory, recordsProcessed, -1L, TimeUnit.MILLISECONDS.toNanos(runTime), totalMemory
     ));
+    phaseDataList.get(phaseDataList.size() -1).setOperatorDataList(operatorData);
   }
 
-  private void buildTheadLevelMetrics(UserBitShared.MajorFragmentProfile major, List<ThreadData> threadLevelMetricsList) {
-    major.getMinorFragmentProfileList().stream().forEach(
-      minor -> {
-        minor.getOperatorProfileList().stream().forEach(
-          operatorProfile -> {
-            long maxThreadLevelRecords = operatorProfile.getInputProfileList().stream().collect(Collectors.summarizingLong(row -> row.getRecords())).getMax();
-            threadLevelMetricsList.add(new ThreadData(
-              QueryProfileUtil.getStringIds(operatorProfile.getOperatorId()),
-              getOperatorName("", operatorProfile.getOperatorType()),
-              operatorProfile.getOperatorType(),
-              operatorProfile.getWaitNanos(),
-              operatorProfile.getPeakLocalMemoryAllocated(),
-              operatorProfile.getProcessNanos(),
-              operatorProfile.getSetupNanos(),
-              maxThreadLevelRecords
-            ));
-          }
-        );
+  Comparator<UserBitShared.MinorFragmentProfile> minorIdComparator = new Comparator<UserBitShared.MinorFragmentProfile>() {
+    public int compare(final UserBitShared.MinorFragmentProfile o1, final UserBitShared.MinorFragmentProfile o2) {
+      return Long.compare(o1.getMinorFragmentId(), o2.getMinorFragmentId());
+    }
+  };
+
+  Comparator<UserBitShared.OperatorProfile> operatorIdComparator = new Comparator<UserBitShared.OperatorProfile>() {
+    public int compare(final UserBitShared.OperatorProfile o1, final UserBitShared.OperatorProfile o2) {
+      return Long.compare(o1.getOperatorId(), o2.getOperatorId());
+    }
+  };
+
+  /**
+   * This Method will return executor level ProcessingTime, Records processed and ThreadCount
+   */
+  private Map<Integer, Set<HostProcessingRate>>  getMajorHostProcRateSetMap(int majorId, Map<ImmutablePair<Integer, Integer>, List<ImmutablePair<UserBitShared.OperatorProfile, Integer>>> opmap, Table<Integer, Integer, String> majorMinorHostTable) {
+    UserBitShared.MajorFragmentProfile majorFragmentProfile = profile.getFragmentProfile(majorId);
+
+    List<UserBitShared.MinorFragmentProfile> minorFragmentProfileList =  new ArrayList<>(majorFragmentProfile.getMinorFragmentProfileList());
+
+    Collections.sort(minorFragmentProfileList, minorIdComparator);
+    for(UserBitShared.MinorFragmentProfile minorProfile : majorFragmentProfile.getMinorFragmentProfileList()) {
+      majorMinorHostTable.put(majorId, minorProfile.getMinorFragmentId(), minorProfile.getEndpoint().getAddress());
+      List<UserBitShared.OperatorProfile> ops = new ArrayList<>(minorProfile.getOperatorProfileList());
+      Collections.sort(ops, operatorIdComparator);
+      for (UserBitShared.OperatorProfile operatorProfile : ops) {
+        final ImmutablePair<Integer, Integer> ip = new ImmutablePair<>(
+          majorId, operatorProfile.getOperatorId());
+        if (!opmap.containsKey(ip)) {
+          final List<ImmutablePair<UserBitShared.OperatorProfile, Integer>> l = new ArrayList<>();
+          opmap.put(ip, l);
+        }
+        opmap.get(ip).add(new ImmutablePair<>(operatorProfile, minorProfile.getMinorFragmentId()));
       }
-    );
+    }
+
+    final List<ImmutablePair<Integer, Integer>> keys = new ArrayList<>(opmap.keySet());
+    Collections.sort(keys);
+    Map<Integer, Set<HostProcessingRate>> majorHostProcRateSetMap = new HashMap<>();
+    for (final ImmutablePair<Integer, Integer> ip : keys) {
+      Set<HostProcessingRate> hostProcessingRateSet = computeRecordProcRateAtPhaseOperatorHostLevel(majorId,
+        opmap.get(ip),
+        majorMinorHostTable);
+      Set<HostProcessingRate> phaseLevelSet = new HashSet<>();
+      if (majorHostProcRateSetMap.containsKey(majorId)) {
+        phaseLevelSet = majorHostProcRateSetMap.get(majorId);
+      }
+      phaseLevelSet.addAll(hostProcessingRateSet);
+      majorHostProcRateSetMap.put(majorId, phaseLevelSet);
+    }
+    return majorHostProcRateSetMap;
   }
 
   /**
    * This Method will build the OperatorDataList
    */
-  private static void buildOperatorDataList(String phaseId, String operatorId, int operatorType, BaseMetrics baseMetrics, OperatorDataList operatorDataList, List<OperatorData> operatorData, Map<String, Object> stringObjectMap) {
+  private static void buildOperatorDataList(String phaseId, String operatorId, int operatorType, BaseMetrics baseMetrics, List<OperatorData> operatorData, Map<String, Object> stringObjectMap) {
     String mapIndex = phaseId + "_" + operatorId;
     GraphNodeDetails graphNodeDetails = (GraphNodeDetails) stringObjectMap.get(mapIndex);
 
+
     operatorData.add(new OperatorData(
-      operatorId,
+      operatorId ,
       getOperatorName("", operatorType),
       operatorType,
       baseMetrics,
       graphNodeDetails.getMergeNodeName(),
       graphNodeDetails.getSuccessorId()
     ));
-    operatorDataList.setOperatorDataList(operatorData);
   }
 
   /**
@@ -281,6 +324,7 @@ public class JobProfileVisualizerUI {
     return OperatorName;
   }
 
+
   /**
    * This Method will build PhaseData if the query was planned but not executed.
    */
@@ -289,6 +333,7 @@ public class JobProfileVisualizerUI {
     buildPhaseNodeList(phaseNodeList); // This method will build PhaseNodeList which will be used to calculate PhaseData.
     addPhaseDataForOnlyPlannedQuery(phaseNodeList);
   }
+
 
   /**
    * This Method will only use when Query was planned and not executed. (regression scenario)
@@ -311,10 +356,9 @@ public class JobProfileVisualizerUI {
    * This Method will build PhaseData to only show middle panel/GraphData for query which was planned but not executed.
    */
   private void addPhaseDataForOnlyPlannedQuery(List<PhaseNode> phaseNodeList) {
-    long default_Long = -1l;
+    long default_Long = -1L;
     phaseNodeList.stream().collect(Collectors.groupingBy(phaseId -> phaseId.getPhaseId(), Collectors.toList())).forEach(
       (phaseId, nodeDetails) -> {
-        OperatorDataList operatorData = new OperatorDataList();
         List<OperatorData> operatorDataList = new ArrayList<>();
         nodeDetails.stream().forEach(
           nodeData -> {
@@ -323,10 +367,10 @@ public class JobProfileVisualizerUI {
               nodeData.getMergeNodeName(), nodeData.getSuccessorId()));
           }
         );
-        operatorData.setOperatorDataList(operatorDataList);
-        phaseData.add(new PhaseData(
-          phaseId, default_Long, default_Long, default_Long, default_Long, operatorData
+        phaseDataList.add(new PhaseData(
+          phaseId, default_Long, default_Long, default_Long, default_Long, default_Long, default_Long
         ));
+        phaseDataList.get(phaseDataList.size() -1).setOperatorDataList(operatorDataList);
       }
     );
   }

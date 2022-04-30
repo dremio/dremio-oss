@@ -24,14 +24,14 @@ public class ITHivePartitionPruningV2 extends ITHivePartitionPruning {
   private static AutoCloseable icebergEnabled;
 
   @BeforeClass
-  public static void enableUnlimitedSplitSupport() {
+  public static void initialiseDetails() {
     queryPlanKeyword = "IcebergManifestList(table=[";
     usesV2Flow = true;
     icebergEnabled = enableUnlimitedSplitsSupportFlags();
   }
 
   @AfterClass
-  public static void disableUnlimitedSplitSupport() throws Exception {
+  public static void  resetFlags() throws Exception {
     icebergEnabled.close();
   }
 

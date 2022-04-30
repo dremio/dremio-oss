@@ -95,6 +95,11 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     }
 
     String columnInSchema = this.icebergColumnIDMap.inverse().get(id);
+
+    if (columnInParquetFile.size() == 1) {
+      return Lists.newArrayList(columnInSchema);
+    }
+
     return Lists.newArrayList(columnInSchema.split("\\."));
   }
 
@@ -152,6 +157,9 @@ public class ParquetColumnIcebergResolver implements ParquetColumnResolver {
     }
 
     String columnInParquet = this.parquetColumnIDs.inverse().get(id);
+    if (columnInBatchSchema.size() == 1) {
+      return Lists.newArrayList(columnInParquet);
+    }
     return Lists.newArrayList(columnInParquet.split("\\."));
   }
 

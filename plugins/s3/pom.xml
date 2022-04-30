@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.1.1-202204292111390812-57b1832f</version>
   </parent>
 
   <artifactId>dremio-s3-plugin</artifactId>
@@ -59,6 +59,11 @@
     <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-plugin-awsauth</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -101,19 +106,16 @@
     <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-module-junit4</artifactId>
-      <version>1.6.5</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
-      <version>1.6.5</version>
+      <artifactId>powermock-api-mockito2</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>io.findify</groupId>
       <artifactId>s3mock_2.12</artifactId>
-      <version>0.2.4</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -190,8 +192,8 @@
             </goals>
             <phase>process-resources</phase>
             <configuration>
-              <!-- avoid using system range for ephemeral ports as servers are not 
-                immediately started, and pre-allocated ports might have been reused by OS 
+              <!-- avoid using system range for ephemeral ports as servers are not
+                immediately started, and pre-allocated ports might have been reused by OS
                 Some tests also use fixed port in the 20000 range -->
               <!-- Always use non-overlapping ranges in each pom to avoid port conflict -->
               <minPortNumber>10000</minPortNumber>

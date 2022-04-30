@@ -160,7 +160,11 @@ public final class FormatPluginOptionExtractor {
     return createConfigForTable(new TableInstance(tableSignature, params));
   }
 
-  public List<Function> getFunctions(final List<String> tableSchemaPath, final FileSystemPlugin plugin, final SchemaConfig schemaConfig) {
+  public List<Function> getFunctions(
+    final List<String> tableSchemaPath,
+    final FileSystemPlugin<?> plugin,
+    final SchemaConfig schemaConfig
+  ) {
     List<TableSignature> sigs = getTableSignatures(tableSchemaPath.get(tableSchemaPath.size() - 1));
     return FluentIterable.from(sigs).transform(new com.google.common.base.Function<TableSignature, Function>() {
       @Override

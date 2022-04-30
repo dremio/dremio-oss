@@ -1476,7 +1476,8 @@ public class StringFunctions{
       out.start = out.end = 0;
       out.end = com.dremio.common.util.DremioStringUtils.parseBinaryString(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start,
         in.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(out.buffer));
-      out.buffer.setIndex(out.start, out.end);
+      out.buffer.readerIndex(out.start);
+      out.buffer.writerIndex(out.end);
     }
   }
 
@@ -1496,7 +1497,8 @@ public class StringFunctions{
       out.start = out.end = 0;
       out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.parseBinaryStringNoFormat(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer),
         in.start, in.end, io.netty.buffer.NettyArrowBuf.unwrapBuffer(out.buffer), errCtx);
-      out.buffer.setIndex(out.start, out.end);
+      out.buffer.readerIndex(out.start);
+      out.buffer.writerIndex(out.end);
     }
   }
 
@@ -1518,7 +1520,8 @@ public class StringFunctions{
         .start, in.end).getBytes(charset);
       out.buffer = buffer = buffer.reallocIfNeeded(buf.length);
       buffer.setBytes(0, buf);
-      buffer.setIndex(0, buf.length);
+      buffer.readerIndex(0);
+      buffer.writerIndex(buf.length);
 
       out.start = 0;
       out.end = buf.length;
@@ -1545,7 +1548,8 @@ public class StringFunctions{
       byte[] buf = com.dremio.common.util.DremioStringUtils.toBinaryString(io.netty.buffer.NettyArrowBuf.unwrapBuffer(in.buffer), in.start,
         in.end).getBytes(charset);
       buffer.setBytes(0, buf);
-      buffer.setIndex(0, buf.length);
+      buffer.readerIndex(0);
+      buffer.writerIndex(buf.length);
 
       out.start = 0;
       out.end = buf.length;

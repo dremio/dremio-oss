@@ -23,11 +23,13 @@ import java.util.stream.Collectors;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.maestro.MaestroObserver;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.Root;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.fragment.AssignFragmentPriorityVisitor;
 import com.dremio.exec.planner.fragment.ExecutionPlanningResources;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.MakeFragmentsVisitor;
@@ -67,12 +69,19 @@ public class ExecutionPlanCreator {
     ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) throws ExecutionSetupException {
 
     final Root rootOperator = plan.getRoot();
-    final Fragment rootFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
+    final Fragment rootFragment = MakeFragmentsVisitor.makeFragments(rootOperator);
+    final boolean assignPriority = queryContext.getOptions().getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
+    AssignFragmentPriorityVisitor priorityVisitor = null;
+    if (assignPriority) {
+      priorityVisitor = new AssignFragmentPriorityVisitor();
+      rootOperator.accept(priorityVisitor, null);
+    }
 
     observer.planParallelStart();
     final Stopwatch stopwatch = Stopwatch.createStarted();
-    final ExecutionPlanningResources executionPlanningResources = SimpleParallelizer.getExecutionPlanningResources(queryContext, observer, executorSelectionService,
-      resourceSchedulingDecisionInfo, rootFragment);
+    final ExecutionPlanningResources executionPlanningResources =
+      SimpleParallelizer.getExecutionPlanningResources(queryContext, observer, executorSelectionService,
+      resourceSchedulingDecisionInfo, rootFragment, priorityVisitor);
     observer.planParallelized(executionPlanningResources.getPlanningSet());
     stopwatch.stop();
     observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -92,7 +101,7 @@ public class ExecutionPlanCreator {
   ) throws ExecutionSetupException {
 
     final Root rootOperator = plan.getRoot();
-    final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
+    final Fragment rootOperatorFragment = MakeFragmentsVisitor.makeFragments(rootOperator);
 
     final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext,
       observer, executorSelectionService, resourceSchedulingDecisionInfo, groupResourceInformation);
@@ -150,7 +159,7 @@ public class ExecutionPlanCreator {
     }
 
     final Root rootOperator = plan.getRoot();
-    final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
+    final Fragment rootOperatorFragment = MakeFragmentsVisitor.makeFragments(rootOperator);
     // Executor selection service whose only purpose is to return 'endpoints'
     ExecutorSelectionService executorSelectionService = new ExecutorSelectionService() {
       @Override

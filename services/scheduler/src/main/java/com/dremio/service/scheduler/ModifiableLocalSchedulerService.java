@@ -15,8 +15,13 @@
  */
 package com.dremio.service.scheduler;
 
+import javax.inject.Provider;
+
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.options.OptionManager;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.service.coordinator.ClusterElectionManager;
+import com.dremio.service.coordinator.ClusterServiceSetManager;
 
 /**
  * A LocalScheduleService in which the corePoolSize and maxPoolSize of the underlying
@@ -25,10 +30,41 @@ import com.dremio.options.TypeValidators.PositiveLongValidator;
  * CorePoolSize and MaxPoolSize are always kept equal.
  */
 public class ModifiableLocalSchedulerService extends LocalSchedulerService implements ModifiableSchedulerService {
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ModifiableLocalSchedulerService.class);
+
+  private final ModifiableThreadPoolExecutor threadPoolModifier;
+  private final Provider<OptionManager> optionManagerProvider;
+  private final PositiveLongValidator option;
+
   public ModifiableLocalSchedulerService(int corePoolSize, String threadNamePrefix,
-                                         PositiveLongValidator option, OptionManager optionManager) {
+                                         PositiveLongValidator option, Provider<OptionManager> optionManagerProvider) {
     super(corePoolSize, threadNamePrefix);
-    new ModifiableThreadPoolExecutor(getExecutorService(), option, optionManager);
+    this.optionManagerProvider = optionManagerProvider;
+    this.option = option;
+    this.threadPoolModifier = new ModifiableThreadPoolExecutor(getExecutorService(), option, optionManagerProvider);
+  }
+
+  public ModifiableLocalSchedulerService(int corePoolSize,
+                                         String threadNamePrefix,
+                                         Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+                                         Provider<ClusterElectionManager> clusterElectionManagerProvider,
+                                         Provider<CoordinationProtos.NodeEndpoint> currentNode,
+                                         boolean assumeTaskLeadership,
+                                         PositiveLongValidator option,
+                                         Provider<OptionManager> optionManagerProvider) {
+    super(corePoolSize, threadNamePrefix, clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentNode, assumeTaskLeadership);
+    this.optionManagerProvider = optionManagerProvider;
+    this.option = option;
+    this.threadPoolModifier = new ModifiableThreadPoolExecutor(getExecutorService(), option, optionManagerProvider);
+  }
+
+  @Override
+  public void start() throws Exception {
+    LOGGER.info("ModifiableLocalSchedulerService is starting");
+    super.start();
+    threadPoolModifier.setInitialPoolSize((int) optionManagerProvider.get().getOption(option));
+    optionManagerProvider.get().addOptionChangeListener(threadPoolModifier);
+    LOGGER.info("ModifiableLocalSchedulerService is up");
   }
 }
 

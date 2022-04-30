@@ -76,6 +76,11 @@ public class MaestroObserverWrapper implements MaestroObserver {
   }
 
   @Override
+  public void recordsOutput(long recordCount) {
+    observer.recordsOutput(recordCount);
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
       observer.planGenerationTime(millisTaken);
   }

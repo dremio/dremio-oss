@@ -113,8 +113,9 @@ public class BoostBufferManager {
     final String qid = QueryIdHelper.getQueryId(context.getFragmentHandle().getQueryId());
     final int majorFragmentId = context.getFragmentHandle().getMajorFragmentId();
     final int minorFragmentId = context.getFragmentHandle().getMinorFragmentId();
-    id = String.format("boostSplits-%s.%s.%s",
-      qid, majorFragmentId, minorFragmentId);
+    final int operatorId = props.getLocalOperatorId();
+    id = String.format("boostSplits-%s.%s.%s.%s",
+      qid, majorFragmentId, minorFragmentId, operatorId);
 
     this.diskManager = context.getSpillService();
     setupSplitsVectorContainer();

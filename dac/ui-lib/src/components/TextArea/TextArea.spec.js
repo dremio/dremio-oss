@@ -16,12 +16,10 @@
 import React from 'react';
 import { shallow } from 'enzyme';
 
-import { CopyToClipboard } from 'react-copy-to-clipboard';
-import SvgIcon from '@material-ui/core/SvgIcon';
 import TextareaAutosize from '@material-ui/core/TextareaAutosize';
-import Tooltip from '@material-ui/core/Tooltip';
 
 import Label from '../Label';
+import CopyToClipboard from '../CopyToClipboard';
 
 import TextArea from './TextArea';
 
@@ -59,8 +57,7 @@ describe('TextArea', () => {
       disabled: false, //Default
       className: '' // no-resize is false by default
     }));
-    expect(wrapper.find(Tooltip).exists()).toBe(false);
-    expect(wrapper.find(SvgIcon).exists()).toBe(false);
+    expect(wrapper.find(CopyToClipboard).exists()).toBe(false);
   });
 
   it('renders required components when all props are provided', () => {
@@ -75,7 +72,6 @@ describe('TextArea', () => {
       className: '--noResize',
       rowsMax: 4
     }));
-    expect(wrapper.find(SvgIcon).exists()).toBe(true);
     expect(wrapper.find(CopyToClipboard).exists()).toBe(true);
   });
 

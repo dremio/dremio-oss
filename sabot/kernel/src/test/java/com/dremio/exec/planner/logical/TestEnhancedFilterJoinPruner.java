@@ -251,7 +251,7 @@ public class TestEnhancedFilterJoinPruner {
   }
 
   private void testPruneSuperset(RexNode rexNode, boolean toLeaf, String expectedNodeString) {
-    RexNode nodePruned = EnhancedFilterJoinPruner.pruneSuperset(rexNode, toLeaf, rexBuilder);
+    RexNode nodePruned = EnhancedFilterJoinPruner.pruneSuperset(rexBuilder, rexNode, toLeaf);
     Assert.assertEquals(expectedNodeString, nodePruned.toString());
   }
 

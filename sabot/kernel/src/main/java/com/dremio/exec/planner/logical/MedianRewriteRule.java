@@ -95,7 +95,7 @@ public class MedianRewriteRule extends RelOptRule {
 
     // Constructing the "0.5" needed for "PERCENTILE_CONT(0.5)"
     final RexLiteral fiftyRexLiteral = rexBuilder.makeExactLiteral(new BigDecimal(.5));
-    final List<RexNode> projNodes = MoreRelOptUtil.identityProjects(originalInput.getRowType(), null);
+    final List<RexNode> projNodes = MoreRelOptUtil.identityProjects(originalInput.getRowType());
     projNodes.add(fiftyRexLiteral);
 
     // Rewriting the aggregates

@@ -128,6 +128,7 @@ public class TestWebSocket extends BaseTestServer {
     }
     JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(payloads.size() - 1);
     assertTrue(progressUpdate.getUpdate().isComplete());
+    assertEquals(0L, (long) progressUpdate.getUpdate().getOutputRecords());
   }
 
   @Test
@@ -146,6 +147,7 @@ public class TestWebSocket extends BaseTestServer {
     }
     JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(payloads.size() - 1);
     assertTrue(progressUpdate.getUpdate().isComplete());
+    assertEquals(1L, (long) progressUpdate.getUpdate().getOutputRecords());
   }
 
   @Test

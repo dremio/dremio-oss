@@ -39,11 +39,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -83,6 +80,7 @@ import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.base.Charsets;
 
 import ch.qos.logback.classic.Level;
@@ -95,8 +93,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestPhysicalDatasets.class);
   private static Level originalLogLevel;
   private BufferAllocator allocator;
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void initLogLevel() {
@@ -330,21 +326,13 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   @Test
-  public void testLargeJsonFile() throws Exception {
-    thrown.expect(UserException.class);
-    try (final JobDataFragment data = submitJobAndGetData(l(JobsService.class),
-      sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator)) {
-      noop();
-    }
+  public void testLargeJsonFile() {
+    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_table.json"), 0, 500, allocator));
   }
 
   @Test
-  public void testLargeNestedJsonFile() throws Exception {
-    thrown.expect(UserException.class);
-    try (final JobDataFragment data = submitJobAndGetData(l(JobsService.class),
-      sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator)) {
-      noop();
-    }
+  public void testLargeNestedJsonFile() {
+    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndGetData(l(JobsService.class), sqlQueryRequestFromFile("/datasets/wide_nested_table.json"), 0, 500, allocator));
   }
 
   @Test
@@ -966,8 +954,8 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
 
-    int expectedNumOfPartitionChunks = 2;
-    int expectedNumOfSplitsPerPartition = 2;
+    int expectedNumOfPartitionChunks = 1;
+    int expectedNumOfSplitsPerPartition = 1;
     DatasetConfig datasetConfig = l(NamespaceService.class).getDataset(new DatasetPath(getSchemaPath("/datasets/parquet_2p_4s")).toNamespaceKey());
     Iterator<PartitionChunkMetadata> iter = l(NamespaceService.class)
       .findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))).iterator();

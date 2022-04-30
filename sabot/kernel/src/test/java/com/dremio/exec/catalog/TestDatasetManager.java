@@ -17,11 +17,12 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT;
 import static com.dremio.exec.store.Views.isComplexType;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,9 +38,16 @@ import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
+import com.dremio.exec.catalog.CatalogImpl.IdentityResolver;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.ops.ViewExpansionContext;
@@ -47,11 +55,14 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.AuthorizationContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.ImpersonationConf;
 import com.dremio.options.OptionManager;
+import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceIdentity;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -68,12 +79,27 @@ import com.google.common.collect.ImmutableList;
 public class TestDatasetManager {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestDatasetManager.class);
 
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
+  private class CatalogIdentityResolver implements IdentityResolver {
+    @Override
+    public CatalogIdentity getOwner(List<String> path) throws NamespaceException {
+      return null;
+    }
+
+    @Override
+    public NamespaceIdentity toNamespaceIdentity(CatalogIdentity identity) {
+      return null;
+    }
+  }
+
   @Test
   public void testAccessUsernameOverride() throws Exception {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
     final ViewExpansionContext viewExpansionContext = mock(ViewExpansionContext.class);
-    when(viewExpansionContext.getQueryUser()).thenReturn("newaccessuser");
+    when(viewExpansionContext.getQueryUser()).thenReturn(CatalogUser.from("newaccessuser"));
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
     when(schemaConfig.getUserName()).thenReturn("username");
@@ -125,7 +151,8 @@ public class TestDatasetManager {
 
     final OptionManager optionManager = mock(OptionManager.class);
 
-    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username");
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
+      new CatalogIdentityResolver());
     datasetManager.getTable(namespaceKey, metadataRequestOptions, false);
   }
 
@@ -137,7 +164,7 @@ public class TestDatasetManager {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
     final ViewExpansionContext viewExpansionContext = mock(ViewExpansionContext.class);
-    when(viewExpansionContext.getQueryUser()).thenReturn("newaccessuser");
+    when(viewExpansionContext.getQueryUser()).thenReturn(CatalogUser.from("newaccessuser"));
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
     when(schemaConfig.getUserName()).thenReturn("username");
@@ -164,7 +191,7 @@ public class TestDatasetManager {
     when(managedStoragePlugin.isCompleteAndValid(any(), any(), any())).thenReturn(false);
     when(managedStoragePlugin.getDefaultRetrievalOptions()).thenReturn(DatasetRetrievalOptions.DEFAULT);
     when(managedStoragePlugin.getDatasetHandle(any(), any(), any())).thenAnswer(invocation -> {
-      Assert.assertEquals(invocation.getArgumentAt(2, DatasetRetrievalOptions.class).maxMetadataLeafColumns(), Integer.MAX_VALUE);
+      Assert.assertEquals(invocation.getArgument(2, DatasetRetrievalOptions.class).maxMetadataLeafColumns(), Integer.MAX_VALUE);
       return Optional.empty();
     });
 
@@ -176,7 +203,8 @@ public class TestDatasetManager {
 
     final OptionManager optionManager = mock(OptionManager.class);
 
-    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username");
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
+      new CatalogIdentityResolver());
     datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
   }
 
@@ -188,7 +216,7 @@ public class TestDatasetManager {
     final NamespaceKey namespaceKey = new NamespaceKey("test");
 
     final ViewExpansionContext viewExpansionContext = mock(ViewExpansionContext.class);
-    when(viewExpansionContext.getQueryUser()).thenReturn("newaccessuser");
+    when(viewExpansionContext.getQueryUser()).thenReturn(CatalogUser.from("newaccessuser"));
 
     final OptionManager optionManager = mock(OptionManager.class);
     when(optionManager.getOption(FULL_NESTED_SCHEMA_SUPPORT)).thenReturn(true);
@@ -240,7 +268,7 @@ public class TestDatasetManager {
     when(managedStoragePlugin.isCompleteAndValid(any(), any(), any())).thenReturn(false);
     when(managedStoragePlugin.getDefaultRetrievalOptions()).thenReturn(DatasetRetrievalOptions.DEFAULT);
     when(managedStoragePlugin.getDatasetHandle(any(), any(), any())).thenAnswer(invocation -> {
-      Assert.assertEquals(invocation.getArgumentAt(2, DatasetRetrievalOptions.class).maxMetadataLeafColumns(), Integer.MAX_VALUE);
+      Assert.assertEquals(invocation.getArgument(2, DatasetRetrievalOptions.class).maxMetadataLeafColumns(), Integer.MAX_VALUE);
       return Optional.empty();
     });
 
@@ -251,10 +279,105 @@ public class TestDatasetManager {
     when(namespaceService.getDataset(namespaceKey)).thenReturn(datasetConfig);
 
     // get table and verify type and field information is properly updated from record schema
-    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username");
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
+      new CatalogIdentityResolver());
     DremioTable table = datasetManager.getTable(namespaceKey, metadataRequestOptions, true);
     View.FieldType updatedField = ((ViewTable) table).getView().getFields().get(0);
     Assert.assertTrue(isComplexType(updatedField.getType()));
     Assert.assertEquals(updatedField.getField().toString(), "struct_col: Struct<col1: Int(32, true), col2: Utf8>");
+  }
+
+  @Test
+  public void testImpersonationRequiresUser() throws Exception {
+    final NamespaceKey namespaceKey = new NamespaceKey("test");
+
+    final ViewExpansionContext viewExpansionContext = mock(ViewExpansionContext.class);
+    when(viewExpansionContext.getQueryUser()).thenReturn(CatalogUser.from("newaccessuser"));
+
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("username");
+    when(schemaConfig.getViewExpansionContext()).thenReturn(viewExpansionContext);
+
+    class NonUserIdentity implements CatalogIdentity {
+      @Override
+      public String getName() {
+        return "notauser";
+      }
+    }
+    AuthorizationContext authContext = mock(AuthorizationContext.class);
+    when(authContext.getSubject()).thenReturn(new NonUserIdentity());
+    when(schemaConfig.getAuthContext()).thenReturn(authContext);
+
+    final MetadataStatsCollector statsCollector = mock(MetadataStatsCollector.class);
+
+    final MetadataRequestOptions metadataRequestOptions = mock(MetadataRequestOptions.class);
+    when(metadataRequestOptions.getSchemaConfig()).thenReturn(schemaConfig);
+    when(metadataRequestOptions.getStatsCollector()).thenReturn(statsCollector);
+
+    final ReadDefinition readDefinition = new ReadDefinition();
+    readDefinition.setSplitVersion(0L);
+
+    final DatasetConfig datasetConfig = new DatasetConfig();
+    datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    datasetConfig.setId(new EntityId("test"));
+    datasetConfig.setFullPathList(Collections.singletonList("test"));
+    datasetConfig.setReadDefinition(readDefinition);
+    datasetConfig.setTotalNumSplits(0);
+
+    StoragePlugin plugin = mock(StoragePlugin.class, withSettings().extraInterfaces(SupportsImpersonation.class));
+    SupportsImpersonation supportsImpersonation = (SupportsImpersonation) plugin;
+    when(supportsImpersonation.isImpersonationEnabled()).thenReturn(true);
+
+    class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> implements ImpersonationConf {
+      @Override
+      public StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+        return plugin;
+      }
+
+      @Override
+      public String getAccessUserName(String delegatedUser, String queryUserName) {
+        return queryUserName;
+      }
+    }
+
+    final FakeSource fakeSource = new FakeSource();
+
+    final ManagedStoragePlugin managedStoragePlugin = mock(ManagedStoragePlugin.class);
+    when(managedStoragePlugin.getId()).thenReturn(mock(StoragePluginId.class));
+    when(managedStoragePlugin.getPlugin()).thenReturn(plugin);
+    doReturn(fakeSource).when(managedStoragePlugin).getConnectionConf();
+    when(managedStoragePlugin.isCompleteAndValid(any(), any(), any())).thenReturn(true);
+
+    final PluginRetriever pluginRetriever = mock(PluginRetriever.class);
+    when(pluginRetriever.getPlugin(namespaceKey.getRoot(), false)).thenReturn(managedStoragePlugin);
+
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    when(namespaceService.getDataset(namespaceKey)).thenReturn(datasetConfig);
+
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    final DatasetManager datasetManager = new DatasetManager(pluginRetriever, namespaceService, optionManager, "username",
+      new CatalogIdentityResolver());
+
+    thrown.expect(UserException.class);
+    thrown.expectCause(new Matcher<InvalidImpersonationTargetException>() {
+      @Override
+      public void describeTo(Description description) {
+      }
+
+      @Override
+      public boolean matches(Object item) {
+        return item instanceof InvalidImpersonationTargetException;
+      }
+
+      @Override
+      public void describeMismatch(Object item, Description mismatchDescription) {
+      }
+
+      @Override
+      public void _dont_implement_Matcher___instead_extend_BaseMatcher_() {
+      }
+    });
+    datasetManager.getTable(namespaceKey, metadataRequestOptions, false);
   }
 }

@@ -15,9 +15,8 @@
  */
 package com.dremio.common.io;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -43,7 +42,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -240,19 +238,15 @@ public class TestTemporaryFolderManager {
     final TemporaryFolderManager folderManagerUnderTest = createManager(thisExecutor, 5, 1, 1, 1);
     folderManagerUnderTest.close();
     final Path testPath = new Path(testRootDir.newFolder().getPath());
-    try {
-      folderManagerUnderTest.createTmpDirectory(testPath);
-      fail();
-    } catch (Exception e) {
-      assertThat(e.getMessage(), containsString("closed"));
-    }
+    assertThatThrownBy(() -> folderManagerUnderTest.createTmpDirectory(testPath))
+      .hasMessageContaining("closed");
   }
 
   @Test
   public void testOldFunctionalityRetained() throws Exception {
     try (final TemporaryFolderManager mgr = createNullManager()) {
       final Path testPath = new Path(testRootDir.newFolder().getPath());
-      assertThat(mgr.createTmpDirectory(testPath).toString(), is(testPath.toString()));
+      assertThat(mgr.createTmpDirectory(testPath).toString()).isEqualTo(testPath.toString());
     }
   }
 
@@ -287,15 +281,15 @@ public class TestTemporaryFolderManager {
   private void assertIndividualPath(Path rootPath, int expectedExecutors, int expectedIncarnations) throws IOException {
     final FileSystem fs = rootPath.getFileSystem(TEST_CONFIG);
     final FileStatus[] statuses = fs.listStatus(rootPath);
-    assertThat(statuses.length, is(expectedExecutors));
+    assertThat(statuses).hasSize(expectedExecutors);
     for (final FileStatus status : statuses) {
       assertTrue(status.isDirectory());
       final FileStatus[] l2Statuses = fs.listStatus(status.getPath());
-      assertThat(l2Statuses.length, is(expectedIncarnations));
+      assertThat(l2Statuses).hasSize(expectedIncarnations);
       for (final  FileStatus l2Status : l2Statuses) {
         assertTrue(l2Status.isDirectory());
         long incarnation = Long.parseLong(l2Status.getPath().getName());
-        assertThat(incarnation, Matchers.greaterThan(Instant.now().toEpochMilli() - 60000));
+        assertThat(incarnation).isGreaterThan(Instant.now().toEpochMilli() - 60000);
       }
     }
   }
@@ -311,7 +305,7 @@ public class TestTemporaryFolderManager {
                                             int[] expectedIncarnations) throws IOException {
     final FileSystem fs = rootPath.getFileSystem(TEST_CONFIG);
     final FileStatus[] statuses = fs.listStatus(rootPath);
-    assertThat(statuses.length, is(expectedExecutors));
+    assertThat(statuses).hasSize(expectedExecutors);
     for (final FileStatus status : statuses) {
       assertTrue(status.isDirectory());
       String executor = status.getPath().getName();
@@ -324,11 +318,11 @@ public class TestTemporaryFolderManager {
         }
       });
       final FileStatus[] l2Statuses = fs.listStatus(status.getPath());
-      assertThat(l2Statuses.length, is(expectedIncarnations[idx]));
+      assertThat(l2Statuses).hasSize(expectedIncarnations[idx]);
       for (final  FileStatus l2Status : l2Statuses) {
         assertTrue(l2Status.isDirectory());
         long incarnation = Long.parseLong(l2Status.getPath().getName());
-        assertThat(incarnation, Matchers.greaterThan(Instant.now().toEpochMilli() - 60000));
+        assertThat(incarnation).isGreaterThan(Instant.now().toEpochMilli() - 60000);
       }
     }
   }

@@ -86,7 +86,7 @@ export default function table(state, action) {
       datasetVersion: jobUpdate.datasetVersion
     }) : state;
     // set outputRecords in state.tableData[version]
-    if (jobUpdate.outputRecords && jobUpdate.datasetVersion) {
+    if (jobUpdate.outputRecords != null && jobUpdate.datasetVersion) {
       return newState.setIn(['tableData', jobUpdate.datasetVersion, 'outputRecords'], jobUpdate.outputRecords);
     }
     return newState;

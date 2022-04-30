@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.cache;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -28,9 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -45,9 +44,6 @@ public class RocksDbBrokerTest {
   private static final byte[] KEY = "hello".getBytes();
   private static final byte[] VALUE = "world".getBytes();
 
-  @Rule
-  public final ExpectedException expectedException = ExpectedException.none();
-
   @Test
   public void testSingleInstance() throws Exception {
     String dbPath = tempDir.newFolder().getPath();
@@ -55,9 +51,9 @@ public class RocksDbBrokerTest {
     RocksDB db = broker.getDb();
     assertNotNull(db);
 
-    expectedException.expect(RocksDBException.class);
-    expectedException.expectMessage("No locks available");
-    new RocksDbBroker(dbPath);
+    assertThatThrownBy(() -> new RocksDbBroker(dbPath))
+      .isInstanceOf(RocksDBException.class)
+      .hasMessageContaining("No locks available");
   }
 
   @Test
@@ -73,18 +69,18 @@ public class RocksDbBrokerTest {
   }
 
   @Test
-  public void testColumnFamilyValidation_missingExpectedColumnFamilies() throws Exception {
-    expectedException.expect(RocksDBException.class);
-    expectedException.expectMessage("Did not load the expected number of column families");
-    RocksDbBroker.validateColumnFamilies(Collections.emptyList());
+  public void testColumnFamilyValidation_missingExpectedColumnFamilies() {
+    assertThatThrownBy(() -> RocksDbBroker.validateColumnFamilies(Collections.emptyList()))
+      .isInstanceOf(RocksDBException.class)
+      .hasMessageContaining("Did not load the expected number of column families");
   }
 
   @Test
-  public void testColumnFamilyValidation_wrongColumnFamily() throws Exception {
-    expectedException.expect(RocksDBException.class);
-    expectedException.expectMessage("Unexpected column family");
+  public void testColumnFamilyValidation_wrongColumnFamily() {
     List<byte[]> columnFamilyHandles = Arrays.asList(RocksDB.DEFAULT_COLUMN_FAMILY, "blah-cf".getBytes());
-    RocksDbBroker.validateColumnFamilies(columnFamilyHandles);
+    assertThatThrownBy(() -> RocksDbBroker.validateColumnFamilies(columnFamilyHandles))
+      .isInstanceOf(RocksDBException.class)
+      .hasMessageContaining("Unexpected column family");
   }
 
   @Test

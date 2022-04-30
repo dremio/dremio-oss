@@ -240,7 +240,8 @@ public class ExpressionSplitter implements AutoCloseable {
     CaseFunctions.loadInstance(context);
     SupportedEngines executionEngine = new SupportedEngines();
     CodeGenContext expr = (CodeGenContext) namedExpression.getExpr();
-    SplitDependencyTracker myTracker = new SplitDependencyTracker(expr.getExecutionEngineForExpression(), IfExprBranch.EMPTY_LIST);
+    SplitDependencyTracker myTracker = new SplitDependencyTracker(expr.getExecutionEngineForExpression(),
+      Collections.emptyList(), Collections.emptyList());
     NamedExpression newExpr = namedExpression;
 
     boolean shouldSplit = isSplitEnabled;

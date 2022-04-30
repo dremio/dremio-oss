@@ -15,9 +15,9 @@
  */
 package com.dremio.dac.server;
 
-import org.junit.Rule;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.Space;
@@ -28,9 +28,6 @@ import com.dremio.file.FileName;
  * Test input validation
  */
 public class TestInputValidation {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSpaceValidation() {
@@ -62,18 +59,20 @@ public class TestInputValidation {
     checkError(new FileName("adad{adad"));
     checkError(new FileName("."));
     checkError(new FileName(".adadd"));
-    checkError(new FileName("ad.add"));
+    checkError(new FileName("ad.add"), false);
   }
 
   private void checkError(Object o) {
-    checkError(o, null);
+    assertThatThrownBy(() -> new InputValidation().validate(o))
+      .isInstanceOf(ClientErrorException.class);
   }
-  private void checkError(Object o, String expectedMessage) {
-    thrown.expect(ClientErrorException.class);
-    if(expectedMessage != null) {
-      thrown.expectMessage(expectedMessage);
+
+  private void checkError(Object o, boolean shouldFail) {
+    if (shouldFail) {
+      checkError(o);
+    } else {
+      new InputValidation().validate(o);
     }
-    new InputValidation().validate(o);
   }
 }
 

@@ -87,7 +87,7 @@ public final class AggregateFilterToCaseRule extends RelOptRule {
     final RelBuilder relBuilder = (RelBuilder) call.builder();
 
     // Rewrite the aggregates and form the case statements
-    final List<RexNode> projectNodes = MoreRelOptUtil.identityProjects(originalInput.getRowType(), null);
+    final List<RexNode> projectNodes = MoreRelOptUtil.identityProjects(originalInput.getRowType());
     final Pair<List<AggregateCall>, List<RexCall>> rewrittenAggregatesAndCaseList = rewriteAggregateCalls(
       projectNodes.size(),
       aggregate,

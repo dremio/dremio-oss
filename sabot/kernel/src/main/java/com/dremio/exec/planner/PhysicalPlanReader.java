@@ -36,6 +36,7 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.serde.ProtobufByteStringSerDe;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.FragmentRoot;
@@ -46,6 +47,8 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.MajorTypeSerDe;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.options.OptionList;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -109,9 +112,16 @@ public class PhysicalPlanReader {
       lpMapper.registerSubtypes(subType);
     }
 
+    final StoragePluginResolver storagePluginResolver = new StoragePluginResolver() {
+      @Override
+      public <T extends StoragePlugin> T getSource(StoragePluginId pluginId) {
+        return catalogService.get().getSource(pluginId);
+      }
+    };
+
     // store this map so that we can use later for fragment plan reader
     this.injectables = new HashMap<>();
-    this.injectables.put(CatalogService.class.getName(), catalogService.get());
+    this.injectables.put(StoragePluginResolver.class.getName(), storagePluginResolver);
     this.injectables.put(ConnectionReader.class.getName(), context.getConnectionReaderProvider().get());
     this.injectables.put(SabotContext.class.getName(), context);
     this.injectables.put(NodeEndpoint.class.getName(), endpoint);

@@ -20,28 +20,53 @@ import java.util.concurrent.locks.StampedLock;
 
 import javax.inject.Provider;
 
+import org.projectnessie.versioned.persist.adapter.DatabaseConnectionProvider;
+
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 
 /**
  * Creates KV stores for Nessie
  */
-public class NessieDatastoreInstance {
+public class NessieDatastoreInstance implements DatabaseConnectionProvider<DatastoreDbConfig> {
 
-  private final KVStore<String, byte[]> globalPointer;
-  private final KVStore<String, byte[]> globalLog;
-  private final KVStore<String, byte[]> commitLog;
-  private final KVStore<String, byte[]> keyList;
+  private KVStore<String, byte[]> repoDescription;
+  private KVStore<String, byte[]> globalPointer;
+  private KVStore<String, byte[]> globalLog;
+  private KVStore<String, byte[]> commitLog;
+  private KVStore<String, byte[]> keyList;
+  private KVStore<String, byte[]> refLog;
+
+  private DatastoreDbConfig config;
 
   private final ReadWriteLock lock = new StampedLock().asReadWriteLock();
 
-  public NessieDatastoreInstance(Provider<KVStoreProvider> kvStoreProvider) {
+  public NessieDatastoreInstance() {
+  }
+
+  @Override
+  public void configure(DatastoreDbConfig config) {
+    this.config = config;
+  }
+
+  @Override
+  public void initialize() {
+    Provider<KVStoreProvider> kvStoreProvider = config.getStoreProvider();
+    repoDescription = kvStoreProvider.get().getStore(NessieRepoDescriptionStoreBuilder.class);
     globalPointer = kvStoreProvider.get().getStore(NessieGlobalPointerStoreBuilder.class);
     globalLog = kvStoreProvider.get().getStore(NessieGlobalLogStoreBuilder.class);
     commitLog = kvStoreProvider.get().getStore(NessieCommitLogStoreBuilder.class);
     keyList = kvStoreProvider.get().getStore(NessieKeyListStoreBuilder.class);
+    refLog = kvStoreProvider.get().getStore(NessieRefLogStoreBuilder.class);
   }
 
+  @Override
+  public void close() throws Exception {
+  }
+
+  public KVStore<String, byte[]> getRepoDescription() {
+    return repoDescription;
+  }
 
   public KVStore<String, byte[]> getCommitLog() {
     return commitLog;
@@ -57,6 +82,10 @@ public class NessieDatastoreInstance {
 
   public KVStore<String, byte[]> getKeyList() {
     return keyList;
+  }
+
+  public KVStore<String, byte[]> getRefLog() {
+    return refLog;
   }
 
   public ReadWriteLock getLock() {

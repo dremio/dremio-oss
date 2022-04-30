@@ -1,12 +1,7 @@
 {
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended"
-  ],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   "parser": "@typescript-eslint/parser",
-  "plugins": [
-    "react", "import"
-  ],
+  "plugins": ["react", "react-hooks", "import"],
 
   "env": {
     "browser": true,
@@ -23,41 +18,45 @@
     }
   },
 
-  "rules":{
+  "rules": {
     "no-prototype-builtins": "off",
     "no-debugger": "warn",
     "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
     "react/prop-types": ["error", { "ignore": [], "customValidators": [] }],
-    "react/sort-comp": ["off", { // disabled because it's not ready for class properties. also, chris finds it generally annoying ;)
-      "order": [
-        "static-methods",
-        "displayName",
-        "propTypes",
-        "contextTypes",
-        "childContextTypes",
-        "mixins",
-        "statics",
-        "defaultProps",
-        "constructor",
-        "getDefaultProps",
-        "state",
-        "getInitialState",
-        "getChildContext",
-        "componentWillMount",
-        "componentDidMount",
-        "componentWillReceiveProps",
-        "shouldComponentUpdate",
-        "componentWillUpdate",
-        "componentDidUpdate",
-        "componentWillUnmount",
-        "/^load.+$/",
-        "/^on.+$/",
-        "/^(get|set)(?!(InitialState$|DefaultProps$|ChildContext$)).+$/",
-        "everything-else",
-        "/^render.+$/",
-        "render"
-      ]
-    }],
+    "react/sort-comp": [
+      "off",
+      {
+        // disabled because it's not ready for class properties. also, chris finds it generally annoying ;)
+        "order": [
+          "static-methods",
+          "displayName",
+          "propTypes",
+          "contextTypes",
+          "childContextTypes",
+          "mixins",
+          "statics",
+          "defaultProps",
+          "constructor",
+          "getDefaultProps",
+          "state",
+          "getInitialState",
+          "getChildContext",
+          "componentWillMount",
+          "componentDidMount",
+          "componentWillReceiveProps",
+          "shouldComponentUpdate",
+          "componentWillUpdate",
+          "componentDidUpdate",
+          "componentWillUnmount",
+          "/^load.+$/",
+          "/^on.+$/",
+          "/^(get|set)(?!(InitialState$|DefaultProps$|ChildContext$)).+$/",
+          "everything-else",
+          "/^render.+$/",
+          "render"
+        ]
+      }
+    ],
     "react/jsx-uses-vars": "error",
     "react/no-is-mounted": "error",
     "react/no-direct-mutation-state": "error",
@@ -76,11 +75,11 @@
     "complexity": ["error", 40],
     "default-case": "error",
     "dot-notation": "error",
-    "eqeqeq": "error",
+    "eqeqeq": "off",
     "no-alert": "error",
     "no-caller": "error",
     "no-labels": "off",
-    "no-eq-null": "error",
+    "no-eq-null": "off",
     "no-eval": "error",
     "no-extend-native": "error",
     "no-extra-bind": "error",
@@ -109,14 +108,14 @@
     "no-shadow-restricted-names": "error",
     "no-shadow": "error",
     "no-undef-init": "error",
-    "no-unused-vars": ["error", { "args": "none", "ignoreRestSiblings": true }],
+    "no-unused-vars": ["error", { "args": "none", "ignoreRestSiblings": true, "argsIgnorePattern": "^(_|ignore)" }],
     "callback-return": "error",
     "no-mixed-requires": "error",
     "no-path-concat": "error",
     "no-sync": "error",
     "brace-style": "error",
-    "camelcase": ["error", {"properties": "always"}],
-    "comma-spacing": ["error", {"before": false, "after": true}],
+    "camelcase": ["error", { "properties": "always" }],
+    "comma-spacing": ["error", { "before": false, "after": true }],
     "consistent-this": ["error", "self"],
     "eol-last": "error",
     "func-style": ["off", "declaration"],
@@ -126,71 +125,105 @@
     "new-parens": "error",
     "no-array-constructor": "error",
     "no-lonely-if": "error",
-    "no-nested-ternary": "error",
+    "no-nested-ternary": "off",
     "no-new-object": "error",
     "object-shorthand": "error",
     "no-spaced-func": "error",
     "no-trailing-spaces": "error",
     "no-unneeded-ternary": "error",
     "quotes": ["error", "single", "avoid-escape"],
-    "semi-spacing": ["error", {"before": false, "after": true}],
+    "semi-spacing": ["error", { "before": false, "after": true }],
     "semi": ["error", "always"],
     "space-before-blocks": ["error", "always"],
-    "space-before-function-paren": ["error", {
-      "anonymous": "never",
-      "named": "never",
-      "asyncArrow": "always"
-    }],
+    "space-before-function-paren": [
+      "error",
+      {
+        "anonymous": "never",
+        "named": "never",
+        "asyncArrow": "always"
+      }
+    ],
     "space-infix-ops": "error",
     "space-unary-ops": ["error", { "words": true, "nonwords": false }],
     "arrow-spacing": "error",
     "constructor-super": "error",
     "no-var": "error",
-    "prefer-const": ["error", {"destructuring": "all"}],
+    "prefer-const": ["error", { "destructuring": "all" }],
     "prefer-spread": "error",
     "require-yield": "error",
     "max-params": ["error", 8],
     "no-bitwise": "error",
-    "id-match": ["error", "^[a-zA-Z_$]+[a-zA-Z0-9_]*$", {"properties": false}],
+    "id-match": [
+      "error",
+      "^[a-zA-Z_$]+[a-zA-Z0-9_]*$",
+      { "properties": false }
+    ],
     "linebreak-style": ["error", "unix"],
     "curly": ["error", "multi-line", "consistent"],
     "import/export": "error",
-    "import/order": ["error", {
-      "groups": ["builtin", "external", "internal", "parent", "sibling", "index"]
-    }],
-    "no-restricted-properties": ["error", {
-      "object": "Object",
-      "property": "assign",
-      "message": "Please use object spread {...} instead."
-    }],
+    "import/order": [
+      "error",
+      {
+        "groups": [
+          "builtin",
+          "external",
+          "internal",
+          "parent",
+          "sibling",
+          "index"
+        ]
+      }
+    ],
+    "no-restricted-properties": [
+      "error",
+      {
+        "object": "Object",
+        "property": "assign",
+        "message": "Please use object spread {...} instead."
+      }
+    ],
     "jsx-quotes": ["error", "prefer-single"],
-    "no-restricted-globals": ["error",
+    "no-restricted-globals": [
+      "error",
       "encodeURI", // if you think you want this, you probably want encodeURIComponent instead
       "location" // usually want react router location instead
     ],
-    "keyword-spacing": ["error", { "before": true, "after": true }]
+    "keyword-spacing": ["error", { "before": true, "after": true }],
+    "@typescript-eslint/explicit-function-return-type": ["off"],
+    "@typescript-eslint/no-explicit-any": ["off"],
+    "@typescript-eslint/no-var-requires": ["off"],
+    "@typescript-eslint/no-use-before-define": ["off"],
+    "@typescript-eslint/no-empty-function": ["off"],
+    "@typescript-eslint/ban-ts-ignore": ["off"],
+    "@typescript-eslint/ban-ts-comment": ["off"],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "args": "none",
+        "ignoreRestSiblings": true,
+        "argsIgnorePattern": "^(_|ignore)"
+      }
+    ],
+    "@typescript-eslint/no-non-null-assertion": ["off"],
+    "@typescript-eslint/explicit-module-boundary-types": ["off"],
+    "react-hooks/rules-of-hooks": "error", // Checks rules of Hooks
+    "react-hooks/exhaustive-deps": "warn" // Checks effect dependencies
   },
   "overrides": [
     {
       "files": ["*.js"],
       "rules": {
-        "@typescript-eslint/no-var-requires": ["off"],
-        "@typescript-eslint/no-use-before-define": ["off"],
-        "@typescript-eslint/no-empty-function": ["off"],
-        "prefer-rest-params": ["off"],
-        "@typescript-eslint/explicit-function-return-type": ["off"]
+        "prefer-rest-params": ["off"]
       }
     }
   ],
   "settings": {
-    "import/core-modules": [
-      "redux-saga/effects"
-    ],
+    "import/core-modules": ["redux-saga/effects"],
     "react": {
       "version": "16.7"
     }
   },
-  "globals":{
+  "globals": {
     "$": false,
     "jsPlumb": false,
     "ga": false,

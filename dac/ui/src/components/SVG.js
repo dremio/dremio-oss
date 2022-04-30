@@ -17,6 +17,7 @@ import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import ReactDOMServer from 'react-dom/server';
 import invariant from 'invariant';
+import { Tooltip } from 'dremio-ui-lib';
 
 import { allSVGs } from 'dyn-load/components/svgLoader';
 
@@ -42,9 +43,11 @@ export default class SVG extends PureComponent {
     role: PropTypes.string.isRequired,
     title: PropTypes.oneOfType([
       PropTypes.string,
+      PropTypes.any,
       PropTypes.bool // set to true to take the aria-label
     ]),
     dataQa: PropTypes.string,
+    interactive: PropTypes.bool,
     id: PropTypes.any
   }
 
@@ -53,7 +56,7 @@ export default class SVG extends PureComponent {
   }
 
   render() {
-    let {src, title, dataQa, id, ...props} = this.props;
+    let {src, title, dataQa, id, interactive, ...props} = this.props;
 
     if (!allSVGs[`./${src}`]) {
       return null;
@@ -91,6 +94,13 @@ export default class SVG extends PureComponent {
       title = props['aria-label'];
     }
 
-    return <img src={url} title={title} id={id} data-qa={dataQa} {...props} />;
+    return (
+      title ?
+        <Tooltip title={title} interactive={interactive}>
+          <img src={url} id={id} data-qa={dataQa} {...props} />
+        </Tooltip>
+        :
+        <img src={url} title={title} id={id} data-qa={dataQa} {...props} />
+    );
   }
 }

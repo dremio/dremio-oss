@@ -15,9 +15,9 @@
  */
 package com.dremio.sabot.exec.fragment;
 
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -65,7 +65,7 @@ public class TestFragmentExecutorBuilder extends DremioTest {
   public void testOOMExMessageDuringBuild() throws Exception {
     QueriesClerk queriesClerk = mock(QueriesClerk.class);
     FragmentTicket fragmentTicket = mock(FragmentTicket.class);
-    when(queriesClerk.newFragmentTicket(anyObject(), anyObject(), anyObject())).thenReturn(fragmentTicket);
+    when(queriesClerk.newFragmentTicket(any(), any(), any())).thenReturn(fragmentTicket);
     when(fragmentTicket.newChildAllocator(anyString(), anyLong(), anyLong())).thenThrow(new OutOfMemoryException("No more memory"));
 
     PlanFragmentFull planFragmentFull = mock(PlanFragmentFull.class);
@@ -82,7 +82,7 @@ public class TestFragmentExecutorBuilder extends DremioTest {
       bootStrapContext.getNodeDebugContextProvider(), mock(SpillService.class), mock(CodeCompiler.class), mock(Set.class), mock(Provider.class), mock(Provider.class), mock(ExpressionSplitCache.class));
 
     try {
-      fragmentExecutorBuilder.build(mock(QueryTicket.class), planFragmentFull, mock(EventProvider.class), null, mock(CachedFragmentReader.class));
+      fragmentExecutorBuilder.build(mock(QueryTicket.class), planFragmentFull, 1, mock(EventProvider.class), null, mock(CachedFragmentReader.class));
     } catch (UserException ex) {
       Assert.assertTrue(ex.getContextStrings().stream().anyMatch(s -> s.contains("Allocator dominators:\nAllocator(ROOT)")));
       throw ex;

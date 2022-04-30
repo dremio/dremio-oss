@@ -15,6 +15,15 @@
  */
 package com.dremio.dac.util;
 
+import static com.dremio.dac.util.QueryProfileConstant.DEFAULT_LONG;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.service.jobAnalysis.proto.BaseMetrics;
+import com.dremio.service.jobAnalysis.proto.ThreadData;
+
 /**
  * class for building Node data from Profile Object
  */
@@ -29,4 +38,77 @@ public class QueryProfileUtil {
     }
     return id;
   }
+
+  /**
+   * This Method will build BaseMetrics on for an operator
+   */
+  public static void buildBaseMetrics(List<ThreadData> threadLevelMetrics, BaseMetrics baseMetrics) {
+
+    long tempProcessTime = DEFAULT_LONG;
+    long tempPeakMemory = DEFAULT_LONG;
+    long tempWaitTime = DEFAULT_LONG;
+    long tempSetupTime = DEFAULT_LONG;
+    long tempRunTime = DEFAULT_LONG;
+    long totalMemory = 0;
+    long tempRecordsProcessed = 0;
+    for (int threadIndex = 0; threadIndex<threadLevelMetrics.size(); threadIndex++) {
+      ThreadData threadData = threadLevelMetrics.get(threadIndex);
+      tempProcessTime = threadData.getProcessingTime() > tempProcessTime ? threadData.getProcessingTime() : tempProcessTime;
+      tempPeakMemory = threadData.getPeakMemory() > tempPeakMemory ? threadData.getPeakMemory() : tempPeakMemory;
+      tempWaitTime = threadData.getIoWaitTime() > tempWaitTime ? threadData.getIoWaitTime() : tempWaitTime;
+      tempSetupTime = threadData.getSetupTime() > tempSetupTime ? threadData.getSetupTime() : tempSetupTime;
+      long threadRunTime = threadData.getProcessingTime() + threadData.getIoWaitTime() + threadData.getSetupTime();
+      tempRunTime = threadRunTime > tempRunTime ? threadRunTime : tempRunTime;
+      totalMemory += threadData.getPeakMemory();
+      if(threadData.getRecordsProcessed() != null) {
+        tempRecordsProcessed = tempRecordsProcessed + threadData.getRecordsProcessed();
+      }
+    }
+
+    baseMetrics.setNumThreads(-1L);
+    baseMetrics.setProcessingTime(tempProcessTime);
+    baseMetrics.setRecordsProcessed(tempRecordsProcessed);
+    baseMetrics.setPeakMemory(tempPeakMemory);
+    baseMetrics.setSetupTime(tempSetupTime);
+    baseMetrics.setIoWaitTime(tempWaitTime);
+    baseMetrics.setRunTime(tempRunTime);
+    baseMetrics.setTotalMemory(totalMemory);
+  }
+
+  /**
+   *This Method will build a list of TheadLevel Operator Metrics
+   */
+  public static void buildTheadLevelMetrics(UserBitShared.MajorFragmentProfile major, List<ThreadData> threadLevelMetricsList) {
+    major.getMinorFragmentProfileList().stream().forEach(
+      minor -> {
+        minor.getOperatorProfileList().stream().forEach(
+          operatorProfile -> {
+            long maxThreadLevelRecords = operatorProfile.getInputProfileList().stream().collect(Collectors.summarizingLong(row -> row.getRecords())).getMax();
+            threadLevelMetricsList.add(new ThreadData(
+              QueryProfileUtil.getStringIds(operatorProfile.getOperatorId()),
+              getOperatorName(operatorProfile.getOperatorType()),
+              operatorProfile.getOperatorType(),
+              operatorProfile.getWaitNanos(),
+              operatorProfile.getPeakLocalMemoryAllocated(),
+              operatorProfile.getProcessNanos(),
+              operatorProfile.getSetupNanos(),
+              maxThreadLevelRecords
+            ));
+          }
+        );
+      }
+    );
+  }
+
+  /**
+   * This Method is Used to get the Actual Operator Name
+   */
+  private static String getOperatorName(int operatorType) {
+    String OperatorName = "";
+    if (!(operatorType == -1)) {
+      OperatorName = String.valueOf(UserBitShared.CoreOperatorType.forNumber(operatorType));
+    }
+    return OperatorName;
+  }
+
 }

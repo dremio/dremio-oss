@@ -34,6 +34,7 @@ import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.extensions.SupportsIcebergMetadata;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.MetadataProtoUtils;
@@ -130,38 +131,51 @@ public final class MetadataObjectsUtils {
     }
 
     if (newExtended instanceof FileConfigMetadata) {
-      PhysicalDataset pds = datasetConfig.getPhysicalDataset();
-      if (pds == null) {
-        pds = new PhysicalDataset();
-      }
+      final PhysicalDataset pds = getPhysicalDataset(datasetConfig);
       FileConfig fileConfig = ((FileConfigMetadata) newExtended).getFileConfig();
       if (pds.getFormatSettings() != null) {
         fileConfig.setFullPathList(pds.getFormatSettings().getFullPathList());
       }
       pds.setFormatSettings(fileConfig);
-      datasetConfig.setPhysicalDataset(pds);
     }
 
     newSignature.ifPresent(bs -> readDefinition.setReadSignature(ByteStringUtil.wrap(bs.toByteArray())));
 
     datasetConfig.setReadDefinition(readDefinition);
 
+    if (newExtended instanceof SupportsIcebergMetadata) {
+      final SupportsIcebergMetadata newMetadata = (SupportsIcebergMetadata) newExtended;
+      final PhysicalDataset pds = getPhysicalDataset(datasetConfig);
 
-    IcebergMetadata icebergMetadata;
-    if (newExtended.getIcebergMetadata() != null && newExtended.getIcebergMetadata().length > 0) {
-      try (ByteArrayInputStream bis = new ByteArrayInputStream(newExtended.getIcebergMetadata());
-           ObjectInput in = new ObjectInputStream(bis)) {
-        icebergMetadata = (IcebergMetadata) in.readObject();
-        PhysicalDataset pds = datasetConfig.getPhysicalDataset();
-        if (pds == null) {
-          pds = new PhysicalDataset();
+      final IcebergMetadata icebergMetadata = new IcebergMetadata();
+      icebergMetadata.setMetadataFileLocation(newMetadata.getMetadataFileLocation());
+      icebergMetadata.setPartitionSpecs(toProtostuff(newMetadata.getPartitionSpecs()));
+      if (newMetadata.getSnapshotId() > 0) {
+        icebergMetadata.setSnapshotId(newMetadata.getSnapshotId());
+      }
+      pds.setIcebergMetadata(icebergMetadata);
+    } else { // TODO(DX-43317): try deprecated way of populating iceberg metadata, until DX-43317 is resolved.
+
+      final byte[] icebergMetadataBytes = newExtended.getIcebergMetadata();
+      if (icebergMetadataBytes != null && icebergMetadataBytes.length > 0) {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(icebergMetadataBytes);
+             ObjectInput in = new ObjectInputStream(bis)) {
+          final PhysicalDataset pds = getPhysicalDataset(datasetConfig);
+
+          final IcebergMetadata icebergMetadata = (IcebergMetadata) in.readObject();
+          pds.setIcebergMetadata(icebergMetadata);
+        } catch (IOException | ClassNotFoundException e) {
+          throw new RuntimeException(e);
         }
-        pds.setIcebergMetadata(icebergMetadata);
-        datasetConfig.setPhysicalDataset(pds);
-      } catch (IOException | ClassNotFoundException e) {
-        throw new RuntimeException(e);
       }
     }
+  }
+
+  private static PhysicalDataset getPhysicalDataset(DatasetConfig datasetConfig) {
+    if (datasetConfig.getPhysicalDataset() == null) {
+      datasetConfig.setPhysicalDataset(new PhysicalDataset());
+    }
+    return datasetConfig.getPhysicalDataset();
   }
 
   /**

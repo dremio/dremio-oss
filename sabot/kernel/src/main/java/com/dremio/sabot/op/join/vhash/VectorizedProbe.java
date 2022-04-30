@@ -42,9 +42,8 @@ import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Unpivots;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
-import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6;
+import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopier6;
 import com.dremio.sabot.op.join.hash.BuildInfo;
 import com.google.common.base.Stopwatch;
 
@@ -81,6 +80,7 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   private VectorizedHashJoinOperator.Mode mode = VectorizedHashJoinOperator.Mode.UNKNOWN;
 
   private JoinTable table;
+  private CopierFactory copierFactory;
   private List<FieldVector> buildOutputs;
   private List<FieldBufferCopier> buildCopiers;
   private List<FieldBufferCopier> probeCopiers;
@@ -199,10 +199,11 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     this.mode = mode;
 
     this.buildOutputs = buildOutputs;
+    copierFactory = CopierFactory.getInstance(context.getConfig(), context.getOptions());
     if (table.size() > 0) {
-      this.buildCopiers = projectUnmatchedProbe ?
-        ConditionalFieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs)
-        : FieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs);
+      this.buildCopiers = projectUnmatchedProbe  ?
+        copierFactory.getSixByteConditionalCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs) :
+        copierFactory.getSixByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs);
     } else {
       this.buildCopiers = Collections.emptyList();
     }
@@ -215,7 +216,7 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
     if (this.mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
       // create copier for copying keys from probe batch to build side output
       if (probeIncomingKeys.size() > 0) {
-        this.keysCopiers = FieldBufferCopier.getCopiers(probeIncomingKeys, buildOutputKeys);
+        this.keysCopiers = copierFactory.getTwoByteCopiers(probeIncomingKeys, buildOutputKeys);
       } else {
         this.keysCopiers = Collections.emptyList();
       }
@@ -227,7 +228,7 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
       this.keysCopiers = null;
     }
 
-    this.probeCopiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(probeBatch), probeOutputs);
+    this.probeCopiers = copierFactory.getTwoByteCopiers(VectorContainer.getFieldVectors(probeBatch), probeOutputs);
     this.extraMatcher.setup();
   }
 
@@ -237,7 +238,7 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   private void findMatches(final int records) {
     if (probed == null || probed.capacity() < (long) records * ORDINAL_SIZE) {
       if (probed != null) {
-        probed.release();
+        probed.close();
         probed = null;
       }
 
@@ -421,8 +422,6 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
 
     final long projectBuildOffsetAddr = this.projectBuildOffsetAddr;
 
-    // The total size of the variable keys that are non matched in build side
-    int totalVarSize = 0;
     final long projectBuildKeyOffsetAddr = this.projectBuildKeyOffsetAddr;
     BlockJoinTable table = (BlockJoinTable) this.table;
 
@@ -478,8 +477,6 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
               PlatformDependent.putInt(projectBuildOffsetAddrStart, actualLinkBatch);
               PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short) currentLinkOffset);
               if (this.mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
-                // Get the length of variable key and added it to totalSize
-                totalVarSize += table.getVarKeyLength(baseOrdinalBatchCount + currentClearOrdinalOffset);
                 // Maintain the ordinal of the key for unpivot later
                 PlatformDependent.putInt(projectBuildKeyOffsetAddr + (long) outputRecords * ORDINAL_SIZE,
                   baseOrdinalBatchCount + currentClearOrdinalOffset);
@@ -507,12 +504,14 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
       // Collect the keys for non matched records, and unpivot them to output
       try (FixedBlockVector fbv = new FixedBlockVector(allocator, buildUnpivot.getBlockWidth());
            VariableBlockVector var = new VariableBlockVector(allocator, buildUnpivot.getVariableCount())) {
+        // The total size of the variable keys that are non matched in build side
+        int totalVarSize = table.getCumulativeVarKeyLength(projectBuildKeyOffsetAddr, outputRecords);
         fbv.ensureAvailableBlocks(outputRecords);
         var.ensureAvailableDataSpace(totalVarSize);
         final long keyFixedVectorAddr = fbv.getMemoryAddress();
         final long keyVarVectorAddr = var.getMemoryAddress();
         // Collect all the pivoted keys for non matched records
-        table.copyKeyToBuffer(projectBuildKeyOffsetAddr, outputRecords, keyFixedVectorAddr, keyVarVectorAddr);
+        table.copyKeysToBuffer(projectBuildKeyOffsetAddr, outputRecords, keyFixedVectorAddr, keyVarVectorAddr);
         // Unpivot the keys for build side into output
         Unpivots.unpivot(buildUnpivot, fbv, var, 0, outputRecords);
       }
@@ -607,13 +606,13 @@ public class VectorizedProbe implements AutoCloseable, ExtraConditionStats {
   /**
    * Project the probe data.
    *
-   * @param sv4Addr sv4 address
+   * @param sv2Addr sv2 address
    * @param count   count
    */
-  private void projectProbe(final long sv4Addr, final int count) {
+  private void projectProbe(final long sv2Addr, final int count) {
     probeCopyWatch.start();
     for (FieldBufferCopier c : probeCopiers) {
-      c.copy(sv4Addr, count);
+      c.copy(sv2Addr, count);
     }
     probeCopyWatch.stop();
   }

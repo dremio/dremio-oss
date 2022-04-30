@@ -22,7 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
@@ -335,14 +335,13 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
     final ArrowBuf combined = allocator.buffer(numPartitions * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH);
     final VectorizedHashAggPartition partitions[] = new VectorizedHashAggPartition[numPartitions];
     //to track the temporary vectors. as a convenience for releasing them at once
+    VarCharVector[] tempVectors = new VarCharVector[2];
+    tempVectors[0] = new VarCharVector("varchar-min", allocator);
+    tempVectors[0].allocateNew(1024 * 1024, records);
+    tempVectors[1] = new VarCharVector("varchar-max", allocator);
+    tempVectors[1].allocateNew(1024 * 1024, records);
+
     for (int i = 0; i < numPartitions; i++) {
-      VarCharVector[] tempVectors = new VarCharVector[2];
-
-      tempVectors[0] = new VarCharVector("varchar-min", allocator);
-      tempVectors[0].allocateNew(1024 * 1024, records);
-      tempVectors[1] = new VarCharVector("varchar-max", allocator);
-      tempVectors[1].allocateNew(1024 * 1024, records);
-
       final AccumulatorSet accumulator = createAccumulator(accumulatorInput, m2, m3, tempVectors, allocator, (i == 0));
       LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000,
         10, true, MAX_VALUES_PER_BATCH);
@@ -584,11 +583,15 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
 
     VarCharVector v1 = new VarCharVector("varchar-min", allocator);
     final MinAccumulators.VarLenMinAccumulator in2MinAccum =
-      new MinAccumulators.VarLenMinAccumulator(in2, v1, v1, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, 95, tempVectors[0]);
+      new MinAccumulators.VarLenMinAccumulator(in2, v1, MAX_VALUES_PER_BATCH,
+        allocator, 15, 256, 95,
+        0, tempVectors[0], null);
 
     VarCharVector v2 = new VarCharVector("varchar-max", allocator);
     final MaxAccumulators.VarLenMaxAccumulator in3MaxAccum =
-      new MaxAccumulators.VarLenMaxAccumulator(in3, v2, v2, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, 95, tempVectors[1]);
+      new MaxAccumulators.VarLenMaxAccumulator(in3, v2, MAX_VALUES_PER_BATCH,
+        allocator, 15, 256, 95,
+        1, tempVectors[1], null);
 
     if (firstPartition) {
       postSpillAccumulatorVectorFields.add(in1SumOutputVector.getField());

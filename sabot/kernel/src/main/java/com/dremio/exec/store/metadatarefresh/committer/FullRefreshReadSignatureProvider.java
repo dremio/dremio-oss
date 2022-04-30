@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.metadatarefresh.committer;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -74,8 +75,8 @@ public class FullRefreshReadSignatureProvider extends AbstractReadSignatureProvi
 
   protected void handleAddedPartitions(Set<IcebergPartitionData> added) {
     added.stream()
-      .map(partitionToPathMapper)
-      .filter(Objects::nonNull)
+      .map(fileSystemPartitionToPathMapper)
+      .flatMap(Collection::stream).filter(Objects::nonNull)
       .forEach(pathsInReadSignature::add);
   }
 

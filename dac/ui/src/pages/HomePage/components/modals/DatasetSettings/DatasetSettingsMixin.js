@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import {abilities} from 'utils/datasetUtils';
+import datasetSettingsConfig from '@inject/pages/HomePage/components/modals/DatasetSettings/datasetSettingsConfig';
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     extendContentRenderers(contentRenderers) {
@@ -34,7 +35,8 @@ export default function(input) {
 
       const {canEditFormat, canSetAccelerationUpdates} = abilities(entity, entity.get('entityType'));
 
-      const format = canEditFormat && ['format', intl.formatMessage({ id: 'File.Format' })];
+      const { showFormatTab } = datasetSettingsConfig;
+      const format = showFormatTab && canEditFormat && ['format', intl.formatMessage({ id: 'File.Format' })];
 
       // If a file or folder has not been converted to a dataset, hide all other tabs
       // https://dremio.atlassian.net/browse/DX-3178

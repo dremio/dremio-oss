@@ -147,7 +147,7 @@ public class QueryTrackerImpl implements QueryTracker {
     try {
       FragmentStarter starter = new FragmentStarter(executorServiceClientFactory,
         resourceTracker.getResourceSchedulingDecisionInfo(),
-        context.getExecutionControls());
+        context.getExecutionControls(),context.getOptions());
       starter.start(executionPlan, MaestroObservers.of(observer, fragmentActivateObserver));
       executionPlan = null; // no longer needed
 

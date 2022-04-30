@@ -195,6 +195,18 @@ public class TestDeltaLogCommitJsonReader {
     }
 
     @Test
+    public void testCommitInfoAtLast() throws IOException {
+      File f = FileUtils.getResourceAsFile("/deltalake/commitInfoAtLast.json");
+      Configuration conf = new Configuration();
+      final FileSystem fs = HadoopFileSystem.get(org.apache.hadoop.fs.FileSystem.getLocal(conf));
+      DeltaLogCommitJsonReader jsonReader = new DeltaLogCommitJsonReader();
+      DeltaLogSnapshot snapshot = jsonReader.parseMetadata(null, null, fs, new ArrayList<>(Arrays.asList(fs.getFileAttributes(Path.of(f.toURI())))), -1);
+      assertEquals(snapshot.getNetFilesAdded(),7);
+      assertEquals(snapshot.getNetBytesAdded(),112657);
+      assertEquals(snapshot.getNetOutputRows(), 2660);
+    }
+
+    @Test
     public void testFileWithoutMetadata() throws IOException {
         File f = FileUtils.getResourceAsFile("/deltalake/test1_3.json");
         Configuration conf = new Configuration();

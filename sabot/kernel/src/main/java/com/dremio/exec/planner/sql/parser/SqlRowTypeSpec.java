@@ -35,7 +35,6 @@ import com.google.common.collect.ImmutableList;
  */
 public final class SqlRowTypeSpec extends SqlTypeNameSpec {
 
-
   private final List<SqlIdentifier> fieldNames;
   private final List<SqlComplexDataTypeSpec> fieldTypes;
 
@@ -81,5 +80,13 @@ public final class SqlRowTypeSpec extends SqlTypeNameSpec {
       fieldNames.stream()
         .map(SqlIdentifier::toString)
         .collect(Collectors.toList()));
+  }
+
+  public List<SqlIdentifier> getFieldNames() {
+    return fieldNames;
+  }
+
+  public List<SqlComplexDataTypeSpec> getFieldTypes() {
+    return fieldTypes;
   }
 }

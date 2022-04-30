@@ -98,7 +98,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
   public PartitionToLoadSpilledData(final BufferAllocator allocator,
                                     final int fixedDataLength,
                                     final int variableDataLength,
-                                    final List<Field> postSpillAccumulatorVectorTypes,
+                                    final List<Field> postSpillAccumulatorVectorFields,
                                     final byte[] accumulatorTypes,
                                     final int batchSize,
                                     final int varLenAccumulatorCapacity) throws Exception {
@@ -121,9 +121,10 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
       initBuffers();
       this.batchSize = batchSize;
       this.recordsInBatch = 0;
-      this.postSpillAccumulatorVectors = new FieldVector[postSpillAccumulatorVectorTypes.size()];
-      this.accumulatorTypes = new byte[postSpillAccumulatorVectorTypes.size()];
-      initPostSpillAccumulatorVectors(postSpillAccumulatorVectorTypes, accumulatorTypes, batchSize, rollbackable);
+      this.postSpillAccumulatorVectors = new FieldVector[postSpillAccumulatorVectorFields.size()];
+      this.accumulatorTypes = new byte[postSpillAccumulatorVectorFields.size()];
+      initPostSpillAccumulatorVectors(postSpillAccumulatorVectorFields, accumulatorTypes,
+        batchSize, rollbackable);
       rollbackable.commit();
       logger.debug("Extra Partition Pre-allocation, fixed-data length: {}, variable-data length: {}, actual fixed-data capacity: {}, actual variable-data capacty: {}, batchSize: {}",
                    fixedDataLength, variableDataLength, fixedKeyColPivotedData.capacity(), variableKeyColPivotedData.capacity(), batchSize);
@@ -138,15 +139,15 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
    * considering the type. The target type information is already available here
    * since {@link VectorizedHashAggOperator} has materialized the aggregate
    * expressions.
-   * @param postSpillAccumulatorVectorTypes accumulator vector types
+   * @param postSpillAccumulatorVectorFields accumulator vector types
    * @param valueCount value count for the vector
    */
-  private void initPostSpillAccumulatorVectors(final List<Field> postSpillAccumulatorVectorTypes,
+  private void initPostSpillAccumulatorVectors(final List<Field> postSpillAccumulatorVectorFields,
                                                final byte[] accumulatorTypes,
                                                final int valueCount,
                                                final AutoCloseables.RollbackCloseable rollbackCloseable) {
     int count = 0;
-    for (Field field : postSpillAccumulatorVectorTypes) {
+    for (Field field : postSpillAccumulatorVectorFields) {
       FieldVector vector = TypeHelper.getNewVector(field, allocator);
       rollbackCloseable.add(vector);
       /* we have aggregation on INT, BIGINT, FLOAT, FLOAT4 and DECIMAL types of

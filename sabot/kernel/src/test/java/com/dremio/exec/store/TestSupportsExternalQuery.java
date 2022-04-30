@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import static com.dremio.exec.store.SupportsExternalQuery.getExternalQueryFunction;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -25,9 +26,7 @@ import java.util.Optional;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.schema.Function;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
@@ -45,9 +44,6 @@ public class TestSupportsExternalQuery {
   private Optional<Function> getExternalQueryFunctionHelper(List<String> paths) {
     return getExternalQueryFunction(DUMMY_SCHEMA_BUILDER, DUMMY_ROW_TYPE_BUILDER, DUMMY_ID, paths);
   }
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGetExternalQueryFunc() {
@@ -106,17 +102,17 @@ public class TestSupportsExternalQuery {
 
   @Test
   public void testGetExternalQueryFuncWithoutSchemaBuilder() {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("schemaBuilder cannot be null.");
     final List<String> paths = ImmutableList.of("source", "external_query");
-    getExternalQueryFunction(null, DUMMY_ROW_TYPE_BUILDER, DUMMY_ID, paths);
+    assertThatThrownBy(() -> getExternalQueryFunction(null, DUMMY_ROW_TYPE_BUILDER, DUMMY_ID, paths))
+      .hasMessageContaining("schemaBuilder cannot be null.")
+      .isInstanceOf(NullPointerException.class);
   }
 
   @Test
   public void testGetExternalQueryFuncWithoutRowTypeBuilder() {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("rowTypeBuilder cannot be null.");
     final List<String> paths = ImmutableList.of("source", "external_query");
-    getExternalQueryFunction(DUMMY_SCHEMA_BUILDER, null, DUMMY_ID, paths);
+    assertThatThrownBy(() -> getExternalQueryFunction(DUMMY_SCHEMA_BUILDER, null, DUMMY_ID, paths))
+      .hasMessageContaining("rowTypeBuilder cannot be null.")
+      .isInstanceOf(NullPointerException.class);
   }
 }

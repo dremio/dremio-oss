@@ -53,7 +53,7 @@ public class TestXlsInputStream extends BaseTestQuery {
   @After
   public void after() {
     for (ArrowBuf buf : buffers) {
-      buf.release();
+      buf.close();
     }
   }
 

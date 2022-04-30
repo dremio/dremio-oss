@@ -103,7 +103,7 @@ public class StructVectorHelper implements ValueVectorHelper {
 
     structVector.validityBuffer = buffer.slice(0, actualLength);
     structVector.validityBuffer.writerIndex(actualLength);
-    structVector.validityBuffer.retain(1);
+    structVector.validityBuffer.getReferenceManager().retain(1);
 
     return actualLength;
   }

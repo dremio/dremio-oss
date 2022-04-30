@@ -17,7 +17,10 @@ import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 
 import { allBitmaps } from 'dyn-load/components/bitmapLoader';
-
+import { Tooltip } from 'dremio-ui-lib';
+// for lottie jsons
+import { allJsons } from '@app/components/jsonImageLoader';
+import Lottie from 'react-lottie';
 import SVG from './SVG';
 
 
@@ -32,24 +35,66 @@ export default class Art extends PureComponent {
     alt: PropTypes.string.isRequired,
     title: PropTypes.oneOfType([
       PropTypes.string,
+      PropTypes.any,
       PropTypes.bool // set to true to take the aria-label
     ]),
-    id: PropTypes.any
-
+    interactive: PropTypes.bool,
+    id: PropTypes.any,
+    tooltipOpen: PropTypes.bool
   }
 
   render() {
-    let {src, alt, title, id, ...props} = this.props;
+    let {src, alt, title, id, interactive, tooltipOpen, ...props} = this.props;
 
     const bitmapURL = allBitmaps[`./${src}`];
     if (title === true) {
       title = alt;
     }
 
-    if (!bitmapURL) {
-      return <SVG src={src} aria-label={alt} title={title} dataQa={src} id={id} {...props} />;
+    if (src.includes('.json')) {
+      const defaultOptions = {
+        loop: true,
+        autoplay: true,
+        animationData: allJsons[`./${src}`],
+        rendererSettings: {
+          preserveAspectRatio: 'xMidYMid slice'
+        }
+      };
+      return (
+        title ?
+          <div>
+            <Tooltip title={title} interactive={interactive} open={tooltipOpen}>
+              <div>
+                <Lottie
+                  options={defaultOptions}
+                  height={24}
+                  width={24}
+                />
+              </div>
+            </Tooltip>
+          </div> :
+          <div>
+            <Lottie
+              options={defaultOptions}
+              height={24}
+              width={24}
+            />
+          </div>
+      );
     }
 
-    return <img src={bitmapURL} alt={alt} title={title} {...props} />;
+    if (!bitmapURL) {
+      return <SVG src={src} aria-label={alt} title={title} dataQa={src} id={id} interactive={interactive} {...props} />;
+    }
+
+
+    return (
+      title ?
+        <Tooltip title={title}>
+          <img src={bitmapURL} alt={alt} {...props} />
+        </Tooltip>
+        :
+        <img src={bitmapURL} alt={alt} {...props} />
+    );
   }
 }

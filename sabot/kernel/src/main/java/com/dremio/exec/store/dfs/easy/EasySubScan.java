@@ -27,6 +27,7 @@ import com.dremio.exec.planner.fragment.SplitNormalizer;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.iceberg.IcebergExtendedProp;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -45,6 +46,7 @@ public class EasySubScan extends SubScanWithProjection {
 
   private final FileConfig fileConfig;
   private final StoragePluginId pluginId;
+  private UserDefinedSchemaSettings userDefinedSchemaSettings;
   private StoragePluginId datasourcePluginId;
   private final ByteString extendedProperty;
   private final List<String> partitionColumns;
@@ -64,7 +66,8 @@ public class EasySubScan extends SubScanWithProjection {
     List<SchemaPath> columns,
     List<String> partitionColumns,
     ByteString extendedProperty,
-    IcebergExtendedProp icebergExtendedProp) {
+    IcebergExtendedProp icebergExtendedProp,
+    UserDefinedSchemaSettings userDefinedSchemaSettings) {
     super(props, fullSchema, (tablePath == null) ? null : ImmutableList.of(tablePath), columns);
     this.fileConfig = config;
     this.splits = splits;
@@ -73,6 +76,22 @@ public class EasySubScan extends SubScanWithProjection {
     this.extendedProperty = extendedProperty;
     this.partitionColumns = partitionColumns;
     this.icebergExtendedProp = icebergExtendedProp;
+    this.userDefinedSchemaSettings = userDefinedSchemaSettings;
+  }
+
+  public EasySubScan(
+    OpProps props,
+    FileConfig config,
+    List<SplitAndPartitionInfo> splits,
+    BatchSchema fullSchema,
+    List<String> tablePath,
+    StoragePluginId pluginId,
+    StoragePluginId datasourcePluginId,
+    List<SchemaPath> columns,
+    List<String> partitionColumns,
+    ByteString extendedProperty,
+    IcebergExtendedProp icebergExtendedProp) {
+    this(props, config, splits, fullSchema, tablePath, pluginId, datasourcePluginId, columns, partitionColumns, extendedProperty, icebergExtendedProp, null);
   }
 
   @JsonCreator
@@ -86,9 +105,10 @@ public class EasySubScan extends SubScanWithProjection {
     @JsonProperty("columns") List<SchemaPath> columns,
     @JsonProperty("partitionColumns") List<String> partitionColumns,
     @JsonProperty("extendedProperty") ByteString extendedProperty,
-    @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp) {
+    @JsonProperty("icebergExtendedProperties") IcebergExtendedProp icebergExtendedProp,
+    @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings) {
 
-    this(props, config, null, fullSchema, tablePath, pluginId, datasourcePluginId, columns, partitionColumns, extendedProperty, icebergExtendedProp);
+    this(props, config, null, fullSchema, tablePath, pluginId, datasourcePluginId, columns, partitionColumns, extendedProperty, icebergExtendedProp, userDefinedSchemaSettings);
   }
 
   public List<SplitAndPartitionInfo> getSplits() {
@@ -132,5 +152,9 @@ public class EasySubScan extends SubScanWithProjection {
   @Override
   public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
     splits = SplitNormalizer.read(getProps(), reader);
+  }
+
+  public UserDefinedSchemaSettings getUserDefinedSchemaSettings() {
+    return userDefinedSchemaSettings;
   }
 }

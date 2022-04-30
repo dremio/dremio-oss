@@ -62,7 +62,9 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.copier.Copier;
+import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.copier.CopierOperator;
+import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillInputStream;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillOutputStream;
@@ -124,7 +126,7 @@ public class DiskRunManager implements AutoCloseable {
   private long compressionNanos;
   private long uncompressionNanos;
 
-
+  private final CopierFactory copierFactory;
   private final OperatorStats operatorStats;
   private final ExecutionControls executionControls;
 
@@ -170,6 +172,7 @@ public class DiskRunManager implements AutoCloseable {
       this.useArrowEncoding = optionManager.getOption(ExecConstants.EXTERNAL_SORT_ARROW_ENCODING);
       this.useVectorCopier = optionManager.getOption(ExecConstants.EXTERNAL_SORT_VECTOR_COPIER);
       this.allocationDensity = optionManager.getOption(ExecConstants.EXTERNAL_SORT_SPILL_ALLOCATION_DENSITY);
+      this.copierFactory = new FieldBufferCopierFactory(optionManager);
 
       if (compressSpilledBatch) {
         long reserve = VectorAccessibleSerializable.RAW_CHUNK_SIZE_TO_COMPRESS * 2;
@@ -1003,7 +1006,7 @@ public class DiskRunManager implements AutoCloseable {
    * @return
    */
   private Copier getCopier(VectorAccessible incoming, VectorContainer outgoing) {
-    final Copier copier = useVectorCopier ? new VectorCopier4(incoming, outgoing) : CopierOperator.getGenerated4Copier(producer, incoming, outgoing);
+    final Copier copier = useVectorCopier ? new VectorCopier4(incoming, outgoing, copierFactory) : CopierOperator.getGenerated4Copier(producer, incoming, outgoing);
     copier.setAllocationDensity(allocationDensity);
     return new Copier() {
 

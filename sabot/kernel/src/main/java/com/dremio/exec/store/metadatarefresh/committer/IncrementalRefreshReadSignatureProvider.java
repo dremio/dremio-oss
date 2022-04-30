@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.metadatarefresh.committer;
 
+import java.util.Collection;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -43,7 +44,8 @@ public class IncrementalRefreshReadSignatureProvider extends FullRefreshReadSign
   @Override
   protected void handleDeletedPartitions(Set<IcebergPartitionData> deleted) {
     deleted.stream()
-      .map(partitionToPathMapper)
+      .map(fileSystemPartitionToPathMapper)
+      .flatMap(Collection::stream)
       .filter(doesPartitionExist.negate())
       .forEach(pathsInReadSignature::remove);
   }

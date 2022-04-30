@@ -15,21 +15,24 @@
  */
 package com.dremio.service.nessie;
 
-import org.projectnessie.versioned.persist.nontx.NonTransactionalDatabaseAdapterConfig;
+import org.immutables.value.Value;
+import org.projectnessie.versioned.persist.adapter.AdjustableDatabaseAdapterConfig;
+import org.projectnessie.versioned.persist.nontx.AdjustableNonTransactionalDatabaseAdapterConfig;
 
 /**
  * Nessie datastore database adapter config
  */
-public class NessieDatabaseAdapterConfig implements NonTransactionalDatabaseAdapterConfig {
+@Value.Immutable
+public interface NessieDatabaseAdapterConfig extends AdjustableNonTransactionalDatabaseAdapterConfig {
 
-  private final int commitRetries;
-
-  NessieDatabaseAdapterConfig(int commitRetries) {
-    this.commitRetries = commitRetries;
+  @Override
+  default int getCommitRetries() {
+    // Do not limit the number of retries, just use the timeout
+    return Integer.MAX_VALUE;
   }
 
   @Override
-  public int getCommitRetries() {
-    return commitRetries;
+  default AdjustableDatabaseAdapterConfig withCommitRetries(int commitRetries) {
+    throw new UnsupportedOperationException();
   }
 }

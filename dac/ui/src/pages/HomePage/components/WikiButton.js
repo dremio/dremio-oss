@@ -52,8 +52,8 @@ export class WikiButtonView extends PureComponent {
       <SimpleButton key='button' style={{minWidth: 0, marginRight: 0, outline: 'none'}}
         buttonStyle={isSelected ? 'primary' : 'secondary'}
         onClick={onClick}
-        title={la('Wiki')}>
-        <Art key='icon' src={isSelected ? 'SidebarActive.svg' : 'Sidebar.svg'} alt='' style={{height: 24}} />
+      >
+        <Art key='icon'  title={la('Wiki')} src={isSelected ? 'SidebarActive.svg' : 'Sidebar.svg'} alt='' style={{height: 24}} />
         {showNotification && <div key='notification' className={notificationIcon}></div>}
       </SimpleButton>
     </span>;

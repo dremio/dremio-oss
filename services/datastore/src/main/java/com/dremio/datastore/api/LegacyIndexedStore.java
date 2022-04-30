@@ -52,8 +52,7 @@ public interface LegacyIndexedStore<K, V> extends LegacyKVStore<K, V> {
    * conditions. This should be rare but can occur if the value was changed
    * around the time the iterator is created.
    *
-   * @param condition
-   *          The condition to match.
+   * @param find The condition to match.
    * @return A lazy iterable over the matching items.
    */
   Iterable<Entry<K, V>> find(LegacyFindByCondition find);

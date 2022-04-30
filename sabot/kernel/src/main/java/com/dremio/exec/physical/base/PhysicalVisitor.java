@@ -17,6 +17,8 @@ package com.dremio.exec.physical.base;
 
 import com.dremio.exec.physical.config.AbstractSort;
 import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
+import com.dremio.exec.physical.config.BridgeExchange;
+import com.dremio.exec.physical.config.BridgeFileReader;
 import com.dremio.exec.physical.config.BroadcastSender;
 import com.dremio.exec.physical.config.DictionaryLookupPOP;
 import com.dremio.exec.physical.config.EmptyValues;
@@ -87,7 +89,9 @@ public interface PhysicalVisitor<RETURN, EXTRA, EXCEP extends Throwable> {
   public RETURN visitScreen(Screen op, EXTRA value) throws EXCEP;
   public RETURN visitSingleSender(SingleSender op, EXTRA value) throws EXCEP;
   public RETURN visitUnionExchange(UnionExchange op, EXTRA value) throws EXCEP;
+  public RETURN visitBridgeExchange(BridgeExchange op, EXTRA value) throws EXCEP;
   public RETURN visitWindowFrame(WindowPOP op, EXTRA value) throws EXCEP;
   public RETURN visitConvertFromJson(ConvertFromJsonPOP op, EXTRA value) throws EXCEP;
   public RETURN visitTableFunction(AbstractTableFunctionPOP op, EXTRA value) throws EXCEP;
+  public RETURN visitBridgeFileReader(BridgeFileReader op, EXTRA value) throws EXCEP;
 }

@@ -18,7 +18,7 @@ package com.dremio.plugins.s3.store;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -60,7 +60,7 @@ import software.amazon.awssdk.services.sts.model.StsException;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(StsClient.class)
-@PowerMockIgnore(value = {"org.apache.commons.logging.*", "org.slf4j.*", "org.apache.xerces.*", "javax.xml.parsers.SAXParserFactory"})
+@PowerMockIgnore({"org.apache.commons.*", "org.apache.xerces.*", "org.slf4j.*", "org.xml.*", "javax.xml.*"})
 public class TestS3FileSystem {
   @Test
   public void testValidRegionFromEndpoint() {

@@ -13,14 +13,221 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ 
+ @import "~@app/uiTheme/less/color-schema.less";
 
-.base {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
+ :global {
+  .mainContent .explorePage {
+    &.--collpase {
+      .dremioSidebar {
+        background-color: @SECONDARY_150;
+        width: 3.6rem;
+      }
 
-.bottom-content {
-  flex: 1;
-  //border: none; //  a border should be applied to a parent wrapper.
+      .dremioSidebarWrap .dremioSidebarWrap__inner .TreeBrowser {
+        .TreeBrowser-heading {
+          overflow: hidden;
+          
+          .TreeBrowser-tab {
+            opacity: 0;
+            order: 2;
+          }
+        }
+
+        .resource-tree, .TreeBrowser-items {
+          opacity: 0;
+          pointer-events: none;
+          overflow: hidden;
+        }
+      }
+
+      .TreeBrowser__collapseButton {
+        transform: rotate(180deg);
+      }
+
+      .sqlScripts {
+        opacity: 0;
+        overflow: hidden;
+      }
+    }
+  }
+
+  .dremioContent {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100%;
+
+    &__header {
+      border-left: 1px solid @DARK_200;
+      border-bottom: 1px solid @DARK_200;
+      align-items: center;
+      display: flex;
+      gap: 1rem;
+      justify-content: space-between;
+      
+      form {
+        flex-grow: 1;
+      }
+
+      .input__container {
+        font-size: 1.5rem;
+        border: none;
+
+        > input::placeholder {
+          color: @SECONDARY_600;
+          font-style: italic;
+        }
+      }
+
+      .validationError {
+        margin-left: .8rem;
+      }
+    }
+
+    &__actions {
+      display: flex;
+      justify-content: space-between;
+      margin: 1.5rem 1rem 0;
+      padding-bottom: 1rem;
+    }
+
+    // Catalog, Graph, Reflections content area
+    &__content {
+      border-left: 1px solid @DARK_200;
+      height: 100%;
+    }
+
+    &__table {
+      background: @WHITE;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      overflow-y: hidden;
+    }
+  }
+
+  // Data content area
+  .mainContent {
+    &.-default {
+      .dremioContent__main {
+        display: grid;
+        grid-template-columns: auto auto 1fr;
+        overflow: hidden;
+      }
+
+      .dremioContent__content {
+        display: grid;
+        grid-template-rows: auto auto auto 1fr;
+      }
+    }
+
+    &.-details {
+      .dremioContent__content {
+        display: grid;
+        grid-template-rows: auto 1fr;
+
+        .dremioContent__table {
+          grid-template-rows: 1fr;
+        }
+      }
+    }
+  }
+
+  .dremioContent-rightCol {
+    align-items: center;
+    display: flex;
+    margin-right: .5rem;
+
+    &__time {
+      height: 100%;
+    }
+
+    &__shortcuts {
+
+      p {
+        display: block;
+        text-transform: uppercase;
+        border-bottom: 1px solid @BLACK;
+      }
+
+      .keyboard:hover {
+        cursor: pointer;
+      }
+    }
+  }
+
+  .dremioSidebarWrap {
+    height: 100%;
+    opacity: 1;
+    transition: 500ms ease opacity;
+  }
+
+  .dremioSidebarHeader {
+    align-items: center;
+    flex: 1 1 auto;
+    display: flex;
+    margin: 0 1.2rem 1.6rem;
+    justify-content: space-between;
+    transition: 300ms ease margin;
+
+    &-nav {
+      flex: 1 1 auto;
+      max-width: 25rem;
+      opacity: 1;
+      transition: 300ms ease-out max-width, 300ms ease opacity;
+      visibility: visible;
+
+      &__item {
+        position: relative;
+        text-transform: uppercase;
+        width: 50%;
+        padding: 2rem 0;
+        text-align: center;
+
+        &::after {
+          background-color: @ELM;
+          bottom: 0;
+          content: '';
+          height: .3rem;
+          left: 0;
+          position: absolute;
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  .tooltip-content {
+    left: .8rem !important; // Needed to override inline styles
+
+    &__heading {
+      text-transform: uppercase;
+      font-size: 1rem;
+
+      &::after {
+        background-color: @SECONDARY_200;
+        content: '';
+        display: block;
+        height: .1rem;
+        margin: .5rem 0 1rem;
+      }
+    }
+
+    &__list {
+      li {
+        display: flex;
+        font-size: 1.1rem;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+
+        span {
+          background-color: @SECONDARY_200;
+          border-radius: .4rem;
+          display: inline-block;
+          font-size: 1rem;
+          line-height: 1.2rem;
+          padding: .2rem .8rem;
+        }
+      }
+    }
+  }
 }

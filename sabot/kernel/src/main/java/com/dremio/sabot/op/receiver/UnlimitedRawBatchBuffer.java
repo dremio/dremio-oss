@@ -71,7 +71,7 @@ public class UnlimitedRawBatchBuffer extends BaseRawBatchBuffer<RawFragmentBatch
       while (!buffer.isEmpty()) {
         batch = buffer.poll();
         if (batch.getBody() != null) {
-          batch.getBody().release();
+          batch.getBody().close();
         }
       }
     }

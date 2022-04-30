@@ -51,15 +51,20 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   protected List<PrimaryFunctionRegistry> primaryFunctionRegistries = Lists.newArrayList();
   protected FunctionRegistry functionRegistry;
   private final List<PluggableFunctionRegistry> pluggableFuncRegistries;
-  private OptionManager optionManager = null;
+  private final OptionManager optionManager;
   private static final Set<String> aggrFunctionNames = Sets.newHashSet("sum", "$sum0", "min",
     "max", "hll");
   protected boolean isDecimalV2Enabled;
 
-  public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan){
+  public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan) {
+    this(config, classpathScan, null);
+  }
+
+  public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan, OptionManager optionManager) {
     Stopwatch w = Stopwatch.createStarted();
 
     logger.debug("Generating function registry.");
+    this.optionManager = optionManager;
     functionRegistry = new FunctionRegistry(classpathScan);
     initializePrimaryRegistries();
     Set<Class<? extends PluggableFunctionRegistry>> registryClasses =
@@ -96,12 +101,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     // order is important, first lookup java functions and then gandiva functions
     // if gandiva is preferred code generator, the function would be replaced later.
     primaryFunctionRegistries.add(functionRegistry);
-    primaryFunctionRegistries.add(new GandivaFunctionRegistry(isDecimalV2Enabled));
-  }
-
-  public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan, OptionManager optionManager) {
-    this(config, classpathScan);
-    this.optionManager = optionManager;
+    primaryFunctionRegistries.add(new GandivaFunctionRegistry(isDecimalV2Enabled, optionManager));
   }
 
   public ArrayListMultimap<String, AbstractFunctionHolder> getRegisteredFunctions() {
@@ -110,7 +110,8 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
 
   /**
    * Register functions in given operator table.
-   * @param operatorTable
+   *
+   * @param operatorTable table of all supported sql operators
    */
   public void register(OperatorTable operatorTable) {
     // Register Dremio functions first and move to pluggable function registries.
@@ -118,7 +119,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
       registry.register(operatorTable, isDecimalV2Enabled);
     }
 
-    for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
+    for (PluggableFunctionRegistry registry : pluggableFuncRegistries) {
       registry.register(operatorTable, isDecimalV2Enabled);
     }
   }
@@ -127,9 +128,9 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
    * Using the given <code>functionResolver</code> find Dremio function implementation for given
    * <code>functionCall</code>
    *
-   * @param functionCall
-   * @param allowGandivaFunctions
-   * @return
+   * @param functionCall expression
+   * @param allowGandivaFunctions should we also look in Gandiva registry?
+   * @return transformed function expression, if exact function found, null otherwise
    */
   @Override
   public AbstractFunctionHolder findExactFunction(FunctionCall functionCall, boolean
@@ -183,8 +184,8 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
    * Note: Order of searching is same as order of {@link com.dremio.exec.expr.fn.PluggableFunctionRegistry}
    * implementations found on classpath.
    *
-   * @param functionCall
-   * @return
+   * @param functionCall a function call sub expression
+   * @return transformed function expression, if found, null otherwise
    */
   @Override
   public AbstractFunctionHolder findNonFunction(FunctionCall functionCall) {

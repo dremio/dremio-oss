@@ -125,7 +125,7 @@
  - GET /dataset/{cpath}/version/{version}/parents   
    > `<=` java.util.List`<`[com.dremio.dac.explore.model.ParentDatasetUI](#class-comdremiodacexploremodelparentdatasetui)`>`   
 
- - GET /dataset/{cpath}/version/{version}/preview?tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}&engineName={String}   
+ - GET /dataset/{cpath}/version/{version}/preview?tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}&engineName={String}&sessionId={String}   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
  - POST /dataset/{cpath}/version/{version}/replace   
@@ -143,7 +143,7 @@
  - GET /dataset/{cpath}/version/{version}/review?jobId={String}&tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
- - GET /dataset/{cpath}/version/{version}/run?tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}&engineName={String}   
+ - GET /dataset/{cpath}/version/{version}/run?tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}&engineName={String}&sessionId={String}   
    > `<=` [com.dremio.dac.explore.model.InitialRunResponse](#class-comdremiodacexploremodelinitialrunresponse)   
 
  - POST /dataset/{cpath}/version/{version}/save?as={com.dremio.dac.explore.model.DatasetPath}&savedTag={String}   
@@ -179,15 +179,15 @@
  - GET /datasets/summary/{path: .*} (path params: path={String})   
    > `<=` [com.dremio.dac.explore.model.DatasetSummary](#class-comdremiodacexploremodeldatasetsummary)   
 
- - POST /datasets/new_untitled?parentDataset={com.dremio.dac.explore.model.DatasetPath}&newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}&engineName={String}   
+ - POST /datasets/new_untitled?parentDataset={com.dremio.dac.explore.model.DatasetPath}&newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}&engineName={String}&sessionId={String}   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
- - POST /datasets/new_untitled_sql?newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}   
+ - POST /datasets/new_untitled_sql?newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}&sessionId={String}   
    > `=>` [com.dremio.dac.explore.model.CreateFromSQL](#class-comdremiodacexploremodelcreatefromsql)   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
- - POST /datasets/new_untitled_sql_and_run?newVersion={com.dremio.service.namespace.dataset.DatasetVersion}   
+ - POST /datasets/new_untitled_sql_and_run?newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&sessionId={String}   
    > `=>` [com.dremio.dac.explore.model.CreateFromSQL](#class-comdremiodacexploremodelcreatefromsql)   
    > `<=` [com.dremio.dac.explore.model.InitialRunResponse](#class-comdremiodacexploremodelinitialrunresponse)   
 
@@ -429,8 +429,14 @@
 
 ## Resource defined by class com.dremio.dac.resource.JobProfileResource
 
+ - GET /queryProfile/GetJobProfileFromURL?profileJsonFileURL={String}   
+   > `<=` java.util.List`<`[com.dremio.service.jobAnalysis.proto.PhaseData](#class-comdremioservicejobanalysisprotophasedata)`>`   
+
  - GET /queryProfile/{jobId}/JobProfile?attempt={int}0 (path params: jobId={String})   
    > `<=` java.util.List`<`[com.dremio.service.jobAnalysis.proto.PhaseData](#class-comdremioservicejobanalysisprotophasedata)`>`   
+
+ - GET /queryProfile/{jobId}/JobProfile/OperatorDetails?phaseId={String}&operatorId={String}&attempt={int}0 (path params: jobId={String})   
+   > `<=` [com.dremio.dac.model.job.JobProfileOperatorInfo](#class-comdremiodacmodeljobjobprofileoperatorinfo)   
 
 
 ## Resource defined by class com.dremio.dac.resource.ResourceTreeResource
@@ -441,7 +447,7 @@
  - GET /resourcetree/{rootPath}/expand?showSpaces={boolean}&showSources={boolean}&showDatasets={boolean}&showHomes={boolean} (path params: rootPath={String})   
    > `<=` [com.dremio.dac.model.resourcetree.ResourceList](#class-comdremiodacmodelresourcetreeresourcelist)   
 
- - GET /resourcetree/{rootPath}?showDatasets={boolean} (path params: rootPath={String})   
+ - GET /resourcetree/{rootPath}?showDatasets={boolean}&refType={String}&refValue={String} (path params: rootPath={String})   
    > `<=` [com.dremio.dac.model.resourcetree.ResourceList](#class-comdremiodacmodelresourcetreeresourcelist)   
 
 
@@ -480,7 +486,7 @@
  - DELETE /source/{sourceName}?version={String}   
    > `<=` void   
 
- - GET /source/{sourceName}?includeContents={boolean}true   
+ - GET /source/{sourceName}?includeContents={boolean}true&refType={String}&refValue={String}   
    > `<=` [com.dremio.dac.model.sources.SourceUI](#class-comdremiodacmodelsourcessourceui)   
 
  - GET /source/{sourceName}/dataset/{path: .*} (path params: path={String})   
@@ -503,7 +509,7 @@
    > `=>` [com.dremio.service.namespace.file.FileFormat](#class-comdremioservicenamespacefilefileformat)   
    > `<=` [com.dremio.dac.model.job.JobDataFragment](#class-comdremiodacmodeljobjobdatafragment)   
 
- - GET /source/{sourceName}/folder/{path: .*}?includeContents={boolean}true (path params: path={String})   
+ - GET /source/{sourceName}/folder/{path: .*}?includeContents={boolean}true&refType={String}&refValue={String} (path params: path={String})   
    > `<=` [com.dremio.dac.model.folder.Folder](#class-comdremiodacmodelfolderfolder)   
 
  - DELETE /source/{sourceName}/folder_format/{path: .*}?version={String} (path params: path={String})   
@@ -602,6 +608,10 @@
  - POST /sql/analyze/validate   
    > `=>` [com.dremio.dac.explore.model.AnalyzeRequest](#class-comdremiodacexploremodelanalyzerequest)   
    > `<=` [com.dremio.dac.explore.model.ValidationResponse](#class-comdremiodacexploremodelvalidationresponse)   
+
+ - POST /sql/autocomplete   
+   > `=>` [com.dremio.service.autocomplete.AutocompleteRequest](#class-comdremioserviceautocompleteautocompleterequest)   
+   > `<=` [com.dremio.service.autocomplete.AutocompleteResponse](#class-comdremioserviceautocompleteautocompleteresponse)   
 
 
 ## Resource defined by class com.dremio.dac.support.SupportResource
@@ -748,6 +758,12 @@
     ...
   ],
   engineName: "abc",
+  references: {
+    abc: {
+      type: "BRANCH" | "TAG" | "COMMIT",
+      value: "abc",
+    }, ...
+  },
   sql: "abc",
 }
 ```
@@ -1310,6 +1326,7 @@
   jobId: {
     id: "abc",
     name: "abc",
+    sessionId: "abc",
   },
   paginationUrl: "abc",
 }
@@ -1372,6 +1389,7 @@
   jobId: {
     id: "abc",
     name: "abc",
+    sessionId: "abc",
   },
   paginationUrl: "abc",
 }
@@ -1433,6 +1451,7 @@
   jobId: {
     id: "abc",
     name: "abc",
+    sessionId: "abc",
   },
   paginationUrl: "abc",
 }
@@ -2121,6 +2140,7 @@
   jobId: {
     id: "abc",
     name: "abc",
+    sessionId: "abc",
   },
   materializationFor: {
     datasetId: "abc",
@@ -2145,7 +2165,7 @@
   ],
   peakMemory: 1,
   plansConsidered: 1,
-  queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
+  queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH" | "INTERNAL_ICEBERG_METADATA_DROP",
   requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
   resourceScheduling: {
     engineName: "abc",
@@ -2282,6 +2302,7 @@
   cancellationInfo: {
     message: "abc",
   },
+  cpuUsed: 1,
   datasetGraph: [
     {
       dataSet: { /** DataSet **/
@@ -2401,7 +2422,7 @@
     ...
   ],
   queryText: "abc",
-  queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
+  queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH" | "INTERNAL_ICEBERG_METADATA_DROP",
   queryUser: "abc",
   reflections: [
     { /** Reflection **/
@@ -2490,8 +2511,37 @@
   },
   starFlakeAccelerated: true | false,
   startTime: 1,
+  totalMemory: 1,
   waitInClient: 1,
   wlmQueue: "abc",
+}
+```
+
+## `class com.dremio.dac.model.job.JobProfileOperatorInfo`
+- Example:
+```
+{
+  batchesProcessed: 1,
+  bytesProcessed: 1,
+  operatorId: "abc",
+  operatorMetricsMap: {
+    abc: 1, ...
+  },
+  operatorName: "abc",
+  operatorSpecificDetails: {
+    filePath: "abc",
+    ioSize: 1,
+    ioTimeNs: 1,
+    offset: 1,
+    operationType: "abc",
+  },
+  operatorType: 1,
+  peakMemory: 1,
+  phaseId: "abc",
+  processTime: 1,
+  recordsProcessed: 1,
+  setupTime: 1,
+  waitTime: 1,
 }
 ```
 
@@ -2548,6 +2598,7 @@
   jobAttempt: {
     attemptId: "abc",
     details: {
+      cpuUsed: 1,
       dataVolume: 1,
       fsDatasetProfilesList: [
         {
@@ -2609,6 +2660,7 @@
         },
         ...
       ],
+      totalMemory: 1,
       waitInClient: 1,
     },
     endpoint: { /** NodeEndpoint **/
@@ -2723,6 +2775,7 @@
       jobId: { /** JobId **/
         id: "abc",
         name: "abc",
+        sessionId: "abc",
       },
       joinAnalysis: {
         joinStatsList: [
@@ -2814,7 +2867,7 @@
         "abc",
         ...
       ],
-      queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
+      queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH" | "INTERNAL_ICEBERG_METADATA_DROP",
       requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
       resourceSchedulingInfo: {
         engineName: "abc",
@@ -2931,6 +2984,7 @@
   jobId: { /** JobId **/
     id: "abc",
     name: "abc",
+    sessionId: "abc",
   },
 }
 ```
@@ -2997,7 +3051,7 @@
         ...
       ],
       queryText: "abc",
-      queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH",
+      queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW" | "FLIGHT" | "METADATA_REFRESH" | "INTERNAL_ICEBERG_METADATA_DROP",
       requestType: "INVALID_REQUEST_TYPE" | "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META" | "UNRECOGNIZED",
       rowsScanned: 1,
       spilled: true | false,
@@ -3077,6 +3131,7 @@
         "abc",
         ...
       ],
+      id: "abc",
       name: "abc",
       resources: [
         (ref: ResourceTreeEntity),
@@ -5160,31 +5215,30 @@ any
 ```
 {
   numThreads: 1,
-  operatorDataList: {
-    operatorDataList: [
-      {
-        baseMetrics: {
-          ioWaitTime: 1,
-          numThreads: 1,
-          peakMemory: 1,
-          processingTime: 1,
-          recordsProcessed: 1,
-          setupTime: 1,
-        },
-        mergeNodeName: "abc",
-        nodeId: "abc",
-        operatorName: "abc",
-        operatorType: 1,
-        successorId: {
-          successorIdList: [
-            "abc",
-            ...
-          ],
-        },
+  operatorDataList: [
+    {
+      baseMetrics: {
+        bytesProcessed: 1,
+        ioWaitTime: 1,
+        numThreads: 1,
+        peakMemory: 1,
+        processingTime: 1,
+        recordsProcessed: 1,
+        setupTime: 1,
       },
-      ...
-    ],
-  },
+      mergeNodeName: "abc",
+      nodeId: "abc",
+      operatorName: "abc",
+      operatorType: 1,
+      successorId: {
+        successorIdList: [
+          "abc",
+          ...
+        ],
+      },
+    },
+    ...
+  ],
   peakMemory: 1,
   phaseId: "abc",
   processingTime: 1,
@@ -5638,6 +5692,31 @@ any
 ```
 {
   containerCount: 1,
+}
+```
+
+## `interface com.dremio.service.autocomplete.AutocompleteRequest`
+- Example:
+```
+{
+  cursor: 1,
+  query: "abc",
+}
+```
+
+## `interface com.dremio.service.autocomplete.AutocompleteResponse`
+- Example:
+```
+{
+  items: [
+    {
+      data: any,
+      detail: "abc",
+      kind: "CatalogEntry" | "Column" | "Function" | "Keyword",
+      label: "abc",
+    },
+    ...
+  ],
 }
 ```
 

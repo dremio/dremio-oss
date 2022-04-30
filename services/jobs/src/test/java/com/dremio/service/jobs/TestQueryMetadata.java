@@ -15,8 +15,7 @@
  */
 package com.dremio.service.jobs;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
@@ -44,7 +43,7 @@ public class TestQueryMetadata {
     final List<String> actual = QueryMetadata.getSources(datasetConfig);
     final List<String> expected = ImmutableList.of("source_name");
 
-    assertThat(actual, equalTo(expected));
+    assertThat(actual).isEqualTo(expected);
   }
 
   @Test
@@ -66,7 +65,7 @@ public class TestQueryMetadata {
     final List<String> actual = QueryMetadata.getSources(datasetConfig);
     final List<String> expected = ImmutableList.of("source_name");
 
-    assertThat(actual, equalTo(expected));
+    assertThat(actual).isEqualTo(expected);
   }
 
   @Test
@@ -83,7 +82,7 @@ public class TestQueryMetadata {
     final List<String> actual = QueryMetadata.getSources(datasetConfig);
     final List<String> expected = ImmutableList.of("source_name");
 
-    assertThat(actual, equalTo(expected));
+    assertThat(actual).isEqualTo(expected);
   }
 
   @Test
@@ -100,7 +99,7 @@ public class TestQueryMetadata {
     final List<String> actual = QueryMetadata.getSources(datasetConfig);
     final List<String> expected = ImmutableList.of("source_name");
 
-    assertThat(actual, equalTo(expected));
+    assertThat(actual).isEqualTo(expected);
   }
 
   @Test
@@ -117,7 +116,7 @@ public class TestQueryMetadata {
     final List<String> actual = QueryMetadata.getSources(datasetConfig);
     final List<String> expected = ImmutableList.of("source_name");
 
-    assertThat(actual, equalTo(expected));
+    assertThat(actual).isEqualTo(expected);
   }
 
   @Test
@@ -138,7 +137,7 @@ public class TestQueryMetadata {
     final List<String> actual = QueryMetadata.getSources(datasetConfig);
     final List<String> expected = ImmutableList.of("source1", "source2");
 
-    assertThat(actual, equalTo(expected));
+    assertThat(actual).isEqualTo(expected);
   }
 
   @Test
@@ -163,7 +162,7 @@ public class TestQueryMetadata {
     final List<String> actual = QueryMetadata.getSources(datasetConfig);
     final List<String> expected = ImmutableList.of("source1", "source2");
 
-    assertThat(actual, equalTo(expected));
+    assertThat(actual).isEqualTo(expected);
   }
 
 
@@ -195,6 +194,6 @@ public class TestQueryMetadata {
     final List<String> actual = QueryMetadata.getSources(datasetConfig);
     final List<String> expected = ImmutableList.of("source1", "source2");
 
-    assertThat(actual, equalTo(expected));
+    assertThat(actual).isEqualTo(expected);
   }
 }

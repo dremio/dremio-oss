@@ -105,8 +105,11 @@ public class Chronicle extends ChronicleGrpc.ChronicleImplBase {
       });
       responseObserver.onCompleted();
     } catch (EnumSearchValueNotFoundException e) {
-      LOGGER.info("EnumSearchValueNotFoundException received : returning empty response for query {}", request.getQuery());
+      LOGGER.error("Got EnumSearchValueNotFoundException returning empty response, query {}", request.getQuery(), e);
       responseObserver.onCompleted();
+    } catch (Exception ex) {
+      LOGGER.error("Exception while fetching active jobs for request {}", request, ex);
+      responseObserver.onError(ex);
     }
   }
 

@@ -248,7 +248,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         unpivotHelper(pivot, fbv, vbv, ins, outs, 100, 924);
       }
 
-      tempBuf.release();
+      tempBuf.close();
     }
   }
 
@@ -300,7 +300,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
           assertEquals(in.getObject(i), out.getObject(i));
         }
       }
-      tempBuf.release();
+      tempBuf.close();
     }
   }
 
@@ -420,7 +420,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
           assertEquals(in.getObject(i), out.getObject(i));
         }
       }
-      tempBuf.release();
+      tempBuf.close();
     }
   }
 
@@ -586,7 +586,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
 
       final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
       pivotAndUnpivotHelperWithAppend(pivot, in, out, 100, 924);
-      tempBuf.release();
+      tempBuf.getReferenceManager().release();
     }
   }
 

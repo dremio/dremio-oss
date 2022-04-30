@@ -15,8 +15,7 @@
  */
 package com.dremio.exec.planner.sql;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.apache.arrow.vector.types.IntervalUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -66,7 +65,7 @@ public class TestCalciteArrowHelper {
     expected.add(NULL_FIELD.getName(),
       CalciteArrowHelper.toCalciteType(NULL_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
 
-    assertThat(actual, equalTo(expected.build()));
+    assertThat(actual).isEqualTo(expected.build());
   }
 
   @Test
@@ -82,7 +81,7 @@ public class TestCalciteArrowHelper {
     expected.add(UTF8_FIELD.getName(),
       CalciteArrowHelper.toCalciteType(UTF8_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
 
-    assertThat(actual, equalTo(expected.build()));
+    assertThat(actual).isEqualTo(expected.build());
   }
 
   @Test
@@ -98,7 +97,7 @@ public class TestCalciteArrowHelper {
     expected.add(NULL_FIELD.getName(),
       CalciteArrowHelper.toCalciteType(NULL_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
 
-    assertThat(actual, equalTo(expected.build()));
+    assertThat(actual).isEqualTo(expected.build());
   }
   @Test
   public void testToCalciteRecordRowTypeWithInterval() {
@@ -115,7 +114,7 @@ public class TestCalciteArrowHelper {
       CalciteArrowHelper.toCalciteType(INTERVAL_DAY_TIME_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
     expected.add(INTERVAL_YEAR_MONTH_FIELD.getName(),
       CalciteArrowHelper.toCalciteType(INTERVAL_YEAR_MONTH_FIELD, SqlTypeFactoryImpl.INSTANCE, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal()));
-    assertThat(actual, equalTo(expected.build()));
+    assertThat(actual).isEqualTo(expected.build());
   }
 
 }

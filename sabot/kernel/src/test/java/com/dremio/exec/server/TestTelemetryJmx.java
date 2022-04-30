@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 import java.lang.management.ManagementFactory;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.management.MalformedObjectNameException;
@@ -30,7 +31,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -50,16 +50,22 @@ public class TestTelemetryJmx extends BaseTestQuery {
 
   private void runTest(ObjectName objectName, List<String> expectedNames) {
     Set<ObjectInstance> objectInstances = ManagementFactory.getPlatformMBeanServer().queryMBeans(objectName, null);
-    Set<String> actualNames = objectInstances.stream().map(obj -> obj.getObjectName().getCanonicalName()).collect(Collectors.toSet());
 
-    String completeList = Joiner.on(',').join(actualNames);
+    List<String> actualNames = objectInstances.stream()
+      .map(obj -> obj.getObjectName().getCanonicalName())
+      .sorted().collect(Collectors.toList());
 
     // Asserting that expected metrics are appearing. Count is not strictly adhered to as
     // Jenkins runs have more metrics than workstation runs. If the metrics listed here are
     // present then the Telemetry API/Impl modules are considered to be working with JMX.
-    for (String name : expectedNames) {
-      assertTrue("Metric missing: '" + name + "' from complete list: " + completeList, actualNames.contains(name));
-    }
+    String missing = expectedNames.stream()
+      .map(Pattern::compile)
+      .filter(pattern -> actualNames.stream().noneMatch(name -> pattern.matcher(name).matches()))
+      .sorted()
+      .map(pattern -> String.format("'%s'", pattern.pattern()))
+      .collect(Collectors.joining(",\n    "));
+    assertTrue("Metric missing pattern(s): \n" + missing + " from complete list: \n" + String.join(",\n    ", actualNames),
+      missing.isEmpty());
   }
 
   @Test
@@ -68,95 +74,76 @@ public class TestTelemetryJmx extends BaseTestQuery {
   }
 
   private static final List<String> objectNames = ImmutableList.of(
-    "metrics:name=buffer-pool.direct.capacity,type=gauges",
-    "metrics:name=buffer-pool.direct.count,type=gauges",
-    "metrics:name=buffer-pool.direct.used,type=gauges",
-    "metrics:name=buffer-pool.mapped.capacity,type=gauges",
-    "metrics:name=buffer-pool.mapped.count,type=gauges",
-    "metrics:name=buffer-pool.mapped.used,type=gauges",
-    "metrics:name=dremio.memory.direct_current,type=gauges",
-    "metrics:name=dremio.memory.jvm_direct_current,type=gauges",
-    "metrics:name=dremio.memory.remaining_heap_allocations,type=gauges",
+    "metrics:name=buffer-pool\\.direct\\.capacity,type=gauges",
+    "metrics:name=buffer-pool\\.direct\\.count,type=gauges",
+    "metrics:name=buffer-pool\\.direct\\.used,type=gauges",
+    "metrics:name=buffer-pool\\.mapped\\.capacity,type=gauges",
+    "metrics:name=buffer-pool\\.mapped\\.count,type=gauges",
+    "metrics:name=buffer-pool\\.mapped\\.used,type=gauges",
+    "metrics:name=dremio\\.memory\\.direct_current,type=gauges",
+    "metrics:name=dremio\\.memory\\.jvm_direct_current,type=gauges",
+    "metrics:name=dremio\\.memory\\.remaining_heap_allocations,type=gauges",
     "metrics:name=FABRIC-send-durations-ms,type=histograms",
-    "metrics:name=fragments.active,type=gauges",
-    "metrics:name=gc.PS-MarkSweep.count,type=gauges",
-    "metrics:name=gc.PS-MarkSweep.time,type=gauges",
-    "metrics:name=gc.PS-Scavenge.count,type=gauges",
-    "metrics:name=gc.PS-Scavenge.time,type=gauges",
-    "metrics:name=jobs.active,type=gauges",
-    "metrics:name=jobs.command_pool.active_threads,type=gauges",
-    "metrics:name=jobs.command_pool.queue_size,type=gauges",
-    "metrics:name=kvstore.lucene.dac-namespace.deleted-records,type=gauges",
-    "metrics:name=kvstore.lucene.dac-namespace.live-records,type=gauges",
-    "metrics:name=kvstore.lucene.metadata-dataset-splits.deleted-records,type=gauges",
-    "metrics:name=kvstore.lucene.metadata-dataset-splits.live-records,type=gauges",
-    "metrics:name=kvstore.lucene.userGroup.deleted-records,type=gauges",
-    "metrics:name=kvstore.lucene.userGroup.live-records,type=gauges",
-    "metrics:name=maestro.active,type=gauges",
-    "metrics:name=memory.heap.committed,type=gauges",
-    "metrics:name=memory.heap.init,type=gauges",
-    "metrics:name=memory.heap.max,type=gauges",
-    "metrics:name=memory.heap.usage,type=gauges",
-    "metrics:name=memory.heap.used,type=gauges",
-    "metrics:name=memory.non-heap.committed,type=gauges",
-    "metrics:name=memory.non-heap.init,type=gauges",
-    "metrics:name=memory.non-heap.max,type=gauges",
-    "metrics:name=memory.non-heap.usage,type=gauges",
-    "metrics:name=memory.non-heap.used,type=gauges",
-    "metrics:name=memory.pools.Code-Cache.committed,type=gauges",
-    "metrics:name=memory.pools.Code-Cache.init,type=gauges",
-    "metrics:name=memory.pools.Code-Cache.max,type=gauges",
-    "metrics:name=memory.pools.Code-Cache.usage,type=gauges",
-    "metrics:name=memory.pools.Code-Cache.used,type=gauges",
-    "metrics:name=memory.pools.Compressed-Class-Space.committed,type=gauges",
-    "metrics:name=memory.pools.Compressed-Class-Space.init,type=gauges",
-    "metrics:name=memory.pools.Compressed-Class-Space.max,type=gauges",
-    "metrics:name=memory.pools.Compressed-Class-Space.usage,type=gauges",
-    "metrics:name=memory.pools.Compressed-Class-Space.used,type=gauges",
-    "metrics:name=memory.pools.Metaspace.committed,type=gauges",
-    "metrics:name=memory.pools.Metaspace.init,type=gauges",
-    "metrics:name=memory.pools.Metaspace.max,type=gauges",
-    "metrics:name=memory.pools.Metaspace.usage,type=gauges",
-    "metrics:name=memory.pools.Metaspace.used,type=gauges",
-    "metrics:name=memory.pools.PS-Eden-Space.committed,type=gauges",
-    "metrics:name=memory.pools.PS-Eden-Space.init,type=gauges",
-    "metrics:name=memory.pools.PS-Eden-Space.max,type=gauges",
-    "metrics:name=memory.pools.PS-Eden-Space.usage,type=gauges",
-    "metrics:name=memory.pools.PS-Eden-Space.used,type=gauges",
-    "metrics:name=memory.pools.PS-Eden-Space.used-after-gc,type=gauges",
-    "metrics:name=memory.pools.PS-Old-Gen.committed,type=gauges",
-    "metrics:name=memory.pools.PS-Old-Gen.init,type=gauges",
-    "metrics:name=memory.pools.PS-Old-Gen.max,type=gauges",
-    "metrics:name=memory.pools.PS-Old-Gen.usage,type=gauges",
-    "metrics:name=memory.pools.PS-Old-Gen.used,type=gauges",
-    "metrics:name=memory.pools.PS-Old-Gen.used-after-gc,type=gauges",
-    "metrics:name=memory.pools.PS-Survivor-Space.committed,type=gauges",
-    "metrics:name=memory.pools.PS-Survivor-Space.init,type=gauges",
-    "metrics:name=memory.pools.PS-Survivor-Space.max,type=gauges",
-    "metrics:name=memory.pools.PS-Survivor-Space.usage,type=gauges",
-    "metrics:name=memory.pools.PS-Survivor-Space.used,type=gauges",
-    "metrics:name=memory.pools.PS-Survivor-Space.used-after-gc,type=gauges",
-    "metrics:name=memory.total.committed,type=gauges",
-    "metrics:name=memory.total.init,type=gauges",
-    "metrics:name=memory.total.max,type=gauges",
-    "metrics:name=memory.total.used,type=gauges",
-    "metrics:name=rpc.bit.data.current,type=gauges",
-    "metrics:name=rpc.bit.data.peak,type=gauges",
-    "metrics:name=rpc.peers,type=gauges",
-    "metrics:name=rpc.user.current,type=gauges",
-    "metrics:name=rpc.user.peak,type=gauges",
-    "metrics:name=rpcbit.control.current,type=gauges",
-    "metrics:name=rpcbit.control.peak,type=gauges",
-    "metrics:name=threads.blocked.count,type=gauges",
-    "metrics:name=threads.count,type=gauges",
-    "metrics:name=threads.daemon.count,type=gauges",
-    "metrics:name=threads.deadlock.count,type=gauges",
-    "metrics:name=threads.deadlocks,type=gauges",
-    "metrics:name=threads.new.count,type=gauges",
-    "metrics:name=threads.runnable.count,type=gauges",
-    "metrics:name=threads.terminated.count,type=gauges",
-    "metrics:name=threads.timed_waiting.count,type=gauges",
-    "metrics:name=threads.waiting.count,type=gauges",
+    "metrics:name=fragments\\.active,type=gauges",
+    "metrics:name=gc\\..*\\.count,type=gauges",
+    "metrics:name=gc\\..*\\.time,type=gauges",
+    "metrics:name=jobs\\.active,type=gauges",
+    "metrics:name=jobs\\.command_pool\\.active_threads,type=gauges",
+    "metrics:name=jobs\\.command_pool\\.queue_size,type=gauges",
+    "metrics:name=kvstore\\.lucene\\.dac-namespace\\.deleted-records,type=gauges",
+    "metrics:name=kvstore\\.lucene\\.dac-namespace\\.live-records,type=gauges",
+    "metrics:name=kvstore\\.lucene\\.metadata-dataset-splits\\.deleted-records,type=gauges",
+    "metrics:name=kvstore\\.lucene\\.metadata-dataset-splits\\.live-records,type=gauges",
+    "metrics:name=kvstore\\.lucene\\.userGroup\\.deleted-records,type=gauges",
+    "metrics:name=kvstore\\.lucene\\.userGroup\\.live-records,type=gauges",
+    "metrics:name=maestro\\.active,type=gauges",
+    "metrics:name=memory\\.heap\\.committed,type=gauges",
+    "metrics:name=memory\\.heap\\.init,type=gauges",
+    "metrics:name=memory\\.heap\\.max,type=gauges",
+    "metrics:name=memory\\.heap\\.usage,type=gauges",
+    "metrics:name=memory\\.heap\\.used,type=gauges",
+    "metrics:name=memory\\.non-heap\\.committed,type=gauges",
+    "metrics:name=memory\\.non-heap\\.init,type=gauges",
+    "metrics:name=memory\\.non-heap\\.max,type=gauges",
+    "metrics:name=memory\\.non-heap\\.usage,type=gauges",
+    "metrics:name=memory\\.non-heap\\.used,type=gauges",
+    "metrics:name=memory\\.pools\\.Code.*\\.committed,type=gauges",
+    "metrics:name=memory\\.pools\\.Code.*\\.init,type=gauges",
+    "metrics:name=memory\\.pools\\.Code.*\\.max,type=gauges",
+    "metrics:name=memory\\.pools\\.Code.*\\.usage,type=gauges",
+    "metrics:name=memory\\.pools\\.Code.*\\.used,type=gauges",
+    "metrics:name=memory\\.pools\\.Metaspace\\.committed,type=gauges",
+    "metrics:name=memory\\.pools\\.Metaspace\\.init,type=gauges",
+    "metrics:name=memory\\.pools\\.Metaspace\\.max,type=gauges",
+    "metrics:name=memory\\.pools\\.Metaspace\\.usage,type=gauges",
+    "metrics:name=memory\\.pools\\.Metaspace\\.used,type=gauges",
+    "metrics:name=memory\\.pools\\..*-Space\\.committed,type=gauges",
+    "metrics:name=memory\\.pools\\..*-Space\\.init,type=gauges",
+    "metrics:name=memory\\.pools\\..*-Space\\.max,type=gauges",
+    "metrics:name=memory\\.pools\\..*-Space\\.usage,type=gauges",
+    "metrics:name=memory\\.pools\\..*-Space\\.used,type=gauges",
+    "metrics:name=memory\\.pools\\..*-Space\\.used-after-gc,type=gauges",
+    "metrics:name=memory\\.total\\.committed,type=gauges",
+    "metrics:name=memory\\.total\\.init,type=gauges",
+    "metrics:name=memory\\.total\\.max,type=gauges",
+    "metrics:name=memory\\.total\\.used,type=gauges",
+    "metrics:name=rpc\\.bit\\.data\\.current,type=gauges",
+    "metrics:name=rpc\\.bit\\.data\\.peak,type=gauges",
+    "metrics:name=rpc\\.peers,type=gauges",
+    "metrics:name=rpc\\.user\\.current,type=gauges",
+    "metrics:name=rpc\\.user\\.peak,type=gauges",
+    "metrics:name=rpcbit\\.control\\.current,type=gauges",
+    "metrics:name=rpcbit\\.control\\.peak,type=gauges",
+    "metrics:name=threads\\.blocked\\.count,type=gauges",
+    "metrics:name=threads\\.count,type=gauges",
+    "metrics:name=threads\\.daemon\\.count,type=gauges",
+    "metrics:name=threads\\.deadlock\\.count,type=gauges",
+    "metrics:name=threads\\.deadlocks,type=gauges",
+    "metrics:name=threads\\.new\\.count,type=gauges",
+    "metrics:name=threads\\.runnable\\.count,type=gauges",
+    "metrics:name=threads\\.terminated\\.count,type=gauges",
+    "metrics:name=threads\\.timed_waiting\\.count,type=gauges",
+    "metrics:name=threads\\.waiting\\.count,type=gauges",
     "metrics:name=USER-send-durations-ms,type=histograms"
   );
 }

@@ -16,6 +16,7 @@
 package com.dremio.dac.explore.bi;
 
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_CONNECTION_PROPERTIES;
+import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_FLIGHT_CONNECTION_PROPERTIES;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.EXTRA_NATIVE_CONNECTION_PROPERTIES;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE;
 import static com.dremio.dac.explore.bi.TableauMessageBodyGenerator.TABLEAU_VERSION;
@@ -202,6 +203,26 @@ public class TestTableauMessageBodyGenerator {
     verifySdkOutput("", TableauSDKConstants.REQUIRE);
   }
 
+  @Test
+  public void verifyFlightOutputSslOff()
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    verifyFlightOutput("" ,"");
+  }
+
+  @Test
+  public void verifyFlightOutputSslOn()
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    verifyFlightOutput("useTls = true", TableauSDKConstants.REQUIRE);
+  }
+
+  @Test
+  public void verifyFlightOutputSslOnConfig()
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(config.hasPath("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
+    when(config.getBoolean("services.coordinator.client-endpoint.ssl.enabled")).thenReturn(true);
+    verifyFlightOutput("", TableauSDKConstants.REQUIRE);
+  }
+
   protected void verifySdkCustomOutput(Element connection) {
     assertEquals("", connection.getAttribute(TableauSDKConstants.QUEUE));
     assertEquals("", connection.getAttribute(TableauSDKConstants.ENGINE));
@@ -247,6 +268,55 @@ public class TestTableauMessageBodyGenerator {
     assertEquals(1, connections.getLength());
     Element connection = (Element) connections.item(0);
     assertEquals("dremio", connection.getAttribute(TableauSDKConstants.CLASS));
+    assertEquals("DREMIO", connection.getAttribute(TableauSDKConstants.DBNAME));
+    assertEquals(path.toParentPath(), connection.getAttribute(TableauSDKConstants.SCHEMA));
+
+    verifySdkAuthenticationOutput(connection);
+    verifySdkSSLOutput(connection, sslmode);
+    verifySdkCustomOutput(connection);
+
+    verifyRelationElement(connection);
+
+    // test column aliases, column element and attributes
+    verifyAliasesElement(document);
+    final NodeList columnAliases = document.getDocumentElement().getElementsByTagName("column");
+    assertEquals(columnAliases.getLength(), schema.getFieldCount());
+    verifyBatchSchema(columnAliases);
+
+    // Also check that Content-Disposition header is set with a filename ending by tds
+    ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+    assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
+
+    return connection;
+  }
+
+  protected Element verifyFlightOutput(String properties, String sslmode)
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(optionManager.getOption(EXTRA_FLIGHT_CONNECTION_PROPERTIES)).thenReturn(properties);
+    when(optionManager.getOption(TABLEAU_EXPORT_TYPE))
+      .thenReturn(TableauExportType.FLIGHT.toString());
+    final DatasetConfig datasetConfig = new DatasetConfig();
+    datasetConfig.setFullPathList(path.toPathList());
+    datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    final BatchSchema schema = generateBatchSchema();
+    datasetConfig.setRecordSchema(schema.toByteString());
+    TableauMessageBodyGenerator tableauMessageBodyGenerator = getGenerator();
+    MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    assertTrue(tableauMessageBodyGenerator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
+    tableauMessageBodyGenerator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
+
+    // Convert the baos into a DOM Tree to verify content
+    DocumentBuilderFactory factory = SafeXMLFactories.newSafeDocumentBuilderFactory();
+    Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
+
+    assertEquals(TABLEAU_VERSION, document.getDocumentElement().getAttribute("version"));
+
+    NodeList connections = document.getDocumentElement().getElementsByTagName(TableauSDKConstants.CONN_ATTR);
+
+    assertEquals(1, connections.getLength());
+    Element connection = (Element) connections.item(0);
+    assertEquals("dremio-flight-sql", connection.getAttribute(TableauSDKConstants.CLASS));
     assertEquals("DREMIO", connection.getAttribute(TableauSDKConstants.DBNAME));
     assertEquals(path.toParentPath(), connection.getAttribute(TableauSDKConstants.SCHEMA));
 
@@ -342,7 +412,7 @@ public class TestTableauMessageBodyGenerator {
     return BatchSchema.newBuilder()
       .addField(new Field("col_string", FieldType.nullable(ArrowType.Utf8.INSTANCE), null))
       .addField(new Field("BOOLEAN", FieldType.nullable(ArrowType.Bool.INSTANCE), null))
-      .addField(new Field("Col_decimal", FieldType.nullable(new ArrowType.Decimal(0, 0)), null))
+      .addField(new Field("Col_decimal", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
       .addField(new Field("col_INT", FieldType.nullable(new ArrowType.Int(8, false)), null))
       .addField(new Field("COL_DATE", FieldType.nullable(new ArrowType.Date(DateUnit.MILLISECOND)), null))
       .addField(new Field("COL_Time", FieldType.nullable(new ArrowType.Time(TimeUnit.MILLISECOND, 8)), null))
@@ -352,9 +422,9 @@ public class TestTableauMessageBodyGenerator {
       .addField(new Field("float_id", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null))
       .addField(new Field("float_Code", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null))
       .addField(new Field("float_KEY", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null))
-      .addField(new Field("decimal_number", FieldType.nullable(new ArrowType.Decimal(0, 0)), null))
-      .addField(new Field("decimal_Num", FieldType.nullable(new ArrowType.Decimal(0, 0)), null))
-      .addField(new Field("decimal_NBR", FieldType.nullable(new ArrowType.Decimal(0, 0)), null))
+      .addField(new Field("decimal_number", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
+      .addField(new Field("decimal_Num", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
+      .addField(new Field("decimal_NBR", FieldType.nullable(new ArrowType.Decimal(0, 0, 128)), null))
       .build();
   }
 

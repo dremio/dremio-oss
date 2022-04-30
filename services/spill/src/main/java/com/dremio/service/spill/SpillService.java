@@ -15,6 +15,8 @@
  */
 package com.dremio.service.spill;
 
+import java.io.IOException;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.service.Service;
 
@@ -49,4 +51,12 @@ public interface SpillService extends Service {
    */
   @Deprecated
   SpillDirectory getSpillSubdir(String id) throws UserException;
+
+  /**
+   * Checks if spill is empty.
+   *
+   * @return true if empty.
+   * @throws IOException
+   */
+  boolean isEmpty() throws IOException;
 }

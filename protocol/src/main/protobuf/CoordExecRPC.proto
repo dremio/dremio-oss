@@ -145,6 +145,7 @@ message PlanFragmentMajor {
   optional FragmentCodec fragment_codec = 14;
   repeated FragmentAssignment all_assignment = 15;
   repeated MajorFragmentAssignment ext_fragment_assignments = 16;
+  optional int32 fragment_exec_weight = 17;
 }
 
 message MajorFragmentAssignment {
@@ -253,6 +254,7 @@ message NodeQueryFirstError {
 // progress metrics
 message QueryProgressMetrics {
   optional int64 rows_processed = 1;
+  optional int64 output_records = 2;
 }
 
 // node level metrics, for a query.

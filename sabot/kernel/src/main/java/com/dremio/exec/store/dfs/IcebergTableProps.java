@@ -17,6 +17,7 @@ package com.dremio.exec.store.dfs;
 
 import java.util.List;
 
+import com.dremio.exec.catalog.ResolvedVersionContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -37,6 +38,7 @@ public class IcebergTableProps {
   private boolean detectSchema;
   private boolean isMetadataRefresh;
   private List<String> partitionPaths;
+  private ResolvedVersionContext version;
 
   @JsonCreator
   public IcebergTableProps(
@@ -46,15 +48,16 @@ public class IcebergTableProps {
     @JsonProperty("partitionColumnNames") List<String> partitionColumnNames,
     @JsonProperty("icebergOpType") IcebergCommandType icebergOpType,
     @JsonProperty("tableName") String tableName,
-    @JsonProperty("dataTableLocation") String dataTableLocation
-    ) {
+    @JsonProperty("dataTableLocation") String dataTableLocation,
+    @JsonProperty("versionContext") ResolvedVersionContext version) {
       this.tableLocation = tableLocation;
       this.uuid = uuid;
       this.fullSchema = fullSchema;
       this.partitionColumnNames = partitionColumnNames;
       this.icebergOpType = icebergOpType;
       this.tableName = tableName;
-    this.dataTableLocation = dataTableLocation;
+      this.dataTableLocation = dataTableLocation;
+      this.version = version;
   }
 
   public IcebergTableProps(final IcebergTableProps other){
@@ -68,6 +71,7 @@ public class IcebergTableProps {
     this.detectSchema = other.detectSchema;
     this.isMetadataRefresh = other.isMetadataRefresh;
     this.partitionPaths = other.partitionPaths;
+    this.version = other.version;
   }
 
   public String getTableLocation() {
@@ -98,7 +102,7 @@ public class IcebergTableProps {
     this.persistedFullSchema = schema;
   }
 
-  void setTableLocation(String tableFolder) {
+  public void setTableLocation(String tableFolder) {
     this.tableLocation = tableFolder;
   }
 
@@ -140,6 +144,10 @@ public class IcebergTableProps {
 
   public String getDataTableLocation() {
     return dataTableLocation;
+  }
+
+  public ResolvedVersionContext getVersion() {
+    return version;
   }
 
   @JsonIgnore

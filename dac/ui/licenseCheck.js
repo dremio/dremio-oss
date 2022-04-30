@@ -73,7 +73,10 @@ const KNOWN = {
   'ua-parser-js': {
     tagScheme: v => v
   },
-
+  'yfiles-umd@24.0.4': {
+    licenses: 'MIT',
+    licenseText: 'yfiles' // TODO SEAN SUSANNAH CHRIS
+  },
   // the following include versions for safety:
   'stackframe@0.3.1': {
     licenses: 'Unlicense' // Chris confirmed
@@ -99,9 +102,9 @@ const KNOWN = {
     // licenseURL: 'https://raw.githubusercontent.com/sporritt/jsPlumb/2.1.4/jsPlumb-LICENSE.txt'
     licenseText: '\t\t\t\tMIT LICENSE\n\nCopyright (c) 2010 - 2014 jsPlumb, http://jsplumbtoolkit.com/\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n"Software"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.'
   },
-  'regenerator-runtime@0.10.5': {
+  'regenerator-runtime@0.11.1': {
     // custom tag scheme
-    licenseURL: 'https://raw.githubusercontent.com/facebook/regenerator/runtime%400.10.5/LICENSE'
+    licenseURL: 'https://raw.githubusercontent.com/facebook/regenerator/main/LICENSE'
   },
   'ua-parser-js@0.7.12': {
     // strip GPL

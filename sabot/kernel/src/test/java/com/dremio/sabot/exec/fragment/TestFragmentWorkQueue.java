@@ -60,7 +60,7 @@ public class TestFragmentWorkQueue {
             FragmentWorkQueue workQueue = new FragmentWorkQueue(getSharedResourceGrp());
             for (int i = 0; i < 100; i++) {
                 ex.execute(() -> {
-                    buf.retain();
+                    buf.getReferenceManager().retain();
                     workQueue.put(doNothing(), buf::close);
                     latch.countDown();
                 });

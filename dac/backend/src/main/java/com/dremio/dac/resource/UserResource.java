@@ -140,7 +140,7 @@ public class UserResource {
   @Produces(MediaType.APPLICATION_JSON)
   public Response deleteUser(@PathParam("userName") UserName userName, @QueryParam("version") String version) throws IOException, UserNotFoundException {
     if (version == null) {
-      throw new ClientErrorException("missing version parameter");
+      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
 
     if (securityContext.getUserPrincipal().getName().equals(userName.getName())) {

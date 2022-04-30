@@ -31,6 +31,7 @@ public class ExpressionSplitCache {
   private final LoadingCache<ExpAndCodeGenEngineHolder, ExpressionSplitsHolder> expressionSplitsCache;
   private volatile boolean listenerAdded = false;
   private final OptionManager optionManager;
+
   public ExpressionSplitCache(final OptionManager optionManager, SabotConfig config) {
     final long cacheMaxSize = config.getInt(ExecConstants.MAX_SPLIT_CACHE_SIZE_CONFIG);
     this.optionManager = optionManager;
@@ -41,19 +42,18 @@ public class ExpressionSplitCache {
   }
 
   public ExpressionSplitsHolder getSplitsFromCache(ExpAndCodeGenEngineHolder expAndCodeGenEngineHolder) throws ExecutionException {
-    if(!listenerAdded) {
-      addlistener();
+    if (!listenerAdded) {
+      addListener();
     }
-    ExpressionSplitsHolder expressionSplitsHolder = expressionSplitsCache.get(expAndCodeGenEngineHolder);
-    return expressionSplitsHolder;
+    return expressionSplitsCache.get(expAndCodeGenEngineHolder);
   }
 
-  private void addlistener() {
-    optionManager.addOptionChangeListener(new GandivaBlackListFunctionsAndExpessionSplitterOptionsChangeListener(optionManager, this));
+  private void addListener() {
+    optionManager.addOptionChangeListener(new ExpressionSplitterOptionsChangeListener(optionManager, this));
     listenerAdded = true;
   }
 
-  private class ExpToExpressionSplitsCacheLoader extends CacheLoader<ExpAndCodeGenEngineHolder, ExpressionSplitsHolder> {
+  private static class ExpToExpressionSplitsCacheLoader extends CacheLoader<ExpAndCodeGenEngineHolder, ExpressionSplitsHolder> {
     @Override
     public ExpressionSplitsHolder load(final ExpAndCodeGenEngineHolder expAndCodeGenEngineHolder) throws Exception {
       int initialOutPutFieldCounter = expAndCodeGenEngineHolder.getExpressionSplitter().getOutputFieldCounter();

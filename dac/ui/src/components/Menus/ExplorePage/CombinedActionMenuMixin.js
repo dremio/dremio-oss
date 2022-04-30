@@ -21,12 +21,12 @@ export function CombinedActionMenuMixin(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     checkToRenderDownloadSection() {
       const datasetSql = this.props.dataset.get('sql');
-      const { action, datasetColumns } = this.props;
+      const { action, datasetColumns, updateDownloading } = this.props;
       return (
-        <div>
+        <div className='combinedActionMenu'>
           <DividerHr />
           {this.renderDownloadSectionHeader()}
-          <ExportMenu action={action} datasetColumns={datasetColumns} datasetSql={datasetSql}/>
+          <ExportMenu action={action} datasetColumns={datasetColumns} datasetSql={datasetSql} updateDownloading={updateDownloading} />
         </div>
       );
     }

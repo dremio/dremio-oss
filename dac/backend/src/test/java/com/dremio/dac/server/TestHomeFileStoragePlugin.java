@@ -25,12 +25,9 @@ import javax.ws.rs.client.Entity;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
@@ -47,6 +44,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
 
 
@@ -54,9 +52,6 @@ import com.google.common.collect.ImmutableList;
  * Test home file storage plugin.
  */
 public class TestHomeFileStoragePlugin extends BaseTestServer {
-
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
 
   @ClassRule
   public static final TemporaryFolder temp = new TemporaryFolder();
@@ -101,13 +96,11 @@ public class TestHomeFileStoragePlugin extends BaseTestServer {
     StoragePlugin plugin = catalog.getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     HomeFileSystemStoragePlugin homePlugin = (HomeFileSystemStoragePlugin) plugin;
 
-    thrownException.expect(UserException.class);
-    thrownException.expectMessage("not a valid physical dataset");
-
-    homePlugin.getDatasetHandle(entityPath,
-      DatasetRetrievalOptions.DEFAULT.toBuilder()
-        .build()
-        .asGetDatasetOptions(currentConfig));
+    UserExceptionAssert.assertThatThrownBy(() -> homePlugin.getDatasetHandle(entityPath,
+        DatasetRetrievalOptions.DEFAULT.toBuilder()
+          .build()
+          .asGetDatasetOptions(currentConfig)))
+      .hasMessageContaining("not a valid physical dataset");
   }
 
   private static NamespaceService getNamespaceService() {

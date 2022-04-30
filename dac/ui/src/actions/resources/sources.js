@@ -251,9 +251,10 @@ export const GET_CREATED_SOURCE_FAILURE = 'GET_CREATED_SOURCE_FAILURE';
 
 export function loadSource(sourceName, viewId) {
   const meta = {viewId};
+  const encodedSourceName = encodeURIComponent(sourceName);
 
   const apiCall = new APIV2Call()
-    .paths(`source/${sourceName}`)
+    .paths(`source/${encodedSourceName}`)
     .params({includeContents: false});
 
   return {

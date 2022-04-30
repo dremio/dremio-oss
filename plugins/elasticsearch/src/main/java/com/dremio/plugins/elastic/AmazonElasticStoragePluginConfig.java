@@ -35,9 +35,10 @@ import com.dremio.exec.server.SabotContext;
 import io.protostuff.Tag;
 
 /**
- * Configuration for Amazon Elasticsearch Service storage plugin.
+ * Configuration for Amazon OpenSearch (formerly Elasticsearch) Service storage plugin.
  */
-@SourceType(value = "AMAZONELASTIC", label = "Amazon Elasticsearch Service", uiConfig = "amazon-elastic-storage-layout.json")
+// Don't change the value of AMAZONELASTIC for backwards compat reasons.
+@SourceType(value = "AMAZONELASTIC", label = "Amazon OpenSearch Service", uiConfig = "amazon-elastic-storage-layout.json")
 public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<AmazonElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
 
   //  optional string hostname = 1;
@@ -133,15 +134,15 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
   }
 
   /**
-   * Creates Elasticsearch configuration, shared by regular Elasticsearch and Amazon Elasticsearch, from Amazon Elasticsearch configuration.
-   * @param amazonElasticStoragePluginConfig Amazon Elasticsearch configuration
+   * Creates Elasticsearch configuration, shared by regular Elasticsearch and Amazon OpenSearch, from Amazon OpenSearch configuration.
+   * @param amazonOSStoragePluginConfig Amazon OpenSearch configuration
    * @return Elasticsearch configuration
    */
-  public static ElasticsearchConf createElasticsearchConf(AmazonElasticStoragePluginConfig amazonElasticStoragePluginConfig) {
+  public static ElasticsearchConf createElasticsearchConf(AmazonElasticStoragePluginConfig amazonOSStoragePluginConfig) {
     List<Host> hostList = new ArrayList<>();
-    hostList.add(new Host(amazonElasticStoragePluginConfig.hostname, amazonElasticStoragePluginConfig.port));
+    hostList.add(new Host(amazonOSStoragePluginConfig.hostname, amazonOSStoragePluginConfig.port));
     ElasticsearchConf.AuthenticationType authenticationType;
-    switch (amazonElasticStoragePluginConfig.authenticationType) {
+    switch (amazonOSStoragePluginConfig.authenticationType) {
       case NONE:
         authenticationType = ElasticsearchConf.AuthenticationType.NONE;
         break;
@@ -158,28 +159,27 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
         authenticationType = ElasticsearchConf.AuthenticationType.NONE;
         break;
     }
-    ElasticsearchConf elasticsearchConf = new ElasticsearchConf(
+    return new ElasticsearchConf(
       hostList,
       "",
       "",
-      amazonElasticStoragePluginConfig.accessKey,
-      amazonElasticStoragePluginConfig.accessSecret,
-      amazonElasticStoragePluginConfig.overwriteRegion ? amazonElasticStoragePluginConfig.regionName : "",
-      amazonElasticStoragePluginConfig.awsProfile,
+      amazonOSStoragePluginConfig.accessKey,
+      amazonOSStoragePluginConfig.accessSecret,
+      amazonOSStoragePluginConfig.overwriteRegion ? amazonOSStoragePluginConfig.regionName : "",
+      amazonOSStoragePluginConfig.awsProfile,
       authenticationType,
-      amazonElasticStoragePluginConfig.scriptsEnabled,
-      amazonElasticStoragePluginConfig.showHiddenIndices,
+      amazonOSStoragePluginConfig.scriptsEnabled,
+      amazonOSStoragePluginConfig.showHiddenIndices,
       true,
-      amazonElasticStoragePluginConfig.showIdColumn,
-      amazonElasticStoragePluginConfig.readTimeoutMillis,
-      amazonElasticStoragePluginConfig.scrollTimeoutMillis,
-      amazonElasticStoragePluginConfig.usePainless,
+      amazonOSStoragePluginConfig.showIdColumn,
+      amazonOSStoragePluginConfig.readTimeoutMillis,
+      amazonOSStoragePluginConfig.scrollTimeoutMillis,
+      amazonOSStoragePluginConfig.usePainless,
       true,
-      amazonElasticStoragePluginConfig.scrollSize,
-      amazonElasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
-      amazonElasticStoragePluginConfig.warnOnRowCountMismatch,
-      amazonElasticStoragePluginConfig.encryptionValidationMode,
+      amazonOSStoragePluginConfig.scrollSize,
+      amazonOSStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
+      amazonOSStoragePluginConfig.warnOnRowCountMismatch,
+      amazonOSStoragePluginConfig.encryptionValidationMode,
       false);
-    return elasticsearchConf;
   }
 }

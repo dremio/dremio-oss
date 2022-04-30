@@ -27,7 +27,6 @@ import java.util.UUID;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.utils.protos.AttemptId;
@@ -57,8 +56,6 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 public class TestJobDetails extends BaseTestServer {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -156,6 +153,8 @@ public class TestJobDetails extends BaseTestServer {
     assertEquals(java.util.Optional.ofNullable(100l).get(), java.util.Optional.ofNullable(jobInfoDetailsUI.getStartTime()).get());
     assertEquals(java.util.Optional.ofNullable(110l).get(), java.util.Optional.ofNullable(jobInfoDetailsUI.getEndTime()).get());
     assertEquals(0, jobInfoDetailsUI.getDatasetGraph().size());
+    assertEquals(0, jobInfoDetailsUI.getTotalMemory());
+    assertEquals(0, jobInfoDetailsUI.getCpuUsed());
   }
 
   private Job createJob(final String id, final List<String> datasetPath, final String version, final String user,

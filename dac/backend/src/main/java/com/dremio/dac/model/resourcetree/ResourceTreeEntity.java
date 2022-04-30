@@ -40,6 +40,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ResourceTreeEntity {
+  private final String id;
   private final ResourceType type;
   private final String name;
   private final List<String> fullPath;
@@ -51,6 +52,7 @@ public class ResourceTreeEntity {
     this.name = sourceConfig.getName();
     this.fullPath = Collections.singletonList(this.name);
     this.url = null; // TODO can't explore sources yet
+    this.id = sourceConfig.getId().getId();
   }
 
   public ResourceTreeEntity(SpaceConfig spaceConfig) throws UnsupportedEncodingException {
@@ -58,6 +60,7 @@ public class ResourceTreeEntity {
     this.name = spaceConfig.getName();
     this.fullPath = Collections.singletonList(this.name);
     this.url = "/resourcetree/" + new NamespaceKey(this.fullPath).toUrlEncodedString();
+    this.id = spaceConfig.getId().getId();
   }
 
   public ResourceTreeEntity(HomeConfig homeConfig) throws UnsupportedEncodingException {
@@ -65,6 +68,7 @@ public class ResourceTreeEntity {
     this.name = HomeName.getUserHomePath(homeConfig.getOwner()).toString();
     this.fullPath = Collections.singletonList(this.name);
     this.url = "/resourcetree/" + new NamespaceKey(this.fullPath).toUrlEncodedString();
+    this.id = homeConfig.getId().getId();
   }
 
   public ResourceTreeEntity(FolderConfig folderConfig) throws UnsupportedEncodingException {
@@ -72,6 +76,7 @@ public class ResourceTreeEntity {
     this.name = folderConfig.getName();
     this.fullPath = folderConfig.getFullPathList();
     this.url = "/resourcetree/" + new NamespaceKey(this.fullPath).toUrlEncodedString();
+    this.id = folderConfig.getId().getId();
   }
 
   public ResourceTreeEntity(DatasetConfig datasetConfig) throws UnsupportedEncodingException {
@@ -80,6 +85,7 @@ public class ResourceTreeEntity {
     this.name = datasetConfig.getName();
     this.fullPath = datasetConfig.getFullPathList();
     this.url = null;
+    this.id = datasetConfig.getId().getId();
   }
 
   @JsonCreator
@@ -88,12 +94,14 @@ public class ResourceTreeEntity {
     @JsonProperty("name") String name,
     @JsonProperty("fullPath") List<String> fullPath,
     @JsonProperty("url") String url,
-    @JsonProperty("resources") List<ResourceTreeEntity> resources) {
+    @JsonProperty("resources") List<ResourceTreeEntity> resources,
+    @JsonProperty("id") String id) {
     this.type = type;
     this.name = name;
     this.fullPath = fullPath;
     this.url = url;
     this.resources = resources;
+    this.id = id;
   }
 
   public ResourceType getType() {
@@ -110,6 +118,10 @@ public class ResourceTreeEntity {
 
   public String getUrl() {
     return url;
+  }
+
+  public String getId() {
+    return id;
   }
 
   public static ResourceType getResourceType(DatasetType type) {

@@ -24,6 +24,7 @@ import {
   explorePageLocationChanged,
   startExplorePageListener
 } from '@app/actions/explore/dataset/data';
+import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 // import Votes from '@inject/pages/AdminPage/subpages/Votes'; // To Be Removed
 import EulaPage from '@inject/pages/EulaPage/EulaPage';
 import SSOLandingPage from '@inject/pages/AuthenticationPage/components/SSOLandingPage';
@@ -37,6 +38,7 @@ import additionalRoutes from '@inject/additionalRoutes';
 import ReflectionJobsPage from '@inject/pages/JobPage/ReflectionJobsPage';
 import JobPage from '@inject/pages/QVJobPage/QVJobPage';
 import SingleJobPage from '@app/pages/JobDetailsPageNew/JobDetailsPage';
+import config from '@inject/routesConfig';
 
 import jobsUtils from './utils/jobsUtils.js';
 import App from './containers/App';
@@ -56,6 +58,7 @@ import ServerStatusPage from './pages/ServerStatusPage/ServerStatusPage';
 import JobModals from './pages/JobPage/JobModals';
 
 import Page, { MainMasterPage } from './components/Page';
+import NessieRoutes, { nessieSourceRoutes } from './pages/NessieHomePage/NessieRoutes';
 
 window.React = React;
 
@@ -119,56 +122,71 @@ const JobsRouting = () => {
   }
 };
 
-export default dispatch => (
-  <Route path='/' component={App}>
-    {/* TODO conflict with (/:resources), need to change resources for all components */}
-    <Redirect from='/home' to='/' />
-    <Redirect from='/*/**/' to='/*/**' />
-    <Route path='/reload' component={ReloadPage} />
-    <Route path='/sso' component={SSOLandingPage} />
-    <Route path={SSO_LANDING_PATH} component={SSOLandingPage} />
-    <Route component={Page}>
-      <Route path='/eula' component={EulaPage} />
-      <Route component={CheckUserAuthentication}>
-        <Route path={LOGIN_PATH} component={AuthenticationPage} />
-        <Route path={SIGNUP_PATH} component={SignupPage} />
-        <Route path='/status' component={ServerStatusPage} />
-      </Route>
-    </Route>
-    {additionalRoutes}
-    <Route component={CheckUserAuthentication}>
-      <Route component={UserIsAuthenticated(JobModals)}>
-        {JobsRouting()}
-      </Route>
-      {AccountPageRouting()}
-      {AdminPageRouting()}
-      <Route component={UserIsAuthenticated(HomeModals)}>
-        <Route component={Page}>
-          <IndexRoute component={Home} /> {/* todo: is this valid?*/}
-          {/* a complicate route structure below is needed for correct work of Link component
-          from router package for case of onlyActiveOnIndex=false */}
-          {getSourceRoute(ENTITY_TYPES.source, Home)}
-          {getSourceRoute(ENTITY_TYPES.space, Home)}
-          <Route path='/home' component={Home}>
-            <Route path={`/home/:${resourceKeyName}/folder/**`} />
-          </Route>
-          <Route path='/spaces/list' component={AllSpaces} />
-          <Route path='/sources/list' component={AllSources} />
-          <Route path='/sources/datalake/list' component={AllSources} />
-          <Route path='/sources/external/list' component={AllSources} />
+export default (dispatch, projectContext) => {
+  const isDDPOnly = localStorageUtils ? localStorageUtils.isDataPlaneOnly(projectContext) : false;
+  return (
+    <Route path='/' component={App}>
+      {/* TODO conflict with (/:resources), need to change resources for all components */}
+      <Redirect from='/home' to='/' />
+      <Redirect from='/*/**/' to='/*/**' />
+      <Route path='/reload' component={ReloadPage} />
+      <Route path='/sso' component={SSOLandingPage} />
+      <Route path={SSO_LANDING_PATH} component={SSOLandingPage} />
+      <Route component={Page}>
+        <Route path='/eula' component={EulaPage} />
+        <Route component={CheckUserAuthentication}>
+          <Route path={LOGIN_PATH} component={AuthenticationPage} />
+          {
+            config.enableSignUp ? (
+              <Route path={SIGNUP_PATH} component={SignupPage} />
+            ) : (
+              <Redirect from={SIGNUP_PATH} to='/' />
+            )
+          }
+          <Route path='/status' component={ServerStatusPage} />
         </Route>
       </Route>
-      <Route component={MainMasterPage}>
-        {
-          getExploreRoute({
-            component: UserIsAuthenticated(ExploreModals),
-            children: [
-              <Route key='new_query' path='/new_query' component={ExplorePage} />,
-              <Route key='existing_dataset' path='/:resources(/:resourceId)/:tableId(/:pageType)' component={ExplorePage} />
-            ]
-          }, dispatch)
-        }
+      {additionalRoutes}
+      <Route component={CheckUserAuthentication}>
+        <Route component={UserIsAuthenticated(JobModals)}>
+          {JobsRouting()}
+        </Route>
+        {AccountPageRouting()}
+        {AdminPageRouting()}
+        <Route component={UserIsAuthenticated(HomeModals)}>
+          {isDDPOnly ? (
+            NessieRoutes()
+          ) : (
+            <Route component={Page}>
+              <IndexRoute component={Home} /> {/* todo: is this valid?*/}
+              {/* a complicate route structure below is needed for correct work of Link component
+          from router package for case of onlyActiveOnIndex=false */}
+              {getSourceRoute(ENTITY_TYPES.source, Home)}
+              {getSourceRoute(ENTITY_TYPES.space, Home)}
+              <Route path='/home' component={Home}>
+                <Route path={`/home/:${resourceKeyName}/folder/**`} />
+              </Route>
+              <Route path='/spaces/list' component={AllSpaces} />
+              <Route path='/sources/list' component={AllSources} />
+              <Route path='/sources/datalake/list' component={AllSources} />
+              <Route path='/sources/external/list' component={AllSources} />
+              <Route path='/sources/dataplane/list' component={AllSources} />
+              {nessieSourceRoutes()}
+            </Route>
+          )}
+        </Route>
+        <Route component={MainMasterPage}>
+          {
+            getExploreRoute({
+              component: UserIsAuthenticated(ExploreModals),
+              children: [
+                <Route key='new_query' path='/new_query' component={ExplorePage} />,
+                <Route key='existing_dataset' path='/:resources(/:resourceId)/:tableId(/:pageType)' component={ExplorePage} />
+              ]
+            }, dispatch)
+          }
+        </Route>
       </Route>
     </Route>
-  </Route>
-);
+  );
+};

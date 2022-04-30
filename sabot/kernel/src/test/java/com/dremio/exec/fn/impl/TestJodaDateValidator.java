@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.fn.impl;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.text.ParseException;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.fn.JodaDateValidator;
@@ -31,8 +30,6 @@ import com.dremio.common.expression.fn.JodaDateValidator;
  * Tests for {@link com.dremio.common.expression.fn.JodaDateValidator#toJodaFormat(String)} (String)}
  */
 public class TestJodaDateValidator extends BaseTestQuery {
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
 
   private boolean patternShouldThrowParseException(String pattern) {
     try {
@@ -49,22 +46,22 @@ public class TestJodaDateValidator extends BaseTestQuery {
     assertEquals("'anything can live here, AD BC or here PA mayber here?!'", JodaDateValidator.toJodaFormat("\"anything can live here, AD BC or here PA mayber here?!\""));
     assertEquals("G'some text'a'more text'", JodaDateValidator.toJodaFormat("AD\"some text\"PM\"more text\""));
 
-    thrownException.expect(ParseException.class);
-    JodaDateValidator.toJodaFormat("P\"a string\"");
+    assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("P\"a string\""))
+      .isInstanceOf(ParseException.class);
   }
 
   @Test
   public void testToJodaQuotedNonTerminating() throws Exception {
-    thrownException.expect(ParseException.class);
-    JodaDateValidator.toJodaFormat("\"a string");
+    assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("\"a string"))
+      .isInstanceOf(ParseException.class);
   }
 
   @Test
   public void testToJodaPassthroughChars() throws Exception {
     assertEquals("-G/,.;:G", JodaDateValidator.toJodaFormat("-AD/,.;:AD"));
 
-    thrownException.expect(ParseException.class);
-    JodaDateValidator.toJodaFormat("P:M");
+    assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("P:M"))
+      .isInstanceOf(ParseException.class);
   }
 
   @Test
@@ -73,8 +70,8 @@ public class TestJodaDateValidator extends BaseTestQuery {
     assertEquals("MMM", JodaDateValidator.toJodaFormat("MON"));
     assertEquals("MMM:", JodaDateValidator.toJodaFormat("MON:"));
 
-    thrownException.expect(ParseException.class);
-    JodaDateValidator.toJodaFormat("MO:");
+    assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("MO:"))
+      .isInstanceOf(ParseException.class);
   }
 
   @Test
@@ -83,8 +80,8 @@ public class TestJodaDateValidator extends BaseTestQuery {
     assertEquals("ZZ", JodaDateValidator.toJodaFormat("TZO"));
     assertEquals("ZZ", JodaDateValidator.toJodaFormat("TZH:TZM"));
 
-    thrownException.expect(ParseException.class);
-    JodaDateValidator.toJodaFormat("TZH:TZ");
+    assertThatThrownBy(() -> JodaDateValidator.toJodaFormat("TZH:TZ"))
+      .isInstanceOf(ParseException.class);
   }
 
   @Test

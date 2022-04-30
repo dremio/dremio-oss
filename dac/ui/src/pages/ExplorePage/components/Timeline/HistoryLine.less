@@ -13,16 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+@import "~@app/uiTheme/less/color-schema.less";
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
     
-  .history-line {
+  .historyLine {
+    align-items: center;
+    border-left: 1px solid @DARK_200;
+    display: flex;
+    flex-direction: column;
+    width: 3.4rem;
+
+    hr {
+      background: @solitude;
+      border: none;
+      height: 1px;
+      margin: 0;
+      width: 100%;
+    }
 
     .job-progress {
-      color: #fff;
-      margin-left: 10px;
+      color: @WHITE;
+      margin-left: 1rem;
 
       .result {
-        color: #fff;
+        color: @WHITE;
       }
     }
   }

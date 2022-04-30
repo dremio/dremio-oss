@@ -1,0 +1,49 @@
+{
+  "format-version" : 1,
+  "table-uuid" : "dc921137-2c16-4ce0-bddf-d65125f1ee03",
+  "location" : "s3a://qa1.dremio.com/vamsi",
+  "last-updated-ms" : 1631687277473,
+  "last-column-id" : 2,
+  "schema" : {
+    "type" : "struct",
+    "fields" : [ {
+      "id" : 1,
+      "name" : "col1",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 2,
+      "name" : "col2",
+      "required" : false,
+      "type" : "int"
+    } ]
+  },
+  "partition-spec" : [ {
+    "name" : "col1",
+    "transform" : "identity",
+    "source-id" : 1,
+    "field-id" : 1000
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ {
+      "name" : "col1",
+      "transform" : "identity",
+      "source-id" : 1,
+      "field-id" : 1000
+    } ]
+  } ],
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "owner" : "piyushhurpade"
+  },
+  "current-snapshot-id" : -1,
+  "snapshots" : [ ],
+  "snapshot-log" : [ ],
+  "metadata-log" : [ ]
+}

@@ -31,6 +31,8 @@ import com.dremio.connector.metadata.options.DirListInputSplitType;
 import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
+import com.dremio.connector.metadata.options.TimeTravelOption;
+import com.dremio.connector.metadata.options.TimeTravelOption.TimeTravelRequest;
 import com.dremio.exec.catalog.AllowAutoPromote;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
@@ -89,6 +91,7 @@ public class DatasetRetrievalOptions {
   private final Optional<Integer> maxNestedLevel;
   private final Optional<MetadataRefreshQuery> refreshQuery;
   private final Optional<VersionedDatasetAccessOptions> versionedDatasetAccessOptions;
+  private final TimeTravelRequest timeTravelRequest;
 
   private DatasetRetrievalOptions fallback;
 
@@ -105,6 +108,7 @@ public class DatasetRetrievalOptions {
     this.maxNestedLevel = Optional.ofNullable(builder.maxNestedLevel);
     this.refreshQuery = Optional.ofNullable(builder.refreshQuery);
     this.versionedDatasetAccessOptions = Optional.ofNullable(builder.versionedDatasetAccessOptions);
+    this.timeTravelRequest = builder.travelRequest;
   }
 
 
@@ -132,6 +136,10 @@ public class DatasetRetrievalOptions {
     return maxMetadataLeafColumns.orElseGet(() -> fallback.maxMetadataLeafColumns());
   }
 
+  public TimeTravelRequest getTimeTravelRequest() {
+    return timeTravelRequest;
+  }
+
   public int maxNestedLevel() {
     return maxNestedLevel.orElseGet(() -> fallback.maxNestedLevel());
   }
@@ -147,15 +155,16 @@ public class DatasetRetrievalOptions {
 
   public Builder toBuilder() {
     return newBuilder()
-        .setIgnoreAuthzErrors(ignoreAuthzErrors.orElse(null))
-        .setDeleteUnavailableDatasets(deleteUnavailableDatasets.orElse(null))
-        .setAutoPromote(autoPromote.orElse(null))
-        .setForceUpdate(forceUpdate.orElse(null))
-        .setRefreshDataset(refreshDataset.orElse(null))
-        .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
-        .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL))
-        .setRefreshQuery(refreshQuery.orElse(null))
-        .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions.orElse(VersionedDatasetAccessOptions.DEFAULT_VERSIONED_DATASET_ACCESS_OPTIONS));
+      .setIgnoreAuthzErrors(ignoreAuthzErrors.orElse(null))
+      .setDeleteUnavailableDatasets(deleteUnavailableDatasets.orElse(null))
+      .setAutoPromote(autoPromote.orElse(null))
+      .setForceUpdate(forceUpdate.orElse(null))
+      .setRefreshDataset(refreshDataset.orElse(null))
+      .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
+      .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL))
+      .setRefreshQuery(refreshQuery.orElse(null))
+      .setVersionedDatasetAccessOptions(versionedDatasetAccessOptions.orElse(VersionedDatasetAccessOptions.DEFAULT_VERSIONED_DATASET_ACCESS_OPTIONS))
+      .setTimeTravelRequest(timeTravelRequest);
   }
 
   public Optional<MetadataRefreshQuery> datasetRefreshQuery() {
@@ -175,6 +184,7 @@ public class DatasetRetrievalOptions {
     private Map<String, String> partition = new LinkedHashMap<>();
     private MetadataRefreshQuery refreshQuery;
     private VersionedDatasetAccessOptions versionedDatasetAccessOptions;
+    private TimeTravelRequest travelRequest;
 
     private Builder() {
     }
@@ -229,6 +239,11 @@ public class DatasetRetrievalOptions {
       return this;
     }
 
+    public Builder setTimeTravelRequest(TimeTravelRequest travelRequest) {
+      this.travelRequest = travelRequest;
+      return this;
+    }
+
     public Builder setVersionedDatasetAccessOptions(VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
       this.versionedDatasetAccessOptions = versionedDatasetAccessOptions;
       return this;
@@ -269,6 +284,8 @@ public class DatasetRetrievalOptions {
         b.setMaxNestedLevel(((MaxNestedFieldLevels) o).getValue());
       } else if (o instanceof VersionedDatasetAccessOptions) {
         b.setVersionedDatasetAccessOptions((VersionedDatasetAccessOptions) o);
+      } else if (o instanceof TimeTravelOption) {
+        b.setTimeTravelRequest(((TimeTravelOption) o).getTimeTravelRequest());
       }
     }
 
@@ -311,6 +328,11 @@ public class DatasetRetrievalOptions {
 
     options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
     options.add(new MaxNestedFieldLevels(maxNestedLevel()));
+    options.add(versionedDatasetAccessOptions());
+
+    if (timeTravelRequest != null) {
+      options.add(TimeTravelOption.newTimeTravelOption(timeTravelRequest));
+    }
 
     addDatasetOptions(GetDatasetOption.class, datasetConfig, options);
 
@@ -360,8 +382,24 @@ public class DatasetRetrievalOptions {
     }
 
     BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? CalciteArrowHelper.fromDataset(datasetConfig) : null;
+
+    BatchSchema droppedColumns = BatchSchema.EMPTY;
+    BatchSchema updatedColumns = BatchSchema.EMPTY;
+    boolean isSchemaLearningEnabled = true;
+
+    if(datasetConfig.getPhysicalDataset() != null && datasetConfig.getPhysicalDataset().getInternalSchemaSettings() != null) {
+      if(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getDroppedColumns() != null) {
+        droppedColumns = BatchSchema.deserialize(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getDroppedColumns());
+      }
+
+      if(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getModifiedColumns() != null) {
+        updatedColumns = BatchSchema.deserialize(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getModifiedColumns());
+      }
+      isSchemaLearningEnabled = datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getSchemaLearningEnabled();
+    }
+
     if(schema != null) {
-      options.add(new CurrentSchemaOption(schema));
+      options.add(new CurrentSchemaOption(schema, updatedColumns, droppedColumns, isSchemaLearningEnabled));
     }
 
     if (datasetConfig.getReadDefinition() != null && datasetConfig.getReadDefinition().getExtendedProperty() != null) {

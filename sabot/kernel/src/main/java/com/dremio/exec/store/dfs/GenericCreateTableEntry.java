@@ -17,7 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -25,7 +24,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -49,10 +48,10 @@ public class GenericCreateTableEntry implements CreateTableEntry {
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("location") String location,
       @JsonProperty("options") WriterOptions options,
-      @JacksonInject CatalogService catalogService)
-      throws ExecutionSetupException {
+      @JacksonInject StoragePluginResolver storagePluginResolver
+  ) {
     this.userName = userName;
-    this.plugin = catalogService.getSource(pluginId);
+    this.plugin = storagePluginResolver.getSource(pluginId);
     this.location = location;
     this.options = options;
   }

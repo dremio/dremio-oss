@@ -58,14 +58,41 @@ class MaskedInput extends PureComponent {
   }
 
   componentWillReceiveProps(nextProps) {
-    if (nextProps.value !== this.props.value ) {
+    const { value: nextValue } = nextProps;
+    const { value: currentValue, mask } = this.props;
+    const { inputsList } = this.state;
+    let stateHasIncorrectValue = false;
+
+    if (mask === 'dd/dd/dddd') {
+      const monthInState = inputsList.getIn([0, 'value']);
+      const dayInState = inputsList.getIn([1, 'value']);
+      const yearInState = inputsList.getIn([2, 'value']);
+      const [ monthInProps, dayInProps, yearInProps ] = nextValue.split('/');
+      const daysInCurrentMonth = new Date(yearInProps, monthInProps, 0).getDate();
+
+      stateHasIncorrectValue =
+        (monthInState > 12 && monthInState !== monthInProps) ||
+        monthInState === '00' ||
+        (dayInState > daysInCurrentMonth && dayInState !== dayInProps) ||
+        dayInState === '00' ||
+        yearInState !== yearInProps;
+    } else if (mask === 'dd:dd') {
+      const hourInState = inputsList.getIn([0, 'value']);
+      const minuteInState = inputsList.getIn([1, 'value']);
+      const [ hourInProps, minuteInProp ] = nextValue.split(':');
+
+      stateHasIncorrectValue = hourInState !== hourInProps || minuteInState !== minuteInProp;
+    }
+
+    if (nextValue !== currentValue || stateHasIncorrectValue) {
       this.setState(this.mapPropsToState(nextProps));
     }
   }
 
   onBlur(inputValue) {
     if (this.state.focusedInput === null) {
-      this.props.onBlur(inputValue);
+      const { mask, onBlur } = this.props;
+      onBlur(inputValue, mask);
     }
   }
 

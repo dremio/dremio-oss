@@ -17,6 +17,7 @@ package com.dremio.datastore;
 
 import static com.dremio.datastore.indexed.IndexKey.LOWER_CASE_SUFFIX;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,7 +25,6 @@ import java.util.stream.Collectors;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.exec.proto.SearchProtos;
 import com.google.common.base.Preconditions;
-import com.google.protobuf.ProtocolMessageEnum;
 
 /**
  * A collection of helper methods for creating Indexed Search Query
@@ -33,7 +33,7 @@ public class IndexedSearchQueryConverterUtil {
 
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(IndexedSearchQueryConverterUtil.class);
 
-  public static SearchTypes.SearchQuery toSearchQuery(SearchProtos.SearchQuery searchQuery, Map<String, IndexKey> FIELDS) throws EnumSearchValueNotFoundException {
+  public static SearchTypes.SearchQuery toSearchQuery(SearchProtos.SearchQuery searchQuery, Map<String, IndexKey> indexMap) {
     IndexKey key;
     List<SearchTypes.SearchQuery> searchQueryList;
     switch (searchQuery.getQueryCase())
@@ -41,35 +41,27 @@ public class IndexedSearchQueryConverterUtil {
       case EQUALS:
         switch (searchQuery.getEquals().getValueCase()) {
           case INTVALUE:
-            key = FIELDS.get(searchQuery.getEquals().getField());
+            key = indexMap.get(searchQuery.getEquals().getField());
 
             if (key == null) {
-              LOGGER.warn("The filter on field {} is not pushed down as it is not indexed", searchQuery.getEquals().getField());
+              LOGGER.debug("The filter on field {} is not pushed down as it is not indexed", searchQuery.getEquals().getField());
               return null;
             }
             return SearchQueryUtils.newTermQuery(key.getIndexFieldName(),
               searchQuery.getEquals().getIntValue());
 
           case STRINGVALUE:
-            key = FIELDS.get(searchQuery.getEquals().getField());
+            key = indexMap.get(searchQuery.getEquals().getField());
 
             if (key == null) {
-              LOGGER.warn("The filter on field {} is not pushed down as it is not indexed", searchQuery.getEquals().getField());
+              LOGGER.debug("The filter on field {} is not pushed down as it is not indexed", searchQuery.getEquals().getField());
               return null;
             }
 
             //If we receive ProtocolMessageEnum label in search request but the index is on its Number value
-            if (key.getValueType().equals(Integer.class) && key.getEnumType()!=null) {
-              ProtocolMessageEnum protocolMessageEnum;
-              try {
-                protocolMessageEnum = (ProtocolMessageEnum) Enum.valueOf(key.getEnumType(), searchQuery.getEquals().getStringValue());
-                return SearchQueryUtils.newTermQuery(key.getIndexFieldName(),
-                  protocolMessageEnum.getNumber());
-              } catch (IllegalArgumentException ex) {
-                LOGGER.info("No enum value found corresponding to string {}", searchQuery.getEquals().getStringValue());
-                throw new EnumSearchValueNotFoundException("No enum value found corresponding to string "
-                  + searchQuery.getEquals().getStringValue() + ", termQuery field : " + searchQuery.getEquals().getField());
-              }
+            if (key.getValueType().equals(Integer.class) && key.getConverter()!=null) {
+              return SearchQueryUtils.newTermQuery(key.getIndexFieldName(),
+                (Integer) key.getConverter().apply(searchQuery.getEquals().getStringValue()));
             }
             return SearchQueryUtils.newTermQuery(key.getIndexFieldName(),
               searchQuery.getEquals().getStringValue());
@@ -84,8 +76,8 @@ public class IndexedSearchQueryConverterUtil {
           .getClausesList()
           .stream()
           .map((query) -> {
-              LOGGER.info("Calling and query {}", query);
-              return toSearchQuery(query, FIELDS);
+              LOGGER.debug("Calling and query {}", query);
+              return toSearchQuery(query, indexMap);
           })
           .filter(q -> q != null)
           .collect(Collectors.toList());
@@ -98,28 +90,24 @@ public class IndexedSearchQueryConverterUtil {
         }
 
       case OR:
-        searchQueryList = searchQuery.getOr()
-          .getClausesList()
-          .stream()
-          .map((query) -> {
-            try {
-              return toSearchQuery(query, FIELDS);
-            } catch (EnumSearchValueNotFoundException ex) {
-              //If a query in OR throws exception that query should be ignored
+        searchQueryList = new ArrayList<>();
+        for (SearchProtos.SearchQuery query : searchQuery.getOr().getClausesList()) {
+          try {
+            SearchTypes.SearchQuery currSearchQuery = toSearchQuery(query, indexMap);
+            if (currSearchQuery == null) {
+              LOGGER.debug("Skipping creating OR search query as one of the clause is not a push down query, {}", searchQuery);
               return null;
             }
-          })
-          .filter(q -> q != null)
-          .collect(Collectors.toList());
-        if (searchQueryList.size() == 0) {
-          return null;
-        } else {
-          return SearchQueryUtils.or(searchQueryList);
+            searchQueryList.add(currSearchQuery);
+          } catch (EnumSearchValueNotFoundException ex) {
+            LOGGER.debug("Skipping search clause {} as it is invalid", query);
+          }
         }
+        return searchQueryList.size() != 0 ? SearchQueryUtils.or(searchQueryList) : null;
       case LIKE:
-        key = FIELDS.get(searchQuery.getLike().getField());
+        key = indexMap.get(searchQuery.getLike().getField());
         if (key == null) {
-          LOGGER.warn("The filter on field {} is not pushed down as it is not indexed", searchQuery.getLike().getField());
+          LOGGER.debug("The filter on field {} is not pushed down as it is not indexed", searchQuery.getLike().getField());
           return null;
         }
         final String escape = searchQuery.getLike().getEscape().isEmpty() ? null :

@@ -141,6 +141,8 @@ public class JobInfoDetailsUI {
   private Map<String, Reflection> reflectionsMatchedMap = new HashMap<>();
   private String datasetVersion;
   private boolean resultsAvailable;
+  private long totalMemory;
+  private long cpuUsed;
 
   public JobInfoDetailsUI() {
   }
@@ -188,7 +190,9 @@ public class JobInfoDetailsUI {
     @JsonProperty("engine") String engine,
     @JsonProperty("isComplete") boolean isComplete,
     @JsonProperty("rowsScanned") Long rowsScanned,
-    @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost) {
+    @JsonProperty("plannerEstimatedCost") Double plannerEstimatedCost,
+    @JsonProperty("totalMemory") Long totalMemory,
+    @JsonProperty("cpuUsed") Long cpuUsed) {
     this.id = id;
     this.jobStatus = jobStatus;
     this.queryType = queryType;
@@ -231,6 +235,8 @@ public class JobInfoDetailsUI {
     this.cancellationInfo = cancellationInfo;
     this.datasetVersion = datasetVersion;
     this.resultsAvailable = resultsAvailable;
+    this.totalMemory = totalMemory;
+    this.cpuUsed = cpuUsed;
   }
 
   public JobInfoDetailsUI of(JobDetails jobDetails, UserBitShared.QueryProfile profile, CatalogServiceHelper catalogServiceHelper, ReflectionServiceHelper reflectionServiceHelper, NamespaceService namespaceService, int detailLevel, int attemptIndex) throws NamespaceException {
@@ -247,7 +253,7 @@ public class JobInfoDetailsUI {
       logger.warn("Failed to deserialize acceleration details", e);
     }
     id = jobId.getId();
-    jobStatus = jobDetails.getAttempts(attemptIndex).getState().toString();
+    jobStatus = JobUtil.computeJobState(JobsProtoUtil.toStuff(jobDetails.getAttempts(attemptIndex).getState()), jobDetails.getCompleted()).toString();
     queryType = jobInfo.getQueryType();
     queryUser = jobInfo.getUser();
     queryText = jobInfo.getSql();
@@ -305,6 +311,8 @@ public class JobInfoDetailsUI {
     datasetVersion = lastJobAttempt.getInfo().getDatasetVersion();
     final String currentUser = jobDetails.getAttempts(0).getInfo().getUser();
     resultsAvailable = jobDetails.getHasResults() && currentUser.equals(queryUser);
+    totalMemory = jobAttempt.getDetails().getTotalMemory();
+    cpuUsed = jobAttempt.getDetails().getCpuUsed();
     return new JobInfoDetailsUI(
       id,
       jobStatus,
@@ -347,7 +355,9 @@ public class JobInfoDetailsUI {
       engine,
       isComplete,
       rowsScanned,
-      plannerEstimatedCost
+      plannerEstimatedCost,
+      totalMemory,
+      cpuUsed
     );
   }
 
@@ -519,6 +529,14 @@ public class JobInfoDetailsUI {
 
   public String getAttemptsSummary() {
     return attemptsSummary;
+  }
+
+  public long getTotalMemory() {
+    return totalMemory;
+  }
+
+  public long getCpuUsed() {
+    return cpuUsed;
   }
 
 

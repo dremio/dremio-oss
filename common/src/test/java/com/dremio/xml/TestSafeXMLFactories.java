@@ -16,9 +16,8 @@
 package com.dremio.xml;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -106,7 +105,6 @@ public class TestSafeXMLFactories extends DremioTest {
     this.xml = xml;
   }
 
-
   @Test
   public void testSAXParser() throws Exception {
     SAXParserFactory saxParserFactory = SafeXMLFactories.newSafeSAXParserFactory();
@@ -116,12 +114,12 @@ public class TestSafeXMLFactories extends DremioTest {
     switch (expected) {
     case FAILURE:
     case FAILURE_OR_DTD_NOT_PARSED:
-      thrownException.expect(SAXParseException.class);
-
+      assertThatThrownBy(() -> saxParser.parse(new InputSource(new StringReader(xml)), new DefaultHandler()))
+          .isInstanceOf(SAXParseException.class);
+      break;
     default:
+      saxParser.parse(new InputSource(new StringReader(xml)), new DefaultHandler());
     }
-
-    saxParser.parse(new InputSource(new StringReader(xml)), new DefaultHandler());
   }
 
   @Test
@@ -131,12 +129,17 @@ public class TestSafeXMLFactories extends DremioTest {
 
     // Setting the exception post factory instantiation
     if (expected == Result.FAILURE) {
-      thrownException.expect(XMLStreamException.class);
-    }
-
-    while (eventReader.hasNext()) {
-      XMLEvent event = eventReader.nextEvent();
-      assertThat(event.toString(), not(containsString(VULNERABLE_MARKER)));
+      assertThatThrownBy(() -> {
+        while (eventReader.hasNext()) {
+          XMLEvent event = eventReader.nextEvent();
+          assertThat(event.toString()).doesNotContain(VULNERABLE_MARKER);
+        }
+      }).isInstanceOf(XMLStreamException.class);
+    } else {
+      while (eventReader.hasNext()) {
+        XMLEvent event = eventReader.nextEvent();
+        assertThat(event.toString()).doesNotContain(VULNERABLE_MARKER);
+      }
     }
   }
 
@@ -149,12 +152,12 @@ public class TestSafeXMLFactories extends DremioTest {
     switch (expected) {
     case FAILURE:
     case FAILURE_OR_DTD_NOT_PARSED:
-      thrownException.expect(SAXParseException.class);
-
+      assertThatThrownBy(() -> documentBuilder.parse(new InputSource(new StringReader(xml))))
+        .isInstanceOf(SAXParseException.class);
+      break;
     default:
+      documentBuilder.parse(new InputSource(new StringReader(xml)));
     }
-
-    documentBuilder.parse(new InputSource(new StringReader(xml)));
   }
 
   @Test
@@ -166,11 +169,11 @@ public class TestSafeXMLFactories extends DremioTest {
     switch (expected) {
     case FAILURE:
     case FAILURE_OR_DTD_NOT_PARSED:
-      thrownException.expect(TransformerException.class);
-
+      assertThatThrownBy(() -> transformer.transform(new StreamSource(new StringReader(xml)), new StreamResult(new StringWriter())))
+        .isInstanceOf(TransformerException.class);
+      break;
     default:
+      transformer.transform(new StreamSource(new StringReader(xml)), new StreamResult(new StringWriter()));
     }
-
-    transformer.transform(new StreamSource(new StringReader(xml)), new StreamResult(new StringWriter()));
   }
 }

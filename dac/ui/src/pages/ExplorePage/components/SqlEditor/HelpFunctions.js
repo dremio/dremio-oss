@@ -111,9 +111,9 @@ export class HelpFunctions extends PureComponent {
           ref={isActiveItem ? 'activeItem' : undefined}
           onMouseUp={e => e.preventDefault()}
           onClick={this.expandFuncInfo.bind(this, item.get('id'))}>
-          <div style={{display: 'flex', alignItems: 'flex-start', paddingTop: 1}}>
+          <div style={{display: 'flex', alignItems: 'center'}}>
             <FontIcon
-              style={{ height: 10, marginTop: -6, cursor: 'pointer', marginRight: 3}} // fudge factor makes it look v-aligned better
+              style={{cursor: 'pointer', marginRight: 3, paddingTop: 2}} // fudge factor makes it look v-aligned better
               type='Add'
               hoverType='AddHover'
               theme={styles.addIcon}
@@ -188,8 +188,6 @@ const styles = {
     }
   },
   contentWrap: {
-    position: 'absolute',
-    top: 30,
     bottom: 0,
     left: 0,
     right: 0,

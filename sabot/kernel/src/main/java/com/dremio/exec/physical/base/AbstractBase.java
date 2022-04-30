@@ -25,7 +25,7 @@ public abstract class AbstractBase implements PhysicalOperator {
   protected final OpProps props;
 
   public AbstractBase(OpProps props) {
-    Preconditions.checkNotNull(props, String.format("Null props."));
+    Preconditions.checkNotNull(props, "Null props.");
     this.props = props;
   }
 

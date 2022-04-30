@@ -19,7 +19,6 @@ import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
@@ -50,10 +49,9 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -71,11 +69,9 @@ import com.dremio.exec.store.iceberg.model.IcebergModel;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.FileSystem;
 import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestCTAS extends PlanTestBase {
-
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -682,8 +678,9 @@ public class TestCTAS extends PlanTestBase {
         .build()
         .run();
 
-      FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
-      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
+      FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
+
+      IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
       when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
       Table table = icebergHadoopModel.getIcebergTable(icebergHadoopModel.getTableIdentifier(tableFolder.toString()));
       SchemaConverter schemaConverter = new SchemaConverter(table.name());
@@ -691,9 +688,9 @@ public class TestCTAS extends PlanTestBase {
       SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
       schemaBuilder.addField(CompleteType.VARCHAR.toField("name"));
       schemaBuilder.addField(CompleteType.struct(CompleteType.BIGINT.toField("age"), CompleteType.VARCHAR.toField("gender")).toField("info"));
-      schemaBuilder.addField(CompleteType.struct(new Field("arr", true, Types.MinorType.LIST.getType(),
+      schemaBuilder.addField(CompleteType.struct(new Field("arr", new FieldType(true, Types.MinorType.LIST.getType(), null),
           Collections.singletonList(CompleteType.BIGINT.toField("$data$"))),
-        new Field("strArr", true, Types.MinorType.LIST.getType(),
+        new Field("strArr", new FieldType(true, Types.MinorType.LIST.getType(), null),
           Collections.singletonList(CompleteType.VARCHAR.toField("$data$")))).toField("structWithArray"));
 
       schemaBuilder.addField(CompleteType.struct(CompleteType.struct(
@@ -704,20 +701,20 @@ public class TestCTAS extends PlanTestBase {
           .toField("struc"))
         .toField("innerStruct"))
         .toField("structWithStruct"));
-      schemaBuilder.addField(new Field("likes", true, Types.MinorType.LIST.getType(),
+      schemaBuilder.addField(new Field("likes", new FieldType(true, Types.MinorType.LIST.getType(), null),
         Collections.singletonList(CompleteType.VARCHAR.toField("$data$"))));
       Field structChild = CompleteType.struct(
         CompleteType.VARCHAR.toField("name"),
         CompleteType.VARCHAR.toField("gender"),
           CompleteType.BIGINT.toField("age")).toField("$data$");
 
-      schemaBuilder.addField(new Field("children", true, Types.MinorType.LIST.getType(),
+      schemaBuilder.addField(new Field("children", new FieldType(true, Types.MinorType.LIST.getType(), null),
           Collections.singletonList(structChild)));
 
-      Field listChild = new Field("$data$", true, Types.MinorType.LIST.getType(),
+      Field listChild = new Field("$data$", new FieldType(true, Types.MinorType.LIST.getType(), null),
         Collections.singletonList(CompleteType.BIGINT.toField("$data$")));
 
-      schemaBuilder.addField(new Field("matrix", true, Types.MinorType.LIST.getType(),
+      schemaBuilder.addField(new Field("matrix", new FieldType(true, Types.MinorType.LIST.getType(), null),
         Collections.singletonList(listChild)));
 
       assertEquals(schemaBuilder.build(), icebergSchema);
@@ -897,9 +894,8 @@ public class TestCTAS extends PlanTestBase {
     final String tblName = "invalid_path_test";
     try (AutoCloseable c = enableIcebergTables()) {
       final String createTableQuery = String.format("CREATE TABLE %s(id int, code int)", tblName);
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage(String.format("Invalid path. Given path, [%s] is not valid.", tblName));
-      test(createTableQuery);
+      UserExceptionAssert.assertThatThrownBy(() -> test(createTableQuery))
+        .hasMessageContaining(String.format("Invalid path. Given path, [%s] is not valid.", tblName));
     }
     finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
@@ -940,9 +936,8 @@ public class TestCTAS extends PlanTestBase {
       //Try with wrong (nessie) catalog
       File tableFolder = new File(getDfsTestTmpSchemaLocation(), newTblName);
       IcebergModel icebergModel = getIcebergModel(tableFolder, IcebergCatalogType.NESSIE);
-      expectedEx.expect(UserException.class);
-      expectedEx.expectMessage(String.format("Failed to load the Iceberg table. Please make sure to use correct Iceberg catalog and retry."));
-      icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableFolder.getPath()));
+      UserExceptionAssert.assertThatThrownBy(() -> icebergModel.getIcebergTable(icebergModel.getTableIdentifier(tableFolder.getPath())))
+        .hasMessageContaining("Failed to load the Iceberg table. Please make sure to use correct Iceberg catalog and retry.");
     }
 
   }
@@ -996,4 +991,27 @@ public class TestCTAS extends PlanTestBase {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), icebergTable));
     }
   }
+
+  //test to check if CTAS command supports storage option as iceberg
+  @Test
+  public void testCTASCreateIcebergTableWithStorageoption() throws Exception {
+
+    final String icebergTable = "icebergTableCTASStorageOption";
+
+    try (AutoCloseable c = enableIcebergTables()) {
+      final String query = String.format("CREATE TABLE %s.%s  " +
+          " STORE AS (type => 'iceberg') AS SELECT n_nationkey, n_name from cp.\"tpch/nation.parquet\" limit 1",
+        TEMP_SCHEMA, icebergTable);
+      test(query);
+
+      File tableFolder = new File(getDfsTestTmpSchemaLocation(), icebergTable);
+      assertTrue(tableFolder.exists());
+
+      File metadataFolder = new File(tableFolder, "metadata");
+      assertTrue(metadataFolder.exists());
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), icebergTable));
+    }
+  }
+
 }

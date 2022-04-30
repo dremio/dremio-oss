@@ -21,7 +21,6 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.io.PositionOutputStream;
 
-import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 
 /**
@@ -33,10 +32,10 @@ public class DremioOutputFile implements OutputFile {
   private final String locationWithScheme;
   private final OutputFile hadoopOutputFile;
 
-  public DremioOutputFile(String path, Configuration conf) {
-    hadoopOutputFile = HadoopOutputFile.fromLocation(path, conf);
+  public DremioOutputFile(String path, Configuration conf, org.apache.hadoop.fs.FileSystem hadoopFs) {
+    hadoopOutputFile = HadoopOutputFile.fromPath(new org.apache.hadoop.fs.Path(path), hadoopFs, conf);
     this.path = new Path(path);
-    this.locationWithScheme = IcebergUtils.getValidIcebergPath(this.path, conf, DremioHadoopUtils.getHadoopFSScheme(this.path, conf));
+    this.locationWithScheme = IcebergUtils.getValidIcebergPath(this.path, conf, hadoopFs.getScheme());
   }
 
   @Override

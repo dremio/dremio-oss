@@ -41,6 +41,8 @@ import SupportAccess, { RESERVED as SUPPORT_ACCESS_RESERVED } from '@inject/page
 import FormUnsavedRouteLeave from '@app/components/Forms/FormUnsavedRouteLeave';
 import AnalyzeTools, { RESERVED as ANALYZE_TOOLS_RESERVED } from '@app/pages/AdminPage/subpages/AnalyzeTools';
 
+import config from '@inject/utils/config';
+
 import SettingsMicroForm from './SettingsMicroForm';
 import { LABELS, LABELS_IN_SECTIONS } from './settingsConfig';
 import InternalSupportEmail, { RESERVED as INTERNAL_SUPPORT_RESERVED } from './InternalSupportEmail';
@@ -226,11 +228,11 @@ export class Support extends PureComponent {
             renderSettings={this.renderSettingsMicroForm}
             descriptionStyle={styles.description}
           />}
-          <AnalyzeTools
+          {config.showAnalyticsTools && <AnalyzeTools
             renderSettings={this.renderSettingsMicroForm}
             descriptionStyle={styles.description}
             settings={this.props.settings}
-          />
+          />}
           <InternalSupportEmail
             renderSettings={this.renderSettingsMicroForm}
             descriptionStyle={styles.description}

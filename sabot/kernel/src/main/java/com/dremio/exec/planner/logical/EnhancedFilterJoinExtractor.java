@@ -66,9 +66,9 @@ public final class EnhancedFilterJoinExtractor {
 
     // Prune if some child nodes are the superset of some others
     this.inputFilterConditionPruned = EnhancedFilterJoinPruner.pruneSuperset(
-      inputFilterConditionNnf, true, rexBuilder);
+      rexBuilder, inputFilterConditionNnf, true);
     this.inputJoinConditionPruned = EnhancedFilterJoinPruner.pruneSuperset(
-      inputJoinConditionNnf, true, rexBuilder);
+      rexBuilder, inputJoinConditionNnf, true);
 
     // Construct left and right bitSet
     List<RelDataTypeField> leftFields = joinRel.getInputs().get(0).getRowType().getFieldList();
@@ -124,7 +124,7 @@ public final class EnhancedFilterJoinExtractor {
     // Prune if some child nodes are the superset of some others, single level is enough because
     // we did pruning for the to child nodes before
     RexNode inputConditionPruned = EnhancedFilterJoinPruner.pruneSuperset(
-      inputCondition, false, rexBuilder);
+      rexBuilder, inputCondition, false);
 
     // Extract the join condition
     Pair<RexNode, RexNode> joinConditionExtraction =
@@ -134,13 +134,13 @@ public final class EnhancedFilterJoinExtractor {
 
     // Extract left pushdown predicate
     Pair<RexNode, RexNode> leftPushdownPredicateExtraction =
-      extractPushdownPredicates(remainingFilter, JoinRelType.INNER, leftBitSet);
+      extractPushdownPredicates(remainingFilter, leftBitSet);
     RexNode leftPushdownPredicate = leftPushdownPredicateExtraction.getKey();
     remainingFilter = leftPushdownPredicateExtraction.getValue();
 
     // Extract right pushdown predicate
     Pair<RexNode, RexNode> rightPushdownPredicateExtraction =
-      extractPushdownPredicates(remainingFilter, JoinRelType.INNER, rightBitSet);
+      extractPushdownPredicates(remainingFilter, rightBitSet);
     RexNode rightPushdownPredicate = rightPushdownPredicateExtraction.getKey();
     remainingFilter = rightPushdownPredicateExtraction.getValue();
 
@@ -163,13 +163,13 @@ public final class EnhancedFilterJoinExtractor {
   private EnhancedFilterJoinExtraction extractLeftOuterJoin() {
     // Extract left pushdown predicates from inputFilterCondition
     Pair<RexNode, RexNode> leftPushdownPredicateExtraction =
-      extractPushdownPredicates(inputFilterConditionPruned, JoinRelType.LEFT, leftBitSet);
+      extractPushdownPredicates(inputFilterConditionPruned, leftBitSet);
     RexNode leftPushdownPredicate = leftPushdownPredicateExtraction.getKey();
     RexNode remainingFilterCondition = leftPushdownPredicateExtraction.getValue();
 
     // Extract right pushdown predicates from inputJoinCondition
     Pair<RexNode, RexNode> rightPushdownPredicateExtraction =
-      extractPushdownPredicates(inputJoinConditionPruned, JoinRelType.LEFT, rightBitSet);
+      extractPushdownPredicates(inputJoinConditionPruned, rightBitSet);
     RexNode rightPushdownPredicate = rightPushdownPredicateExtraction.getKey();
     RexNode remainingJoinCondition = rightPushdownPredicateExtraction.getValue();
 
@@ -191,13 +191,13 @@ public final class EnhancedFilterJoinExtractor {
   private EnhancedFilterJoinExtraction extractRightOuterJoin() {
     // Extract left pushdown predicates from inputJoinCondition
     Pair<RexNode, RexNode> leftPushdownPredicateExtraction =
-      extractPushdownPredicates(inputJoinConditionPruned, JoinRelType.RIGHT, leftBitSet);
+      extractPushdownPredicates(inputJoinConditionPruned, leftBitSet);
     RexNode leftPushdownPredicate = leftPushdownPredicateExtraction.getKey();
     RexNode remainingJoinCondition = leftPushdownPredicateExtraction.getValue();
 
     // Extract right pushdown predicates from inputFilterCondition
     Pair<RexNode, RexNode> rightPushdownPredicateExtraction =
-      extractPushdownPredicates(inputFilterConditionPruned, JoinRelType.RIGHT, rightBitSet);
+      extractPushdownPredicates(inputFilterConditionPruned, rightBitSet);
     RexNode rightPushdownPredicate = rightPushdownPredicateExtraction.getKey();
     RexNode remainingFilterCondition = rightPushdownPredicateExtraction.getValue();
 
@@ -227,97 +227,150 @@ public final class EnhancedFilterJoinExtractor {
    * Extract the join condition from a RexNode, and simplify the remaining filter
    * @param inputFilter The input RexNode to extract
    * @param joinType Type of join
-   * @return A pair of extracted filter and the simplified remaining filter
+   * @return A pair of extracted join Condition to be kept and the simplified remaining join Condition considered for pushDown
    */
   private Pair<RexNode, RexNode> extractJoinCondition(RexNode inputFilter, JoinRelType joinType) {
-    return extract(inputFilter, true, joinType, true,
+    Predicate<RexNode> leafValidator =
       (leafFilter) -> {
         RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(leafFilter);
         ImmutableBitSet filterBitSet = inputFinder.build();
-        return !leftBitSet.contains(filterBitSet) && !rightBitSet.contains(filterBitSet);
-      });
+        //ToDO: DX44431 removes predicate checks for AND and ORs, remove this check for general operations
+        return !leftBitSet.contains(filterBitSet)
+          && !rightBitSet.contains(filterBitSet)
+          && predicate.apply(joinRel, joinType, leafFilter);
+      };
+
+    return new RecurseExtractor(leafValidator).extract(inputFilter,true);
   }
 
   /**
    * Extract the pushdown predicates from a RexNode for the left/right side, and simplify the
    * remaining filter
    * @param inputFilter The input RexNode to extract
-   * @param joinType Type of join
    * @param targetBitSet Field bitSets of the left/right side
    * @return A pair of extracted filter and the simplified remaining filter
    */
   private Pair<RexNode, RexNode> extractPushdownPredicates(RexNode inputFilter,
-    JoinRelType joinType, ImmutableBitSet targetBitSet) {
-    return extract(inputFilter, true, joinType, false,
-      (leafFilter) -> {
-        RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(leafFilter);
-        ImmutableBitSet filterBitSet = inputFinder.build();
-        return targetBitSet.contains(filterBitSet);
-      });
+    ImmutableBitSet targetBitSet) {
+    Predicate<RexNode> leafValidator = (leafFilter) -> {
+      RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(leafFilter);
+      ImmutableBitSet filterBitSet = inputFinder.build();
+      return targetBitSet.contains(filterBitSet);
+    };
+    return new RecurseExtractor(leafValidator).extract(inputFilter,true);
   }
 
-  /**
-   * Extract required join condition / pushdown predicates, and simplify the remaining filter
-   * @param filter Filter to extract
-   * @param isRoot Whether the current filter is the root, to handle the case that a filter is entirely
-   *               pushed down
-   * @param joinType Type of join
-   * @param pushToJoin Whether the extracted condition is pushed into join or below
-   * @param leafValidator Function to check if a leaf node can be extracted
-   * @return A pair of extracted predicates and the simplified remaining filter
-   */
-  private Pair<RexNode, RexNode> extract(RexNode filter, boolean isRoot, JoinRelType joinType,
-    boolean pushToJoin, Predicate<RexNode> leafValidator) {
-    SqlKind sqlKind = filter.getKind();
 
-    switch (sqlKind) {
-      case AND:
-      case OR: {
-        List<RexNode> childNodes = MoreRelOptUtil.conDisjunctions(filter);
-        List<RexNode> extractedChildNodes = Lists.newArrayList();
-        List<Pair<RexNode, RexNode>> extractions = Lists.newArrayList();
+  private class RecurseExtractor {
+    private final Predicate<RexNode> leafValidator;
 
-        // Extract for each child node
-        for (RexNode childNode : childNodes) {
-          Pair<RexNode, RexNode> extraction =
-            extract(childNode, false, joinType, pushToJoin, leafValidator);
-          extractions.add(extraction);
-          RexNode extractedChildNode = extraction.getKey();
-          if (!extractedChildNode.isAlwaysTrue() &&
-            !(pushToJoin && !predicate.apply(joinRel, joinType, extractedChildNode))) {
-            extractedChildNodes.add(extractedChildNode);
-          } else if (sqlKind == SqlKind.OR) {
-            // Cannot extract pushdown predicates
+    public RecurseExtractor(Predicate<RexNode> leafValidator) {
+      this.leafValidator = leafValidator;
+    }
+
+    /**
+     * Extract required join condition / pushdown predicates, and simplify the remaining filter
+     * @param filter Filter to extract
+     * @param isRoot Whether the current filter is the root, to handle the case that a filter is entirely
+     *               pushed down
+     * @return A pair of extracted predicates and the simplified remaining filter
+     */
+    private Pair<RexNode, RexNode> extract(RexNode filter, boolean isRoot) {
+      SqlKind sqlKind = filter.getKind();
+
+      switch (sqlKind) {
+        case AND: {
+          Pair<RexNode, RexNode> extraction = extractConjunction(filter, isRoot);
+          if (leafValidator.test(extraction.getKey())) {
+            return extraction;
+          } else {
             return Pair.of(rexBuilder.makeLiteral(true), filter);
           }
         }
+        case OR: {
+          Pair<RexNode, RexNode> extraction = extractDisjunction(filter, isRoot);
+          if (leafValidator.test(extraction.getKey())) {
+            return extraction;
+          } else {
+            return Pair.of(rexBuilder.makeLiteral(true), filter);
+          }
+        }
+        default:
+          if (leafValidator.test(filter)) {
+            if (isRoot) {
+              return Pair.of(filter, rexBuilder.makeLiteral(true));
+            } else {
+              return Pair.of(filter, filter);
+            }
+          } else {
+            return Pair.of(rexBuilder.makeLiteral(true), filter);
+          }
+      }
+    }
 
-        // Make the resulting con/disjunction
-        RexNode extractedFilter = MoreRelOptUtil.composeConDisjunction(
-          rexBuilder, extractedChildNodes, false, sqlKind);
-        RexNode simplifiedRemainingFilter = EnhancedFilterJoinSimplifier.
-          simplifyConDisjunction(childNodes, extractions, sqlKind, isRoot, rexBuilder);
+    private Pair<RexNode, RexNode> extractConjunction(RexNode filter, boolean isRoot) {
+      assert filter.getKind() == SqlKind.AND;
 
-        // Prune superset
-        RexNode extractedFilterPruned = EnhancedFilterJoinPruner.pruneSuperset(
-          extractedFilter, false, rexBuilder);
-        RexNode simplifiedRemainingFilterPruned = EnhancedFilterJoinPruner.pruneSuperset(
-          simplifiedRemainingFilter, false, rexBuilder);
+      List<RexNode> childNodes = RelOptUtil.conjunctions(filter);
+      List<RexNode> extractedChildNodes = Lists.newArrayList();
+      List<Pair<RexNode, RexNode>> extractions = Lists.newArrayList();
 
-        return Pair.of(extractedFilterPruned, simplifiedRemainingFilterPruned);
+      // Extract for each child node
+      for (RexNode childNode : childNodes) {
+        Pair<RexNode, RexNode> extraction = extract(childNode, false);
+        RexNode extractedChildNode = extraction.getKey();
+        extractions.add(extraction);
+        extractedChildNodes.add(extractedChildNode);
       }
 
-      default:
-        if (leafValidator.test(filter) && !(pushToJoin && !predicate.apply(joinRel, joinType, filter))) {
-          if (isRoot) {
-            return Pair.of(filter, rexBuilder.makeLiteral(true));
-          } else {
-            return Pair.of(filter, filter);
-          }
-        } else {
+      // Make the resulting conjunction
+      RexNode extractedFilter = RexUtil.composeConjunction(
+        rexBuilder, extractedChildNodes, false);
+      RexNode simplifiedRemainingFilter =
+        EnhancedFilterJoinSimplifier.simplifyConjunction(rexBuilder, childNodes, extractions, isRoot);
+
+      // Prune superset
+      RexNode extractedFilterPruned = EnhancedFilterJoinPruner.pruneSuperset(
+        rexBuilder, extractedFilter, false);
+      RexNode simplifiedRemainingFilterPruned = EnhancedFilterJoinPruner.pruneSuperset(
+        rexBuilder, simplifiedRemainingFilter, false);
+
+      return Pair.of(extractedFilterPruned, simplifiedRemainingFilterPruned);
+    }
+
+    private Pair<RexNode, RexNode> extractDisjunction(RexNode filter, boolean isRoot) {
+      assert filter.getKind() == SqlKind.OR;
+
+      List<RexNode> childNodes = MoreRelOptUtil.conDisjunctions(filter);
+      List<RexNode> extractedChildNodes = Lists.newArrayList();
+      List<Pair<RexNode, RexNode>> extractions = Lists.newArrayList();
+
+      // Extract for each child node
+      for (RexNode childNode : childNodes) {
+        Pair<RexNode, RexNode> extraction = extract(childNode, false);
+        extractions.add(extraction);
+        RexNode extractedChildNode = extraction.getKey();
+        if (extractedChildNode.isAlwaysTrue()) {
+           // If any part of an OR can not push down, then the whole OR can not be pushed down.
           return Pair.of(rexBuilder.makeLiteral(true), filter);
+        } else {
+          extractedChildNodes.add(extractedChildNode);
         }
+      }
+
+      // Make the resulting con/disjunction
+      RexNode extractedFilter = RexUtil.composeDisjunction(
+        rexBuilder, extractedChildNodes, false);
+      RexNode simplifiedRemainingFilter = EnhancedFilterJoinSimplifier.simplifyDisjunction(
+        rexBuilder, childNodes, extractions, isRoot);
+
+      // Prune superset
+      RexNode extractedFilterPruned = EnhancedFilterJoinPruner.pruneSuperset(
+        rexBuilder, extractedFilter, false);
+      RexNode simplifiedRemainingFilterPruned = EnhancedFilterJoinPruner.pruneSuperset(
+        rexBuilder, simplifiedRemainingFilter, false);
+
+      return Pair.of(extractedFilterPruned, simplifiedRemainingFilterPruned);
     }
   }
 }
-

@@ -22,6 +22,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -40,21 +41,22 @@ public class BoostTableFunctionContext extends TableFunctionContext {
   private final String arrowFileDir;
 
   public BoostTableFunctionContext(@JsonProperty("arrowFileDir") String arrowFileDir,
-                                          @JsonProperty("formatSettings") FileConfig formatSettings,
-                                          @JsonProperty("schema") BatchSchema fullSchema,
-                                          @JsonProperty("tableschema") BatchSchema tableSchema,
-                                          @JsonProperty("referencedTables") List<List<String>> tablePath,
-                                          @JsonProperty("scanFilter") ScanFilter scanFilter,
-                                          @JsonProperty("pluginId") StoragePluginId pluginId,
-                                          @JsonProperty("internalTablePluginId") StoragePluginId internalTablePluginId,
-                                          @JsonProperty("columns") List<SchemaPath> columns,
-                                          @JsonProperty("partitionColumns") List<String> partitionColumns,
-                                          @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                                          @JsonProperty("extendedProperty") ByteString extendedProperty,
-                                          @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
-                                          @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
-                                          @JsonProperty("icebergMetadata") boolean isIcebergMetadata) {
-    super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata);
+                                   @JsonProperty("formatSettings") FileConfig formatSettings,
+                                   @JsonProperty("schema") BatchSchema fullSchema,
+                                   @JsonProperty("tableschema") BatchSchema tableSchema,
+                                   @JsonProperty("referencedTables") List<List<String>> tablePath,
+                                   @JsonProperty("scanFilter") ScanFilter scanFilter,
+                                   @JsonProperty("pluginId") StoragePluginId pluginId,
+                                   @JsonProperty("internalTablePluginId") StoragePluginId internalTablePluginId,
+                                   @JsonProperty("columns") List<SchemaPath> columns,
+                                   @JsonProperty("partitionColumns") List<String> partitionColumns,
+                                   @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
+                                   @JsonProperty("extendedProperty") ByteString extendedProperty,
+                                   @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
+                                   @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
+                                   @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
+                                   @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings) {
+    super(formatSettings, fullSchema, tableSchema, tablePath, scanFilter, pluginId, internalTablePluginId, columns, partitionColumns, globalDictionaryEncodedColumns, extendedProperty, arrowCachingEnabled, isConvertedIcebergDataset, isIcebergMetadata, userDefinedSchemaSettings);
     this.arrowFileDir = arrowFileDir;
   }
 

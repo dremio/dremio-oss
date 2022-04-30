@@ -26,8 +26,6 @@ import Art from 'components/Art';
 import { RECOMMENDED_JOIN, CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
 import { setJoinTab, clearJoinDataset } from 'actions/explore/join';
 
-import { PALE_NAVY } from 'uiTheme/radium/colors';
-
 @injectIntl
 @Radium
 export class JoinHeader extends Component {
@@ -132,8 +130,7 @@ const styles = {
   base: {
     display: 'flex',
     height: 38,
-    justifyContent: 'space-between',
-    backgroundColor: PALE_NAVY
+    justifyContent: 'space-between'
   },
   tab: {
     display: 'flex',

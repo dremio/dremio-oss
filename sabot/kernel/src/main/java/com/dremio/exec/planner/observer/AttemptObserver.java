@@ -262,6 +262,12 @@ public interface AttemptObserver {
   void recordsProcessed(long recordCount);
 
   /**
+   * Number of output records
+   * @param recordCount output records
+   */
+  void recordsOutput(long recordCount);
+
+  /**
    * Time taken to generate fragments.
    * @param millisTaken time in milliseconds
    */

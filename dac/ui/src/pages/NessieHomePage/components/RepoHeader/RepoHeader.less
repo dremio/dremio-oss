@@ -1,0 +1,61 @@
+
+
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/mixins.less";
+ @import "~@app/uiTheme/less/color-schema.less";
+
+ :global {
+    .repoHeader {
+        font-size: 14px;
+        user-select: none;
+        &:hover, &:focus {
+            text-decoration: none !important;
+        }
+        color: @font-color1;
+        .flex-center;
+
+        .font-icon {
+            display: flex !important;
+            margin-right: 4px;
+        }
+        &-repoName {
+            max-width: 60%;
+            flex-shrink: 0;
+        }
+        &-divider {
+            margin: 0 4px;
+        }
+        &-branch {
+            .flex-center;
+            overflow: hidden;
+
+            &:hover, &:focus {
+                text-decoration: none !important;
+            }
+        }
+
+        &-branchIcon {
+            display: flex;
+            margin-right: 4px;
+        }
+
+        &-branchName {
+            flex: 1;
+            min-width: 0;
+        }
+    }
+}

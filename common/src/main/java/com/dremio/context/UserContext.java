@@ -37,4 +37,9 @@ public class UserContext {
   public String serialize() {
     return userId;
   }
+
+  public static boolean isSystemUser() {
+    return RequestContext.current().get(UserContext.CTX_KEY) != null
+      && SYSTEM_USER_CONTEXT.getUserId().equals(RequestContext.current().get(UserContext.CTX_KEY).getUserId());
+  }
 }

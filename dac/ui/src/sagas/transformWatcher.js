@@ -21,10 +21,10 @@ import { explorePageChanged } from '@app/sagas/runDataset';
 import { navigateToNextDataset } from '@app/actions/explore/dataset/common';
 import { startExplorePageListener, failedExploreJobProgress, stopExplorePageListener } from '@app/actions/explore/dataset/data';
 
-import { showConfirmationDialog, hideConfirmationDialog} from 'actions/confirmation';
+import { showConfirmationDialog, hideConfirmationDialog } from 'actions/confirmation';
 
 import RealTimeTimer from 'components/RealTimeTimer';
-
+// import { showPrepareResultsDialog } from '@inject/sagas/queryConfig';
 import { RESET_NEW_QUERY } from 'actions/explore/view';
 import { cancelTransform } from 'actions/explore/dataset/transform';
 import timeUtils from 'utils/timeUtils';
@@ -112,10 +112,12 @@ export function* performWatchedTransform(apiAction, viewId) {
 
 export function* cancelTransformWithModal(viewId) {
   yield call(delay, MAX_TIME_PER_OPERATION);
+  // to be added back once api is fixed
+  // if (showPrepareResultsDialog) {
   let action;
   const confirmPromise = new Promise((resolve) => {
     action = showConfirmationDialog({
-      title: la('Preparing Results…'),
+      title: la('Job Executing…'),
       showOnlyConfirm: true,
       confirmText: la('Cancel'),
       text: [
@@ -126,12 +128,14 @@ export function* cancelTransformWithModal(viewId) {
           />
         </span>
       ],
-      confirm: resolve
+      confirm: resolve,
+      style: {top: '25%'}
     });
   });
 
   yield put(action);
   yield confirmPromise;
   yield put(cancelTransform(viewId));
+  // }
   return true;
 }

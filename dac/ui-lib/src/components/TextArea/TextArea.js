@@ -13,23 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
 import get from 'lodash.get';
-
-import { CopyToClipboard } from 'react-copy-to-clipboard';
-import SvgIcon from '@material-ui/core/SvgIcon';
 import TextareaAutosize from '@material-ui/core/TextareaAutosize';
-import Tooltip from '@material-ui/core/Tooltip';
+
 import Label from '../Label';
-import { ReactComponent as CopyIcon } from '../../art/copy.svg';
+import CopyToClipboard from '../CopyToClipboard';
 
 import './textArea.scss';
 
 const TextArea = (props) => {
-  const [tooltipOpen, setTooltipOpen] = useState(false);
-  const [tooltipTitle, setTooltipTitle] = useState('');
   const {
     classes,
     copyMessage,
@@ -40,6 +35,7 @@ const TextArea = (props) => {
     enableCopy,
     helpText,
     label,
+    labelStyle,
     minLines,
     maxLines,
     name,
@@ -58,23 +54,13 @@ const TextArea = (props) => {
 
   const rootClass = clsx('textAreaRoot', { [classes.root]: classes.root });
   const labelClass = clsx('textAreaRoot__label', { [classes.label]: classes.label });
+  const labelInnerClass = clsx( { [classes.labelInner]: classes.labelInner });
   const textAreaContainerClass = clsx('textAreaRoot__container', { [classes.container]: classes.container });
   const textClass = clsx(
     { '--noResize': noResize },
     { '--singleLine': ( maxLines === 1 ) },
     { '--error': hasError }
   );
-
-  const handleCopySuccess = () => {
-    if (onCopy && typeof onCopy === 'function') {
-      onCopy();
-    }
-    setTooltipOpen(true);
-    setTooltipTitle(copyMessage);
-    setTimeout(() => {
-      setTooltipOpen(false);
-    }, 1000);
-  };
 
   const handleMouseEnter = () => {
     document.body.classList.add('disable-back-scroll');
@@ -97,24 +83,12 @@ const TextArea = (props) => {
           <Label
             value={label}
             className={labelClass}
+            labelInnerClass={labelInnerClass}
+            style={labelStyle}
             helpText={helpText}
             id={`textbox-label-${name}`}
           />
-          { enableCopy && (
-            <Tooltip
-              arrow
-              open={tooltipOpen}
-              title={tooltipTitle}
-              placement='bottom'
-            >
-              <span className='textAreaRoot__icon'>
-                <CopyToClipboard text={value}
-                  onCopy={handleCopySuccess}>
-                  <SvgIcon component={CopyIcon} fontSize='small' />
-                </CopyToClipboard>
-              </span>
-            </Tooltip>
-          )}
+          {enableCopy && <CopyToClipboard value={value} onCopy={onCopy} />}
         </div>
       )}
 
@@ -136,22 +110,7 @@ const TextArea = (props) => {
           data-qa={dataQa}
           {...otherProps}
         />
-        { !label && enableCopy && (
-          <Tooltip
-            arrow
-            open={!label && tooltipOpen}
-            title={tooltipTitle}
-            placement='bottom'
-          >
-            <span className='textAreaRoot__icon'>
-              <CopyToClipboard text={value}
-                onCopy={handleCopySuccess}>
-                <SvgIcon component={CopyIcon} fontSize='small' />
-              </CopyToClipboard>
-            </span>
-          </Tooltip>
-
-        )}
+        { !label && enableCopy && <CopyToClipboard value={value} onCopy={onCopy} className='textAreaRoot__icon' /> }
       </div>
     </div>
   );
@@ -161,6 +120,7 @@ TextArea.propTypes = {
   classes: PropTypes.shape({
     root: PropTypes.string,
     label: PropTypes.string,
+    labelInner: PropTypes.string,
     container: PropTypes.string
   }),
   copyMessage: PropTypes.string,
@@ -171,6 +131,7 @@ TextArea.propTypes = {
   disableTextCopy: PropTypes.bool,
   enableCopy: PropTypes.bool,
   label: PropTypes.string,
+  labelStyle: PropTypes.object,
   minLines: PropTypes.number,
   maxLines: PropTypes.number,
   name: PropTypes.string,

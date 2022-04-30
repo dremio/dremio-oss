@@ -27,7 +27,6 @@ import java.util.UUID;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.utils.protos.AttemptId;
@@ -55,8 +54,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
  * Tests for jobs-listing/v1.0/ API.
  */
 public class TestJobsListingResource extends BaseTestServer {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();

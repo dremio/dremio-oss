@@ -36,7 +36,7 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
   public static final SqlSpecialOperator CREATE_TABLE_OPERATOR = new SqlSpecialOperator("CREATE_TABLE", SqlKind.CREATE_TABLE) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 9, "SqlCreateTable.createCall() has to get 9 operands!");
+      Preconditions.checkArgument(operands.length == 10, "SqlCreateTable.createCall() has to get 10 operands!");
       return new SqlCreateTable(
         pos,
         (SqlIdentifier) operands[0],
@@ -44,10 +44,11 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
         ((SqlLiteral) operands[2]).symbolValue(PartitionDistributionStrategy.class),
         (SqlNodeList) operands[3],
         (SqlNodeList) operands[4],
-        (SqlLiteral) operands[5],
-        (SqlNodeList) operands[6],
+        (SqlNode) operands[5],
+        (SqlLiteral) operands[6],
         (SqlNodeList) operands[7],
-        operands[8]);
+        (SqlNodeList) operands[8],
+        operands[9]);
     }
   };
 
@@ -60,11 +61,12 @@ public class SqlCreateTable extends SqlCreateEmptyTable {
       PartitionDistributionStrategy partitionDistributionStrategy,
       SqlNodeList partitionColumns,
       SqlNodeList formatOptions,
+      SqlNode location,
       SqlLiteral singleWriter,
       SqlNodeList sortFieldList,
       SqlNodeList distributionColumns,
       SqlNode query) {
-    super(pos, tblName, fieldList, partitionDistributionStrategy, partitionColumns, formatOptions, singleWriter,
+    super(pos, tblName, fieldList, partitionDistributionStrategy, partitionColumns, formatOptions, location, singleWriter,
       sortFieldList, distributionColumns);
     this.query = query;
   }

@@ -247,11 +247,12 @@ export class ExploreTableView extends PureComponent {
     this.setState({ columns });
   }
 
-  updateSize = () => {
+  updateSize = (width) => {
     const columns = this.state.columns.toJS().filter(col => !col.hidden);
     const node = ReactDOM.findDOMNode(this);
-    const nodeOffsetTop = $(node).offset().top;
-    const wrapperForWidth = $(node).parents('.table-parent')[0];
+    const nodeOffset = $(node).offset();
+    const nodeOffsetTop = nodeOffset && nodeOffset.top;
+    const wrapperForWidth = $(node).parents('.explorePage')[0];
     const wrapperForHeight = document.querySelector('#grid-page');
     const wrappers = [wrapperForWidth, wrapperForHeight];
     //this need to fix DX-8244 due to re-render of table because of horizontal scroll clipping
@@ -261,7 +262,7 @@ export class ExploreTableView extends PureComponent {
       height = this.props.getTableHeight(node);
     }
 
-    const size = ExploreTableView.getTableSize({ ...this.props, height }, wrappers, columns, nodeOffsetTop);
+    const size = ExploreTableView.getTableSize({ ...this.props, height, width }, wrappers, columns, nodeOffsetTop);
     this.setState(state => {
       if (!state.size.equals(size)) {
         return { size };
@@ -386,28 +387,31 @@ export class ExploreTableView extends PureComponent {
       const scrollToColumn = this.getScrollToColumn();
       return (
         <AutoSizer>
-          {({ height, width }) => (
-            <div
-              onWheel={this.addNoBackBtnOnScroll}
-              onMouseEnter={this.addNoBackBtnOnScroll}
-              onMouseLeave={this.removeNoBackBtnOnScroll}
-            >
-              <Table
-                rowHeight={DEFAULT_ROW_HEIGHT}
-                ref='table'
-                rowsCount={rows.size}
-                width={width}
-                height={height}
-                overflowX='auto'
-                overflowY='auto'
-                scrollToColumn={scrollToColumn}
-                onColumnResizeEndCallback={this.handleColumnResizeEnd}
-                isColumnResizing={false}
-                headerHeight={DEFAULT_ROW_HEIGHT}>
-                {this.renderColumns()}
-              </Table>
-            </div>
-          )}
+          {({ height, width }) => {
+            this.updateSize(width);
+            return (
+              <div
+                onWheel={this.addNoBackBtnOnScroll}
+                onMouseEnter={this.addNoBackBtnOnScroll}
+                onMouseLeave={this.removeNoBackBtnOnScroll}
+              >
+                <Table
+                  rowHeight={DEFAULT_ROW_HEIGHT}
+                  ref='table'
+                  rowsCount={rows.size}
+                  width={width}
+                  height={height}
+                  overflowX='auto'
+                  overflowY='auto'
+                  scrollToColumn={scrollToColumn}
+                  onColumnResizeEndCallback={this.handleColumnResizeEnd}
+                  isColumnResizing={false}
+                  headerHeight={DEFAULT_ROW_HEIGHT}>
+                  {this.renderColumns()}
+                </Table>
+              </div>
+            );
+          }}
         </AutoSizer>
       );
     }
@@ -439,7 +443,7 @@ export class ExploreTableView extends PureComponent {
     return (
       <div className='fixed-data-table' style={{ width: '100%' }}>
         <ViewStateWrapper
-          style={{ overflow: 'hidden' }}
+          style={{ overflow: 'hidden', height: '100%' }}
           spinnerDelay={columns.size ? TIME_BEFORE_SPINNER : 0}
           viewState={viewState}
           showMessage={showMessage}

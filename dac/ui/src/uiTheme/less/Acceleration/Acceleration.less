@@ -369,7 +369,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 100px);
+    max-height: calc(100vh - 120px);
     overflow: hidden;
 
     &__formBody {
@@ -379,7 +379,7 @@
     }
 
     &__extraError {
-      margin-bottom: 0;
+      margin-bottom: -16px !important; //overridding global modifier
     }
   }
 

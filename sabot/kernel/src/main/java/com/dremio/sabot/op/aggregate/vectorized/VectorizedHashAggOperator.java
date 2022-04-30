@@ -298,6 +298,38 @@ import io.netty.util.internal.PlatformDependent;
 
 @Options
 public class VectorizedHashAggOperator implements SingleInputOperator {
+  public interface VarLenVectorResizer {
+    boolean tryResize(int accumIndex, int newSize);
+  }
+
+  public class VarLenVectorResizerImpl implements VarLenVectorResizer {
+    @Override
+    public boolean tryResize(int accumIndex, int newSize) {
+      try {
+        while (tempAccumulatorHolder[accumIndex].getByteCapacity() < newSize) {
+          tempAccumulatorHolder[accumIndex].reallocDataBuffer();
+        }
+
+        FieldVector[] partitionToLoadAccumulator = partitionToLoadSpilledData.getPostSpillAccumulatorVectors();
+        while (((BaseVariableWidthVector)partitionToLoadAccumulator[accumIndex]).getByteCapacity() < newSize) {
+          ((BaseVariableWidthVector)partitionToLoadAccumulator[accumIndex]).reallocDataBuffer();
+        }
+
+        return true;
+      } catch (Exception e) {
+        /*
+         * This can be any exception. The idea here is, when this API is called, VarLenAccumulator is
+         * trying to determine to increase the it's vector size for the new batch. If for any reason
+         * could not increase the tempAccumulatorHolder (to save the data in record order and then
+         * spilled) or partitionToLoadSpillData (accumulator to read the previously spilled data
+         * from disk), then VarLenAccumulator cannot increase it's vector size.
+         */
+        logger.debug("Failed to extend temporary accumulator or partition load accumulator");
+      }
+      return false;
+    }
+  }
+
   private static final ControlsInjector injector =
     ControlsInjectorFactory.getInjector(VectorizedHashAggOperator.class);
 
@@ -332,6 +364,12 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   public static final DoubleValidator OOB_SPILL_TRIGGER_HEADROOM_FACTOR = new RangeDoubleValidator("exec.operator.aggregate.vectorize.oob_trigger_headroom_factor", 0.0d, 10.0d, .2d);
   public static final BooleanValidator OOB_SPILL_TRIGGER_ENABLED = new BooleanValidator("exec.operator.aggregate.vectorize.oob_trigger_enabled", true);
   public static final BooleanValidator VECTORIZED_HASHAGG_ENABLE_MICRO_SPILLS = new BooleanValidator("exec.operator.aggregate.vectorize.enable_micro_spills", true);
+  /*
+   * If variable column records size is much larger then default (15) size, let the vector created for new batches
+   * can go up to 1M (256 * 4K). Config option can be used to reduce, if really needed.
+   */
+  public static final PositiveLongValidator VECTORIZED_HASHAGG_MAX_VARIABLE_SIZE =
+    new PositiveLongValidator("exec.operator.aggregate.vectorize.max_variable_size", 256, 256);
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggOperator.class);
 
@@ -361,6 +399,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   private final int minHashTableSize;
   private final int minHashTableSizePerPartition;
   private final int estimatedVariableWidthKeySize;
+  private final int maxVariableWidthKeySize;
+  private final VarLenVectorResizerImpl varLenVectorResizer = new VarLenVectorResizerImpl();
   private int maxHashTableBatchSize;
 
   private int hashPartitionMask;
@@ -412,16 +452,19 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   private OperatorStateBeforeOOB operatorStateBeforeOOB;
   private ForceSpillState forceSpillState;
   /**
-   * This is used to read/write a spilled varlen accumulator from disk.
-   * We preallocate its memory & use it when spilling to disk.
-   * The contents of a MutableVarcharVector are copied into this before being spilled.
-   * (A MutableVarcharVector cant be spilled on to disk directly).
+   * This is used to read/write a spilled varlen accumulator from/to disk.
+   * Preallocate its memory using the default variable width size however if
+   * any batch dynamically increased the size of the vector, this vector must
+   * also increased as a prerequsite.
+   * One vector for each variable length accumulator and the same used across
+   * all partitions. The contents of MutableVarcharVector are copied into this,
+   * before being spilled. (MutableVarcharVector cant be spilled to disk
+   * directly as they are not in order).
    */
-  private BaseVariableWidthVector tempAccumulatorHolder[];
+  private BaseVariableWidthVector[] tempAccumulatorHolder;
   /**
    * The buffer capacity of the varlen accumulator
    */
-  private int varLenAccumulatorCapacity;
   private boolean hasVarLenAccumAppend = false;
 
   private int bitsInChunk;
@@ -442,8 +485,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.minHashTableSize = (int)options.getOption(ExecConstants.MIN_HASH_TABLE_SIZE);
     this.minHashTableSizePerPartition = (int)Math.ceil((minHashTableSize * 1.0)/numPartitions);
     this.estimatedVariableWidthKeySize = (int)options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+    this.maxVariableWidthKeySize = (int)options.getOption(VECTORIZED_HASHAGG_MAX_VARIABLE_SIZE);
     this.maxHashTableBatchSize = popConfig.getHashTableBatchSize();
-    this.varLenAccumulatorCapacity = this.estimatedVariableWidthKeySize * this.maxHashTableBatchSize;
     final boolean traceOnException = options.getOption(VECTORIZED_HASHAGG_DEBUG_DETAILED_EXCEPTION);
     this.hashPartitionMask = numPartitions - 1;
     this.statsHolder = new HashTableStatsHolder();
@@ -580,31 +623,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
         accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal()) {
         final int maxOutgoingBatchSize = (int)context.getOptions().getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
         this.maxHashTableBatchSize = maxOutgoingBatchSize / SKETCH_SIZE;
-        this.varLenAccumulatorCapacity = this.estimatedVariableWidthKeySize * this.maxHashTableBatchSize * 2;
         break;
-      }
-    }
-
-    /* Now allocate temporary buffers for accumulators which output variable size data */
-    tempAccumulatorHolder = new BaseVariableWidthVector[accumulatorTypes.length];
-    for (int i = 0; i < accumulatorTypes.length; ++i) {
-      final TypeProtos.MinorType type = CompleteType.fromField(outputVectorFields.get(i)).toMinorType();
-      if (type == TypeProtos.MinorType.VARCHAR || type == TypeProtos.MinorType.VARBINARY) {
-        final int accumLen;
-        if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.MIN.ordinal() ||
-          accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.MAX.ordinal()) {
-          tempAccumulatorHolder[i] = new VarCharVector("holder", outputAllocator);
-          hasVarLenAccumAppend = true;
-          accumLen = varLenAccumulatorCapacity;
-        } else {
-          Preconditions.checkArgument(accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL.ordinal() ||
-            accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal());
-          tempAccumulatorHolder[i] = new VarBinaryVector("holder", outputAllocator);
-          accumLen = SKETCH_SIZE * maxHashTableBatchSize;
-        }
-        tempAccumulatorHolder[i].allocateNew(accumLen, maxHashTableBatchSize);
-      } else {
-        tempAccumulatorHolder[i] = null;
       }
     }
 
@@ -621,6 +640,29 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       context.getOptions()
     );
     debug.setPreAllocEstimator(estimator);
+
+    /* Now allocate temporary buffers for accumulators which output variable size data */
+    tempAccumulatorHolder = new BaseVariableWidthVector[accumulatorTypes.length];
+    for (int i = 0; i < accumulatorTypes.length; ++i) {
+      final TypeProtos.MinorType type = CompleteType.fromField(outputVectorFields.get(i)).toMinorType();
+      if (type == TypeProtos.MinorType.VARCHAR || type == TypeProtos.MinorType.VARBINARY) {
+        final int accumLen;
+        if (accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.MIN.ordinal() ||
+          accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.MAX.ordinal()) {
+          tempAccumulatorHolder[i] = new VarCharVector("holder", allocator);
+          accumLen = estimatedVariableWidthKeySize * maxHashTableBatchSize;
+          hasVarLenAccumAppend = true;
+        } else {
+          Preconditions.checkArgument(accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL.ordinal() ||
+            accumulatorTypes[i] == AccumulatorBuilder.AccumulatorType.HLL_MERGE.ordinal());
+          tempAccumulatorHolder[i] = new VarBinaryVector("holder", allocator);
+          accumLen = SKETCH_SIZE * maxHashTableBatchSize;
+        }
+        tempAccumulatorHolder[i].allocateNew(accumLen, maxHashTableBatchSize);
+      } else {
+        tempAccumulatorHolder[i] = null;
+      }
+    }
 
     /*
      * STEP 2: Build data structures for each partition.
@@ -640,12 +682,11 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
 
       final int maxVarWidthVecUsagePercent = (int)context.getOptions().getOption(ExecConstants.VARIABLE_WIDTH_VECTOR_MAX_USAGE_PERCENT);
       for (int i = 0; i < numPartitions; i++) {
-        /* this step doesn't allocate any memory for accumulators */
         final AccumulatorSet accumulator = AccumulatorBuilder.getAccumulator(
           allocator, outputAllocator, materializeAggExpressionsResult, outgoing,
           maxHashTableBatchSize, jointAllocationMin, jointAllocationLimit,
-          decimalV2Enabled, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent,
-          tempAccumulatorHolder);
+          decimalV2Enabled, estimatedVariableWidthKeySize, maxVariableWidthKeySize,
+          maxVarWidthVecUsagePercent, tempAccumulatorHolder, varLenVectorResizer);
         /* this step allocates memory for control structure in hashtable and reverts itself if
          * allocation fails so we don't have to rely on rollback closeable
          */
@@ -716,7 +757,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     try {
       partitionToLoadSpilledData = new PartitionToLoadSpilledData(allocator, fixedBlockSize, variableBlockSize,
         postSpillAccumulatorVectorFields, accumulatorTypes, maxHashTableBatchSize,
-        varLenAccumulatorCapacity);
+        estimatedVariableWidthKeySize * maxHashTableBatchSize);
     } catch (OutOfMemoryException e) {
       ooms++;
       throw debug.prepareAndThrowException(e, PREALLOC_FAILURE_LOADING_PARTITION, HashAggErrorType.OOM);
@@ -1797,6 +1838,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     long spliceTimeNs = 0;
     long forceAccumTimeNs = 0;
     long accumCompactionTimeNs = 0;
+    int maxVarLenKeySize = 0;
     int minTableSize = Integer.MAX_VALUE;
     int maxTableSize = Integer.MIN_VALUE;
     int minRehashCount = Integer.MAX_VALUE;
@@ -1814,6 +1856,10 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       spliceTimeNs += hashAggPartitions[i].hashTable.getSpliceTime(TimeUnit.NANOSECONDS);
       forceAccumTimeNs += hashAggPartitions[i].getForceAccumTime(TimeUnit.NANOSECONDS);
       accumCompactionTimeNs += hashAggPartitions[i].hashTable.getAccumCompactionTime(TimeUnit.NANOSECONDS);
+      final int varLenKeySize = hashAggPartitions[i].hashTable.getMaxVarLenKeySize();
+      if (maxVarLenKeySize < varLenKeySize) {
+        maxVarLenKeySize = varLenKeySize;
+      }
       tableSize += size;
       tableRehashCount += rehashCount;
       tableSpliceCount += spliceCount;
@@ -1856,6 +1902,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     statsHolder.hashTableForceAccumTimeNs = forceAccumTimeNs;
     statsHolder.hashTableAccumCompactCount = tableAccumCompactionCount;
     statsHolder.hashTableAccumCompactTimeNs = accumCompactionTimeNs;
+    statsHolder.hashTableMaxVarLenKeySize = maxVarLenKeySize;
     statsHolder.minHashTableSize = minTableSize;
     statsHolder.maxHashTableSize = maxTableSize;
     statsHolder.minHashTableRehashCount = minRehashCount;
@@ -1902,6 +1949,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     stats.setLongStat(Metric.FORCE_ACCUM_TIME_NS, statsHolder.hashTableForceAccumTimeNs);
     stats.setLongStat(Metric.NUM_ACCUM_COMPACTS, statsHolder.hashTableAccumCompactCount);
     stats.setLongStat(Metric.ACCUM_COMPACTS_TIME_NS, statsHolder.hashTableAccumCompactTimeNs);
+    stats.setLongStat(Metric.MAX_VARLEN_KEY_SIZE, statsHolder.hashTableMaxVarLenKeySize);
     stats.setLongStat(Metric.MAX_HASHTABLE_BATCH_SIZE, statsHolder.maxHashTableBatchSize);
     stats.setLongStat(Metric.MIN_HASHTABLE_ENTRIES, statsHolder.minHashTableSize);
     stats.setLongStat(Metric.MAX_HASHTABLE_ENTRIES, statsHolder.maxHashTableSize);
@@ -1961,6 +2009,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     private long hashTableForceAccumTimeNs;
     private int hashTableAccumCompactCount;
     private long hashTableAccumCompactTimeNs;
+    private int hashTableMaxVarLenKeySize;
     private int minHashTableSize;
     private int maxHashTableSize;
     private int minHashTableRehashCount;
