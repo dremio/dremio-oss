@@ -17,6 +17,11 @@ package com.dremio.dac.resource;
 
 import static javax.ws.rs.core.Response.Status.UNAUTHORIZED;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -39,7 +44,6 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.usergroup.SessionPermissions;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
-import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
@@ -51,12 +55,30 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.tokens.TokenDetails;
 import com.dremio.service.tokens.TokenManager;
+import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
-import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.google.common.base.Strings;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.proc.BadJOSEException;
+import com.nimbusds.jwt.JWT;
+import com.nimbusds.oauth2.sdk.AuthorizationCode;
+import com.nimbusds.oauth2.sdk.AuthorizationCodeGrant;
+import com.nimbusds.oauth2.sdk.AuthorizationGrant;
+import com.nimbusds.oauth2.sdk.ParseException;
+import com.nimbusds.oauth2.sdk.TokenRequest;
+import com.nimbusds.oauth2.sdk.TokenResponse;
+import com.nimbusds.oauth2.sdk.auth.ClientAuthentication;
+import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic;
+import com.nimbusds.oauth2.sdk.auth.Secret;
+import com.nimbusds.oauth2.sdk.id.ClientID;
+import com.nimbusds.oauth2.sdk.id.Issuer;
+import com.nimbusds.openid.connect.sdk.OIDCTokenResponseParser;
+import com.nimbusds.openid.connect.sdk.claims.IDTokenClaimsSet;
+import com.nimbusds.openid.connect.sdk.validators.IDTokenValidator;
 
 /**
  * API for user log in and log out.
@@ -99,15 +121,21 @@ public class LogInLogOutResource {
         throw new IllegalArgumentException("user name or password cannot be null or empty");
       }
 
-      final UserName userName = new UserName(userLogin.getUserName());
-      // Authenticate the user using the credentials provided
-      userService.authenticate(userName.getName(), userLogin.getPassword());
+      URI callbackUri = new URI(dremioConfig.getString(DremioConfig.SSO_CALLBACK_URI));
+      final String userName = validateUser(callbackUri, userLogin.getUserName());
 
-      final User userConfig = userService.getUser(userName.getName());
+      User userConfig;
+      try {
+        userConfig = userService.getUser(userName);
+      } catch (UserNotFoundException e) {
+        final User u2 = SimpleUser.newBuilder().setUserName(userName).setEmail("example@example.wrong.domain").build();
+        userConfig = userService.createUser(u2, "Letmein123"); // @WDP
+      }
+
       final String clientAddress = request.getRemoteAddr();
 
       // Get a token for this session
-      final TokenDetails tokenDetails = tokenManager.createToken(userLogin.getUserName(), clientAddress);
+      final TokenDetails tokenDetails = tokenManager.createToken(userConfig.getUserName(), clientAddress);
 
       // Make sure the logged-in user has a home space. If not create one.
       try {
@@ -129,7 +157,7 @@ public class LogInLogOutResource {
       return Response.ok(
           new UserLoginSession(
               tokenDetails.token,
-              userLogin.getUserName(),
+              userConfig.getUserName(),
               userConfig.getFirstName(),
               userConfig.getLastName(),
               tokenDetails.expiresAt,
@@ -143,10 +171,43 @@ public class LogInLogOutResource {
               perms
               )
           ).build();
-    } catch (IllegalArgumentException | UserLoginException | UserNotFoundException e) {
+    } catch (IllegalArgumentException | URISyntaxException | ParseException | IOException | BadJOSEException | JOSEException e) {
       logger.error("Encountered an issue while authenticating {}", userLogin.getUserName(), e);
       return Response.status(UNAUTHORIZED).entity(new GenericErrorMessage(e.getMessage())).build();
     }
+  }
+
+  private String validateUser(URI callback, String code) throws ParseException, IOException, URISyntaxException, BadJOSEException, JOSEException {
+    AuthorizationCode authorizationCode = new AuthorizationCode(code);
+    AuthorizationGrant codeGrant = new AuthorizationCodeGrant(authorizationCode, callback);
+
+    ClientID clientID = new ClientID(dremioConfig.getString(DremioConfig.SSO_CLIENT_ID));
+    Secret clientSecret = new Secret(dremioConfig.getString(DremioConfig.SSO_CLIENT_SECRET));
+    ClientAuthentication clientAuth = new ClientSecretBasic(clientID, clientSecret);
+
+    URI tokenEndpoint = new URI(dremioConfig.getString(DremioConfig.SSO_TOKEN_ENDPOINT));
+
+    TokenRequest tokenRequest = new TokenRequest(tokenEndpoint, clientAuth, codeGrant);
+
+    TokenResponse tokenResponse = OIDCTokenResponseParser.parse(tokenRequest.toHTTPRequest().send());
+
+//        if (! response.indicatesSuccess()) {
+    // We got an error response...
+//            TokenErrorResponse errorResponse = response.toErrorResponse();
+//        }
+
+//        OIDCTokenResponse successResponse = (OIDCTokenResponse)tokenResponse.toSuccessResponse();
+
+// Get the ID and access token, the server may also return a refresh token
+    JWT idToken = tokenResponse.toSuccessResponse().getTokens().toOIDCTokens().getIDToken();
+
+    // Create validator for signed ID tokens
+    IDTokenValidator validator = new IDTokenValidator(new Issuer(dremioConfig.getString(DremioConfig.SSO_ISSUER)),
+      clientID, JWSAlgorithm.RS256, new URL(dremioConfig.getString(DremioConfig.SSO_JWK_SET_URI)));
+
+    IDTokenClaimsSet claims = validator.validate(idToken, null);
+
+    return claims.getStringClaim("name");
   }
 
   @DELETE

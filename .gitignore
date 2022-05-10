@@ -1,6 +1,7 @@
 #ignore all folders that start with period
 .*/
 !.mvn/
+!.github/
 .buildpath
 .checkstyle
 .classpath

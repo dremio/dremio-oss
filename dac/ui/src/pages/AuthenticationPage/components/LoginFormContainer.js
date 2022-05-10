@@ -20,9 +20,6 @@ import { withRouter } from 'react-router';
 
 import LoginFormMixin from '@inject/pages/AuthenticationPage/components/LoginFormMixin';
 import localStorageUtils from 'dyn-load/utils/storageUtils/localStorageUtils';
-import {renderSSOLoginToggleLink} from 'dyn-load/utils/loginUtils.js';
-import LoginForm from './LoginForm';
-import LoginTitle from './LoginTitle';
 
 @Radium
 export class LoginFormContainer extends PureComponent {
@@ -35,10 +32,7 @@ export class LoginFormContainer extends PureComponent {
 
   componentDidMount() {
     this.state.loginScreen === null ? this.setLoginScreen() : null;
-  }
-
-  renderForm() {
-    return <LoginForm {...this.props} />;
+    window.location.href = '/apiv2/sso_redirect';
   }
 
   setLoginScreen() {
@@ -49,16 +43,7 @@ export class LoginFormContainer extends PureComponent {
   }
 
   render() {
-    return (
-      <div id='login-form' style={[styles.base]}>
-        <LoginTitle
-          style={{marginBottom: 10}}
-          subTitle={la('Welcome to Dremio, please log in.')}
-        />
-        {this.renderForm(this.state.loginScreen)}
-        {renderSSOLoginToggleLink(this.setLoginScreen.bind(this))}
-      </div>
-    );
+    return '';
   }
 }
 
@@ -66,18 +51,3 @@ export default compose(
   withRouter,
   LoginFormMixin
 )(LoginFormContainer);
-
-const styles = {
-  base: {
-    position: 'relative',
-    backgroundColor: '#344253',
-    minWidth: 775,
-    height: 430,
-    maxWidth: 775,
-    maxHeight: 430,
-    overflow: 'hidden',
-    padding: 40,
-    display: 'flex',
-    flexDirection: 'column'
-  }
-};

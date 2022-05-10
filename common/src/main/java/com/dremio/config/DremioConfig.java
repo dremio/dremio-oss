@@ -218,6 +218,13 @@ public class DremioConfig extends NestedConfig {
 
   public static final String REMOTE_DATASTORE_RPC_TIMEOUT_SECS = "debug.remote.datastore.rpc_timeout_seconds";
 
+  public static final String SSO_CALLBACK_URI = "sso.callback-uri";
+  public static final String SSO_CLIENT_ID = "sso.client-id";
+  public static final String SSO_CLIENT_SECRET = "sso.client-secret";
+  public static final String SSO_TOKEN_ENDPOINT = "sso.token-endpoint";
+  public static final String SSO_ISSUER = "sso.issuer";
+  public static final String SSO_JWK_SET_URI = "sso.jwk-set-uri";
+
   private final Config unresolved;
   private final Config reference;
   private final SabotConfig sabot;

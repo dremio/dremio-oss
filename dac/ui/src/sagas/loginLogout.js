@@ -32,7 +32,7 @@ import { appInitComplete } from '@app/actions/app';
 
 export const SIGNUP_PATH = '/signup';
 export const LOGIN_PATH = '/login';
-export const SSO_LANDING_PATH = '/login/sso/landing';
+export const SSO_LANDING_PATH = '/sso';
 
 export function getLoginUrl() {
   return `${LOGIN_PATH}?redirect=${encodeURIComponent(window.location.href.slice(window.location.origin.length))}`;

@@ -180,7 +180,7 @@
    > `<=` [com.dremio.dac.explore.model.DatasetSummary](#class-comdremiodacexploremodeldatasetsummary)   
 
  - POST /datasets/new_untitled?parentDataset={com.dremio.dac.explore.model.DatasetPath}&newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}&engineName={String}&sessionId={String}   
-   > `=>`   
+   > `=>` [com.dremio.dac.explore.model.NewUntitledFromParentRequest](#class-comdremiodacexploremodelnewuntitledfromparentrequest)   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
  - POST /datasets/new_untitled_sql?newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}&sessionId={String}   
@@ -432,10 +432,10 @@
  - GET /queryProfile/GetJobProfileFromURL?profileJsonFileURL={String}   
    > `<=` java.util.List`<`[com.dremio.service.jobAnalysis.proto.PhaseData](#class-comdremioservicejobanalysisprotophasedata)`>`   
 
- - GET /queryProfile/{jobId}/JobProfile?attempt={int}0 (path params: jobId={String})   
+ - GET /queryProfile/{jobId}/JobProfile?attempt={int}1 (path params: jobId={String})   
    > `<=` java.util.List`<`[com.dremio.service.jobAnalysis.proto.PhaseData](#class-comdremioservicejobanalysisprotophasedata)`>`   
 
- - GET /queryProfile/{jobId}/JobProfile/OperatorDetails?phaseId={String}&operatorId={String}&attempt={int}0 (path params: jobId={String})   
+ - GET /queryProfile/{jobId}/JobProfile/OperatorDetails?phaseId={String}&operatorId={String}&attempt={int}1 (path params: jobId={String})   
    > `<=` [com.dremio.dac.model.job.JobProfileOperatorInfo](#class-comdremiodacmodeljobjobprofileoperatorinfo)   
 
 
@@ -612,6 +612,12 @@
  - POST /sql/autocomplete   
    > `=>` [com.dremio.service.autocomplete.AutocompleteRequest](#class-comdremioserviceautocompleteautocompleterequest)   
    > `<=` [com.dremio.service.autocomplete.AutocompleteResponse](#class-comdremioserviceautocompleteautocompleteresponse)   
+
+
+## Resource defined by class com.dremio.dac.resource.SSORedirectResource
+
+ - GET /sso_redirect   
+   > `<=` javax.ws.rs.core.Response   
 
 
 ## Resource defined by class com.dremio.dac.support.SupportResource
@@ -1477,6 +1483,19 @@
     },
     ...
   ],
+}
+```
+
+## `class com.dremio.dac.explore.model.NewUntitledFromParentRequest`
+- Example:
+```
+{
+  references: {
+    abc: {
+      type: "BRANCH" | "TAG" | "COMMIT",
+      value: "abc",
+    }, ...
+  },
 }
 ```
 
@@ -5224,7 +5243,9 @@ any
         peakMemory: 1,
         processingTime: 1,
         recordsProcessed: 1,
+        runTime: 1,
         setupTime: 1,
+        totalMemory: 1,
       },
       mergeNodeName: "abc",
       nodeId: "abc",
@@ -5243,6 +5264,8 @@ any
   phaseId: "abc",
   processingTime: 1,
   recordsProcessed: 1,
+  runTime: 1,
+  totalMemory: 1,
 }
 ```
 
