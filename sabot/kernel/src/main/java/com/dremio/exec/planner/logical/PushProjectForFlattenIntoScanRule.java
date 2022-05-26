@@ -96,7 +96,7 @@ public class PushProjectForFlattenIntoScanRule extends RelOptRule{
     }
   }
 
-  private List<RexNode> getPartitionColumns(ScanRelBase scan, RexBuilder rexBuilder) {
+  public static List<RexNode> getPartitionColumns(ScanRelBase scan, RexBuilder rexBuilder) {
     if (scan instanceof FilterableScan) {
       FilterableScan filterableScan = (FilterableScan) scan;
       TableMetadata tableMetadata = filterableScan.getTableMetadata();

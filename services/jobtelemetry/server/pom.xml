@@ -23,11 +23,11 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-jobtelemetry</artifactId>
-    <version>21.1.1-202204292111390812-57b1832f</version>
+    <version>21.2.0-202205262146080444-038d6d1b</version>
   </parent>
 
   <artifactId>dremio-services-jobtelemetry-server</artifactId>
-  <version>21.1.1-202204292111390812-57b1832f</version>
+  <version>21.2.0-202205262146080444-038d6d1b</version>
   <name>Services - Job Telemetry - Server</name>
 
   <dependencies>

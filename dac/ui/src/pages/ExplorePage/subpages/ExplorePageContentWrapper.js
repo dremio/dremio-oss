@@ -47,8 +47,6 @@ import { setCurrentSql, updateColumnFilter } from '@app/actions/explore/view';
 
 import { HomePageTop } from '@inject/pages/HomePage/HomePageTop';
 import { Tooltip } from 'components/Tooltip';
-import { loadJobDetails } from '@app/actions/jobs/jobs';
-import { addNotification } from '@app/actions/notification';
 import HistoryLineController from '../components/Timeline/HistoryLineController';
 import DatasetsPanel from '../components/SqlEditor/Sidebar/DatasetsPanel';
 import ExploreTableJobStatus from '../components/ExploreTable/ExploreTableJobStatus';
@@ -63,7 +61,6 @@ import TableControls from './../components/TableControls';
 import ExplorePageMainContent from './ExplorePageMainContent';
 
 const EXPLORE_DRAG_TYPE = 'explorePage';
-const VIEW_ID = 'JOB_DETAILS_VIEW_ID';
 export class ExplorePageContentWrapper extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -102,8 +99,6 @@ export class ExplorePageContentWrapper extends PureComponent {
     previewDatasetSql: PropTypes.func,
     canSelect: PropTypes.any,
     version: PropTypes.string,
-    loadJobDetails: PropTypes.func,
-    addNotification: PropTypes.func,
     currentSql: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
     datasetSql: PropTypes.string,
@@ -159,10 +154,7 @@ export class ExplorePageContentWrapper extends PureComponent {
 
   componentDidUpdate(prevProps) {
     const {
-      addNotification: addSuccessNotification,
-      intl: { formatMessage },
       jobProgress,
-      loadJobDetails: getJobDetails,
       setCurrentSql: newCurrentSql,
       datasetSql,
       currentSql
@@ -170,17 +162,6 @@ export class ExplorePageContentWrapper extends PureComponent {
 
     if (prevProps.jobProgress && prevProps.jobProgress.jobId !== this.state.jobId) {
       if (jobProgress && jobProgress.jobId) {
-
-        // Retrieve the Job's details to see if the results were truncated from the backend
-        getJobDetails(jobProgress.jobId, VIEW_ID)
-          .then((response) => {
-            // added null check
-            const responseStats = response && response.payload && !response.error ? response.payload.getIn(['entities', 'jobDetails', response.meta.jobId, 'stats']) : '';
-            // isOutputLimited will be true if the results were truncated
-            if (responseStats && responseStats.get('isOutputLimited')) {
-              addSuccessNotification(formatMessage({ id: 'Explore.Run.Warning' }, { rows: responseStats.get('outputRecords').toLocaleString() }), 'success');
-            }
-          });
 
         // Reset the currentSql to the statement that was executed
         if (datasetSql !== currentSql) {
@@ -699,8 +680,6 @@ export default withRouter(connect(mapStateToProps, {
   runDatasetSql,
   previewDatasetSql,
   updateColumnFilter,
-  loadJobDetails,
-  addNotification,
   setCurrentSql,
   loadSourceListData
 }, null, { forwardRef: true })(withDatasetChanges(injectIntl(ExplorePageContentWrapper))));

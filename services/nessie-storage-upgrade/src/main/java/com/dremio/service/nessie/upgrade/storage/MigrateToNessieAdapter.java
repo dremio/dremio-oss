@@ -28,7 +28,9 @@ import org.projectnessie.versioned.BranchName;
 import org.projectnessie.versioned.GetNamedRefsParams;
 import org.projectnessie.versioned.Hash;
 import org.projectnessie.versioned.Key;
+import org.projectnessie.versioned.ReferenceConflictException;
 import org.projectnessie.versioned.ReferenceInfo;
+import org.projectnessie.versioned.ReferenceNotFoundException;
 import org.projectnessie.versioned.TagName;
 import org.projectnessie.versioned.persist.adapter.ContentId;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
@@ -43,6 +45,7 @@ import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
+import com.dremio.service.nessie.ImmutableNessieDatabaseAdapterConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.dremio.service.nessie.upgrade.version040.MetadataReader;
 import com.dremio.service.nessie.upgrade.version040.MetadataReader040;
@@ -55,7 +58,7 @@ import com.google.protobuf.ByteString;
  */
 public class MigrateToNessieAdapter extends UpgradeTask {
 
-  static final int MAX_ENTRIES_PER_COMMIT = Integer.getInteger("nessie.upgrade.max_entries_per_commit", 20);
+  static final int MAX_ENTRIES_PER_COMMIT = Integer.getInteger("nessie.upgrade.max_entries_per_commit", 100);
 
   public static final String TASK_ID = "40dcb921-8f34-48f4-a686-0c77fd3006d6";
 
@@ -102,7 +105,12 @@ public class MigrateToNessieAdapter extends UpgradeTask {
       store.initialize();
 
       TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-      DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder().withConnector(store).build();
+      DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder().withConnector(store)
+        .withConfig(new ImmutableNessieDatabaseAdapterConfig.Builder()
+          // Suppress periodic key list generation by the DatabaseAdapter. We'll do that once at the end of the upgrade.
+          .setKeyListDistance(Integer.MAX_VALUE)
+          .build())
+        .build();
 
       // Ensure the Embedded Nessie repo is initialized. This is an idempotent operation in the context
       // of upgrade tasks since they run on only one machine.
@@ -129,6 +137,7 @@ public class MigrateToNessieAdapter extends UpgradeTask {
 
       final AtomicReference<ImmutableCommitAttempt.Builder> commit = new AtomicReference<>();
       final AtomicInteger numEntries = new AtomicInteger();
+      final AtomicInteger totalEntries = new AtomicInteger();
 
       reader.doUpgrade((branchName, contentKey, location) -> {
         // Embedded Nessie use cases that kept data in KVStores used only the "main" branch
@@ -149,6 +158,10 @@ public class MigrateToNessieAdapter extends UpgradeTask {
               )));
         }
 
+        Key key = Key.of(contentKey.toArray(new String[0]));
+
+        AdminLogger.log("Migrating key: " + key + ", location: " + location);
+
         // Note: old embedded Nessie data does not contain content ID or Iceberg snapshots and other IDs.
         // Note: clients of Embedded Nessie do not use those IDs in versions where this upgrade step is relevant
         // (i.e. Dremio Software versions 18, 19, 20, 21), so use zeros.
@@ -161,18 +174,21 @@ public class MigrateToNessieAdapter extends UpgradeTask {
         commit.get().putGlobal(contentId, worker.toStoreGlobalState(table));
         commit.get().addPuts(
           KeyWithBytes.of(
-            Key.of(contentKey.toArray(new String[0])),
+            key,
             contentId,
             worker.getPayload(table),
             worker.toStoreOnReferenceState(table)));
 
         if (numEntries.incrementAndGet() >= MAX_ENTRIES_PER_COMMIT) {
-          commit(adapter, commit.get(), numEntries.get());
+          commit(adapter, commit.get(), numEntries.get(), totalEntries);
           numEntries.set(0);
+          commit.set(null);
         }
       });
 
-      commit(adapter, commit.get(), numEntries.get());
+      commit(adapter, commit.get(), numEntries.get(), totalEntries);
+
+      commitKeyList(worker, store, upgradeBranch, totalEntries);
 
       // Tag old `main` branch
       TagName oldMain = TagName.of("main-before-upgrade-" + getTaskUUID());
@@ -188,14 +204,50 @@ public class MigrateToNessieAdapter extends UpgradeTask {
     }
   }
 
-  private void commit(DatabaseAdapter adapter, ImmutableCommitAttempt.Builder commit, int numEntries) {
+  private void commitKeyList(TableCommitMetaStoreWorker worker,
+                             NessieDatastoreInstance store,
+                             BranchName branch,
+                             AtomicInteger totalEntries)
+    throws ReferenceNotFoundException, ReferenceConflictException {
+
+    if (totalEntries.get() <= 0) {
+      return;
+    }
+
+    // Use a fresh adapter instance with key list distance of 1 to force key list generation
+    DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
+      .withConnector(store)
+      .withConfig(new ImmutableNessieDatabaseAdapterConfig.Builder()
+        .setKeyListDistance(1)
+        .build())
+      .build();
+
+    ImmutableCommitAttempt emptyCommit = ImmutableCommitAttempt.builder()
+      .commitToBranch(branch)
+      .commitMetaSerialized(
+        worker.getMetadataSerializer().toBytes(
+          CommitMeta.builder()
+            .message("Upgrade - Generate key list")
+            .author("MigrateToNessieAdapter")
+            .authorTime(Instant.now())
+            .build()
+        ))
+      .build();
+
+    // Make an empty commit to force key list computation in the adapter
+    Hash hash = adapter.commit(emptyCommit);
+    AdminLogger.log("Committed post-upgrade key list ({} entries) as {}", totalEntries.get(), hash);
+  }
+
+  private void commit(DatabaseAdapter adapter, ImmutableCommitAttempt.Builder commit, int numEntries, AtomicInteger total) {
     if (numEntries <= 0) {
       return;
     }
 
     try {
       Hash hash = adapter.commit(commit.build());
-      AdminLogger.log("Committed " + numEntries + " migrated tables as {}", hash);
+      total.addAndGet(numEntries);
+      AdminLogger.log("Committed {} (total {}) migrated tables as {}", numEntries, total.get(), hash);
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }

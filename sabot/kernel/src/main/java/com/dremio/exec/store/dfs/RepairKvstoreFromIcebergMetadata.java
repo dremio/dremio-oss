@@ -155,10 +155,16 @@ public class RepairKvstoreFromIcebergMetadata {
         "Tyring to restore catalog metadata from iceberg metadata..", datasetConfig.getFullPathList(), currentIcebergSnapshot.snapshotId(), currentRootPointerFileLocation,
       oldIcebergMetadata.getSnapshotId(), oldIcebergMetadata.getMetadataFileLocation());
 
+    String oldPartitionStatsFile = oldIcebergMetadata.getPartitionStatsFile();
+    String newPartitionStatsFile = null;
+    if (oldPartitionStatsFile != null) {
+      newPartitionStatsFile = IcebergUtils.getPartitionStatsFile(currentRootPointerFileLocation, currentIcebergSnapshot.snapshotId(), metaStoragePlugin.getFsConfCopy(), metaStoragePlugin);
+    }
+
     repairSchema();
     repairStats();
     repairDroppedAndModifiedColumns();
-    repairReadSignature();
+    repairReadSignature(newPartitionStatsFile);
 
     // update iceberg metadata
     com.dremio.service.namespace.dataset.proto.IcebergMetadata newIcebergMetadata =
@@ -168,12 +174,8 @@ public class RepairKvstoreFromIcebergMetadata {
     newIcebergMetadata.setTableUuid(oldIcebergMetadata.getTableUuid());
     byte[] specs = IcebergSerDe.serializePartitionSpecMap(currentIcebergTable.specs());
     newIcebergMetadata.setPartitionSpecs(ByteStringUtil.wrap(specs));
-    String oldPartitionStatsFile = oldIcebergMetadata.getPartitionStatsFile();
-    if (oldPartitionStatsFile != null) {
-      String partitionStatsFile = IcebergUtils.getPartitionStatsFile(currentRootPointerFileLocation, currentIcebergSnapshot.snapshotId(), metaStoragePlugin.getFsConfCopy(), metaStoragePlugin);
-      if (partitionStatsFile != null) {
-        newIcebergMetadata.setPartitionStatsFile(partitionStatsFile);
-      }
+    if (newPartitionStatsFile != null) {
+      newIcebergMetadata.setPartitionStatsFile(newPartitionStatsFile);
     }
 
     datasetConfig.getPhysicalDataset().setIcebergMetadata(newIcebergMetadata);
@@ -227,29 +229,28 @@ public class RepairKvstoreFromIcebergMetadata {
     logger.info("Repaired Dropped and modified columns. Modified Columns {}. Dropped Columns {}", modifiedColumns, droppedColumns);
   }
 
-  private void repairReadSignature() throws ConnectorException, InvalidProtocolBufferException {
+  private void repairReadSignature(String newPartitionStatsFile) throws ConnectorException, InvalidProtocolBufferException {
     if (datasetConfig.getReadDefinition().getReadSignature() != null &&
       !datasetConfig.getReadDefinition().getReadSignature().isEmpty()) {
       List<String> datasetPath = ((SupportsInternalIcebergTable) storagePlugin).resolveTableNameToValidPath(datasetConfig.getFullPathList());
 
       datasetConfig.getReadDefinition().setReadSignature(ByteStringUtil.wrap(
-        createReadSignatureFromPartitionStatsFiles(FileSelection.getPathBasedOnFullPath(datasetPath).toString(), currentIcebergTable)));
+        createReadSignatureFromPartitionStatsFiles(
+          FileSelection.getPathBasedOnFullPath(datasetPath).toString(), currentIcebergTable, newPartitionStatsFile)));
     }
   }
 
-  private byte[] createReadSignatureFromPartitionStatsFiles(String dataTableRootFolder, Table table) throws ConnectorException, InvalidProtocolBufferException {
+  private byte[] createReadSignatureFromPartitionStatsFiles(String dataTableRootFolder, Table table, String newPartitionStatsFile)
+    throws ConnectorException, InvalidProtocolBufferException {
     PartitionSpec spec = table.spec();
 
     Set<IcebergPartitionData> icebergPartitionDataSet = new HashSet<>();
-    if (!spec.isUnpartitioned()) {
-      PartitionStatsReader partitionStatsReader;
-      final String partitionStatsFile = table.currentSnapshot().partitionStatsMetadata().partitionStatsFiles().getFileForSpecId(spec.specId());
-
+    if (!spec.isUnpartitioned() && newPartitionStatsFile != null) {
       logger.info("Restoring read signature of table {} from partition stats file {} of snapshot {}", datasetConfig.getFullPathList(),
-        partitionStatsFile, currentIcebergSnapshot.snapshotId());
+        newPartitionStatsFile, currentIcebergSnapshot.snapshotId());
 
-      final InputFile inputFile = new DremioFileIO(metaStoragePlugin.getFsConfCopy(), metaStoragePlugin).newInputFile(partitionStatsFile);
-      partitionStatsReader = new PartitionStatsReader(inputFile, spec);
+      final InputFile partitionStatsInputFile = new DremioFileIO(metaStoragePlugin.getFsConfCopy(), metaStoragePlugin).newInputFile(newPartitionStatsFile);
+      PartitionStatsReader partitionStatsReader = new PartitionStatsReader(partitionStatsInputFile, spec);
 
       Streams.stream(partitionStatsReader)
         .map(partitionStatsEntry -> IcebergPartitionData.fromStructLike(spec, partitionStatsEntry.getPartition()))

@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -35,6 +36,7 @@ import static org.mockito.Mockito.spy;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,6 +69,7 @@ import com.dremio.dac.model.job.ResultOrder;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.dac.resource.NotificationResponse;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -106,7 +109,7 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
-import com.dremio.service.jobs.LocalJobsService.OnlineProfileCleanup;
+import com.dremio.service.jobs.LocalJobsService.OnlineProfileCleaner;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -1277,33 +1280,57 @@ public class TestJobService extends BaseTestServer {
   }
 
   @Test
-  public void testJobProfileCleanup() throws Exception {
+  public void testJobDependenciesCleanup() throws Exception {
     jobsService = (HybridJobsService) l(JobsService.class);
     SqlQuery ctas = getQueryFromSQL("SHOW SCHEMAS");
-    final JobId jobId = submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(ctas).build());
-    final com.dremio.service.job.JobDetails jobDetails = jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
-
+    final com.dremio.service.job.JobDetails jobDetails0 = getJobDetails(ctas, "ds0", DatasetVersion.newVersion());
+    final com.dremio.service.job.JobDetails jobDetails1 = getJobDetails(ctas, "ds1", DatasetVersion.newVersion());
     Thread.sleep(20);
+    long beforeJob2TS = System.currentTimeMillis();
+    final com.dremio.service.job.JobDetails jobDetails2 = getJobDetails(ctas, "ds2", DatasetVersion.newVersion());
+    Thread.sleep(20);
+    long diffBeforeJob2 = System.currentTimeMillis() - beforeJob2TS;
 
     LegacyKVStoreProvider provider = l(LegacyKVStoreProvider.class);
 
-    final OnlineProfileCleanup onlineProfileCleanup = l(LocalJobsService.class).new OnlineProfileCleanup();
-    List<Long> deleteResult =
-      l(LocalJobsService.class).deleteOldJobsAndProfiles(onlineProfileCleanup, provider ,10);
-    assertTrue("Expect deleted 1 job, but was " + deleteResult.get(0),1 == deleteResult.get(0));
-    assertTrue("Expect deleted 1 profile, but was " + deleteResult.get(1), 1 == deleteResult.get(1));
-    assertTrue("Expect 0 failure, but was " + deleteResult.get(1), 0 == deleteResult.get(2));
+    final OnlineProfileCleaner onlineProfileCleanup = l(LocalJobsService.class).new OnlineProfileCleaner();
+    String report =
+      LocalJobsService.deleteOldJobsAndDependencies(Collections.singletonList(onlineProfileCleanup), provider , diffBeforeJob2);
+    String expectedReport = ""
+      + "Completed. Deleted 2 jobs."
+      + System.lineSeparator() + "\tJobAttempts: 2, Attempts with failure: 0"
+      + System.lineSeparator() + "\t" + LocalJobsService.OnlineProfileCleaner.class.getSimpleName() + " executions: 2, failures: 0"
+      + System.lineSeparator();
+    assertEquals(expectedReport, report);
 
     LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profileStore =
       provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
-    UserBitShared.QueryProfile queryProfile = profileStore.get(AttemptIdUtils.fromString(JobsProtoUtil.getLastAttempt(jobDetails).getAttemptId()));
+    UserBitShared.QueryProfile queryProfile = profileStore.get(AttemptIdUtils.fromString(JobsProtoUtil.getLastAttempt(jobDetails1).getAttemptId()));
     assertEquals(null, queryProfile);
 
-    JobDetailsRequest request = JobDetailsRequest.newBuilder()
-      .setJobId(jobDetails.getJobId())
+    final JobDetailsRequest request0 = JobDetailsRequest.newBuilder()
+      .setJobId(jobDetails0.getJobId())
       .build();
-    assertThatThrownBy(() -> jobsService.getJobDetails(request))
+    assertThatThrownBy(() -> jobsService.getJobDetails(request0))
       .isInstanceOf(JobNotFoundException.class);
+
+    final JobDetailsRequest request1 = JobDetailsRequest.newBuilder()
+      .setJobId(jobDetails1.getJobId())
+      .build();
+    assertThatThrownBy(() -> jobsService.getJobDetails(request1))
+      .isInstanceOf(JobNotFoundException.class);
+
+    final JobDetailsRequest request2 = JobDetailsRequest.newBuilder()
+      .setJobId(jobDetails2.getJobId())
+      .build();
+    assertNotNull("Job2 must be kept in the database", jobsService.getJobDetails(request2));
+  }
+
+  public static void cleanJobs() {
+    final LegacyKVStoreProvider provider = l(LegacyKVStoreProvider.class);
+    final List<ExternalCleaner> externalCleaners = Collections.singletonList(
+      l(LocalJobsService.class).new OnlineProfileCleaner());
+    LocalJobsService.deleteOldJobsAndDependencies(externalCleaners, provider , 0L);
   }
 
   @Test
@@ -1573,6 +1600,28 @@ public class TestJobService extends BaseTestServer {
       foremenWorkManager.resume(externalId[i]);
       JobDataClientUtils.waitForFinalState(jobsService, jobID[i]);
     }
+  }
+
+  public static com.dremio.service.job.JobDetails getJobDetails(JobsService jobsService, SqlQuery ctas, String datasetPath,
+    DatasetVersion version) throws JobNotFoundException {
+    final NamespaceKey datasetPathKey = new DatasetPath(datasetPath).toNamespaceKey();
+    final JobId jobId = JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), JobRequest.newBuilder()
+      .setDatasetPath(datasetPathKey)
+      .setDatasetVersion(version)
+      .setSqlQuery(ctas)
+      .build());
+    return jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+  }
+
+  private com.dremio.service.job.JobDetails getJobDetails(SqlQuery ctas, String datasetPath,
+    DatasetVersion version) throws JobNotFoundException {
+    final NamespaceKey datasetPathKey = new DatasetPath(datasetPath).toNamespaceKey();
+    final JobId jobId = submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
+      .setDatasetPath(datasetPathKey)
+      .setDatasetVersion(version)
+      .setSqlQuery(ctas)
+      .build());
+    return  jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
   }
 
   /**

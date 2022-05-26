@@ -50,11 +50,18 @@ public class PushFilterPastProjectRule extends RelOptRule {
   public final static PushFilterPastProjectRule INSTANCE = new PushFilterPastProjectRule(
       FilterRel.class, ProjectRel.class, RelNode.class, DremioRelFactories.LOGICAL_PROPAGATE_BUILDER);
 
-  public final static RelOptRule CALCITE_INSTANCE = new PushFilterPastProjectRule(
+  public static final PushFilterPastProjectRule LOGICAL_INSTANCE = new PushFilterPastProjectRule(
+    FilterRel.class, ProjectRel.class, RelNode.class, DremioRelFactories.LOGICAL_BUILDER,
+    new UnsupportedProjectExprFinderWithRexFieldAccessAllowed()
+  );
+
+  public static final RelOptRule CALCITE_INSTANCE = new PushFilterPastProjectRule(
       LogicalFilter.class, LogicalProject.class, RelNode.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   public final static RelOptRule CALCITE_NO_CHILD_CHECK = new PushFilterPastProjectRule(
       LogicalFilter.class, LogicalProject.class, null, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+
+  private final RexVisitorImpl<Void> unsupportedExprFinder;
 
   private final boolean checkChild;
 
@@ -93,7 +100,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
               final int index = inputRef.getIndex();
               final RexNode projExpr = projExprs.get(index);
 
-              projExpr.accept(new UnsupportedProjectExprFinder());
+              projExpr.accept(unsupportedExprFinder);
 
               return super.visitInputRef(inputRef);
             }
@@ -125,11 +132,28 @@ public class PushFilterPastProjectRule extends RelOptRule {
       Class<? extends Filter> filterClass,
       Class<? extends Project> projectClass,
       Class<? extends RelNode> childClass,
-      RelBuilderFactory relBuilderFactory) {
+      RelBuilderFactory relBuilderFactory,
+      RexVisitorImpl<Void> unsupportedExprFinder
+    ) {
     super(childClass == null ?
         operand(filterClass, operand(projectClass, any())) :
         operand(filterClass, operand(projectClass, operand(childClass, any()))),
         relBuilderFactory, "PushFilterPastProjectRule");
+    this.checkChild = childClass != null;
+    this.unsupportedExprFinder = unsupportedExprFinder;
+  }
+
+  private PushFilterPastProjectRule(
+    Class<? extends Filter> filterClass,
+    Class<? extends Project> projectClass,
+    Class<? extends RelNode> childClass,
+    RelBuilderFactory relBuilderFactory
+  ) {
+    super(childClass == null ?
+        operand(filterClass, operand(projectClass, any())) :
+        operand(filterClass, operand(projectClass, operand(childClass, any()))),
+      relBuilderFactory, "PushFilterPastProjectRule");
+    this.unsupportedExprFinder = new UnsupportedProjectExprFinder();
     this.checkChild = childClass != null;
   }
 
@@ -248,6 +272,27 @@ public class PushFilterPastProjectRule extends RelOptRule {
     @Override
     public Void visitFieldAccess(RexFieldAccess fieldAccess) {
       throw new Util.FoundOne(fieldAccess);
+    }
+
+    @Override
+    public Void visitSubQuery(RexSubQuery subQuery) {
+      throw new Util.FoundOne(subQuery);
+    }
+  }
+
+  private static class UnsupportedProjectExprFinderWithRexFieldAccessAllowed extends RexVisitorImpl<Void> {
+
+    UnsupportedProjectExprFinderWithRexFieldAccessAllowed() {
+      super(true);
+    }
+
+    @Override
+    public Void visitCall(RexCall call) {
+      if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
+        DremioSqlOperatorTable.FLATTEN.getName().equalsIgnoreCase(call.getOperator().getName())) {
+        throw new Util.FoundOne(call);
+      }
+      return super.visitCall(call);
     }
 
     @Override

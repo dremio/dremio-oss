@@ -411,10 +411,21 @@ public final class MoreRelOptUtil {
       return rel;
     }
     final RexBuilder rexBuilder = rel.getCluster().getRexBuilder();
+    final RelDataTypeFactory typeFactory = rel.getCluster().getTypeFactory();
     final List<RexNode> castExps =
       RexUtil.generateCastExpressions(rexBuilder, castRowType, rowType);
 
-    return projectFactory.createProject(rel, ImmutableList.of(), castExps, rowType.getFieldNames());
+    final List<RexNode> castExpsWithNullReplacement = new ArrayList<>();
+    for (RexNode expr : castExps) {
+      if (expr.getKind() == SqlKind.CAST && expr.getType().getSqlTypeName() == SqlTypeName.NULL) {
+        // Cast to NULL type is not supported. Insert NULL type literal instead
+        castExpsWithNullReplacement.add(rexBuilder.makeNullLiteral(typeFactory.createSqlType(SqlTypeName.NULL)));
+      } else {
+        castExpsWithNullReplacement.add(expr);
+      }
+    }
+
+    return projectFactory.createProject(rel, ImmutableList.of(), castExpsWithNullReplacement, rowType.getFieldNames());
   }
 
   /**

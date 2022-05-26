@@ -36,6 +36,7 @@
 |@types/react-transition-group                               |4.4.1               |MIT                 |
 |@types/scheduler                                            |0.16.1              |MIT                 |
 |abortcontroller-polyfill                                    |1.3.0               |MIT                 |
+|accessors-smart                                             |2.4.8               |Apache 2.0          |
 |Aggregate Designer Algorithm                                |6.0                 |Apache 2.0          |
 |agrona                                                      |1.14.0              |Apache 2.0          |
 |almost-equal                                                |1.1.0               |MIT                 |
@@ -291,12 +292,8 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |21.0.0              |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |21.0.0              |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |21.0.0              |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |21.0.0              |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |21.0.0              |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |21.0.0              |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |21.2.0              |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |21.2.0              |Dremio Free Software License 1.0|
 |dremio-ui-lib                                               |1.0.0               |Unlicense           |
 |easy-peasy                                                  |4.0.1               |MIT                 |
 |echarts                                                     |5.2.2               |Apache-2.0          |
@@ -369,7 +366,6 @@
 |Google HTTP Client Library for Java                         |1.39.0              |Apache 2.0          |
 |Google Logger                                               |0.5.1               |Apache 2.0          |
 |Google OAuth Client Library For Java                        |1.31.2              |Apache 2.0          |
-|Google Testing and Mocking Framework                        |1.10.x              |BSD 3-clause        |
 |graceful-fs                                                 |4.2.9               |ISC                 |
 |graphlib                                                    |2.1.8               |MIT                 |
 |GRPC ALTs                                                   |1.41.0              |Apache 2.0          |
@@ -495,6 +491,7 @@
 |Java Servlet API                                            |3.1.0               |GPL v2 w/ CPE       |
 |JavaBeans Activation Framework                              |1.2.0               |CDDL 1.1            |
 |JavaBeans Activation Framework (JAF)                        |1.1                 |CDDL 1.0            |
+|JavaBeans Activation Framework API                          |1.2.0               |CDDL 1.1            |
 |JavaMail API                                                |1.6.1               |CDDL 1.1            |
 |Javassist                                                   |3.28.0-GA           |Apache 2.0          |
 |Javax Persistence                                           |2.1.0               |Eclipse Public License 1.0 & Eclipse Distribution License v. 1.0|
@@ -530,7 +527,6 @@
 |jersey-core-server                                          |2.35                |CDDL 1.1            |
 |jersey-ext-mvc                                              |2.35                |CDDL 1.1            |
 |jersey-ext-mvc-freemarker                                   |2.35                |CDDL 1.1            |
-|jersey-media-jaxb                                           |2.30                |CDDL 1.1            |
 |jersey-media-multipart                                      |2.35                |CDDL 1.1            |
 |JetBrains Java Annotations                                  |13.0                |Apache 2.0          |
 |Jettison                                                    |1.1                 |Apache 2.0          |
@@ -564,7 +560,7 @@
 |jquery-param                                                |0.2.0               |MIT                 |
 |js-tokens                                                   |4.0.0               |MIT                 |
 |JSch                                                        |0.1.54              |BSD 3-clause        |
-|JSON Small and Fast Parser                                  |1.3.1               |Apache 2.0          |
+|JSON Small and Fast Parser                                  |2.4.8               |Apache 2.0          |
 |jsplumb                                                     |2.1.4               |MIT                 |
 |JSR311 API                                                  |1.1.1               |CDDL 1.0            |
 |jss                                                         |10.6.0              |MIT                 |
@@ -676,7 +672,6 @@
 |moize                                                       |6.1.0               |MIT                 |
 |moment                                                      |2.24.0              |MIT                 |
 |monaco-editor                                               |0.10.0              |MIT                 |
-|MongoDB Java Driver                                         |3.12.0              |Apache 2.0          |
 |mongodb-driver-core                                         |4.3.4               |Apache 2.0          |
 |mongodb-driver-legacy                                       |4.3.4               |Apache 2.0          |
 |mongodb-driver-sync                                         |4.3.4               |Apache 2.0          |
@@ -691,7 +686,6 @@
 |Nessie REST Services                                        |0.19.0              |                    |
 |Nessie Server Store                                         |0.19.0              |Apache 2.0          |
 |Nessie Services                                             |0.19.0              |Apache 2.0          |
-|Nessie Versioned Memory Store                               |0.4.0               |Apache 2.0          |
 |Nessie Versioned Store SPI                                  |0.19.0              |Apache 2.0          |
 |nessie-versioned-persist-adapter                            |0.19.0              |Apache 2.0          |
 |nessie-versioned-persist-in-memory                          |0.19.0              |Apache 2.0          |
@@ -752,8 +746,7 @@
 |OpenCensus Stackdriver Stats Exporter                       |0.24.0              |Apache 2.0          |
 |OpenCensus Stackdriver Trace Exporter                       |0.24.0              |Apache 2.0          |
 |OpenHFT/Java-Thread-Affinity/affinity                       |3.1.7               |Apache 2.0          |
-|OpenSSL Bindings for Java                                   |1.0.9.Final         |Apache 2.0          |
-|OpenSSL toolkit                                             |1.1.1d              |OpenSSL and SSLeay license|
+|OpenSSL Bindings for Java                                   |1.1.3.Final         |Apache 2.0          |
 |OpenTelemetry - Jaeger Remote sampler                       |1.0.1               |Apache 2.0          |
 |OpenTelemetry API                                           |1.0.1               |Apache 2.0          |
 |OpenTelemetry Context (Incubator)                           |1.0.1               |Apache 2.0          |
@@ -787,7 +780,7 @@
 |Plugin Framework for Java                                   |3.6.0               |Apache 2.0          |
 |popper.js                                                   |1.14.7              |MIT                 |
 |popper.js                                                   |1.16.1-lts          |MIT                 |
-|PostgreSQL JDBC Driver                                      |42.2.18             |BSD 2-clause        |
+|PostgreSQL JDBC Driver                                      |42.3.4              |BSD 2-clause        |
 |process-nextick-args                                        |2.0.1               |MIT                 |
 |Prometheus Java Simpleclient                                |0.7.0               |Apache 2.0          |
 |Prometheus Java Simpleclient Common                         |0.7.0               |Apache 2.0          |
@@ -976,8 +969,6 @@
 |warning                                                     |4.0.3               |MIT                 |
 |whatwg-fetch                                                |2.0.3               |MIT                 |
 |whatwg-fetch                                                |3.6.2               |MIT                 |
-|WildFly OpenSSL Java                                        |1.0.9.Final         |Apache 2.0          |
-|WildFly OpenSSL Linux X86 64                                |1.0.9.Final         |Apache 2.0          |
 |Woodstox                                                    |5.2.1               |Apache 2.0          |
 |ws                                                          |1.1.5               |MIT                 |
 |Xalan Java                                                  |2.7.2               |Apache 2.0          |

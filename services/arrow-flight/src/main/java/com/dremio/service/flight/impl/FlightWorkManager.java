@@ -203,8 +203,9 @@ public class FlightWorkManager {
 
     setParameterForGetTablesExecution(commandGetTables, builder);
 
-    final UserRequest userRequest =
-      new UserRequest(UserProtos.RpcType.GET_TABLES, builder.build());
+    final UserProtos.GetTablesReq getTablesReq = builder.build();
+
+    final UserRequest userRequest = new UserRequest(UserProtos.RpcType.GET_TABLES, getTablesReq);
 
     final CancellableUserResponseHandler<UserProtos.GetTablesResp> responseHandler =
       new CancellableUserResponseHandler<>(runExternalId, userSession, workerProvider, isRequestCancelled,
@@ -218,7 +219,7 @@ public class FlightWorkManager {
 
     final Map<UserProtos.TableMetadata, List<Field>> tableToFields;
     if (includeSchema) {
-      tableToFields = runGetColumns(isRequestCancelled, userSession, runExternalId);
+      tableToFields = runGetColumns(isRequestCancelled, userSession, runExternalId, getTablesReq);
     } else {
       tableToFields = null;
     }
@@ -314,10 +315,16 @@ public class FlightWorkManager {
    * @return A map with tables and its fields.
    */
   private Map<UserProtos.TableMetadata, List<Field>> runGetColumns(Supplier<Boolean> isRequestCancelled, UserSession userSession,
-                             UserBitShared.ExternalId runExternalId) {
+                             UserBitShared.ExternalId runExternalId, UserProtos.GetTablesReq getTablesReq) {
     final UserBitShared.ExternalId columnRunExternalId = ExternalIdHelper.generateExternalId();
 
     final UserProtos.GetColumnsReq.Builder columnBuilder = UserProtos.GetColumnsReq.newBuilder();
+
+    // Reuse GetTablesReq to filter the columns in the GET_COLUMNS call
+    columnBuilder.setCatalogNameFilter(getTablesReq.getCatalogNameFilter());
+    columnBuilder.setSchemaNameFilter(getTablesReq.getSchemaNameFilter());
+    columnBuilder.setTableNameFilter(getTablesReq.getTableNameFilter());
+
     final UserRequest columnsRequest = new UserRequest(UserProtos.RpcType.GET_COLUMNS, columnBuilder.build());
 
     final CancellableUserResponseHandler<UserProtos.GetColumnsResp> columnResponseHandler =

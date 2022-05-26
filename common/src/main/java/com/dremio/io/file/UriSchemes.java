@@ -32,6 +32,11 @@ public interface UriSchemes {
   String DREMIO_S3_SCHEME = "dremioS3";
   String DREMIO_AZURE_SCHEME = "dremioAzureStorage";
   String DREMIO_HDFS_SCHEME = HDFS_SCHEME;
+  String DREMIO_ADLS_SCHEME = "dremioAdl";
+
+  String LOCALHOST_LOOPBACK = "localhost";
+  String CLASS_PATH_FILE_SYSTEM = "classpath";
+  String NAS_FILE_SYSTEM = "pdfs";
 
   String SCHEME_SEPARATOR = "://";
 }

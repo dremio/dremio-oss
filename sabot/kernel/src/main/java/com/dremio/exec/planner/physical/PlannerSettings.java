@@ -133,6 +133,7 @@ public class PlannerSettings implements Context{
   public static final DoubleValidator UNION_ALL_INPUT_ROUND_ROBIN_THRESHOLD_RATIO = new DoubleValidator("planner.input_round_robin_threshold_ratio", 0.1);
   public static final LongValidator PLANNING_MAX_MILLIS = new LongValidator("planner.timeout_per_phase_ms", 60_000);
   public static final BooleanValidator RELATIONAL_PLANNING = new BooleanValidator("planner.enable_relational_planning", true);
+  public static final BooleanValidator NESTED_SCHEMA_PROJECT_PUSHDOWN = new BooleanValidator("planner.enable_nested_schema_project_pushdown", true);
   public static final BooleanValidator SORT_IN_JOIN_REMOVER = new BooleanValidator("planner.enable_sort_in_join_remover", true);
   public static final BooleanValidator FULL_NESTED_SCHEMA_SUPPORT = new BooleanValidator("planner.enable_full_nested_schema", true);
   public static final BooleanValidator COMPLEX_TYPE_FILTER_PUSHDOWN = new BooleanValidator("planner.complex_type_filter_pushdown", true);
@@ -558,6 +559,10 @@ public class PlannerSettings implements Context{
 
   public boolean isRelPlanningEnabled() {
     return options.getOption(RELATIONAL_PLANNING);
+  }
+
+  public boolean isNestedSchemaProjectPushdownEnabled() {
+    return options.getOption(NESTED_SCHEMA_PROJECT_PUSHDOWN);
   }
 
   public boolean isSortInJoinRemoverEnabled() {

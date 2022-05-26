@@ -39,28 +39,35 @@ public class SqlAlterDatasetReflectionRouting extends SqlSystemCall implements S
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("REFLECTION_ROUTING", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 4, "SqlAlterDatasetReflectionRouting.createCall() has to get 4 operands!");
+      Preconditions.checkArgument(operands.length == 5, "SqlAlterDatasetReflectionRouting.createCall() has to get 5 operands!");
       return new SqlAlterDatasetReflectionRouting(
         pos,
         (SqlIdentifier) operands[0],
         operands[1],
         operands[2],
-        (SqlIdentifier) operands[3]
+        (SqlIdentifier) operands[3],
+        (SqlLiteral) operands[4]
       );
     }
   };
 
-  private final SqlIdentifier tblName;
+  private final SqlIdentifier name;
   private final SqlNode isDefault;
   private final SqlNode isQueue;
   private final SqlIdentifier queueOrEngineName;
+  private final SqlLiteral routingType;
 
-  public SqlAlterDatasetReflectionRouting(SqlParserPos pos, SqlIdentifier tblName, SqlNode isDefault, SqlNode isQueue, SqlIdentifier queueOrEngineName) {
+  public enum RoutingType {
+    TABLE, FOLDER, SPACE
+  }
+
+  public SqlAlterDatasetReflectionRouting(SqlParserPos pos, SqlIdentifier name, SqlNode isDefault, SqlNode isQueue, SqlIdentifier queueOrEngineName, SqlLiteral routingType) {
     super(pos);
-    this.tblName = tblName;
+    this.name = name;
     this.isDefault = isDefault;
     this.isQueue = isQueue;
     this.queueOrEngineName = queueOrEngineName;
+    this.routingType = routingType;
   }
 
   @Override
@@ -70,11 +77,11 @@ public class SqlAlterDatasetReflectionRouting extends SqlSystemCall implements S
 
   @Override
   public List<SqlNode> getOperandList() {
-    return Lists.newArrayList(tblName, isDefault, isQueue, queueOrEngineName);
+    return Lists.newArrayList(name, isDefault, isQueue, queueOrEngineName, routingType);
   }
 
-  public SqlIdentifier getTblName() {
-    return tblName;
+  public SqlIdentifier getName() {
+    return name;
   }
 
   public boolean isDefault(){
@@ -82,6 +89,8 @@ public class SqlAlterDatasetReflectionRouting extends SqlSystemCall implements S
   }
 
   public boolean isQueue() { return ((SqlLiteral) this.isQueue).booleanValue(); }
+
+  public SqlLiteral getType() { return this.routingType; }
 
   public SqlIdentifier getQueueOrEngineName() {
     return queueOrEngineName;

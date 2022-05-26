@@ -22,9 +22,11 @@ import static com.dremio.io.file.UriSchemes.S3_SCHEME;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.util.Preconditions;
 
@@ -47,6 +49,18 @@ public final class Path implements Comparable<Path> {
   public static final Set<String> GCS_FILE_SYSTEM = ImmutableSet.of(GCS_SCHEME);
   public static final Set<String> AZURE_FILE_SYSTEM = ImmutableSet.of("wasbs", "wasb", "abfs", "abfss");
   public static final Set<String> ADLS_FILE_SYSTEM = ImmutableSet.of(ADL_SCHEME);
+
+
+  public static final Set<Object> validSchemes = ImmutableSet.builder().addAll(S3_FILE_SYSTEM).
+    addAll(GCS_FILE_SYSTEM).addAll(AZURE_FILE_SYSTEM).addAll(ADLS_FILE_SYSTEM)
+    .addAll(Arrays.stream(UriSchemes.class.getFields()).map(x -> {
+      try {
+        return x.get(null);
+      } catch (IllegalAccessException e) {
+        e.printStackTrace();
+        return "";
+      }
+    }).collect(Collectors.toList())).build();
 
   public static final String SEPARATOR = "/";
   public static final char SEPARATOR_CHAR = '/';
@@ -352,14 +366,15 @@ public final class Path implements Comparable<Path> {
 
     int start = 0;
     // Check for scheme
-    final String scheme;
+    String scheme;
     if (colonIndexOf >= 0 && (slashIndexOf == -1 || slashIndexOf > colonIndexOf)) {
       scheme = uri.substring(0, colonIndexOf);
       start = colonIndexOf + 1;
     } else {
       scheme = null;
     }
-    final String authority;
+
+    String authority;
     // Check for authority
     if (uri.startsWith("//", start)) {
       int rootSlashIndexOf = uri.indexOf('/', start + 2);
@@ -372,6 +387,15 @@ public final class Path implements Comparable<Path> {
       }
     } else {
       authority = null;
+    }
+
+    if(scheme != null && !validSchemes.contains(scheme)) {
+      try {
+        URI uriPath = new URI(null, authority, "/" + uri, null, null);
+        return URI.create("/").relativize(uriPath);
+      } catch (URISyntaxException e) {
+        throw new IllegalArgumentException(e);
+      }
     }
 
     // path does not contain a scheme. Assume for a non url-encoded path

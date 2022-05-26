@@ -51,6 +51,7 @@ import com.dremio.dac.cmd.upgrade.UpgradeTask;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.service.nessie.DatastoreDatabaseAdapterFactory;
 import com.dremio.service.nessie.ImmutableDatastoreDbConfig;
+import com.dremio.service.nessie.ImmutableNessieDatabaseAdapterConfig;
 import com.dremio.service.nessie.NessieDatastoreInstance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
@@ -91,7 +92,13 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         .build());
       store.initialize();
 
-      DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder().withConnector(store).build();
+      DatabaseAdapter adapter = new DatastoreDatabaseAdapterFactory().newBuilder()
+        .withConnector(store)
+        .withConfig(new ImmutableNessieDatabaseAdapterConfig.Builder()
+          // Suppress periodic key list generation by the DatabaseAdapter. We'll do that once at the end of the upgrade.
+          .setKeyListDistance(Integer.MAX_VALUE)
+          .build())
+        .build();
 
       // Ensure the Embedded Nessie repo is initialized. This is an idempotent operation in the context
       // of upgrade tasks since they run on only one machine.
@@ -125,7 +132,31 @@ public class MigrateIcebergMetadataPointer extends UpgradeTask {
         }
       }
 
-      Hash upgradedHead = converter.upgrade(upgradeBranch, upgradeStartHash);
+      converter.upgrade(upgradeBranch, upgradeStartHash);
+
+      // Use a fresh adapter instance with key list distance of 1 to force key list generation
+      DatabaseAdapter adapter1 = new DatastoreDatabaseAdapterFactory().newBuilder()
+        .withConnector(store)
+        .withConfig(new ImmutableNessieDatabaseAdapterConfig.Builder()
+          .setKeyListDistance(1)
+          .build())
+        .build();
+
+      ImmutableCommitAttempt keyListCommit = ImmutableCommitAttempt.builder()
+        .commitToBranch(upgradeBranch)
+        .commitMetaSerialized(
+          converter.worker.getMetadataSerializer().toBytes(
+            CommitMeta.builder()
+              .message("Upgrade - Generate key list")
+              .author("MigrateIcebergMetadataPointer")
+              .authorTime(Instant.now())
+              .build()
+          ))
+        .build();
+
+      // Make an empty commit to force key list computation in the adapter
+      Hash upgradedHead = adapter1.commit(keyListCommit);
+      AdminLogger.log("Committed post-upgrade key list as {}", upgradedHead);
 
       // Tag old `main` branch
       TagName oldMain = TagName.of("main-before-upgrade-" + getTaskUUID());

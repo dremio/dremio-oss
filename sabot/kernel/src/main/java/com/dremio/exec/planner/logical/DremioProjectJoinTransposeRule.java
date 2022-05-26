@@ -52,7 +52,7 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
   public void onMatch(final RelOptRuleCall call) {
     Project origProj = (Project)call.rel(0);
     Join join = (Join)call.rel(1);
-    Project wrappedProj = RexFieldAccessUtils.wrapProject(origProj, join, true);
+    Project wrappedProj = RexFieldAccessUtils.wrapProject(origProj, join, true, true);
 
     if (!join.isSemiJoin()) {
       RexNode joinFilter = (RexNode)join.getCondition().accept(new RexShuttle() {
@@ -90,7 +90,7 @@ public class DremioProjectJoinTransposeRule extends RelOptRule {
       DremioRelFactories.CALCITE_LOGICAL_BUILDER);
   }
 
-  private static class ProjectJoinExprCondition extends PredicateImpl<RexNode>
+  public static class ProjectJoinExprCondition extends PredicateImpl<RexNode>
     implements PushProjector.ExprCondition {
     @Override
     public boolean test(RexNode expr) {

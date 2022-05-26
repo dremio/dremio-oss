@@ -186,8 +186,20 @@ class TestMigrateIcebergMetadataPointer {
 
     // Each upgrade commit contains at most MAX_ENTRIES_PER_COMMIT entries
     int logSize = keys.size() / MAX_ENTRIES_PER_COMMIT
-      + (keys.size() % MAX_ENTRIES_PER_COMMIT == 0 ? 0 : 1); // + 1 for the final non-full commit
+      + (keys.size() % MAX_ENTRIES_PER_COMMIT == 0 ? 0 : 1) // + 1 for the final non-full commit
+      + 1; // + 1 for the empty key list commit
     assertThat(mainLog).hasSize(logSize);
+
+    // The top-most (last) commit should have a key list.
+    assertThat(mainLog.get(0).getKeyList())
+      .isNotNull()
+      .satisfies(l -> assertThat(l.getKeys()).isNotEmpty());
+
+    // The second top-most (last commit with tables) log entry may or may not be "full".
+    assertThat(mainLog.get(1).getPuts().size()).isLessThanOrEqualTo(MAX_ENTRIES_PER_COMMIT);
+    // Deeper entries should be "full".
+    assertThat(mainLog.subList(2, mainLog.size()))
+      .allSatisfy(e -> assertThat(e.getPuts().size()).isEqualTo(MAX_ENTRIES_PER_COMMIT));
   }
 
   @ParameterizedTest

@@ -132,6 +132,7 @@ describe('runDataset saga', () => {
       expect(next.value).to.eql(put(updateHistoryWithJobState(dataset, true)));
       next = gen.next();
       expect(next.value).to.eql(put(updateExploreJobProgress({state: true})));
+      next = gen.next();
       checkFinallyBlock();
     });
 

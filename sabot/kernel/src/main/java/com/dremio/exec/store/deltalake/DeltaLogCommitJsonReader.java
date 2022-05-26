@@ -84,17 +84,17 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
         try (final FSInputStream commitFileIs = fs.open(commitFilePath);
              final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(commitFileIs))) {
             /*
-             * Order of entries in DeltaLake commit log file - commitInfo, protocol, metaData, remove, add
              * Apart from commitInfo, other sections are optional.
              */
             DeltaLogSnapshot snapshot = new DeltaLogSnapshot();
             String nextLine;
             boolean isOnlyMetadataChangeAction = false;
             boolean foundMetadata = false, foundCommitInfo = false;
-            while (!(foundCommitInfo && foundMetadata) && (nextLine = bufferedReader.readLine())!=null) {
+            JsonNode metadataNode = null;
+          while (!(foundCommitInfo && foundMetadata) && (nextLine = bufferedReader.readLine())!=null) {
                 final JsonNode json = OBJECT_MAPPER.readTree(nextLine);
                 if (json.has(DELTA_FIELD_METADATA)) {
-                    populateSchema(snapshot, json.get(DELTA_FIELD_METADATA));
+                    metadataNode = json.get(DELTA_FIELD_METADATA);
                     foundMetadata = true;
                     isOnlyMetadataChangeAction = true;
                 } else if (json.has(DELTA_FIELD_PROTOCOL)) {
@@ -104,13 +104,15 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
                             "Protocol version {} is incompatible for Dremio plugin", minReaderVersion);
                 } else if (json.has(DELTA_FIELD_REMOVE) || json.has(DELTA_FIELD_ADD)) {
                     // No metadata change detected in this commit.
-                    logger.debug("No metadata change detected in {}", commitFilePath);
                     isOnlyMetadataChangeAction = false;
                 }
                 else if(json.has(DELTA_FIELD_COMMIT_INFO)) {
                     snapshot = OBJECT_MAPPER.readValue(nextLine, DeltaLogSnapshot.class);
                     foundCommitInfo = true;
                 }
+            }
+            if(metadataNode != null) {
+              populateSchema(snapshot, metadataNode);
             }
 
             if (snapshot.isMissingRequiredValues()) {
@@ -145,24 +147,20 @@ public class DeltaLogCommitJsonReader implements DeltaLogReader {
         }
     }
 
-    public static void populateSchema(DeltaLogSnapshot snapshot, JsonNode metadata) throws IOException {
+    public void populateSchema(DeltaLogSnapshot snapshot, JsonNode metadata) throws IOException {
         // Check data file format
         final String format = get(metadata, "parquet", JsonNode::asText, "format", "provider");
         Preconditions.checkState(format.equalsIgnoreCase("parquet"), "Non-parquet delta lake tables aren't supported.");
 
+      final List<String> partitionCols = new ArrayList<>();
         // Fetch partitions
-        final List<String> partitionCols = new ArrayList<>();
         final JsonNode partitionColsJson = metadata.get(DELTA_FIELD_METADATA_PARTITION_COLS);
         if (partitionColsJson!=null) {
             for (int i = 0; i < partitionColsJson.size(); i++) {
                 partitionCols.add(partitionColsJson.get(i).asText());
             }
         }
-
-        // Fetch record schema
-        final String schemaString = get(metadata, null, JsonNode::asText, DELTA_FIELD_METADATA_SCHEMA_STRING);
-
-        snapshot.setSchema(schemaString, partitionCols);
+        snapshot.setSchema(get(metadata, null, JsonNode::asText, DELTA_FIELD_METADATA_SCHEMA_STRING), partitionCols);
     }
 
     private static ObjectMapper getObjectMapper() {

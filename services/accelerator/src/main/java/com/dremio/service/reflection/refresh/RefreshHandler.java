@@ -15,6 +15,8 @@
  */
 package com.dremio.service.reflection.refresh;
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptUtil;
@@ -49,8 +51,12 @@ import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.resource.common.ReflectionRoutingManager;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.ReflectionGoalChecker;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionServiceImpl;
@@ -221,15 +227,23 @@ public class RefreshHandler implements SqlToPlanHandler {
       final Catalog catalog = config.getContext().getCatalog();
       ReflectionRoutingManager reflectionRoutingManager = config.getContext().getReflectionRoutingManager();
       if (reflectionRoutingManager != null) {
+        DatasetConfig datasetConfig = catalog.getTable(datasetId).getDatasetConfig();
         if (reflectionRoutingManager.getIsQueue()) {
-          final String queueName = reflectionRoutingManager.getQueueNameById(catalog.getTable(datasetId).getDatasetConfig().getQueueId());
+          String queueId = datasetConfig.getQueueId();
+          if (queueId == null) {
+            queueId = getInheritedReflectionRouting(true, datasetConfig, config);
+          }
+          final String queueName = reflectionRoutingManager.getQueueNameById(queueId);
           if (queueName != null && reflectionRoutingManager.checkQueueExists(queueName)) {
             config.getContext().getSession().setRoutingQueue(queueName);
           } else if (queueName != null) {
             logger.warn(String.format("Cannot route to queue %s. Using the default queue instead.", queueName));
           }
         } else {
-          final String engineName = catalog.getTable(datasetId).getDatasetConfig().getEngineName();
+          String engineName = datasetConfig.getEngineName();
+          if (engineName == null) {
+            engineName = getInheritedReflectionRouting(false, datasetConfig, config);
+          }
           if (engineName != null && reflectionRoutingManager.checkEngineExists(engineName)) {
             config.getContext().getSession().setRoutingEngine(engineName);
           } else if (engineName != null) {
@@ -243,6 +257,54 @@ public class RefreshHandler implements SqlToPlanHandler {
     }catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }
+  }
+
+  private String getInheritedReflectionRouting(boolean isQueue, DatasetConfig datasetConfig, SqlHandlerConfig config) {
+    ImmutableList<String> pathList = ImmutableList.copyOf(datasetConfig.getFullPathList());
+    // We want to try inherit routing queue from folder or space level.
+    // The last entry in the path list will be the name of the current dataset,
+    // so we remove it since it isn't a space or folder.
+    pathList = pathList.subList(0, pathList.size() - 1);
+    while (!pathList.isEmpty()) {
+      if (pathList.size() == 1) {
+        try {
+          SpaceConfig spaceConfig = config.getContext().getNamespaceService(SYSTEM_USERNAME).getSpace(new NamespaceKey(pathList));
+          if (isQueue) {
+            String inheritedQueueId = spaceConfig.getQueueId();
+            if (inheritedQueueId != null) {
+              return inheritedQueueId;
+            }
+          } else {
+            String inheritedEngineName = spaceConfig.getEngineName();
+            if (inheritedEngineName != null) {
+              return inheritedEngineName;
+            }
+          }
+        } catch (NamespaceException e) {
+          logger.trace("Could not find space: " + pathList);
+        }
+      } else {
+        try {
+          FolderConfig folderConfig = config.getContext().getNamespaceService(SYSTEM_USERNAME)
+            .getFolder(new NamespaceKey(pathList));
+          if (isQueue) {
+            String inheritedQueueId = folderConfig.getQueueId();
+            if (inheritedQueueId != null) {
+              return inheritedQueueId;
+            }
+          } else {
+            String inheritedEngineName = folderConfig.getQueueId();
+            if (inheritedEngineName != null) {
+              return inheritedEngineName;
+            }
+          }
+        } catch (NamespaceException e) {
+          logger.trace("Could not find folder: " + pathList);
+        }
+      }
+      pathList = pathList.subList(0, pathList.size() - 1);
+    }
+    return null;
   }
 
   private IcebergTableProps getIcebergTableProps(Materialization materialization, RefreshDecision[] refreshDecisions,

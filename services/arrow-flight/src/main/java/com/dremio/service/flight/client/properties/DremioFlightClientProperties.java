@@ -35,6 +35,7 @@ import com.google.common.collect.ImmutableSet;
 public final class DremioFlightClientProperties {
   public static final Set<String> SUPPORTED_FLIGHT_CLIENT_USER_SESSION_PROPERTIES =
     ImmutableSet.of(
+      UserSession.QUOTING,
       UserSession.ROUTING_TAG,
       UserSession.ROUTING_QUEUE,
       UserSession.SCHEMA);

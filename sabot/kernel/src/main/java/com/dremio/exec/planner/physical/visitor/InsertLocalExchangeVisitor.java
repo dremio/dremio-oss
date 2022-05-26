@@ -117,7 +117,7 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
 
     // if total cluster cores above threshold, then we will use mux exchange with 1 fragment per node
     // this is the legacy behavior
-    if (isMuxEnabled && resourceInformation != null && computeTotalParallelism(resourceInformation, options) < totalClusterCoresThreshold) {
+    if (isMuxEnabled && computeTotalParallelism(resourceInformation, options) < totalClusterCoresThreshold) {
       // if a specific number of fragments per node has been set, so use that, but don't exceed cores/node
       if (options.getOption(PlannerSettings.MUX_FRAGS) != 0) {
         muxFragmentsPerNode = Math.min(options.getOption(PlannerSettings.MUX_FRAGS),
@@ -187,6 +187,11 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
   private static long computeBufferCountForExchange(RelNode prel, OptionManager options, GroupResourceInformation cri) {
     long parallelism = computeParallelism(prel, options, cri);
     long nodeCount = cri.getExecutorNodeCount();
+    if (nodeCount == 0) {
+      // In case all the engines are stopped, we don't have info about executors count.
+      // Let's not use mux exchange.
+      return 0;
+    }
     int buffersPerBatch = prel.getRowType()
       .getFieldList().stream().mapToInt(f -> bufferCountForType(f.getType())).sum();
     return buffersPerBatch * parallelism * parallelism / nodeCount;

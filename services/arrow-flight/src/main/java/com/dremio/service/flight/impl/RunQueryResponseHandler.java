@@ -243,31 +243,33 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
    */
   @VisibleForTesting
   void handleUserResultState(UserResult result) {
-    switch (result.getState()) {
-      case FAILED:
-        if (result.hasException()) {
-          clientListener.error(DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
-        } else {
-          clientListener.error(CallStatus.UNKNOWN.withDescription("Query failed but no exception was thrown.").toRuntimeException());
-        }
-        break;
-      case CANCELED:
-        if (result.hasException()) {
-          clientListener.error(CallStatus.CANCELLED.withDescription(result.getException().getMessage()).withCause(result.getException()).toRuntimeException());
-        } else if (!Strings.isNullOrEmpty(result.getCancelReason())) {
-          clientListener.error(CallStatus.CANCELLED.withDescription(result.getCancelReason()).toRuntimeException());
-        } else {
-          clientListener.error(CallStatus.CANCELLED.withDescription("Query is cancelled by the server.").toRuntimeException());
-        }
-        break;
-      case COMPLETED:
-        queryCompletionCallback.run();
-        clientListener.completed();
-        break;
-      default:
-        final IllegalStateException ex = new IllegalStateException("Invalid state returned from Dremio RPC request.");
-        clientListener.error(CallStatus.INTERNAL.withCause(ex).toRuntimeException());
-        throw ex;
+    try {
+      switch (result.getState()) {
+        case FAILED:
+          if (result.hasException()) {
+            clientListener.error(DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
+          } else {
+            clientListener.error(CallStatus.UNKNOWN.withDescription("Query failed but no exception was thrown.").toRuntimeException());
+          }
+          break;
+        case CANCELED:
+          if (result.hasException()) {
+            clientListener.error(CallStatus.CANCELLED.withDescription(result.getException().getMessage()).withCause(result.getException()).toRuntimeException());
+          } else if (!Strings.isNullOrEmpty(result.getCancelReason())) {
+            clientListener.error(CallStatus.CANCELLED.withDescription(result.getCancelReason()).toRuntimeException());
+          } else {
+            clientListener.error(CallStatus.CANCELLED.withDescription("Query is cancelled by the server.").toRuntimeException());
+          }
+          break;
+        case COMPLETED:
+          queryCompletionCallback.run();
+          clientListener.completed();
+          break;
+        default:
+          throw new IllegalStateException("Invalid state returned from Dremio RPC request.");
+      }
+    } catch (final Exception e) {
+      clientListener.error(CallStatus.INTERNAL.withCause(e).toRuntimeException());
     }
   }
 

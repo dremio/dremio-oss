@@ -2406,87 +2406,63 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
   }
 
   /**
-   * Define how profile will be deleted
-   */
-  public interface ProfileCleanup {
-
-    /**
-     * Delete a profile by attempt id
-     *
-     * @param attemptId id associated with a profile attempt
-     * @return
-     */
-    void go(AttemptId attemptId);
-  }
-
-  /**
    * Online profile deletion using Job Telemetry Service
    * Schedule in the background
    */
-  class OnlineProfileCleanup implements ProfileCleanup {
+  class OnlineProfileCleaner extends ExternalCleaner {
 
     @Override
-    public void go(AttemptId attemptId) {
+    public void doGo(JobAttempt jobAttempt) {
       jobTelemetryServiceStub
         .deleteProfile(
           DeleteProfileRequest.newBuilder()
-            .setQueryId(attemptId.toQueryId())
+            .setQueryId(AttemptIdUtils.fromString(jobAttempt.getAttemptId()).toQueryId())
             .build()
         );
     }
+
   }
 
   /**
-   * Delete job details and profiles older than provided number of ms.
-   *
+   * Delete job details older than provided number of ms.
+   * <p>
    * Exposed as static so that cleanup tasks can do this without needing to start a jobs service and supporting daemon.
    *
-   * @param profileCleanup defines how a profile will be deleted
-   * @param provider KVStore provider
-   * @param maxMs Age of job after which it is deleted.
-   * @return A result reporting how many details, the corresponding attempt ids and how many times attempt id fails to delete.
+   * @param externalCleaners defines an ordered sequence of external dependencies that also need to be cleaned up.
+   *                         Each {@link ExternalCleaner} are called once per job attempt.
+   *                         If an {@code externalCleanup} fails its successors will not be called for the job attempt
+   *                         being processed.
+   * @param provider         KVStore provider
+   * @param maxMs            Age of job after which it is deleted.
+   * @return A result reporting how many details, the corresponding attempt ids and how many times attempt id fails
+   * to delete.
    */
-  public static List<Long> deleteOldJobsAndProfiles(ProfileCleanup profileCleanup, LegacyKVStoreProvider provider, long maxMs) {
+  public static String deleteOldJobsAndDependencies(List<ExternalCleaner> externalCleaners,
+    LegacyKVStoreProvider provider, long maxMs) {
     long jobsDeleted = 0;
-    long profilesDeleted = 0;
-    long attemptFailure = 0;
-    int countFailureMsg = 0;
-    List<String> failedAttemptIds = new ArrayList<>(10);
-    List<Exception> errors = new ArrayList<>(10);
     LegacyIndexedStore<JobId, JobResult> jobStore = provider.getStore(JobsStoreCreator.class);
 
     final LegacyFindByCondition oldJobs = getOldJobsCondition(System.currentTimeMillis() - maxMs)
       .setPageSize(MAX_NUMBER_JOBS_TO_FETCH);
-    for(Entry<JobId, JobResult> entry : jobStore.find(oldJobs)) {
+    final ExternalCleanerRunner externalCleanerRunner = new ExternalCleanerRunner(externalCleaners);
+    for (Entry<JobId, JobResult> entry : jobStore.find(oldJobs)) {
       JobResult result = entry.getValue();
-      if(result.getAttemptsList() != null) {
-        for(JobAttempt a : result.getAttemptsList()) {
-          try {
-            AttemptId attemptId = AttemptIdUtils.fromString(a.getAttemptId());
-            profileCleanup.go(attemptId);
-            profilesDeleted++;
-          } catch(Exception e) {
-            // don't fail on miss.
-            if (countFailureMsg < 10) {
-              failedAttemptIds.add(a.getAttemptId());
-              errors.add(e);
-              countFailureMsg++;
-            }
-            attemptFailure++;
-          }
-        }
-      }
+      externalCleanerRunner.run(result);
       jobStore.delete(entry.getKey());
       jobsDeleted++;
     }
-    logger.debug("Job cleanup task completed with [{}] jobs deleted and and [{}] profiles deleted.", jobsDeleted, profilesDeleted);
-    if (countFailureMsg > 0) {
-      logger.warn("Delete profile failures: [{}].", attemptFailure);
-      for(int i = 0; i < countFailureMsg; i++) {
-        logger.warn("Failed to delete profile with attempt id: {}. ", failedAttemptIds.get(i), errors.get(i));
-      }
+    logger.debug("Job cleanup task completed with [{}] jobs deleted and and [{}] profiles deleted.", jobsDeleted, 0L);
+    if (externalCleanerRunner.hasErrors()) {
+      externalCleanerRunner.printLastErrors();
     }
-    return ImmutableList.of(jobsDeleted, profilesDeleted, attemptFailure);
+    return buildDeleteReport(jobsDeleted, externalCleanerRunner);
+  }
+
+  private static String buildDeleteReport(long jobsDeleted, ExternalCleanerRunner externalCleanerRunner) {
+    StringBuilder sb = new StringBuilder("Completed.");
+    sb.append(" Deleted ").append(jobsDeleted).append(" jobs.");
+    sb.append(externalCleanerRunner.getReport());
+    return sb.toString();
   }
 
   /**
@@ -2544,7 +2520,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
    * Removes the job details and profile
    */
   class JobProfilesCleanupTask implements Runnable {
-    private final OnlineProfileCleanup onlineProfileCleanup = new OnlineProfileCleanup();
+    private final OnlineProfileCleaner onlineProfileCleanup = new OnlineProfileCleaner();
 
     @Override
     public void run() {
@@ -2556,7 +2532,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider, SimpleJ
       final OptionManager optionManager = optionManagerProvider.get();
       final long maxAgeInDays = optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS);
       if (maxAgeInDays != DISABLE_CLEANUP_VALUE) {
-        deleteOldJobsAndProfiles(onlineProfileCleanup, kvStoreProvider.get() ,TimeUnit.DAYS.toMillis(maxAgeInDays));
+        deleteOldJobsAndDependencies(Arrays.asList(onlineProfileCleanup), kvStoreProvider.get(),
+          TimeUnit.DAYS.toMillis(maxAgeInDays));
       }
     }
   }

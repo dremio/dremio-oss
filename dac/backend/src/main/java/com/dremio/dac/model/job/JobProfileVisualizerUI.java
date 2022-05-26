@@ -231,8 +231,8 @@ public class JobProfileVisualizerUI {
     );
 
     long processTime = hostProcessingRateSet.stream().collect(Collectors.summarizingLong(processTiming->Long.valueOf(String.valueOf(processTiming.getProcessNanos())))).getMax();
-    long runTime = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getRunDuration()).max().getAsLong();
-    long peakMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxMemoryUsed()).max().getAsLong();
+    long runTime = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getRunDuration()).max().orElse(0);
+    long peakMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxMemoryUsed()).max().orElse(0);
     long totalMemory = major.getMinorFragmentProfileList().stream().mapToLong(minor -> minor.getMaxMemoryUsed()).sum();
     long recordsProcessed = hostProcessingRateSet.stream().collect(Collectors.summarizingLong(records->Long.valueOf(String.valueOf(records.getNumRecords())))).getSum();
 

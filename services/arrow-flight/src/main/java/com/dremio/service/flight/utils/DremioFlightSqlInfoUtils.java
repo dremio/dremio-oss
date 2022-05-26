@@ -37,7 +37,9 @@ import org.apache.arrow.flight.sql.SqlInfoBuilder;
 import org.apache.arrow.flight.sql.impl.FlightSql;
 
 import com.dremio.common.types.TypeProtos;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
+import com.dremio.sabot.rpc.user.UserRpcUtils;
 
 /**
  * A collection of helper methods to build a {@link FlightSql.SqlInfo}.
@@ -56,10 +58,12 @@ public final class DremioFlightSqlInfoUtils {
    * @return a filled {@link SqlInfoBuilder}
    */
   public static SqlInfoBuilder getNewSqlInfoBuilder(final UserProtos.ServerMeta serverMeta) {
+    final UserBitShared.RpcEndpointInfos serverInfo = UserRpcUtils.getRpcEndpointInfos("Dremio Server");
+
     return new SqlInfoBuilder()
       .withSqlOuterJoinSupportLevel(FlightSql.SqlOuterJoinsSupportLevel.SQL_FULL_OUTER_JOINS)
-      .withFlightSqlServerName("Dremio Server")
-      .withFlightSqlServerVersion("20.0.0-SNAPSHOT")
+      .withFlightSqlServerName(serverInfo.getName())
+      .withFlightSqlServerVersion(UserRpcUtils.getVersion(serverInfo).getVersion())
       .withSqlIdentifierQuoteChar(serverMeta.getIdentifierQuoteString())
       .withFlightSqlServerReadOnly(serverMeta.getReadOnly())
       .withSqlKeywords(serverMeta.getSqlKeywordsList().toArray(EMPTY_STRING_ARRAY))
@@ -83,7 +87,7 @@ public final class DremioFlightSqlInfoUtils {
       .withSqlSupportedGroupBy(getGroupBy(serverMeta.getGroupBySupport()))
       .withSqlSupportsLikeEscapeClause(serverMeta.getLikeEscapeClauseSupported())
       .withSqlSchemaTerm(serverMeta.getSchemaTerm())
-      .withSqlCatalogTerm(serverMeta.getCatalogTerm())
+      .withSqlCatalogTerm("")  // Indicates catalogs are not supported
       .withSqlCatalogAtStart(serverMeta.getCatalogAtStart())
       .withSqlSupportedPositionedCommands(SQL_POSITIONED_DELETE)
       .withSqlSelectForUpdateSupported(serverMeta.getSelectForUpdateSupported())

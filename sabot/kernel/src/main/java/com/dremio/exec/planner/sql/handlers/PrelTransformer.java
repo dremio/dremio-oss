@@ -246,8 +246,9 @@ public class PrelTransformer {
       final RelNode logical = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLogTransitive, preLogTransitive.getTraitSet().plus(Rel.LOGICAL), true);
       final RelNode rowCountAdjusted = getRowCountAdjusted(logical, plannerSettings);
       final RelNode postLogical = getPostLogical(config, rowCountAdjusted, plannerSettings);
+      final RelNode nestedProjectPushdown = getNestedProjectPushdown(config, postLogical, plannerSettings);
       // Do Join Planning.
-      final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, postLogical, postLogical.getTraitSet(), true);
+      final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, nestedProjectPushdown, postLogical.getTraitSet(), true);
       final RelNode convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_OPTIMIZATION, preConvertedRelNode, preConvertedRelNode.getTraitSet(), true);
       final RelNode postJoinOptimizationRelNode = transform(config, PlannerType.HEP_AC, PlannerPhase.POST_JOIN_OPTIMIZATION, convertedRelNode, convertedRelNode.getTraitSet(), true);
       final RelNode flattendPushed = getFlattenedPushed(config, postJoinOptimizationRelNode);
@@ -319,6 +320,23 @@ public class PrelTransformer {
     } else {
       return rowCountAdjusted;
     }
+  }
+
+  public static RelNode getNestedProjectPushdown(SqlHandlerConfig config, RelNode relNode, PlannerSettings plannerSettings){
+    NestedFieldFinder nestedFieldFinder = new NestedFieldFinder();
+    if(!plannerSettings.isNestedSchemaProjectPushdownEnabled()
+    || !nestedFieldFinder.run(relNode)
+    ){
+      return relNode;
+    }
+    final RelNode wrapped = RexFieldAccessUtils.wrap(relNode, false);
+    RelNode transformed = transform(config, PlannerType.HEP_AC, PlannerPhase.NESTED_SCHEMA_PROJECT_PUSHDOWN,
+    wrapped, wrapped.getTraitSet(), true);
+    RelNode unwrapped = RexFieldAccessUtils.unwrap(transformed);
+    RelNode projectPushedDown = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.FILESYSTEM_PROJECT_PUSHDOWN,
+      unwrapped, unwrapped.getTraitSet(), true);
+
+    return projectPushedDown;
   }
 
   private static RelNode getFlattenedPushed(SqlHandlerConfig config, RelNode convertedRelNode) {

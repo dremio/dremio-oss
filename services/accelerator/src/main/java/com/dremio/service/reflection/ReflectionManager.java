@@ -970,6 +970,7 @@ public class ReflectionManager implements Runnable {
 
     try {
       descriptorCache.update(materialization);
+      materialization = materializationStore.get(materialization.getId());
     } catch (Exception | AssertionError e) {
       logger.warn("failed to update materialization cache for {}", getId(materialization), e);
       materialization.setState(MaterializationState.FAILED)

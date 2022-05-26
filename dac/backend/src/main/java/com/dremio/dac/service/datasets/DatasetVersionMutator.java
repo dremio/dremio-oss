@@ -16,6 +16,7 @@
 package com.dremio.dac.service.datasets;
 
 import static com.dremio.dac.service.datasets.DatasetDownloadManager.DATASET_DOWNLOAD_STORAGE_PLUGIN;
+import static com.dremio.dac.util.DatasetsUtil.isTemporaryPath;
 import static com.dremio.dac.util.DatasetsUtil.toVirtualDatasetUI;
 import static com.dremio.dac.util.DatasetsUtil.toVirtualDatasetVersion;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ALLPARENTS;
@@ -24,11 +25,19 @@ import static com.dremio.service.namespace.dataset.DatasetVersion.MIN_VERSION;
 import static java.lang.String.format;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +61,7 @@ import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.InternalFileConf;
@@ -70,6 +80,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
@@ -355,6 +366,151 @@ public class DatasetVersionMutator {
                                            String userName) throws IOException {
     // TODO check if user can access this dataset.
     return downloadManager().getDownloadData(downloadInfo, resultMetadataList);
+  }
+
+  /**
+   * Deletes a dataset version using the path and version.
+   * <p>This method is static to be easily accessible from maintenance tasks.</p>
+   *
+   * <br>
+   * <p><b><em>Be aware that this method can delete any dataset version without
+   * verifying if a history will be broken.</em></b></p>
+   *
+   * @param provider  the {@link LegacyKVStoreProvider} from where the store
+   *                  of type {@link VersionStoreCreator} will be obtained.
+   * @param path      the dataset path
+   * @param version   the version of the dataset
+   */
+  public static void deleteDatasetVersion(LegacyKVStoreProvider provider, List<String> path, String version) {
+    LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> store = provider.getStore(VersionStoreCreator.class);
+    deleteDatasetVersion(store, path, version);
+  }
+
+  private static void deleteDatasetVersion(LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> store, List<String> path, String version) {
+    final VersionDatasetKey key = new VersionDatasetKey(new DatasetPath(path), new DatasetVersion(version));
+    deleteDatasetVersion(store, key);
+  }
+
+  private static void deleteDatasetVersion(LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> store, VersionDatasetKey datasetKey) {
+    store.delete(datasetKey);
+  }
+
+  /**
+   * Delete orphan dataset versions.
+   *
+   * <p>This method is static to be easily accessible from maintenance tasks.</p>
+   *
+   * <p>A dataset version is considered an orphan when:</p>
+   * <ul>
+   *   <li>if the dataset version is temporary, no Jobs are referencing the
+   *   dataset version</li>
+   *   <li>if a named dataset is recreated with the same name</li>
+   * </ul>
+   *
+   * @param optionManagerProvider   Jobs KVStore.
+   * @param datasetStore            Dataset versions KVStore
+   * @param daysThreshold           Dataset versions older than the threshold days
+   *                                will be deleted. This threshold is limited
+   *                                to be greater than {@link ExecConstants#JOB_MAX_AGE_IN_DAYS}.
+   *
+   * @return The number of dataset version entries that were deleted.
+   */
+  public static long deleteOrphans(final Provider<OptionManager> optionManagerProvider,
+    final LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> datasetStore, final int daysThreshold) {
+    return deleteOrphans(optionManagerProvider, datasetStore, daysThreshold, false);
+  }
+
+  @VisibleForTesting
+  public static long deleteOrphans(final Provider<OptionManager> optionManagerProvider,
+    final LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> datasetStore, final int daysThreshold, boolean unsafe) {
+
+    final OptionManager optionManager = optionManagerProvider.get();
+    final long maxJobAgeInDays = unsafe ? daysThreshold : optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS);
+
+    // Dremio has a background process that cleans Jobs older than 30 days (configurable).
+    // To prevent deleting dataset versions still associated to existing jobs, the threshold is
+    // limited to be at least 30 days.
+    long threshold = Math.max(maxJobAgeInDays, daysThreshold);
+
+    DatasetPath lastPath = null;
+    final Set<DatasetPath> visitedNamedDatasets = new HashSet<>();
+    final Set<VersionDatasetKey> namedVdsCandidatesToDelete = new HashSet<>();
+    final long now = System.currentTimeMillis();
+    long deleteCount = 0;
+    for (Entry<VersionDatasetKey, VirtualDatasetVersion> virtualDataset : datasetStore.find()) {
+      if (withinThreshold(threshold, now, virtualDataset)) {
+        continue;
+      }
+
+      final VersionDatasetKey datasetKey = virtualDataset.getKey();
+
+      if (isTemporaryPath(datasetKey.getPath().toPathList())) {
+        deleteDatasetVersion(datasetStore, datasetKey);
+        ++deleteCount;
+      } else if (!visitedNamedDatasets.contains(datasetKey.getPath())) {
+        visitedNamedDatasets.add(datasetKey.getPath());
+
+        // Delete the candidates when the dataset path changes.
+        // This will prevent to have a huge collection in memory.
+        if (!datasetKey.getPath().equals(lastPath)) {
+          lastPath = datasetKey.getPath();
+          deleteCount += deleteAllOrphans(datasetStore, namedVdsCandidatesToDelete);
+          namedVdsCandidatesToDelete.clear();
+        }
+
+        VersionDatasetKey start = new VersionDatasetKey(datasetKey.getPath(), MIN_VERSION);
+        VersionDatasetKey end = new VersionDatasetKey(datasetKey.getPath(), MAX_VERSION);
+        LegacyFindByRange<VersionDatasetKey> range = new LegacyFindByRange<>(start, true, end, true);
+        List<Entry<VersionDatasetKey, VirtualDatasetVersion>> allVersionsForPath =
+          StreamSupport.stream(datasetStore.find(range).spliterator(), false)
+          .collect(Collectors.toList());
+        namedVdsCandidatesToDelete.addAll(collectNamedOrphans(allVersionsForPath));
+      }
+    }
+
+    // Remove the remaining candidates of the last dataset path
+    if (!namedVdsCandidatesToDelete.isEmpty()) {
+      deleteCount += deleteAllOrphans(datasetStore, namedVdsCandidatesToDelete);
+    }
+
+    return deleteCount;
+  }
+
+  private static long deleteAllOrphans(LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> datasetStore,
+    Set<VersionDatasetKey> namedVdsCandidatesToDelete) {
+    long deleteCount = 0;
+    for (VersionDatasetKey versionDatasetKey : namedVdsCandidatesToDelete) {
+      deleteDatasetVersion(datasetStore, versionDatasetKey.getPath().toPathList(), versionDatasetKey.getVersion().getVersion());
+      ++deleteCount;
+    }
+    return deleteCount;
+  }
+
+
+  private static Collection<VersionDatasetKey> collectNamedOrphans(List<Entry<VersionDatasetKey, VirtualDatasetVersion>> datasetSamePath) {
+    List<Entry<VersionDatasetKey, VirtualDatasetVersion>> vds = datasetSamePath.stream()
+      .sorted(Comparator.comparingLong(o -> -o.getValue().getDataset().getCreatedAt())).collect(Collectors.toList());
+
+    final Set<VersionDatasetKey> orphans = new HashSet<>(vds.size());
+    boolean latestRoot = false;
+    for (Entry<VersionDatasetKey, VirtualDatasetVersion> datasetEntry : vds) {
+      if (!latestRoot) {
+        if (datasetEntry.getValue().getPreviousVersion() == null) {
+          latestRoot = true;
+        }
+        continue;
+      }
+
+      orphans.add(datasetEntry.getKey());
+    }
+    return orphans;
+  }
+
+  private static boolean withinThreshold(long daysThreshold, long now,
+    Entry<VersionDatasetKey, VirtualDatasetVersion> next) {
+    final long daysThresholdMillis = TimeUnit.DAYS.toMillis(daysThreshold);
+    final Long dsCreation = next.getValue().getDataset().getCreatedAt();
+    return dsCreation != null && now - dsCreation < daysThresholdMillis;
   }
 
   /**

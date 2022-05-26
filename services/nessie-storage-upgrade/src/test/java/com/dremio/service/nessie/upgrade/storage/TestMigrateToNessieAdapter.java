@@ -157,7 +157,7 @@ class TestMigrateToNessieAdapter {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {1, 2, 19, 20, 21, 40, 101})
+  @ValueSource(ints = {1, 2, 40, 99, 100, 101, 499, 500, 501})
   void testUpgrade(int numCommits) throws Exception {
     List<Key> keys = new ArrayList<>();
     List<String> testEntries = new ArrayList<>();
@@ -192,8 +192,20 @@ class TestMigrateToNessieAdapter {
 
     // Each upgrade commit contains at most MAX_ENTRIES_PER_COMMIT entries
     int logSize = numCommits / MAX_ENTRIES_PER_COMMIT
-      + (numCommits % MAX_ENTRIES_PER_COMMIT == 0 ? 0 : 1); // + 1 for the final non-full commit
+      + (numCommits % MAX_ENTRIES_PER_COMMIT == 0 ? 0 : 1) // + 1 for the final non-full commit
+      + 1; // + 1 for the "empty" commit that generate the key list
     assertThat(mainLog).hasSize(logSize);
+
+    // The top-most (last) commit should have a key list.
+    assertThat(mainLog.get(0).getKeyList())
+      .isNotNull()
+      .satisfies(l -> assertThat(l.getKeys()).isNotEmpty());
+
+    // The second top-most (last commit with tables) log entry may or may not be "full".
+    assertThat(mainLog.get(1).getPuts().size()).isLessThanOrEqualTo(MAX_ENTRIES_PER_COMMIT);
+    // Deeper entries should be "full".
+    assertThat(mainLog.subList(2, mainLog.size()))
+      .allSatisfy(e -> assertThat(e.getPuts().size()).isEqualTo(MAX_ENTRIES_PER_COMMIT));
   }
 
   @Test

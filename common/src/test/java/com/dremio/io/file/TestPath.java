@@ -73,6 +73,11 @@ public class TestPath extends DremioTest {
     checkPathOfString("/foo/bar/../..", "/");
     checkPathOfString("/foo/../bar/..", "/");
     checkPathOfString("hdfs://hostname/foo//bar", "hdfs://hostname/foo/bar");
+    checkPathOfString("dremioS3://bucket/foo/bar", "dremioS3://bucket/foo/bar");
+    checkPathOfString("dremioS3://bucket/foo:space/bar", "dremioS3://bucket/foo:space/bar");
+    checkPathOfString("dremioS3://bucket/foo:space/bar:space.parquet", "dremioS3://bucket/foo:space/bar:space.parquet");
+    checkPathOfString("scheme:dir/sub:dir", "scheme:dir/sub:dir");
+    checkPathOfString("/dir/sub:dir/dir", "/dir/sub:dir/dir");
   }
 
   private void checkPathOfString(String value, String expected) {
@@ -88,7 +93,6 @@ public class TestPath extends DremioTest {
     checkInvalidPathOfString("hdfs:");
     checkInvalidPathOfString(null);
     checkInvalidPathOfString("");
-    checkInvalidPathOfString("foo:bar");
   }
 
   private void checkInvalidPathOfString(String value) {

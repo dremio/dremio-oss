@@ -30,7 +30,6 @@ import {
   getExploreJobId,
   getJobOutputRecords
 } from '@app/selectors/explore';
-import { getJobList } from 'selectors/jobs';
 import './ExploreTableJobStatus.less';
 import { compose } from 'redux';
 
@@ -199,14 +198,9 @@ function mapStateToProps(state, props) {
   const {approximate, version} = props;
   const jobProgress = getJobProgress(state, version);
   const jobId = getExploreJobId(state);
-  const jobList = getJobList(state);
-  const selectedJob = jobList.find((job) => job.get('id') === jobId);
-  let jobAttempts = 1;
-  if (selectedJob && selectedJob.get('totalAttempts')) {
-    jobAttempts = selectedJob.get('totalAttempts');
-  } else if (selectedJob && selectedJob.get('attemptDetails')) {
-    jobAttempts = selectedJob.get('attemptDetails').size;
-  }
+
+  const jobDetails = state.resources.entities.getIn(['jobDetails', jobId]);
+  const jobAttempts = jobDetails && jobDetails.get('attemptDetails') && jobDetails.get('attemptDetails').size;
   const outputRecords = getJobOutputRecords(state, version);
   const runStatus = getRunStatus(state).isRun;
 
@@ -222,7 +216,7 @@ function mapStateToProps(state, props) {
     haveRows,
     jobProgress,
     jobId,
-    jobAttempts,
+    jobAttempts: jobAttempts || 1,
     outputRecords,
     runStatus
   };

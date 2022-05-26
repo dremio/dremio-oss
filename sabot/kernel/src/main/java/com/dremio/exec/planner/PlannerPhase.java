@@ -108,6 +108,7 @@ import com.dremio.exec.planner.logical.PushFilterPastProjectRule;
 import com.dremio.exec.planner.logical.PushJoinFilterIntoProjectRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenIntoScanRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenPastProjectRule;
+import com.dremio.exec.planner.logical.PushProjectIntoFilesystemScanRule;
 import com.dremio.exec.planner.logical.PushProjectIntoScanRule;
 import com.dremio.exec.planner.logical.PushProjectPastFlattenRule;
 import com.dremio.exec.planner.logical.RemoveEmptyScansRule;
@@ -230,11 +231,33 @@ public enum PlannerPhase {
     }
   },
 
+  NESTED_SCHEMA_PROJECT_PUSHDOWN("Nested-Schema Project Pushdown") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return RuleSets.ofList(
+        PUSH_PROJECT_PAST_FILTER_LOGICAL_INSTANCE,
+        PUSH_PROJECT_PAST_JOIN_RULE_WITH_EXPR_JOIN,
+        MergeProjectRule.LOGICAL_INSTANCE
+        );
+    }
+  },
+
+
   PROJECT_PUSHDOWN("Project Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
       return RuleSets.ofList(
         PushProjectIntoScanRule.INSTANCE
+      );
+    }
+  },
+
+  FILESYSTEM_PROJECT_PUSHDOWN("FileSystem Project Pushdown") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      return RuleSets.ofList(
+        PushFilterPastProjectRule.LOGICAL_INSTANCE,
+        PushProjectIntoFilesystemScanRule.INSTANCE
       );
     }
   },
@@ -530,6 +553,12 @@ public enum PlannerPhase {
       ExprCondition.TRUE,
       DremioRelFactories.LOGICAL_BUILDER);
 
+  public static final RelOptRule PUSH_PROJECT_PAST_JOIN_RULE_WITH_EXPR_JOIN = new ProjectJoinTransposeRule(
+    ProjectRel.class,
+    JoinRel.class,
+    new DremioProjectJoinTransposeRule.ProjectJoinExprCondition(),
+    DremioRelFactories.LOGICAL_BUILDER);
+
   public static final RelOptRule PUSH_PROJECT_PAST_JOIN_CALCITE_RULE = DremioProjectJoinTransposeRule.INSTANCE;
 
   public static final RelOptRule LOGICAL_FILTER_CORRELATE_RULE = new FilterCorrelateRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
@@ -698,6 +727,12 @@ public enum PlannerPhase {
     ProjectRel.class,
     FilterRel.class,
     DremioRelFactories.LOGICAL_PROPAGATE_BUILDER, Conditions.PRESERVE_ITEM_CASE);
+
+  private static final RelOptRule PUSH_PROJECT_PAST_FILTER_LOGICAL_INSTANCE = new ProjectFilterTransposeRule(
+    ProjectRel.class,
+    FilterRel.class,
+    DremioRelFactories.LOGICAL_BUILDER, Conditions.PRESERVE_CASE_NESTED_FIELDS);
+
 
   /**
    * Get the list of enabled reduce expression (logical) rules. These rules are enabled using session/system options.
