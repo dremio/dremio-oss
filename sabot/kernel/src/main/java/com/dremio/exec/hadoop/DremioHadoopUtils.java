@@ -32,6 +32,8 @@ import com.google.common.base.Joiner;
  */
 public class DremioHadoopUtils {
 
+  public static final String COS_SCHEME = "cosn";
+
   public static String getHadoopFSScheme(Path path, Configuration conf) {
     return Util.getFs(path, conf).getScheme();
   }
@@ -51,6 +53,9 @@ public class DremioHadoopUtils {
    * @return container name
    */
   public static String getContainerName(Path path) {
+    if (COS_SCHEME.equalsIgnoreCase(path.toUri().getScheme())) {
+      return path.toString().split(Path.SEPARATOR)[2];
+    }
     final List<String> pathComponents = Arrays.asList(
         removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString())
             .split(Path.SEPARATOR)
@@ -60,6 +65,9 @@ public class DremioHadoopUtils {
 
   public static Path pathWithoutContainer(Path path) {
     List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
+    if (COS_SCHEME.equalsIgnoreCase(path.toUri().getScheme())) {
+      return new Path("/" + Joiner.on(Path.SEPARATOR).join(pathComponents));
+    }
     return new Path("/" + Joiner.on(Path.SEPARATOR).join(pathComponents.subList(1, pathComponents.size())));
   }
 

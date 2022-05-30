@@ -24,6 +24,7 @@ public interface UriSchemes {
   String WEBHDFS_SCHEME = "webhdfs";
   String FILE_SCHEME = "file";
   String S3_SCHEME = "s3";
+  String COS_SCHEME = "cosn";
   String AZURE_SCHEME = "wasbs";
   String GCS_SCHEME = "gs";
   String ADL_SCHEME = "adl";

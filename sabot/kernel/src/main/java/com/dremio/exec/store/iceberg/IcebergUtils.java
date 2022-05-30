@@ -23,6 +23,7 @@ import static com.dremio.io.file.Path.CONTAINER_SEPARATOR;
 import static com.dremio.io.file.Path.SEPARATOR;
 import static com.dremio.io.file.UriSchemes.ADL_SCHEME;
 import static com.dremio.io.file.UriSchemes.AZURE_SCHEME;
+import static com.dremio.io.file.UriSchemes.COS_SCHEME;
 import static com.dremio.io.file.UriSchemes.FILE_SCHEME;
 import static com.dremio.io.file.UriSchemes.GCS_SCHEME;
 import static com.dremio.io.file.UriSchemes.HDFS_SCHEME;
@@ -393,12 +394,14 @@ public class IcebergUtils {
           urlBuilder.append(SCHEME_SEPARATOR);
           urlBuilder.append(getContainerName(path));
           urlBuilder.append(CONTAINER_SEPARATOR + accountName + AZURE_AUTHORITY_SUFFIX);
-          urlBuilder.append(pathWithoutContainer(path).toString());
+          urlBuilder.append(pathWithoutContainer(path));
           return urlBuilder.toString();
         } else if (fsScheme.equalsIgnoreCase(FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme())) {
           return S3_SCHEME + SCHEME_SEPARATOR + modifiedPath;
         } else if (fsScheme.equalsIgnoreCase(FileSystemConf.CloudFileSystemScheme.GOOGLE_CLOUD_FILE_SYSTEM.getScheme())) {
           return GCS_SCHEME + SCHEME_SEPARATOR + modifiedPath;
+        } else if (fsScheme.equalsIgnoreCase(COS_SCHEME)) {
+          return COS_SCHEME + SCHEME_SEPARATOR + modifiedPath;
         } else if (fsScheme.equalsIgnoreCase(HDFS_SCHEME)) {
           String hdfsEndPoint = conf.get("fs.defaultFS");
           if (hdfsEndPoint == null || !hdfsEndPoint.toLowerCase().startsWith(HDFS_SCHEME)) {
