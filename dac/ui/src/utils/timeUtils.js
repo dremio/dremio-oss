@@ -38,7 +38,8 @@ class TimeUtils {
     const minutes = this.zeroesPadding(duration.minutes(), 2);
     const hours = this.zeroesPadding(Math.floor(duration.asHours()), 2);
     if (Math.floor(duration.asHours()) <= 0 && duration.minutes() <= 0 && duration.seconds() < 1) {
-      return '<1s';
+      const milliseconds = this.zeroesPadding(duration.milliseconds(), 2);
+      return `${milliseconds}ms`.replace(/^0+/, '');
     } else if (isNumberFormat) {
       return `${hours}:${minutes}:${seconds}`;
     }
