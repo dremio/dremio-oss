@@ -81,6 +81,7 @@ public class S3StoragePlugin extends FileSystemPlugin<AbstractS3PluginConfig> {
   public static final String DREMIO_ASSUME_ROLE_PROVIDER = "com.dremio.service.coordinator" +
     ".DremioAssumeRoleCredentialsProviderV1";
   public static final String AWS_PROFILE_PROVIDER = "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
+  public static final String WEB_IDENTITY_TOKEN_PROVIDER = "com.dremio.plugins.s3.store.WebIdentityCredentialsProviderV1";
 
   private final AWSCredentialsConfigurator awsCredentialsConfigurator;
   private final boolean isAuthTypeNone;

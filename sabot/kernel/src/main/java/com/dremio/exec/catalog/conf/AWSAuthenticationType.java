@@ -39,5 +39,10 @@ public enum AWSAuthenticationType {
   /**
    * Use files from a AWS named profile
    */
-  @Tag(4) @DisplayMetadata(label = "AWS Profile") AWS_PROFILE;
+  @Tag(4) @DisplayMetadata(label = "AWS Profile") AWS_PROFILE,
+
+  /**
+   * Access from web Identity Token (EKS service Account)
+   */
+  @Tag(5) @DisplayMetadata(label = "Web Identity Token") WEB_IDENTITY_TOKEN;
 }
