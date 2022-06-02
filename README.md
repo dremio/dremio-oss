@@ -47,6 +47,27 @@ Add JDK 8 to the Maven toolchain, easiest to use `${HOME}/.m2/toolchains.xml`. E
 </toolchains>
 ```
 
+For apple m1 users, since protoc-gen-grpc-java not available on arm64 macs, 
+one of the workarounds would be set `os.detected.classifier` in your local `${HOME}/.m2/settings.xml`. Example:
+
+```xml
+<settings>
+  <activeProfiles>
+    <activeProfile>
+      apple-silicon
+    </activeProfile>
+  </activeProfiles>
+  <profiles>
+    <profile>
+      <id>apple-silicon</id>
+      <properties>
+        <os.detected.classifier>osx-x86_64</os.detected.classifier>
+      </properties>
+    </profile>
+  </profiles>
+</settings>
+```
+
 ### (b) Clone the Repository
 
     git clone https://github.com/dremio/dremio-oss.git dremio
