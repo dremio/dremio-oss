@@ -163,6 +163,13 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     syncClusters();
   }
 
+  @Override
+  public void restartPreviewEngine() {
+    for (ProvisioningServiceDelegate provisioningService: concreteServices.values()) {
+      provisioningService.restartPreviewEngine();
+    }
+  }
+
   @VisibleForTesting
   void syncClusters() {
     final List<ClusterId> orphanClusters = new ArrayList<>();

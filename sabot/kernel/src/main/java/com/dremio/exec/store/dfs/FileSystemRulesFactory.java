@@ -59,6 +59,7 @@ import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -92,7 +93,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
       return new ParquetScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled());
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled(), ImmutableList.of());
     }
 
     @Override
@@ -112,7 +113,10 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
       // TODO: this singleton check should be removed once DX-7175 is fixed
       boolean singleton = !drel.getTableMetadata().getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) && drel.getTableMetadata().getSplitCount() == 1;
-      return new EasyScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL).plus(singleton ? DistributionTrait.SINGLETON : DistributionTrait.ANY), drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(), drel.getObservedRowcountAdjustment());
+      return new EasyScanPrel(
+        drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL).plus(singleton ? DistributionTrait.SINGLETON : DistributionTrait.ANY),
+        drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
+        drel.getObservedRowcountAdjustment(), ImmutableList.of());
     }
 
     @Override

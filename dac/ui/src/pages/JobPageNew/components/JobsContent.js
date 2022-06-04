@@ -16,7 +16,7 @@
 import { PureComponent } from 'react';
 import $ from 'jquery';
 import classNames from 'classnames';
-import Immutable from 'immutable';
+import Immutable, { List } from 'immutable';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
@@ -37,7 +37,7 @@ import timeUtils from 'utils/timeUtils';
 import jobsUtils from 'utils/jobsUtils';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import { TableColumns } from '@app/constants/Constants';
-import { getFormatMessageIdForQueryType } from '@app/pages/JobDetailsPageNew/Utils';
+import { getFormatMessageIdForQueryType } from '@app/pages/JobDetailsPageNew/utils';
 import DatasetCell from './DatasetCell';
 import SQLCell from './SQLCell';
 import DurationCell from './DurationCell';
@@ -60,6 +60,7 @@ export default class JobsContent extends PureComponent {
     next: PropTypes.string,
     onUpdateQueryState: PropTypes.func.isRequired,
     viewState: PropTypes.instanceOf(Immutable.Map),
+    dataFromUserFilter: PropTypes.array,
     dataWithItemsForFilters: PropTypes.object,
     isNextJobsInProgress: PropTypes.bool,
     location: PropTypes.object,
@@ -186,7 +187,8 @@ export default class JobsContent extends PureComponent {
   render() {
     const {
       jobs, queryState, onUpdateQueryState,
-      viewState, className, loadNextJobs, intl
+      viewState, className, loadNextJobs, intl,
+      dataFromUserFilter
     } = this.props;
     const { getColumns } = this.state;
     const columnCheckedItems = localStorageUtils.getJobColumns()
@@ -210,7 +212,12 @@ export default class JobsContent extends PureComponent {
     const renderJobStatus = (jobState) => <JobStateIcon state={jobState} />;
     const renderSQL = (sql) => <SQLCell sql={sql} />;
     const renderDataset = (job) => <DatasetCell job={job} />;
-    const renderIcon = (isAcceleration) => <ReflectionIcon isAcceleration={isAcceleration} />;
+    const renderIcon = (isAcceleration) => {
+      return (
+        isAcceleration ? <ReflectionIcon isAcceleration/>
+          : <ColumnCell />
+      );
+    };
     const renderDuration = (
       duration,
       durationDetails,
@@ -225,7 +232,7 @@ export default class JobsContent extends PureComponent {
     const getTableData = () => {
 
       return jobs.map((job, index) => {
-        const durationDetails = job.get('durationDetails');
+        const durationDetails = job.get('durationDetails') || new List();
         const jobDuration = jobsUtils.formatJobDuration(job.get('duration'), true);
         const planningTimeObject = durationDetails.find(duration => duration.get('phaseName') === 'PLANNING');
         const planningTime = planningTimeObject && Number(planningTimeObject.get('phaseDuration'));
@@ -276,6 +283,7 @@ export default class JobsContent extends PureComponent {
                 onUpdateQueryState={onUpdateQueryState}
                 style={styles.filters}
                 loadItemsForFilter={this.props.loadItemsForFilter}
+                dataFromUserFilter={dataFromUserFilter}
                 dataWithItemsForFilters={this.props.dataWithItemsForFilters}
                 checkedItems={getCheckedItems}
                 columnFilterSelect={this.filterColumnSelect}

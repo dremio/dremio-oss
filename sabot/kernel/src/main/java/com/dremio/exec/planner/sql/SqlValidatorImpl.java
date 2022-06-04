@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql;
 
+import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG_TIME_TRAVEL;
 import static org.apache.calcite.sql.SqlUtil.stripAs;
 import static org.apache.calcite.util.Static.RESOURCE;
 
@@ -44,31 +45,43 @@ import org.apache.calcite.sql.fun.SqlNtileAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.calcite.sql.validate.DremioEmptyScope;
+import org.apache.calcite.sql.validate.ProcedureNamespace;
 import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql.validate.SqlScopedShuttle;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorException;
+import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.util.Util;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl {
-  private final FlattenOpCounter flattenCount;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacroCall;
+import com.dremio.options.OptionResolver;
+import com.dremio.options.TypeValidators;
 
-  protected SqlValidatorImpl(
-      FlattenOpCounter flattenCount,
-      SqlOperatorTable sqlOperatorTable,
-      SqlValidatorCatalogReader catalogReader,
-      RelDataTypeFactory typeFactory,
-      SqlConformance conformance) {
+public class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl {
+  private final FlattenOpCounter flattenCount;
+  private final OptionResolver optionResolver;
+
+  public SqlValidatorImpl(
+    FlattenOpCounter flattenCount,
+    SqlOperatorTable sqlOperatorTable,
+    SqlValidatorCatalogReader catalogReader,
+    RelDataTypeFactory typeFactory,
+    SqlConformance conformance,
+    OptionResolver optionResolver) {
     super(sqlOperatorTable, catalogReader, typeFactory, conformance);
     this.flattenCount = flattenCount;
+    this.optionResolver = optionResolver;
   }
 
   @Override
   public SqlNode validate(SqlNode topNode) {
+    checkForFeatureSpecificSyntax(topNode);
     final SqlValidatorScope scope = DremioEmptyScope.createBaseScope(this);
     final SqlNode topNode2 = validateScopedExpression(topNode, scope);
     final RelDataType type = getValidatedNodeType(topNode2);
@@ -95,6 +108,24 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
       }
     }
     return super.performUnconditionalRewrites(node, underFrom);
+  }
+
+  @Override
+  protected void registerNamespace(SqlValidatorScope usingScope, String alias, SqlValidatorNamespace ns,
+                                   boolean forceNullable) {
+
+    // Update aliases of SqlVersionedTableMacroCalls so that table aliases behave similarly when they have
+    // a version clause.
+    if (ns instanceof ProcedureNamespace) {
+      if (ns.getNode() instanceof SqlVersionedTableMacroCall && ns.getEnclosingNode().getKind() != SqlKind.AS) {
+        SqlVersionedTableMacroCall call = (SqlVersionedTableMacroCall) ns.getNode();
+        if (call.getAlias() != null) {
+          alias = call.getAlias().getSimple();
+        }
+      }
+    }
+
+    super.registerNamespace(usingScope, alias, ns, forceNullable);
   }
 
   @Override
@@ -130,7 +161,7 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
     return flattenCount.nextFlattenIndex();
   }
 
-  static class FlattenOpCounter {
+  public static class FlattenOpCounter {
     private int value;
 
     int nextFlattenIndex(){
@@ -364,6 +395,38 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
       }
 
       return false;
+    }
+  }
+
+  private void checkForFeatureSpecificSyntax(SqlNode sqlNode) {
+    sqlNode.accept(new CheckFeatureSpecificSyntaxEnabled(optionResolver));
+  }
+
+  /**
+   * Implementation of a SqlVisitor which checks for SQL syntax elements that are gated behind disabled feature flags
+   * and reports an error to the user if any are found.
+   */
+  private static class CheckFeatureSpecificSyntaxEnabled extends SqlBasicVisitor<Void> {
+
+    private final OptionResolver optionResolver;
+
+    public CheckFeatureSpecificSyntaxEnabled(OptionResolver optionResolver) {
+      this.optionResolver = optionResolver;
+    }
+
+    @Override
+    public Void visit(SqlCall call) {
+      if (call instanceof SqlVersionedTableMacroCall) {
+        checkFeatureEnabled(ENABLE_ICEBERG_TIME_TRAVEL, "Time travel queries are not supported.");
+      }
+
+      return super.visit(call);
+    }
+
+    private void checkFeatureEnabled(TypeValidators.BooleanValidator validator, String message) {
+      if (optionResolver != null && !optionResolver.getOption(validator)) {
+        throw UserException.unsupportedError().message(message).buildSilently();
+      }
     }
   }
 }

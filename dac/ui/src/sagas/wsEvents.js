@@ -37,21 +37,21 @@ function *handleUpdateJobDetails(action) {
 function *handleJobProgressChanged(action) {
   if (action.error) return;
   const { payload } = action;
-  const location = yield select(getLocation);
+  // const location = yield select(getLocation);
   const id = payload.id.id;
-  if (location.pathname.indexOf('jobs') !== -1) {
-    yield put(updateJobState(id, {...payload.update, id}));
-  }
+  // if (location.pathname.indexOf("jobs") !== -1) {
+  yield put(updateJobState(id, { ...payload.update, id }));
+  // }
 }
 
 function *handleQVJobProgressChange(action) {
   if (action.error) return;
   const { payload } = action;
-  const location = yield select(getLocation);
+  // const location = yield select(getLocation);
   const id = payload.id.id;
-  if (location.pathname.indexOf('jobs') !== -1) {
-    yield put(updateQVJobState(id, {...payload.update, id}));
-  }
+  // if (location.pathname.indexOf('jobs') !== -1) {
+  yield put(updateQVJobState(id, {...payload.update, id}));
+  // }
 }
 
 export function* entitie() {

@@ -65,13 +65,13 @@ public class TestCaseLargeQueriesMixed extends TestAbstractCaseLargeQueries {
   public void testLargeCaseWithPotentialSplits() throws Exception {
     final String sql = String.format("with t1 as (select %s from cp.\"tpch/orders.parquet\" " +
         "ORDER BY o_orderkey DESC) %s",
-      projectLargeOrderCase(5, 25),
+      projectLargeOrderCase(4, 12),
       "SELECT count(distinct c_order) as final FROM t1 where c_order not like '%_X%'");
     testBuilder()
       .sqlQuery(sql)
       .unOrdered()
       .baselineColumns("final")
-      .baselineValues(3653L)
+      .baselineValues(1000L)
       .go();
   }
 

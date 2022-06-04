@@ -17,6 +17,7 @@ package com.dremio.exec.store;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.config.CalciteConnectionConfig;
@@ -39,11 +40,9 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMetadataImpl;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.store.NamespaceTable.StatisticImpl;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -53,20 +52,20 @@ public class MaterializedDatasetTable implements TranslatableTable {
 
   private final Supplier<DatasetConfig> datasetConfig;
   private final Supplier<List<PartitionChunk>> partitionChunks;
-  private final FileSystemPlugin plugin;
+  private final StoragePluginId pluginId;
   private final String user;
   private final boolean complexTypeSupport;
 
   public MaterializedDatasetTable(
-      FileSystemPlugin plugin,
-      String user,
-      Supplier<DatasetConfig> datasetConfig,
-      Supplier<List<PartitionChunk>> partitionChunks,
-      boolean complexTypeSupport
+    StoragePluginId pluginId,
+    String user,
+    Supplier<DatasetConfig> datasetConfig,
+    Supplier<List<PartitionChunk>> partitionChunks,
+    boolean complexTypeSupport
   ) {
+    this.pluginId = pluginId;
     this.datasetConfig = datasetConfig;
     this.partitionChunks = partitionChunks;
-    this.plugin = plugin;
     this.user = user;
     this.complexTypeSupport = complexTypeSupport;
   }
@@ -74,13 +73,13 @@ public class MaterializedDatasetTable implements TranslatableTable {
   @Override
   public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
     return new ScanCrel(
-        context.getCluster(),
-        context.getCluster().traitSetOf(Convention.NONE),
-        plugin.getId(),
-        new MaterializedTableMetadata(plugin.getId(), datasetConfig.get(), user, partitionChunks.get()),
-        null,
-        1.0d,
-        true);
+      context.getCluster(),
+      context.getCluster().traitSetOf(Convention.NONE),
+      pluginId,
+      new MaterializedTableMetadata(pluginId, datasetConfig.get(), user, partitionChunks.get()),
+      null,
+      1.0d,
+      true);
   }
 
   @Override

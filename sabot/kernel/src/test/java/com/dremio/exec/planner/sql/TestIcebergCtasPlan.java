@@ -29,6 +29,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.CreateTableHandler;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
+import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.options.OptionManager;
@@ -52,7 +53,7 @@ public class TestIcebergCtasPlan extends PlanTestBase {
           new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
           optionManager)
         .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-        .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+        .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
         .build();
       final QueryContext queryContext = new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance());
       final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
@@ -83,7 +84,7 @@ public class TestIcebergCtasPlan extends PlanTestBase {
         "HashToRandomExchange",
         "Project",
         "Writer",
-        "ParquetScan",
+        "IcebergManifestList",
 
         // The operators should be in this order
         "(?s)" +
@@ -93,7 +94,7 @@ public class TestIcebergCtasPlan extends PlanTestBase {
           "HashToRandomExchange.*" +
           "Project.*" + HashPrelUtil.HASH_EXPR_NAME + ".*" + // HashProject
           "Writer.*" +
-          "ParquetScan.*"});
+          "IcebergManifestList.*"});
     }
   }
 }

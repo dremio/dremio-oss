@@ -17,19 +17,23 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.TableMutationOptions;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
-import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -52,32 +56,52 @@ public class ChangeColumnHandler extends SimpleDirectHandler {
     SqlAlterTableChangeColumn sqlChangeColumn = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableChangeColumn.class);
 
     NamespaceKey path = catalog.resolveSingle(sqlChangeColumn.getTable());
-    Optional<SimpleCommandResult> result = IcebergUtils.checkTableExistenceAndMutability(catalog, config,
-        path, false);
-    if (result.isPresent()) {
-      return Collections.singletonList(result.get());
+
+    DremioTable table = catalog.getTableNoResolve(path);
+    SimpleCommandResult result = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
+
+    if (!result.ok) {
+      return Collections.singletonList(result);
     }
 
     String currentColumnName = sqlChangeColumn.getColumnToChange();
-    String columnNewName = sqlChangeColumn.getNewColumnSpec().getName().getSimple();
+    SqlColumnDeclaration newColumnSpec = sqlChangeColumn.getNewColumnSpec();
+    String columnNewName = newColumnSpec.getName().getSimple();
 
-    DremioTable table = catalog.getTableNoResolve(path);
     if (!table.getSchema().findFieldIgnoreCase(currentColumnName).isPresent()) {
       throw UserException.validationError().message("Column [%s] is not present in table [%s]",
-          currentColumnName, path).buildSilently();
+        currentColumnName, path).buildSilently();
     }
+
+    if (DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig()) && !currentColumnName.equalsIgnoreCase(columnNewName)) {
+      throw UserException.validationError().message("Column [%s] cannot be renamed",
+        currentColumnName).buildSilently();
+    }
+
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext, path.toString());
+    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
+      .setResolvedVersionContext(resolvedVersionContext)
+      .build();
 
     if (!currentColumnName.equalsIgnoreCase(columnNewName) &&
-        table.getSchema().findFieldIgnoreCase(columnNewName).isPresent()) {
+      table.getSchema().findFieldIgnoreCase(columnNewName).isPresent()) {
       throw UserException.validationError().message("Column [%s] already present in table [%s]",
-          columnNewName, path).buildSilently();
+        columnNewName, path).buildSilently();
     }
 
-    Field columnField = SqlHandlerUtil.fieldFromSqlColDeclaration(config, sqlChangeColumn.getNewColumnSpec(), sql);
+    SqlHandlerUtil.checkNestedFieldsForDuplicateNameDeclarations(sql, newColumnSpec.getDataType().getTypeName());
 
-    catalog.changeColumn(path, sqlChangeColumn.getColumnToChange(), columnField);
+    Field columnField = SqlHandlerUtil.fieldFromSqlColDeclaration(config, newColumnSpec, sql);
 
-    DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    catalog.changeColumn(path, sqlChangeColumn.getColumnToChange(), columnField, tableMutationOptions);
+
+    if (!DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
+      //only fire the refresh dataset query when the query is on a native iceberg table
+      DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    }
     return Collections.singletonList(SimpleCommandResult.successful(String.format("Column [%s] modified",
         currentColumnName)));
   }

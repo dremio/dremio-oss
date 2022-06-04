@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import IntercomUtils, { useTestIntercomApp } from './intercomUtils';
+import IntercomUtils, { UseTestIntercomApp } from './intercomUtils';
 import config from './config';
 
 const testCase = ([valueToTest, expectedResult]) => {
   it(`'${valueToTest}' should${expectedResult ? '' : ' NOT'} use test intercom app`, () => {
-    expect(useTestIntercomApp(valueToTest)).to.be.equal(expectedResult);
+    expect(UseTestIntercomApp(valueToTest)).to.be.equal(expectedResult);
   });
 };
 

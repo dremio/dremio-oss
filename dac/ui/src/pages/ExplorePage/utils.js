@@ -15,3 +15,5 @@
  */
 
 export const showCuration = () => true;
+
+export const showQuerySpinner = () => true;

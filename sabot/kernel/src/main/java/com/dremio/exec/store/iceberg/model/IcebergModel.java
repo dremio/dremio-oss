@@ -22,6 +22,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.dfs.ColumnOperations;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -76,7 +77,17 @@ public interface IcebergModel {
                                                             String tableUuid, IcebergTableIdentifier tableIdentifier,
                                                             BatchSchema batchSchema, List<String> partitionColumnNames,
                                                             boolean forFileSystem, DatasetConfig datasetConfig);
-    /**
+
+  /**
+   * Get Iceberg Op committer for Alter command
+   * @param tableIdentifier Table identifier
+   * @return Alter committer
+   */
+   IcebergOpCommitter getAlterTableCommitter(IcebergTableIdentifier tableIdentifier, ColumnOperations.AlterOperationType alterOperationType, BatchSchema droppedColumns, BatchSchema updatedColumns,
+                                                   String columnName, List<Field> columnTypes);
+
+
+  /**
      * Truncate a table
      * @param tableIdentifier table identifier
      */
@@ -85,36 +96,42 @@ public interface IcebergModel {
 
     void deleteTable(IcebergTableIdentifier tableIdentifier);
 
+    void deleteTableRootPointer(IcebergTableIdentifier tableIdentifier);
+
 
   /**
      * Add columns to a table
      * @param tableIdentifier table identifier
      * @param columnsToAdd list of columns to add
-     */
-    void addColumns(IcebergTableIdentifier tableIdentifier, List<Types.NestedField> columnsToAdd);
+     * @return New root pointer for iceberg table
+   */
+    String addColumns(IcebergTableIdentifier tableIdentifier, List<Types.NestedField> columnsToAdd);
 
     /**
      * Drop a column from a table
      * @param tableIdentifier table identifier
      * @param columnToDrop Column name to drop
+     * @return New root pointer for iceberg table
      */
-    void dropColumn(IcebergTableIdentifier tableIdentifier, String columnToDrop);
+    String dropColumn(IcebergTableIdentifier tableIdentifier, String columnToDrop);
 
     /**
      * Change column type of a table
      * @param tableIdentifier table identifier
      * @param columnToChange existing column name
      * @param newDef new type
+     * @return New root pointer for iceberg table
      */
-    void changeColumn(IcebergTableIdentifier tableIdentifier, String columnToChange, Field newDef);
+    String changeColumn(IcebergTableIdentifier tableIdentifier, String columnToChange, Field newDef);
 
-    /**
+  /**
      * Rename an existing column of a table
      * @param tableIdentifier table identifier
      * @param name existing column name
      * @param newName new column name
+     * @return New root pointer for iceberg table
      */
-    void renameColumn(IcebergTableIdentifier tableIdentifier, String name, String newName);
+    String renameColumn(IcebergTableIdentifier tableIdentifier, String name, String newName);
 
     /**
      * Load and return an Iceberg table

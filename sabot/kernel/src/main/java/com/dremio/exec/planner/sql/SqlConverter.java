@@ -48,6 +48,8 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogIdentity;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.ViewExpansionContext;
@@ -100,6 +102,7 @@ public class SqlConverter {
   private final ScanResult scanResult;
   private final SabotConfig config;
   private final Catalog catalog;
+  private final ReflectionAllowedMonitoringConvertletTable convertletTable;
 
   public SqlConverter(
       final PlannerSettings settings,
@@ -128,7 +131,8 @@ public class SqlConverter {
     this.catalogReader = new DremioCatalogReader(catalog, typeFactory);
     this.opTab = operatorTable;
     this.costFactory = (settings.useDefaultCosting()) ? null : new DremioCost.Factory();
-    this.validator = new SqlValidatorImpl(flattenCounter, SqlOperatorTables.chain(opTab, catalogReader), this.catalogReader, typeFactory, DremioSqlConformance.INSTANCE);
+    this.validator = new SqlValidatorImpl(flattenCounter, SqlOperatorTables.chain(opTab, catalogReader),
+      this.catalogReader, typeFactory, DremioSqlConformance.INSTANCE, settings.getOptions());
     validator.setIdentifierExpansion(true);
     this.materializations = new MaterializationList(this, session, materializationProvider);
     this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config,  materializations, this.settings.options,
@@ -136,9 +140,12 @@ public class SqlConverter {
     this.planner = DremioVolcanoPlanner.of(this);
     this.cluster = RelOptCluster.create(planner, new DremioRexBuilder(typeFactory));
     this.cluster.setMetadataQuery(relMetadataQuerySupplier);
-    this.viewExpansionContext = new ViewExpansionContext(session.getCredentials().getUserName());
+    this.viewExpansionContext = new ViewExpansionContext(CatalogUser.from(session.getCredentials().getUserName()));
     this.config = config;
     this.scanResult = scanResult;
+    this.convertletTable = new ReflectionAllowedMonitoringConvertletTable(new ConvertletTable(
+      functionContext.getContextInformation(),
+      settings.getOptions().getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS)));
   }
 
   private SqlConverter(SqlConverter parent, DremioCatalogReader catalog) {
@@ -160,15 +167,17 @@ public class SqlConverter {
     this.materializations = parent.materializations;
     // Note: Do not use the parent SqlConverter's catalog's operator table to validate user-defined table functions.
     // They may be inaccessible and will cause validation errors before checking if the functions are valid within the local context.
-    this.validator = new SqlValidatorImpl(parent.flattenCounter, SqlOperatorTables.chain(opTab, catalog), catalog, typeFactory, DremioSqlConformance.INSTANCE);
+    this.validator = new SqlValidatorImpl(parent.flattenCounter, SqlOperatorTables.chain(opTab, catalog), catalog,
+      typeFactory, DremioSqlConformance.INSTANCE, settings.getOptions());
     validator.setIdentifierExpansion(true);
     this.viewExpansionContext = parent.viewExpansionContext;
     this.config = parent.config;
     this.scanResult = parent.scanResult;
     this.catalog = parent.catalog;
+    this.convertletTable = parent.convertletTable;
   }
 
-  public SqlConverter withSchemaPathAndUser(List<String> schemaPath, String user){
+  public SqlConverter withSchemaPathAndUser(List<String> schemaPath, CatalogIdentity user){
     return new SqlConverter(this,
       getCatalogReader()
         .withSchemaPathAndUser(schemaPath, user));
@@ -230,7 +239,20 @@ public class SqlConverter {
     return session;
   }
 
+  /**
+   * This performs a special pass over the SqlNode AST to resolve any versioned table references containing constant
+   * expressions to an equivalent form with those expressions resolved to a SqlLiteral.  This is necessary so that
+   * catalog lookups performed during validation can be provided with the resolved version context.
+   */
+  private void resolveVersionedTableExpressions(final SqlNode parsedNode) {
+    final SqlToRelConverter.Config config = SqlToRelConverter.configBuilder().build();
+    final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator, convertletTable, config);
+    VersionedTableExpressionResolver resolver = new VersionedTableExpressionResolver(validator, cluster.getRexBuilder());
+    resolver.resolve(sqlToRelConverter, parsedNode);
+  }
+
   public SqlNode validate(final SqlNode parsedNode) {
+    resolveVersionedTableExpressions(parsedNode);
     SqlNode node = validator.validate(parsedNode);
     catalogReader.validateSelection();
     return node;
@@ -295,7 +317,11 @@ public class SqlConverter {
   }
 
   public RelSerializerFactory getSerializerFactory() {
-    return RelSerializerFactory.getPlanningFactory(config, scanResult);
+    boolean isLegacy = settings != null && settings.getOptions() != null &&
+      settings.getOptions().getOption(PlannerSettings.LEGACY_SERIALIZER_ENABLED);
+    return isLegacy ?
+      RelSerializerFactory.getLegacyPlanningFactory(config, scanResult) :
+      RelSerializerFactory.getPlanningFactory(config, scanResult);
   }
 
   public RelSerializerFactory getLegacySerializerFactory() {
@@ -325,11 +351,6 @@ public class SqlConverter {
       .withConvertTableAccess(withConvertTableAccess && o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT))
       .withExpand(expand)
       .build();
-    final ReflectionAllowedMonitoringConvertletTable convertletTable =
-      new ReflectionAllowedMonitoringConvertletTable(
-        new ConvertletTable(
-          functionContext.getContextInformation(),
-          o.getOption(PlannerSettings.IEEE_754_DIVIDE_SEMANTICS)));
     final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator, convertletTable, config);
     final boolean isComplexTypeSupport = o.getOption(PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT);
     // Previously we had "top" = !innerQuery, but calcite only adds project if it is not a top query.

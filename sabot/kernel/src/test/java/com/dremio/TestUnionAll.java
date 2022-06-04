@@ -15,9 +15,12 @@
  */
 package com.dremio;
 
+import static org.junit.Assume.assumeFalse;
+
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -29,6 +32,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.FileUtils;
 import com.dremio.config.DremioConfig;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Lists;
 
@@ -39,11 +43,14 @@ public class TestUnionAll extends BaseTestQuery{
   private static final String sliceTargetDefault = "alter session reset \"planner.slice_target\"";
   private static final String enableDistribute = "alter session set \"planner.enable_unionall_distribute\" = true";
   private static final String defaultDistribute = "alter session reset \"planner.enable_unionall_distribute\"";
-  private static final String enableRoundRobinUnionAll = "alter session set \"planner.enable_union_all_round_robin\" = true";
-  private static final String disableRoundRobinUnionAll = "alter session set \"planner.enable_union_all_round_robin\" = false";
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
+
+  @BeforeClass
+  public static void ignoreIfUnlimitedSplits() {
+    assumeFalse(getSabotContext().getOptionManager().getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT));
+  }
 
   @Test  // Simple Union-All over two scans
   public void testUnionAll1() throws Exception {
@@ -1026,8 +1033,6 @@ public class TestUnionAll extends BaseTestQuery{
       test(sliceTargetSmall);
 
       testBuilder()
-        .optionSettingQueriesForTestQuery(enableRoundRobinUnionAll)
-        .optionSettingQueriesForBaseline(disableRoundRobinUnionAll)
         .unOrdered()
         .sqlQuery(query)
         .sqlBaselineQuery(query)
@@ -1036,7 +1041,6 @@ public class TestUnionAll extends BaseTestQuery{
     } finally {
       test(sliceTargetDefault);
       test(defaultDistribute);
-      test(enableRoundRobinUnionAll);
     }
   }
 
@@ -1071,8 +1075,6 @@ public class TestUnionAll extends BaseTestQuery{
       test(sliceTargetSmall);
 
       testBuilder()
-        .optionSettingQueriesForTestQuery(enableRoundRobinUnionAll)
-        .optionSettingQueriesForBaseline(disableRoundRobinUnionAll)
         .unOrdered()
         .sqlQuery(query)
         .sqlBaselineQuery(query)
@@ -1081,7 +1083,6 @@ public class TestUnionAll extends BaseTestQuery{
     } finally {
       test(sliceTargetDefault);
       test(defaultDistribute);
-      test(enableRoundRobinUnionAll);
     }
   }
 

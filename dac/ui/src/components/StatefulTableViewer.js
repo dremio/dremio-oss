@@ -32,7 +32,10 @@ export default class StatefulTableViewer extends Component {
       PropTypes.instanceOf(Immutable.List),
       PropTypes.array
     ]),
-    noDataText: PropTypes.string,
+    noDataText: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.node
+    ]),
     rowHeight: PropTypes.number,
     onClick: PropTypes.func,
     resizableColumn: PropTypes.bool,

@@ -17,12 +17,17 @@ package com.dremio.test;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Iterator;
 import java.util.List;
 
 import org.junit.Assert;
@@ -32,9 +37,18 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.google.common.base.Preconditions;
@@ -51,11 +65,12 @@ public final class GoldenFileTestBuilder<I, O> {
       new YAMLFactory()
           .disable(YAMLGenerator.Feature.SPLIT_LINES)
           .disable(YAMLGenerator.Feature.CANONICAL_OUTPUT)
-          .enable(YAMLGenerator.Feature.LITERAL_BLOCK_STYLE));
+          .enable(YAMLGenerator.Feature.INDENT_ARRAYS));
 
   private final ThrowingFunction<I, O> executeTestFunction;
   private final List<DescriptionAndInput<I>> descriptionAndInputs;
-  boolean allowExceptions = false;
+  boolean allowExceptions;
+  boolean showFullStackTrace;
 
   public GoldenFileTestBuilder(ThrowingFunction<I, O> executeTestFunction) {
     this.executeTestFunction = executeTestFunction;
@@ -63,7 +78,12 @@ public final class GoldenFileTestBuilder<I, O> {
   }
 
   public GoldenFileTestBuilder<I, O> allowExceptions() {
-    allowExceptions = true;
+    this.allowExceptions = true;
+    return this;
+  }
+
+  public GoldenFileTestBuilder<I, O> showFullStackTrace() {
+    this.showFullStackTrace = true;
     return this;
   }
 
@@ -85,10 +105,12 @@ public final class GoldenFileTestBuilder<I, O> {
               descriptionAndInput.input,
               this.executeTestFunction.apply(descriptionAndInput.input));
         } catch (Exception ex) {
-          if (allowExceptions) {
+          if (this.allowExceptions) {
             inputAndOutput = InputAndOutput.createFailure(
                 descriptionAndInput.description,
-                descriptionAndInput.input, ex);
+                descriptionAndInput.input,
+                ex,
+                this.showFullStackTrace);
           } else {
             throw new RuntimeException(ex);
           }
@@ -195,29 +217,38 @@ public final class GoldenFileTestBuilder<I, O> {
   }
 
   private static <I, O> void assertGoldenFilesAreEqual(
-      String fileName,
-      List<InputAndOutput<I, O>> actualInputAndOutputList,
-      List<InputAndOutput<I, O>> expectedInputAndOutputList) throws JsonProcessingException {
-    Assert.assertEquals(messageToFix(fileName), expectedInputAndOutputList.size(), actualInputAndOutputList.size());
+    String fileName,
+    List<InputAndOutput<I, O>> expectedInputAndOutputList,
+    List<InputAndOutput<I, O>> actualInputAndOutputList) throws JsonProcessingException {
+    String messageToFix = messageToFix(fileName);
+    Assert.assertEquals(messageToFix, expectedInputAndOutputList.size(), actualInputAndOutputList.size());
 
     for (int i = 0; i < expectedInputAndOutputList.size(); i++) {
       InputAndOutput expectedInputAndOutput = expectedInputAndOutputList.get(i);
       InputAndOutput actualInputAndOutput = actualInputAndOutputList.get(i);
 
-      Assert.assertEquals("Descriptions differ,\n" + messageToFix(fileName),
-          expectedInputAndOutput.description, actualInputAndOutput.description);
+      Assert.assertEquals(
+        "Descriptions differ,\n" + messageToFix,
+        expectedInputAndOutput.description,
+        actualInputAndOutput.description);
       String expectedInputString = objectMapper.writeValueAsString(expectedInputAndOutput.input);
       String actualInputString = objectMapper.writeValueAsString(actualInputAndOutput.input);
-      Assert.assertEquals("Inputs for baseline differ,\n" + messageToFix(fileName),
-          expectedInputString, actualInputString);
+      Assert.assertEquals(
+        "Inputs for baseline differ,\n" + messageToFix,
+        expectedInputString,
+        actualInputString);
 
       String expectedOutputString = objectMapper.writeValueAsString(expectedInputAndOutput.output);
       String actualOutputString = objectMapper.writeValueAsString(actualInputAndOutput.output);
-      Assert.assertEquals("Outputs for baselines differ,\n" + messageToFix(fileName),
-          expectedOutputString, actualOutputString);
+      Assert.assertEquals(
+        "Outputs for baselines differ,\n" + messageToFix + " with input " + expectedInputString,
+        expectedOutputString,
+        actualOutputString);
 
-      Assert.assertEquals("Exceptions for baselines differ,\n" + messageToFix(fileName),
-          expectedInputAndOutput.exceptionMessage, actualInputAndOutput.exceptionMessage);
+      Assert.assertEquals(
+        "Exceptions for baselines differ,\n" + messageToFix+ " with input " + expectedInputString,
+        expectedInputAndOutput.exceptionMessage,
+        actualInputAndOutput.exceptionMessage);
     }
   }
 
@@ -239,7 +270,7 @@ public final class GoldenFileTestBuilder<I, O> {
     }
   }
 
-  private static final class InputAndOutput<I, O> {
+  public static final class InputAndOutput<I, O> {
     public final String description;
     public final I input;
 
@@ -265,13 +296,183 @@ public final class GoldenFileTestBuilder<I, O> {
       return new InputAndOutput(description, input, output, null);
     }
 
-    public static <I, O> InputAndOutput createFailure(String description, I input, Exception exception) {
-      String exceptionMessage = exception.getMessage();
+    public static <I, O> InputAndOutput createFailure(String description, I input, Exception exception, boolean showFullStackTrace) {
+      String exceptionMessage;
+      if (showFullStackTrace) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        exception.printStackTrace(pw);
+
+        exceptionMessage = sw.toString().replace("\t", "");
+      } else {
+        exceptionMessage = exception.getMessage();
+
+      }
+
       if(exceptionMessage == null) {
         exceptionMessage = exception.toString();
       }
 
       return new InputAndOutput(description, input, null, exceptionMessage);
+    }
+  }
+
+  /**
+   * Serializes a byte array as a base64 string.
+   */
+  @JsonSerialize(using = Base64StringSerializer.class)
+  @JsonDeserialize(using = Base64StringDeserializer.class)
+  public static final class Base64String {
+    private final byte[] bytes;
+
+    private Base64String(byte[] bytes) {
+      Preconditions.checkNotNull(bytes);
+      this.bytes = bytes;
+    }
+
+    public byte[] getBytes() {
+      return this.bytes;
+    }
+
+    public static Base64String create(byte[] bytes) {
+      return new Base64String(bytes);
+    }
+  }
+
+  private static final class Base64StringSerializer extends StdSerializer<Base64String> {
+    public Base64StringSerializer() {
+      this(null);
+    }
+
+    public Base64StringSerializer(Class<Base64String> t) {
+      super(t);
+    }
+
+    @Override
+    public void serialize(
+      Base64String value, JsonGenerator jgen, SerializerProvider provider)
+      throws IOException {
+      jgen.writeString(Base64.getEncoder().encodeToString(value.bytes));
+    }
+  }
+
+  private static final class Base64StringDeserializer extends StdDeserializer<Base64String> {
+    public Base64StringDeserializer() {
+      this(null);
+    }
+
+    public Base64StringDeserializer(Class<?> vc) {
+      super(vc);
+    }
+
+    @Override
+    public Base64String deserialize(JsonParser jp, DeserializationContext ctxt)
+      throws IOException {
+      JsonNode node = jp.getCodec().readTree(jp);
+
+      assert node.isTextual();
+      byte[] bytes = Base64.getDecoder().decode(node.asText());
+      return new Base64String(bytes);
+    }
+  }
+
+  /**
+   * Serializes a string with newlines as a array of strings (1 for each line),
+   * So that the yaml serializer is forced to display the results correctly
+   */
+  @JsonSerialize(using = MultiLineStringSerializer.class)
+  @JsonDeserialize(using = MultiLineStringDeserializer.class)
+  public static final class MultiLineString {
+    public final String[] lines;
+
+    public MultiLineString(String[] lines) {
+      Preconditions.checkNotNull(lines);
+      Preconditions.checkArgument(lines.length != 0);
+      this.lines = lines;
+    }
+
+    public static MultiLineString create(String value) {
+      Preconditions.checkNotNull(value);
+      return new MultiLineString(value.split("\\R"));
+    }
+
+    @Override
+    public String toString() {
+      return String.join("\n", this.lines);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      MultiLineString that = (MultiLineString) o;
+      return Arrays.equals(lines, that.lines);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(lines);
+    }
+  }
+
+  private static final class MultiLineStringSerializer extends StdSerializer<MultiLineString> {
+    public MultiLineStringSerializer() {
+      this(null);
+    }
+
+    public MultiLineStringSerializer(Class<MultiLineString> t) {
+      super(t);
+    }
+
+    @Override
+    public void serialize(
+      MultiLineString value, JsonGenerator jgen, SerializerProvider provider)
+      throws IOException {
+      if (value.lines.length == 1) {
+        jgen.writeString(value.lines[0]);
+      } else {
+        jgen.writeArray(value.lines, 0, value.lines.length);
+      }
+    }
+  }
+
+  private static final class MultiLineStringDeserializer extends StdDeserializer<MultiLineString> {
+    public MultiLineStringDeserializer() {
+      this(null);
+    }
+
+    public MultiLineStringDeserializer(Class<?> vc) {
+      super(vc);
+    }
+
+    @Override
+    public MultiLineString deserialize(JsonParser jp, DeserializationContext ctxt)
+      throws IOException {
+      JsonNode node = jp.getCodec().readTree(jp);
+
+      MultiLineString multiLineString;
+      if (node.isTextual()) {
+        multiLineString =  MultiLineString.create(node.asText());
+      } else if (node.isArray()) {
+        List<String> lines = new ArrayList<>();
+        Iterator<JsonNode> iterator = node.iterator();
+        while(iterator.hasNext()) {
+          JsonNode element = iterator.next();
+          lines.add(element.asText());
+        }
+
+        multiLineString = new MultiLineString(lines.stream().toArray(String[]::new));
+      } else {
+        throw new RuntimeException("Unexpected type: " + node.getNodeType());
+      }
+
+      return multiLineString;
     }
   }
 }

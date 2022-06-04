@@ -15,10 +15,14 @@
  */
 package com.dremio.dac.cmd;
 
+import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import javax.inject.Provider;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -26,8 +30,10 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
+import com.dremio.dac.proto.model.dataset.VirtualDatasetVersion;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
+import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -35,16 +41,18 @@ import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.options.OptionManager;
+import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
+import com.dremio.service.jobs.ExternalCleaner;
 import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.LocalJobsService.JobsStoreCreator;
-import com.dremio.service.jobs.LocalJobsService.ProfileCleanup;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore.KVProfileStoreCreator;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
-
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Backup command line.
@@ -75,6 +83,10 @@ public class Clean {
     @Parameter(names= {"-c", "--compact"}, description="compact kvstore", required=false)
     private boolean compactKvStore = false;
 
+    @Parameter(names = {"-d", "--delete-orphan-datasetversions"}, description = "delete dataset versions older than " +
+      "the provided number of days", required = false, validateWith = PositiveInteger.class)
+    private int datasetVersionsThresholdDays = Integer.MAX_VALUE;
+
     /**
      * Validates that value passed for --max-job-days(-j)
      * is positive
@@ -100,7 +112,11 @@ public class Clean {
     }
 
     public boolean hasActiveOperation() {
-      return maxJobDays != Integer.MAX_VALUE || deleteOrphans || reindexData || compactKvStore;
+      return maxJobDays != Integer.MAX_VALUE
+        || datasetVersionsThresholdDays != Integer.MAX_VALUE
+        || deleteOrphans
+        || reindexData
+        || compactKvStore;
     }
 
     public boolean isHelp() {
@@ -121,7 +137,11 @@ public class Clean {
 
     public boolean isCompactKvStore() {
       return compactKvStore;
-    }
+   }
+
+   public int getDatasetVersionsThresholdDays() {
+      return datasetVersionsThresholdDays;
+   }
 
     public static Options parse(String[] cliArgs) {
       Options args = new Options();
@@ -168,8 +188,15 @@ public class Clean {
       return;
     }
 
+
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
+
+      Optional<Provider<OptionManager>> optionManagerProvider = CmdUtils.getOptionManager(provider, dacConfig.getConfig());
+      if (!optionManagerProvider.isPresent()) {
+        AdminLogger.log("No Option Manager configured.");
+        return;
+      }
 
       if (provider.getStores().size() == 0) {
         AdminLogger.log("No store stats available");
@@ -196,6 +223,11 @@ public class Clean {
 
       if (options.deleteOrphanProfiles) {
         deleteOrphanProfiles(provider.asLegacy());
+      }
+
+      if (options.datasetVersionsThresholdDays < Integer.MAX_VALUE) {
+        deleteOrphanDatasetVersions(optionManagerProvider.get(), provider.asLegacy(),
+          options.datasetVersionsThresholdDays);
       }
 
       if(options.reindexData) {
@@ -230,27 +262,70 @@ public class Clean {
   /**
    * Offline profile deletion using LocalProfileStore.
    */
-  private static class OfflineProfileCleanup implements ProfileCleanup {
+  static class OfflineProfileCleaner extends ExternalCleaner {
     private final LegacyKVStoreProvider provider;
 
-    public OfflineProfileCleanup(LegacyKVStoreProvider provider) {
+    public OfflineProfileCleaner(LegacyKVStoreProvider provider) {
       this.provider = provider;
     }
 
     @Override
-    public void go(AttemptId attemptId) {
-      LocalProfileStore.deleteOldProfile(provider, attemptId);
+    public void doGo(JobAttempt jobAttempt) {
+      LocalProfileStore.deleteOldProfile(provider, AttemptIdUtils.fromString(jobAttempt.getAttemptId()));
     }
+
+  }
+
+  static class OfflineTmpDatasetVersionsCleaner extends ExternalCleaner {
+    private static final String TMP_PATH = "tmp";
+    private static final String UNTITLED_PATH = "UNTITLED";
+    @SuppressWarnings("deprecation")
+    private final LegacyKVStoreProvider provider;
+
+    @SuppressWarnings("deprecation")
+    OfflineTmpDatasetVersionsCleaner(LegacyKVStoreProvider provider) {
+      this.provider = provider;
+    }
+
+    @Override
+    public void doGo(JobAttempt jobAttempt) {
+      if (jobAttempt == null
+        || jobAttempt.getInfo() == null
+        || jobAttempt.getInfo().getDatasetPathList() == null || jobAttempt.getInfo().getDatasetPathList().isEmpty()
+        || jobAttempt.getInfo().getDatasetVersion() == null || jobAttempt.getInfo().getDatasetVersion().isEmpty()) {
+        return;
+      }
+      final List<String> path = new LinkedList<>(jobAttempt.getInfo().getDatasetPathList());
+      if (isTmpDatasetVersion(path)) {
+        final String version = jobAttempt.getInfo().getDatasetVersion();
+        DatasetVersionMutator.deleteDatasetVersion(provider, path, version);
+      }
+    }
+
+    private boolean isTmpDatasetVersion(List<String> path) {
+      return path != null
+        && path.size() == 2
+        && TMP_PATH.equals(path.get(0))
+        && UNTITLED_PATH.equals(path.get(1));
+    }
+
   }
 
   /**
    * Method to delete jobs and their corresponding profiles older than provided number of maxDays.
    */
   private static void deleteOldJobsAndProfiles(LegacyKVStoreProvider provider, int maxDays) {
-    AdminLogger.log("Deleting jobs details & profiles older {} days... ", maxDays);
-    OfflineProfileCleanup offlineProfileCleanup = new OfflineProfileCleanup(provider);
-    List<Long> result = LocalJobsService.deleteOldJobsAndProfiles(offlineProfileCleanup, provider, TimeUnit.DAYS.toMillis(maxDays));
-    AdminLogger.log("Completed. Deleted {} jobs and {} profiles. Delete profile failures: [{}].", result.get(0), result.get(1), result.get(2));
+    AdminLogger.log("Deleting jobs details, profiles & dataset versions older {} days... ", maxDays);
+    AdminLogger.log(deleteOldJobsAndProfiles(provider, maxDays, TimeUnit.DAYS));
+  }
+
+  @VisibleForTesting
+  protected static String deleteOldJobsAndProfiles(LegacyKVStoreProvider provider, long time, TimeUnit timeUnit) {
+    final List<ExternalCleaner> externalCleaners = Arrays.asList(
+      new OfflineProfileCleaner(provider),
+      new OfflineTmpDatasetVersionsCleaner(provider)
+    );
+    return LocalJobsService.deleteOldJobsAndDependencies(externalCleaners, provider, timeUnit.toMillis(time));
   }
 
   /**
@@ -302,6 +377,16 @@ public class Clean {
       s.getStore().getAdmin().compactKeyValues();
       AdminLogger.log("Completed.");
     }
+  }
+
+  private static void deleteOrphanDatasetVersions(Provider<OptionManager> optionManagerProvider,
+    LegacyKVStoreProvider provider, int daysThreshold) {
+    final LegacyKVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion> datasetStore =
+      provider.getStore(DatasetVersionMutator.VersionStoreCreator.class);
+
+    AdminLogger.log("Deleting dataset versions orphans...");
+    long deleted = DatasetVersionMutator.deleteOrphans(optionManagerProvider, datasetStore, daysThreshold);
+    AdminLogger.log("Completed. Deleted {} orphan dataset versions.", deleted);
   }
 
 }

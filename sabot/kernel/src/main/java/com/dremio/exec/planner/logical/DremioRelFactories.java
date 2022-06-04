@@ -247,7 +247,8 @@ public class DremioRelFactories {
                               List<RelHint> hints,
                               RexNode condition,
                               Set<CorrelationId> variablesSet,
-                              JoinRelType joinType, boolean semiJoinDone) {
+                              JoinRelType joinType,
+                              boolean semiJoinDone) {
       return JoinRel.create(left.getCluster(), left.getTraitSet(), left, right, condition, joinType);
     }
   }
@@ -262,7 +263,8 @@ public class DremioRelFactories {
                               List<RelHint> hints,
                               RexNode condition,
                               Set<CorrelationId> variablesSet,
-                              JoinRelType joinType, boolean semiJoinDone) {
+                              JoinRelType joinType,
+                              boolean semiJoinDone) {
       return JoinRel.create(
           left.getCluster(),
           left.getTraitSet().plus(Rel.LOGICAL),

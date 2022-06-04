@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
@@ -224,7 +225,7 @@ public class DatasetCatalogRequestBuilder {
             .setBatchSchema(ByteString.copyFrom(batchSchema.serialize()));
   }
 
-  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId, Configuration conf, boolean isPartitioned, Map<Integer, PartitionSpec> partitionSpecMap) {
+  public void setIcebergMetadata(String rootPointer, String tableUuid, long snapshotId, Configuration conf, boolean isPartitioned, Map<Integer, PartitionSpec> partitionSpecMap, MutablePlugin plugin) {
     Preconditions.checkState(request != null, "Unexpected state");
     Preconditions.checkState(request.getDatasetConfigBuilder().getIcebergMetadataEnabled(), "Unexpected state");
     byte[] specs = IcebergSerDe.serializePartitionSpecMap(partitionSpecMap);
@@ -234,7 +235,7 @@ public class DatasetCatalogRequestBuilder {
             .setSnapshotId(snapshotId)
             .setPartitionSpecs(ByteString.copyFrom(specs));
     if (isPartitioned) {
-      String partitionStatsFile = IcebergUtils.getPartitionStatsFile(rootPointer, snapshotId, conf);
+      String partitionStatsFile = IcebergUtils.getPartitionStatsFile(rootPointer, snapshotId, conf, plugin);
       if (partitionStatsFile != null) {
         metadataBuilder.setPartitionStatsFile(partitionStatsFile);
       }

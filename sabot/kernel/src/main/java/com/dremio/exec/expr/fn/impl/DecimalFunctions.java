@@ -925,8 +925,8 @@ public class DecimalFunctions {
       java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in2.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), in2.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
 
       org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.ADD,
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(in1.precision, in1.scale),
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(in2.precision, in2.scale));
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(in1.precision, in1.scale, 128),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(in2.precision, in2.scale, 128));
       out.precision = resultTypeForOperation.getPrecision();
       out.scale = resultTypeForOperation.getScale();
 
@@ -970,8 +970,8 @@ public class DecimalFunctions {
       java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), rightHolder.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
 
       org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.SUBTRACT,
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale),
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale));
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale, 128),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale, 128));
       resultHolder.precision = resultTypeForOperation.getPrecision();
       resultHolder.scale = resultTypeForOperation.getScale();
 
@@ -1014,8 +1014,8 @@ public class DecimalFunctions {
       java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), rightHolder.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
 
       org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.MULTIPLY,
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale),
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale));
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale, 128),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale, 128));
       resultHolder.precision = resultTypeForOperation.getPrecision();
       resultHolder.scale = resultTypeForOperation.getScale();
 
@@ -1060,8 +1060,8 @@ public class DecimalFunctions {
       java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), rightHolder.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
 
       org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.DIVIDE,
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale),
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale));
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale, 128),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale, 128));
       resultHolder.precision = resultTypeForOperation.getPrecision();
       resultHolder.scale = resultTypeForOperation.getScale();
 
@@ -1118,8 +1118,8 @@ public class DecimalFunctions {
       java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, org.apache.arrow.memory.util.LargeMemoryUtil.capAtMaxInt(index), rightHolder.scale, org.apache.arrow.vector.DecimalVector.TYPE_WIDTH);
 
       org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.MOD,
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale),
-        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale));
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale, 128),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale, 128));
       resultHolder.precision = resultTypeForOperation.getPrecision();
       resultHolder.scale = resultTypeForOperation.getScale();
 

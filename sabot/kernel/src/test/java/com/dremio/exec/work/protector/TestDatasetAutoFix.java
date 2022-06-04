@@ -15,13 +15,14 @@
  */
 package com.dremio.exec.work.protector;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
@@ -34,9 +35,6 @@ import com.google.common.io.Files;
  * Make sure auto fix works.
  */
 public class TestDatasetAutoFix extends BaseTestQuery {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -133,8 +131,8 @@ public class TestDatasetAutoFix extends BaseTestQuery {
           File f2 = new File(folder, "file2.json");
           Files.write("{b:3, c:4}", f2, StandardCharsets.UTF_8);
 
-          thrown.expectMessage("Error while expanding view");
-          testNoResult("select * from dfs_test.view2_%s order by a", tableName);
+          assertThatThrownBy(() -> testNoResult("select * from dfs_test.view2_%s order by a", tableName))
+            .hasMessageContaining("Error while expanding view");
         });
   }
 

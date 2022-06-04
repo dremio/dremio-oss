@@ -15,11 +15,11 @@
  */
 package com.dremio.config;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.test.TemporarySystemProperties;
 
@@ -30,9 +30,6 @@ public class TestDremioConfig {
 
   @Rule
   public final TemporarySystemProperties properties = new TemporarySystemProperties();
-
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
 
   @Test
   public void initialize() {
@@ -105,10 +102,9 @@ public class TestDremioConfig {
 
   @Test
   public void badProperty() {
-    exception.expect(RuntimeException.class);
-    exception.expectMessage("mistyped-property");
-    @SuppressWarnings("unused")
-    DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio2.conf"));
+    assertThatThrownBy(() -> DremioConfig.create(getClass().getResource("/test-dremio2.conf")))
+      .isInstanceOf(RuntimeException.class)
+      .hasMessageContaining("mistyped-property");
   }
 
   @Test

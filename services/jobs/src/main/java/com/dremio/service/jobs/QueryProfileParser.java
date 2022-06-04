@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections.IteratorUtils;
 
@@ -511,6 +512,7 @@ class QueryProfileParser {
           }
         } // end of for loop for operator profiles
       } // end of for loop for minor fragments
+      setJobPhasesData(majorFragment);
     } // end of for loop for major fragments
 
     // finalize output stats
@@ -560,6 +562,26 @@ class QueryProfileParser {
       }
     });
     jobDetails.setTopOperationsList(topOperations);
+  }
+
+  private void setJobPhasesData(MajorFragmentProfile majorFragment) {
+    Long totalMemory = 0L;
+
+    if(jobDetails.getTotalMemory() != null) {
+      if (jobDetails.getTotalMemory() > 0) {
+        totalMemory = jobDetails.getTotalMemory();
+      }
+    }
+    totalMemory += majorFragment.getNodePhaseProfileList().stream().collect(Collectors.summarizingLong(memory -> memory.getMaxMemoryUsed())).getSum();
+    Long peakMemory = majorFragment.getNodePhaseProfileList().stream().collect(Collectors.summarizingLong(memory -> memory.getMaxMemoryUsed())).getMax();
+    if(jobDetails.getPeakMemory() != null){
+      if(jobDetails.getPeakMemory() > peakMemory){
+        peakMemory = jobDetails.getPeakMemory();
+      }
+    }
+    jobDetails.setPeakMemory(peakMemory);
+    jobDetails.setTotalMemory(totalMemory);
+    jobDetails.setCpuUsed(topOperationsMap.values().stream().mapToLong(value -> value).sum());
   }
 
   private boolean isArrowWriterOutputLimited(OperatorProfile operatorProfile) {

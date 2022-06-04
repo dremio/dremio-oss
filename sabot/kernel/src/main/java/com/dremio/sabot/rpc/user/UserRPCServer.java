@@ -227,8 +227,18 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     };
 
     span.setTag("rpc_type", RpcType.valueOf(rpcType).toString());
+    feedWork(connection, rpcType, pBody, dBody, requestHandle, span, wrappedSender);
+  }
+
+  protected void feedWork(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,
+                        RequestHandle requestHandle, Span span, ResponseSender wrappedSender) throws RpcException {
+    feedWorkHelper(connection, rpcType, pBody, dBody, requestHandle, span, wrappedSender);
+  }
+
+  protected void feedWorkHelper(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,
+                              RequestHandle requestHandle, Span span, ResponseSender wrappedSender) throws RpcException {
     // If there's an error parsing the request, the failure will not be sent through the response sender.
-    try (Scope scope = tracer.activateSpan(span)){
+    try (Scope scope = tracer.activateSpan(span)) {
       workIngestor.feedWork(connection, rpcType, pBody, dBody, wrappedSender);
     } catch (RpcException e) {
       requestHandle.close();
@@ -804,5 +814,9 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   interface RequestHandle extends AutoCloseable {
     @Override
     void close();
+  }
+
+  protected Provider<UserService> getUserServiceProvider() {
+    return userServiceProvider;
   }
 }

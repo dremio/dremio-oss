@@ -53,10 +53,14 @@ public class UnorderedReceiverOperator implements ProducerOperator {
   }
 
   public UnorderedReceiverOperator(final BatchStreamProvider streams, final OperatorContext context, final UnorderedReceiver config) {
-    final RawFragmentBatchProvider[] buffers = streams.getBuffers(config.getSenderMajorFragmentId());
-    Preconditions.checkArgument(buffers.length == 1);
+    if (config.getNumSenders() > 0) {
+      final RawFragmentBatchProvider[] buffers = streams.getBuffers(config.getSenderMajorFragmentId());
+      Preconditions.checkArgument(buffers.length == 1);
+      this.fragProvider = buffers[0];
+    } else {
+      this.fragProvider = null;
+    }
     this.streams = streams;
-    this.fragProvider = buffers[0];
     this.context = context;
     this.config = config;
     this.stats = context.getStats();
@@ -76,7 +80,11 @@ public class UnorderedReceiverOperator implements ProducerOperator {
   @Override
   public VectorAccessible setup() throws Exception {
     state.is(State.NEEDS_SETUP);
-    state = State.CAN_PRODUCE;
+    if (config.getNumSenders() == 0) {
+      state = State.DONE;
+    } else {
+      state = State.CAN_PRODUCE;
+    }
     return outgoing;
   }
 

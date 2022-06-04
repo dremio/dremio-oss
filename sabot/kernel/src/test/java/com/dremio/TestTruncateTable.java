@@ -15,12 +15,12 @@
  */
 package com.dremio;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.io.File;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 
@@ -28,23 +28,22 @@ public class TestTruncateTable extends PlanTestBase {
 
   protected static final String TEMP_SCHEMA = "dfs_test";
 
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
-
   @Test
-  public void truncateInvalidSQL() throws Exception {
+  public void truncateInvalidSQL() {
     String truncSql = "TRUNCATE";
-    expectedEx.expect(UserException.class);
-    expectedEx.expectMessage("PARSE ERROR: Failure parsing the query.");
-    test(truncSql);
+    assertThatThrownBy(() -> test(truncSql))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("PARSE ERROR: Failure parsing the query.");
   }
 
   @Test
   public void icebergNotEnabledShouldThrowError() throws Exception {
     String truncSql = "TRUNCATE TABLE truncTable7";
-    expectedEx.expect(UserException.class);
-    expectedEx.expectMessage("Please contact customer support for steps to enable the iceberg tables feature.");
-    test(truncSql);
+    try (AutoCloseable c = disableIcebergFlag()) {
+      assertThatThrownBy(() -> test(truncSql))
+        .isInstanceOf(UserException.class)
+        .hasMessageContaining("Please contact customer support for steps to enable the iceberg tables feature.");
+    }
   }
 
   @Test
@@ -52,9 +51,9 @@ public class TestTruncateTable extends PlanTestBase {
     for (String testSchema: SCHEMAS_FOR_TEST) {
       String truncSql = "TRUNCATE TABLE " + testSchema + ".truncTable6";
       try (AutoCloseable c = enableIcebergTables()) {
-        expectedEx.expect(UserException.class);
-        expectedEx.expectMessage("Table [" + testSchema + ".truncTable6] not found");
-        test(truncSql);
+        assertThatThrownBy(() -> test(truncSql))
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Table [" + testSchema + ".truncTable6] not found");
       }
     }
   }
@@ -82,11 +81,11 @@ public class TestTruncateTable extends PlanTestBase {
       test(ctas);
       String truncSql = "TRUNCATE TABLE " + testSchema + ".truncTable5";
       try (AutoCloseable c = enableIcebergTables()) {
-        expectedEx.expect(UserException.class);
-        expectedEx.expectMessage("Table [" + testSchema + ".truncTable5] is not configured to support DML operations");
-        test(truncSql);
+        assertThatThrownBy(() -> test(truncSql))
+          .isInstanceOf(UserException.class)
+          .hasMessageContaining("Table [" + testSchema + ".truncTable5] is not configured to support DML operations");
       } finally {
-        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), "ctasTable1"));
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), "truncTable5"));
       }
     }
   }

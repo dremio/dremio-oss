@@ -57,7 +57,7 @@ public class TestAggregateFunctionsQuery extends JdbcTestQueryBase {
     //String t = new Date(1998, 1, 1).toString();
     //String t1 = new Date(1993, 5, 1).toString();
 
-    String result = String.format("MAX_DATE="+ t + "; " + "MIN_DATE=" + t1 + "\n");
+    String result = "MAX_DATE=" + t + "; " + "MIN_DATE=" + t1 + "\n";
 
     JdbcAssert.withFull(sabotNode.getJDBCConnectionString(), "cp")
         .sql(query)

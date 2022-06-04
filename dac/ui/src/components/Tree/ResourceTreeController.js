@@ -20,24 +20,39 @@ import Immutable from 'immutable';
 
 import { loadResourceTree } from 'actions/resources/tree';
 import { getResourceTree } from 'selectors/tree';
+import { fetchScripts } from 'actions/resources/scripts';
 
 import { constructFullPath, splitFullPath } from 'utils/pathUtils';
 
+import { getSortedSources } from '@app/selectors/home';
+import { getRefQueryParams } from '@app/utils/nessieUtils';
 import ResourceTree from './ResourceTree';
 
 export class ResourceTreeController extends PureComponent {
   static propTypes = {
     resourceTree: PropTypes.instanceOf(Immutable.List),
+    sources: PropTypes.instanceOf(Immutable.List), //Loaded from parent
     isDatasetsDisabled: PropTypes.bool,
     hideDatasets: PropTypes.bool,
     hideSpaces: PropTypes.bool,
     hideSources: PropTypes.bool,
     hideHomes: PropTypes.bool,
-    loadResourceTree: PropTypes.func,
+    loadResourceTree: PropTypes.func.isRequired,
     onChange: PropTypes.func,
+    insertFullPathAtCursor: PropTypes.func,
+    sidebarCollapsed: PropTypes.bool,
+    isCollapsable: PropTypes.bool,
+    handleSidebarCollapse: PropTypes.func,
     preselectedNodeId: PropTypes.string,
     dragType: PropTypes.string,
-    style: PropTypes.object
+    style: PropTypes.object,
+    browser: PropTypes.bool,
+    isExpandable: PropTypes.bool,
+    shouldShowOverlay: PropTypes.bool,
+    shouldAllowAdd: PropTypes.bool,
+    isSqlEditorTab: PropTypes.bool,
+    fetchScripts: PropTypes.func,
+    nessie: PropTypes.object
   };
 
   static formatIdFromNode = (node) => constructFullPath(node.get('fullPath'), false)
@@ -53,6 +68,11 @@ export class ResourceTreeController extends PureComponent {
 
   componentWillMount() {
     const { selectedNodeId } = this.state;
+    const { isSqlEditorTab } = this.props;
+
+    if (isSqlEditorTab && this.props.fetchScripts) {
+      this.props.fetchScripts();
+    }
 
     if (selectedNodeId && selectedNodeId !== 'tmp') {
       this.loadResourceTree(selectedNodeId, true).then((res) => {
@@ -71,12 +91,25 @@ export class ResourceTreeController extends PureComponent {
     }
   }
 
+  componentDidUpdate(prevProps) {
+    const { isSqlEditorTab } = this.props;
+    if (isSqlEditorTab && !prevProps.isSqlEditorTab) {
+      this.props.fetchScripts();
+    }
+
+    if (prevProps.nessie !== this.props.nessie) { //Collapse nodes when nessie state is changed
+      this.setState({ expandedNodes: Immutable.List() }); //eslint-disable-line
+    }
+  }
+
   loadResourceTree = (path = '', isExpand) => {
     const showDatasets = !this.props.hideDatasets;
     const showSpaces = !this.props.hideSpaces;
     const showSources = !this.props.hideSources;
     const showHomes = !this.props.hideHomes;
-    return this.props.loadResourceTree(path, { showDatasets, showSpaces, showSources, showHomes, isExpand });
+    const [sourceName] = path.split('.');
+    const params = getRefQueryParams(this.props.nessie, sourceName.replace(/"/g, ''));
+    return this.props.loadResourceTree(path, { showDatasets, showSpaces, showSources, showHomes, isExpand, params });
   }
 
   handleSelectedNodeChange = (selectedNodeId, node) => {
@@ -122,9 +155,10 @@ export class ResourceTreeController extends PureComponent {
       };
       findOpenChildren(clickedNode);
     } else {
-      this.loadResourceTree(selectedNodeId);
       nodeIdsToOpen.add(selectedNodeId);
     }
+
+    this.loadResourceTree(selectedNodeId);
 
     this.setState((state) => ({
       selectedNodeId,
@@ -138,21 +172,34 @@ export class ResourceTreeController extends PureComponent {
         isDatasetsDisabled={this.props.isDatasetsDisabled}
         style={this.props.style}
         resourceTree={this.props.resourceTree}
+        sources={this.props.sources}
         selectedNodeId={this.state.selectedNodeId}
         dragType={this.props.dragType}
         formatIdFromNode={ResourceTreeController.formatIdFromNode}
         isNodeExpanded={this.isNodeExpanded}
         handleSelectedNodeChange={this.handleSelectedNodeChange}
         handleNodeClick={this.handleNodeClick}
+        browser={this.props.browser}
+        isExpandable={this.props.isExpandable}
+        shouldShowOverlay={this.props.shouldShowOverlay}
+        shouldAllowAdd={this.props.shouldAllowAdd}
+        insertFullPathAtCursor={this.props.insertFullPathAtCursor}
+        isSqlEditorTab={this.props.isSqlEditorTab}
+        sidebarCollapsed={this.props.sidebarCollapsed}
+        handleSidebarCollapse={this.props.handleSidebarCollapse}
+        isCollapsable={this.props.isCollapsable}
       />
     );
   }
 }
 
 const mapStateToProps = (state) => ({
-  resourceTree: getResourceTree(state)
+  resourceTree: getResourceTree(state),
+  sources: getSortedSources(state),
+  nessie: state.nessie
 });
 
 export default connect(mapStateToProps, {
+  fetchScripts,
   loadResourceTree
 })(ResourceTreeController);

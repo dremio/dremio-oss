@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.util.Preconditions;
@@ -82,8 +81,7 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
   private final OperatorContext context;
   private final BatchSchema outputSchema;
   private final List<String> partitionCols;
-  private final List<Field> partitionFields;
-  private final Map<String, Integer> partColToKeyMap;
+  private final Map<String, Field> nameToFieldMap;
   private final BlockBasedSplitGenerator splitGenerator;
   private final HashMap<Field, ValueVector> valueVectorMap = new HashMap<>();
   private final Set<String> invalidColumnsForPruning;
@@ -101,6 +99,7 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
   private PartitionProtobuf.NormalizedPartitionInfo dataFilePartitionInfo;
   private ArrowBuf tmpBuf; // used for writing split path to vector
   private Map<Integer, PartitionSpec> partitionSpecMap = null;
+  private Map<String, Integer> partColToKeyMap;
 
   public SplitGeneratingDatafileProcessor(OperatorContext context, SupportsInternalIcebergTable plugin, OpProps props, TableFunctionContext functionContext) {
     this.context = context;
@@ -110,13 +109,9 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     splitGenerator = new BlockBasedSplitGenerator(context, plugin, functionContext.getPluginId(), props, this.extendedProperty, functionContext.getInternalTablePluginId() != null);
     partitionCols = functionContext.getPartitionColumns();
     outputSchema = functionContext.getFullSchema();
-    partColToKeyMap = partitionCols != null ? IntStream.range(0, partitionCols.size())
-      .boxed()
-      .collect(Collectors.toMap(i -> partitionCols.get(i).toLowerCase(), i -> i)) : null;
 
     BatchSchema tableSchema = functionContext.getTableSchema();
-    Map<String, Field> nameToFieldMap = tableSchema.getFields().stream().collect(Collectors.toMap(f -> f.getName().toLowerCase(), f -> f));
-    partitionFields = partitionCols != null ? partitionCols.stream().map(c -> nameToFieldMap.get(c.toLowerCase())).collect(Collectors.toList()) : null;
+    nameToFieldMap = tableSchema.getFields().stream().collect(Collectors.toMap(f -> f.getName().toLowerCase(), f -> f));
     if(((SplitGenManifestScanTableFunctionContext) functionContext).getPartitionSpecMap() != null){
       partitionSpecMap = IcebergSerDe.deserializePartitionSpecMap(((SplitGenManifestScanTableFunctionContext) functionContext).getPartitionSpecMap().toByteArray());
     }
@@ -152,6 +147,14 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
     icebergPartitionSpec = partitionSpec;
     fileSchema = icebergPartitionSpec.schema();
     colToIDMap = getColToIDMap();
+    partColToKeyMap = partitionCols != null ? new HashMap<>() : null;
+
+    for (int i = 0; i < icebergPartitionSpec.fields().size(); i++) {
+      PartitionField partitionField = icebergPartitionSpec.fields().get(i);
+      if (partitionField.transform().isIdentity()) {
+        partColToKeyMap.put(fileSchema.findField(partitionField.sourceId()).name().toLowerCase(), i);
+      }
+    }
   }
 
   @Override
@@ -225,9 +228,10 @@ public class SplitGeneratingDatafileProcessor implements DatafileProcessor {
       }
 
       PartitionProtobuf.PartitionValue.Builder partitionValueBuilder = PartitionProtobuf.PartitionValue.newBuilder();
-      partitionValueBuilder.setColumn(partitionCols.get(partColPos));
+      String partColName = fileSchema.findColumnName(field.sourceId());
+      partitionValueBuilder.setColumn(partColName);
       Object value = partitionStruct.get(partColPos, getPartitionColumnClass(icebergPartitionSpec, partColPos));
-      writePartitionValue(partitionValueBuilder, value, partitionFields.get(partColPos));
+      writePartitionValue(partitionValueBuilder, value, nameToFieldMap.get(partColName.toLowerCase()));
       partitionInfoBuilder.addValues(partitionValueBuilder.build());
     }
     addImplicitCols(partitionInfoBuilder, version);

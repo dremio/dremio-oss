@@ -16,15 +16,16 @@
 package com.dremio;
 
 import static com.dremio.sabot.Fixtures.NULL_DECIMAL;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 
+import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
@@ -40,8 +41,6 @@ import com.dremio.sabot.Fixtures;
 public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
 
   protected String execPreference;
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
 
   @Before
   public void setUp() {
@@ -712,17 +711,34 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
     });
   }
 
-  @Test(expected = RuntimeException.class)
-  public void testDecimalVarcharCastWithInvalidInput() throws Exception {
-    try {
+  @Test
+  public void testDecimalVarcharCastWithInvalidInput() {
+    // assert gandiva message
+    // Note: the original assertion did NOT work!
+    //  Assert.assertTrue(ex.getCause().getCause().getMessage().contains("not a valid decimal number"));
+    // Reason: 'ex.getCause().getCause()' refers to the j.l.NumberFormatException thrown by
+    // 'BigDecimal'. In Java 8, the NFE has a 'null' message, causing the 'getMessage().contains(...'
+    // to NPE. Since NPE is a RE, the '@Test(expected...' succeeded.
+    // With Java 11, the NFE contains a valid message causing the above assertion to fail.
+    assertThatThrownBy(() ->
       testFunctions(new Object[][] {
         {"castDECIMAL(c0, 38l, 3l)", "a1.2354", BigDecimal.valueOf(1235, 3)},
-      });
-    } catch (RuntimeException ex) {
-      // assert gandiva message
-      Assert.assertTrue(ex.getCause().getCause().getMessage().contains("not a valid decimal number"));
-      throw ex;
-    }
+      }))
+      .isInstanceOf(RuntimeException.class)
+      .extracting(Throwable::getCause)
+      .extracting(Throwable::getCause)
+      .satisfiesAnyOf(
+        t -> assertThat(t).isInstanceOf(NumberFormatException.class),
+        t -> assertThat(t).isInstanceOf(GandivaException.class)
+          .extracting(Throwable::getMessage)
+          .asString()
+          .contains("not a valid decimal128 number")
+      );
+
+    //Throwable root = ex.getCause().getCause();
+    //Assert.assertTrue(root.getClass().getName() + " / " + root.getMessage(),
+    //  (root instanceof NumberFormatException) ||
+    //    (root instanceof GandivaException && root.getMessage() != null && root.getMessage().contains("not a valid decimal number")));
   }
 
   @Test

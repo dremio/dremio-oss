@@ -44,6 +44,7 @@ import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.spaces.SpaceName;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
@@ -105,8 +106,9 @@ public class FolderResource {
   public void deleteFolder(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, FolderNotFoundException {
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, path);
     if (version == null) {
-      throw new ClientErrorException("missing version parameter");
+      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
+
     try {
       namespaceService.deleteFolder(folderPath.toNamespaceKey(), version);
     } catch (NamespaceNotFoundException nfe) {

@@ -15,21 +15,31 @@
  */
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
+import FontIcon from './Icon/FontIcon';
 
 export default class EmptyTableMessage extends PureComponent {
   static propTypes = {
-    noDataText: PropTypes.string,
-    tableViewer: PropTypes.object
+    noDataText: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
+    tableViewer: PropTypes.object,
+    isLoading: PropTypes.bool,
+    loaderPosition: PropTypes.string
   };
 
   render() {
-    const { noDataText, tableViewer } = this.props;
+    const { noDataText, tableViewer, isLoading = false, loaderPosition = 'bot' } = this.props;
 
     return (
       <div className='empty-table' style={styles.emptyTable}>
         {tableViewer}
         <div className='empty-message'>
-          <span>{noDataText}</span>
+          <span>
+            {noDataText}
+          </span>
+          {isLoading &&
+          <div className={loaderPosition === 'bot' ? 'loader-bot' : 'loader-top'}>
+            <FontIcon type='Loader spinner'/>
+          </div>
+          }
         </div>
       </div>
     );

@@ -1,0 +1,68 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/color-schema.less";
+
+ :global {
+  .biApplication-tools {
+    padding: 16px 0 20px;
+
+    .header {
+      font-size: 14px;
+      color: @FIGMA_TEXT_MAIN;
+      line-height: 20px;
+    }
+
+    .description {
+      margin: 4px 0 12px 0;
+      line-height: 18px;
+      font-size: 12px;
+    }
+
+    .tools-table {
+      width: 546px;
+
+      .table-right-header {
+        font-size: 14px;
+        font-weight: 600;
+        text-align: right;
+        padding-right: 80px;
+        line-height: 20px;
+      }
+
+      .tool-wrap {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        margin-top: 12px;
+
+        .icon-cell {
+          padding: 5px 10px 5px 0;
+        }
+
+        .tool-name {
+          font-size: 14px;
+          font-weight: 500;
+          padding: 10px 0;
+          line-height: 20px;
+        }
+
+        .action-cell {
+          margin-left: auto;
+        }
+      }
+    }
+  }
+}

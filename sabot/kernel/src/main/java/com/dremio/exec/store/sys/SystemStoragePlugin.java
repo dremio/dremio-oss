@@ -35,6 +35,7 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.JobResultInfoProvider;
@@ -107,7 +108,8 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
       final View view = Views.fieldTypesToView(jobId, getJobResultsQuery(info.getResultDatasetPath()),
         ViewFieldsHelper.getBatchSchemaFields(info.getBatchSchema()), null);
 
-      return new ViewTable(new NamespaceKey(tableSchemaPath), view, SystemUser.SYSTEM_USERNAME, info.getBatchSchema());
+      return new ViewTable(new NamespaceKey(tableSchemaPath), view, CatalogUser.from(SystemUser.SYSTEM_USERNAME),
+        info.getBatchSchema());
     }).orElse(null);
   }
 

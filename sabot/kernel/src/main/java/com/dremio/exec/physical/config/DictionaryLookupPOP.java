@@ -23,7 +23,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.options.Options;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -40,23 +40,23 @@ public class DictionaryLookupPOP extends AbstractSingle {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DictionaryLookupPOP.class);
 
   private final Map<String, GlobalDictionaryFieldInfo> dictionaryEncodedFields;
-  private final CatalogService catalogService;
+  private final StoragePluginResolver storagePluginResolver;
 
   @JsonCreator
   public DictionaryLookupPOP(
-      @JacksonInject CatalogService catalogService,
+      @JacksonInject StoragePluginResolver storagePluginResolver,
       @JsonProperty("props") OpProps props,
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("dictionaryEncodedFields") Map<String, GlobalDictionaryFieldInfo> dictionaryEncodedFields
-      ) {
+  ) {
     super(props, child);
     this.dictionaryEncodedFields = dictionaryEncodedFields;
-    this.catalogService = catalogService;
+    this.storagePluginResolver = storagePluginResolver;
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new DictionaryLookupPOP(catalogService, props, child, dictionaryEncodedFields);
+    return new DictionaryLookupPOP(storagePluginResolver, props, child, dictionaryEncodedFields);
   }
 
   @Override
@@ -65,8 +65,8 @@ public class DictionaryLookupPOP extends AbstractSingle {
   }
 
   @JsonIgnore
-  public CatalogService getCatalogService() {
-    return catalogService;
+  public StoragePluginResolver getStoragePluginResolver() {
+    return storagePluginResolver;
   }
 
   public Map<String, GlobalDictionaryFieldInfo> getDictionaryEncodedFields() {

@@ -38,8 +38,9 @@ public class UnorderedMuxExchange extends AbstractMuxExchange {
     OpProps receiverProps,
     BatchSchema schema,
     PhysicalOperator child,
-    OptionManager optionManager) {
-    super(props, senderProps, receiverProps, schema, child, optionManager);
+    OptionManager optionManager,
+    int fragmentsPerEndpoint) {
+    super(props, senderProps, receiverProps, schema, child, optionManager, fragmentsPerEndpoint);
     this.optionManager = optionManager;
   }
 
@@ -48,14 +49,12 @@ public class UnorderedMuxExchange extends AbstractMuxExchange {
     createSenderReceiverMapping(indexBuilder);
 
     List<MinorFragmentIndexEndpoint> senders = receiverToSenderMapping.get(minorFragmentId);
-    if (senders == null || senders.size() <= 0) {
-      throw new IllegalStateException(String.format("Failed to find senders for receiver [%d]", minorFragmentId));
-    }
     return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, senders, false);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new UnorderedMuxExchange(props, senderProps, receiverProps, schema, child, optionManager);
+    return new UnorderedMuxExchange(props, senderProps, receiverProps,
+      schema, child, optionManager, fragmentsPerEndpoint);
   }
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.impl;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestFunction;
@@ -24,6 +25,7 @@ import com.dremio.sabot.BaseTestFunction;
  */
 public class TestGeoFunctions extends BaseTestFunction {
 
+  @Ignore
   @Test
   public void distance() {
     testFunctions(new Object[][]{
@@ -31,6 +33,7 @@ public class TestGeoFunctions extends BaseTestFunction {
     });
   }
 
+  @Ignore
   @Test
   public void nearby(){
     testFunctions(new Object[][]{
@@ -40,6 +43,7 @@ public class TestGeoFunctions extends BaseTestFunction {
     });
   }
 
+  @Ignore
   @Test
   public void beyond(){
     testFunctions(new Object[][]{

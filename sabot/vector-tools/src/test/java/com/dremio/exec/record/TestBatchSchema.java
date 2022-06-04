@@ -142,7 +142,7 @@ public class TestBatchSchema {
         CompleteType.BIT.toField("bitField"),
         CompleteType.VARCHAR.toField("varCharField")
       );
-    BatchSchema newSchema = tableSchema.changeType(CompleteType.BIGINT.toField("integerCol"));
+    BatchSchema newSchema = tableSchema.changeTypeTopLevel(CompleteType.BIGINT.toField("integerCol"));
     assertEquals(newSchema.getFields().size(), 4);
     assertEquals(newSchema.getColumn(0), CompleteType.BIGINT.toField("integerCol"));
   }
@@ -168,7 +168,7 @@ public class TestBatchSchema {
 
     Field newStructField = new Field("structField", FieldType.nullable(STRUCT.getType()), newChildren);
 
-    BatchSchema newSchema = tableSchema.changeType(newStructField);
+    BatchSchema newSchema = tableSchema.changeTypeTopLevel(newStructField);
     assertEquals(newSchema.getFields().size(), 5);
     assertEquals(newSchema.getColumn(4).getChildren().get(0), CompleteType.BIGINT.toField("integerCol"));
   }
@@ -219,7 +219,7 @@ public class TestBatchSchema {
         CompleteType.VARCHAR.toField("varCharField")
       );
 
-    BatchSchema newSchema1 = tableSchema.changeType(CompleteType.BIGINT.toField("integercol"));
+    BatchSchema newSchema1 = tableSchema.changeTypeTopLevel(CompleteType.BIGINT.toField("integercol"));
     assertEquals(newSchema1.getFields().size(), 4);
     //First column should not be an integerCol
     assertEquals(newSchema1.getColumn(0), CompleteType.BIGINT.toField("integercol"));
@@ -289,5 +289,241 @@ public class TestBatchSchema {
 
     assertEquals(newSchema1.getFields().size(), 5);
     assertEquals(newSchema1.toJSONString(), "{\"name\":\"root\",\"children\":[{\"name\":\"integerCol\",\"type\":\"Int\"},{\"name\":\"doubleCol\",\"type\":\"FloatingPoint\"},{\"name\":\"bitField\",\"type\":\"Bool\"},{\"name\":\"varCharField\",\"type\":\"Utf8\"},{\"name\":\"structField\",\"type\":\"Struct\",\"children\":[{\"name\":\"doubleCol\",\"type\":\"FloatingPoint\"}]}]}");
+  }
+
+
+  @Test
+  public void testBatchSchemaUpdateNonExistentColumn() {
+    BatchSchema tableSchema =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField"),
+        CompleteType.VARCHAR.toField("varCharField")
+      );
+
+    BatchSchema newSchema1 = tableSchema.changeTypeTopLevel(CompleteType.BIGINT.toField("lolCol"));
+    assertEquals(newSchema1.getFields().size(), 4);
+    //First column should not be an integerCol
+  }
+
+  @Test
+  public void testBatchSchemaDiff() {
+    BatchSchema tableSchema1 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField"),
+        CompleteType.VARCHAR.toField("varCharField")
+      );
+
+    BatchSchema tableSchema2 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.VARCHAR.toField("varCharField")
+      );
+
+    BatchSchema newSchema1 = tableSchema1.difference(tableSchema2);
+    assertEquals(newSchema1.getFields().size(), 1);
+    assertEquals(newSchema1.getFields().get(0), CompleteType.BIT.toField("bitField"));
+  }
+
+  @Test
+  public void testBatchSchemaAddColumns() {
+    List<Field> childrenField = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+      CompleteType.DOUBLE.toField("doubleCol"));
+
+    Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), childrenField);
+
+    BatchSchema tableSchema1 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField"),
+        CompleteType.VARCHAR.toField("varCharField"),
+        structField
+      );
+
+    Field newChildToAdd = new Field("structField", FieldType.nullable(STRUCT.getType()), ImmutableList.of(CompleteType.INT.toField("lolCol")));
+    BatchSchema newSchema1 = tableSchema1.addColumn(newChildToAdd);
+
+    List<Field> childrenFieldNew = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+      CompleteType.DOUBLE.toField("doubleCol"), CompleteType.INT.toField("lolCol"));
+
+    Field newStructField = new Field("structField", FieldType.nullable(STRUCT.getType()), childrenFieldNew);
+    assertEquals(newSchema1.getFields().size(), 5);
+    assertEquals(newSchema1.getFields().get(4), newStructField);
+  }
+
+  @Test
+  public void testBatchSchemaAddColumnsStructInsideStruct() {
+    List<Field> childrenField = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+      CompleteType.DOUBLE.toField("doubleCol"));
+
+    Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()),
+      childrenField);
+
+    Field structStructField = new Field("outerStructField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(structField));
+
+    BatchSchema tableSchema1 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField"),
+        CompleteType.VARCHAR.toField("varCharField"),
+        structStructField
+      );
+
+    Field newStructField = new Field("structField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(CompleteType.INT.toField("lolCol")));
+
+    Field newChildToAdd = new Field("outerStructField", FieldType.nullable(STRUCT.getType()), ImmutableList.of(newStructField));
+
+    Field assertNewStructField =  new Field("outerStructField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(new Field("structField", FieldType.nullable(STRUCT.getType()),
+        ImmutableList.of(CompleteType.INT.toField("integerCol"),
+          CompleteType.DOUBLE.toField("doubleCol"), CompleteType.INT.toField("lolCol")))));
+
+    BatchSchema newSchema1 = tableSchema1.addColumn(newChildToAdd);
+    assertEquals(newSchema1.getFields().size(), 5);
+    assertEquals(newSchema1.getFields().get(4), assertNewStructField);
+  }
+
+
+  @Test
+  public void testBatchSchemaAddEntireStruct() {
+    List<Field> childrenField = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+      CompleteType.DOUBLE.toField("doubleCol"));
+
+    Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), childrenField);
+
+    BatchSchema tableSchema1 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField"),
+        CompleteType.VARCHAR.toField("varCharField"));
+
+
+    BatchSchema newSchema = tableSchema1.addColumn(structField);
+    assertEquals(newSchema.getFields().size(), 5);
+    assertEquals(newSchema.getFields().get(4), structField);
+  }
+
+  @Test
+  public void testBatchSchemaAddMultipleColumns() {
+    List<Field> childrenField = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+      CompleteType.DOUBLE.toField("doubleCol"));
+
+    Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), childrenField);
+    Field varcharField = CompleteType.VARCHAR.toField("varCharField");
+
+    BatchSchema tableSchema1 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField")
+      );
+
+
+    BatchSchema newSchema = tableSchema1.addColumns(ImmutableList.of(varcharField, structField));
+    assertEquals(newSchema.getFields().size(), 5);
+    assertEquals(newSchema.getFields().get(3), varcharField);
+    assertEquals(newSchema.getFields().get(4), structField);
+  }
+
+  @Test
+  public void testBatchSchemaChangeTypeRecursiveStructInStruct() throws Exception {
+    List<Field> childrenField = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+      CompleteType.DOUBLE.toField("doubleCol"));
+
+    Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), childrenField);
+
+    Field structStructField = new Field("outerStructField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(structField));
+
+    Field varcharField = CompleteType.VARCHAR.toField("varCharField");
+
+    BatchSchema tableSchema1 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField"),
+        structStructField
+      );
+
+
+    Field newStructField = new Field("structField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(CompleteType.VARCHAR.toField("integerCol")));
+
+    Field changeIntInStrcut = new Field("outerStructField", FieldType.nullable(STRUCT.getType()), ImmutableList.of(newStructField));
+
+    BatchSchema newSchema = tableSchema1.changeTypeRecursive(changeIntInStrcut);
+    assertEquals(newSchema.getFields().size(), 4);
+    assertEquals(newSchema.toJSONString(), "{\"name\":\"root\",\"children\":[{\"name\":\"integerCol\",\"type\":\"Int\"},{\"name\":\"doubleCol\",\"type\":\"FloatingPoint\"},{\"name\":\"bitField\",\"type\":\"Bool\"},{\"name\":\"outerStructField\",\"type\":\"Struct\",\"children\":[{\"name\":\"structField\",\"type\":\"Struct\",\"children\":[{\"name\":\"integerCol\",\"type\":\"Utf8\"},{\"name\":\"doubleCol\",\"type\":\"FloatingPoint\"}]}]}]}");
+  }
+
+  @Test
+  public void testBatchSchemaChangeTypeRecursiveStructInStructWithMultipleFields() throws Exception {
+    List<Field> childrenField = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+      CompleteType.DOUBLE.toField("doubleCol"));
+
+    Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), childrenField);
+
+    Field structStructField = new Field("outerStructField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(structField));
+
+    Field varcharField = CompleteType.VARCHAR.toField("varCharField");
+
+    BatchSchema tableSchema1 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField"),
+        structStructField
+      );
+
+
+    Field newStructField = new Field("structField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(CompleteType.VARCHAR.toField("integerCol"), CompleteType.VARCHAR.toField("doubleCol")));
+
+    Field changeIntInStrcut = new Field("outerStructField", FieldType.nullable(STRUCT.getType()), ImmutableList.of(newStructField));
+
+    BatchSchema newSchema = tableSchema1.changeTypeRecursive(changeIntInStrcut);
+    assertEquals(newSchema.getFields().size(), 4);
+    assertEquals(newSchema.toJSONString(), "{\"name\":\"root\",\"children\":[{\"name\":\"integerCol\",\"type\":\"Int\"},{\"name\":\"doubleCol\",\"type\":\"FloatingPoint\"},{\"name\":\"bitField\",\"type\":\"Bool\"},{\"name\":\"outerStructField\",\"type\":\"Struct\",\"children\":[{\"name\":\"structField\",\"type\":\"Struct\",\"children\":[{\"name\":\"integerCol\",\"type\":\"Utf8\"},{\"name\":\"doubleCol\",\"type\":\"Utf8\"}]}]}]}");
+  }
+
+  @Test
+  public void testBatchSchemaChangeTypeRecursiveStructInStructNonExistent() throws Exception {
+    List<Field> childrenField = ImmutableList.of(CompleteType.INT.toField("integerCol"),
+      CompleteType.DOUBLE.toField("doubleCol"));
+
+    Field structField = new Field("structField", FieldType.nullable(STRUCT.getType()), childrenField);
+
+    Field structStructField = new Field("outerStructField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(structField));
+
+    Field varcharField = CompleteType.VARCHAR.toField("varCharField");
+
+    BatchSchema tableSchema1 =
+      BatchSchema.of(
+        CompleteType.INT.toField("integerCol"),
+        CompleteType.DOUBLE.toField("doubleCol"),
+        CompleteType.BIT.toField("bitField"),
+        structStructField
+      );
+
+
+    Field newStructField = new Field("structField", FieldType.nullable(STRUCT.getType()),
+      ImmutableList.of(CompleteType.VARCHAR.toField("nonExistent1"), CompleteType.VARCHAR.toField("nonExistent2")));
+
+    Field changeIntInStrcut = new Field("outerStructField", FieldType.nullable(STRUCT.getType()), ImmutableList.of(newStructField));
+
+    //Should not throw exception
+    BatchSchema newSchema = tableSchema1.changeTypeRecursive(changeIntInStrcut);
+    assertTrue(newSchema.equalsIgnoreCase(tableSchema1));
   }
 }

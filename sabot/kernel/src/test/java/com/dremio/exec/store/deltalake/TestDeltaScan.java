@@ -76,6 +76,7 @@ public class TestDeltaScan extends BaseTestQuery {
     copyFromJar("deltalake/schema_change_partition", java.nio.file.Paths.get(testRootPath + "/schema_change_partition"));
     copyFromJar("deltalake/newPlanDataset", java.nio.file.Paths.get((testRootPath + "/newDataset")));
     copyFromJar("deltalake/paritionenedNewPlan", java.nio.file.Paths.get((testRootPath + "/paritionenedNewPlan")));
+    copyFromJar("deltalake/commitInfoAtOnlyJson", java.nio.file.Paths.get((testRootPath + "/commitInfoAtOnlyJson")));
   }
 
   @After
@@ -455,6 +456,22 @@ public class TestDeltaScan extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("intcol","longcol")
         .baselineValues(2450811, 2450811L)
+        .unOrdered().go();
+    }
+  }
+
+
+  @Test
+  public void testWithCommitInfoAtEndOnlyJson() throws Exception {
+    try (AutoCloseable c = enableDeltaLake()) {
+      final String sql = "SELECT * FROM dfs.tmp.deltalake.commitInfoAtOnlyJson order by id limit 3";
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("id")
+        .baselineValues(0l)
+        .baselineValues(10l)
+        .baselineValues(11l)
         .unOrdered().go();
     }
   }

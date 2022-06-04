@@ -34,17 +34,17 @@ class ModalFooter extends PureComponent {
 }
 
 const styles = {
-  'base': {
-    'position': 'absolute',
+  base: {
+    position: 'absolute',
     borderRadius: 3,
-    'bottom': 0,
-    'height': 48,
-    'width': '100%',
-    'display': 'flex',
-    'justifyContent': 'flex-end',
-    'padding': '0 10px 0 0',
-    'alignItems': 'center',
-    backgroundColor: '#F3F3F3'
+    borderTop: '1px solid rgba(0, 0, 0, 0.1)',
+    bottom: 0,
+    height: 48,
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    padding: '0 10px 0 0',
+    alignItems: 'center'
   }
 };
 

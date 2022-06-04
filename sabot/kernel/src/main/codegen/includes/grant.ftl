@@ -251,6 +251,9 @@ void Privilege(List<SqlNode> list) :
     <CREATE> <PROJECT>
     { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_PROJECT, getPos())); }
     |
+    <CONFIGURE> <SECURITY>
+    { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CONFIGURE_SECURITY, getPos())); }
+    |
     <CREATE> <OAUTH> <APPLICATION>
     { list.add(SqlLiteral.createSymbol(SqlGrantOnProjectEntities.Privilege.CREATE_OAUTH_APPLICATION, getPos())); }
     |
@@ -411,8 +414,28 @@ SqlNode SqlGrantOwnership(SqlParserPos pos) :
       entity = SimpleIdentifier();
     }
     |
-    <CATALOG> {
-      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.CATALOG, getPos()));
+    (<PDS> | <TABLE>) {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.PDS, getPos()));
+      entity = CompoundIdentifier();
+    }
+    |
+    (<VDS> | <VIEW>) {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.VDS, getPos()));
+      entity = CompoundIdentifier();
+    }
+    |
+    (<FOLDER> | <SCHEMA>) {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.FOLDER, getPos()));
+      entity = CompoundIdentifier();
+    }
+    |
+    <SPACE> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.SPACE, getPos()));
+      entity = SimpleIdentifier();
+    }
+    |
+    <SOURCE> {
+      grant = new SqlGrantOwnership.Grant(SqlLiteral.createSymbol(SqlGrantOwnership.GrantType.SOURCE, getPos()));
       entity = SimpleIdentifier();
     }
     |

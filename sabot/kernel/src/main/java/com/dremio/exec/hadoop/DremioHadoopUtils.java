@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.hadoop.Util;
 
@@ -61,4 +62,9 @@ public class DremioHadoopUtils {
     List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
     return new Path("/" + Joiner.on(Path.SEPARATOR).join(pathComponents.subList(1, pathComponents.size())));
   }
+
+  public static FileSystem getFs(Path path, Configuration conf) {
+    return Util.getFs(path, conf);
+  }
+
 }

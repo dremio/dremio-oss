@@ -32,6 +32,7 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.holders.DecimalHolder;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Assume;
@@ -801,8 +802,8 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
       ImmutableList.Builder<T> vectorsBuilder = ImmutableList.builder();
       for(int i = 0; i<columns; i++) {
-        Field field = new Field(String.format("%s_%d", prefix, i + 1), true,
-          arrowType, null);
+        Field field = new Field(String.format("%s_%d", prefix, i + 1), new FieldType(true,
+          arrowType, null), null);
         T vector = result.addOrGet(field);
         vectorsBuilder.add(vector);
       }
@@ -945,9 +946,9 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     Table expected = t(getHeader("right", rightColumns, "left", leftColumns), false, getDataDecimal(columns, leftColumns, 1));
     validateDual(joinInfo.operator, joinInfo.clazz,
       new ManyColumnsGenerator<DecimalVector>(getTestAllocator(), "left", leftColumns, 1,
-        DecimalVector.class, new ArrowType.Decimal(38, 0), BaseTestJoin::insertIntoDecimalVector),
+        DecimalVector.class, new ArrowType.Decimal(38, 0, 128), BaseTestJoin::insertIntoDecimalVector),
       new ManyColumnsGenerator<DecimalVector>(getTestAllocator(), "right", rightColumns, 1,
-        DecimalVector.class, new ArrowType.Decimal(38, 0), BaseTestJoin::insertIntoDecimalVector),
+        DecimalVector.class, new ArrowType.Decimal(38, 0, 128), BaseTestJoin::insertIntoDecimalVector),
       DEFAULT_BATCH, expected);
   }
 

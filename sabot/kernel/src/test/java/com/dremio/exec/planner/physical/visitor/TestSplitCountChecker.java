@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION;
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,9 +33,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 import com.dremio.common.expression.SchemaPath;
@@ -45,7 +43,6 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
@@ -56,7 +53,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.test.DremioTest;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 import com.dremio.test.specs.OptionResolverSpec;
 import com.dremio.test.specs.OptionResolverSpecBuilder;
 import com.google.common.collect.FluentIterable;
@@ -72,9 +69,6 @@ public class TestSplitCountChecker {
 
   private RelOptCluster cluster;
 
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
-
   @Before
   public void setup() throws Exception {
     OptionResolver optionResolver = OptionResolverSpecBuilder.build(new OptionResolverSpec());
@@ -89,11 +83,12 @@ public class TestSplitCountChecker {
 
   private void verifySplits(Prel root, int querySplitLimit, int datasetSplitLimit, boolean expectedResult) {
     if (!expectedResult) {
-      // Expect an exception
-      thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, "Number of splits"));
+      UserExceptionAssert.assertThatThrownBy(() -> SplitCountChecker.checkNumSplits(root, querySplitLimit, datasetSplitLimit))
+        .hasErrorType(UNSUPPORTED_OPERATION)
+        .hasMessageContaining("Number of splits");
+    } else {
+      SplitCountChecker.checkNumSplits(root, querySplitLimit, datasetSplitLimit);
     }
-    SplitCountChecker.checkNumSplits(root, querySplitLimit, datasetSplitLimit);
-    assertTrue("Expected verification failure. Instead, verification succeeded", expectedResult);
   }
 
   // Single scan, large limit. Expect success
@@ -203,7 +198,7 @@ public class TestSplitCountChecker {
     final RelOptTable relOptTable = Mockito.mock(RelOptTable.class);
     when(relOptTable.getRowCount()).thenReturn(rowCount);
     when(relOptTable.getQualifiedName()).thenReturn(ImmutableList.of("sys", "version"));
-    return new SystemScanPrel(cluster, traits, relOptTable, metadata, columns, 1.0d, rowType);
+    return new SystemScanPrel(cluster, traits, relOptTable, metadata, columns, 1.0d, rowType, ImmutableList.of());
   }
 
   private RelDataType rowType() {

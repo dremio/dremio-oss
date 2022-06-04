@@ -19,6 +19,7 @@ import static com.dremio.service.accelerator.AccelerationDetailsUtils.deserializ
 
 import java.util.Optional;
 
+import com.dremio.dac.util.JobUtil;
 import com.dremio.dac.util.TruncateString200Converter;
 import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
@@ -98,7 +99,7 @@ public class PartialJobListItem {
     final JobAttempt lastAttempt = input.getAttempts().get(input.getAttempts().size() - 1);
 
     this.id = input.getJobId().getId();
-    this.state = lastAttempt.getState();
+    this.state = JobUtil.computeJobState(lastAttempt.getState(), input.isCompleted());
     this.failureInfo = JobDetailsUI.toJobFailureInfo(lastAttempt.getInfo().getFailureInfo(), lastAttempt.getInfo().getDetailedFailureInfo());
     this.cancellationInfo = JobDetailsUI.toJobCancellationInfo(lastAttempt.getState(), lastAttempt.getInfo().getCancellationInfo());
     this.user = firstAttempt.getInfo().getUser();
@@ -120,7 +121,7 @@ public class PartialJobListItem {
 
   public PartialJobListItem(JobSummary input) {
     this.id = input.getJobId().getId();
-    this.state = JobsProtoUtil.toStuff(input.getJobState());
+    this.state = JobUtil.computeJobState(JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted());
     this.failureInfo = JobDetailsUI.toJobFailureInfo(Strings.isNullOrEmpty(input.getFailureInfo()) ? null : input.getFailureInfo(),
       JobsProtoUtil.toStuff(input.getDetailedJobFailureInfo()));
     this.cancellationInfo = JobDetailsUI.toJobCancellationInfo(JobsProtoUtil.toStuff(input.getJobState()),

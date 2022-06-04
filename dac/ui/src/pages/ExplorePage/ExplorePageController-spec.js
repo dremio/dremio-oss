@@ -60,7 +60,9 @@ describe('ExplorePageController', () => {
       needsLoad: false,
       getDatasetChangeDetails: () => datasetChangeDetails,
       onMount: sinon.stub(),
-      onUnmount: sinon.stub()
+      onUnmount: sinon.stub(),
+      activeScript: {},
+      currentSql: null
     };
     commonProps = {
       ...minimalProps,
@@ -158,7 +160,6 @@ describe('ExplorePageController', () => {
       props = {...props, dataset: props.dataset.set('datasetVersion', '22')};
       instance.componentWillReceiveProps(props);
       expect(commonProps.resetViewState).to.be.called;
-      expect(commonProps.setCurrentSql).to.be.calledWith({sql: undefined});
     });
 
     it('should redirect to / if props/.pageType is invalid', () => {

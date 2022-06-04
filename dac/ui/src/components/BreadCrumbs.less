@@ -1,0 +1,67 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/color-schema.less";
+:global {
+  .Breadcrumbs {
+    display: inline-flex;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%; // do not let to exceed parent width
+    .icon-container{
+      display: flex;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .spacing {
+      margin: 0 6px 0 4px;
+    }
+    span {
+      font-weight: 600;
+    }
+    .crumb {
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: @FIGMA_TEXT_LINK;
+    }
+    .long-crumb {
+      max-width: 350px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+  .menu-crumb {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    a {
+      color: @FIGMA_TEXT_MAIN !important;
+      text-decoration: none !important;
+    }
+  }
+  .paper {
+    overflow-x: hidden !important;
+    overflow-y: scroll !important;
+    width: 240px;
+    box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.15) !important;
+    max-height: 300px !important;
+  }
+  .menu-item-no-hover {
+    &:hover {
+      background-color: @FIGMA_NEUTRAL_0 !important;
+    }
+  }
+}

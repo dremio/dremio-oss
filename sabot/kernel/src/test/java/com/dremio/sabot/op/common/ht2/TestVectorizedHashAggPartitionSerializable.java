@@ -19,7 +19,7 @@ package com.dremio.sabot.op.common.ht2;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
@@ -31,6 +31,7 @@ import java.util.Random;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
@@ -483,7 +484,6 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
                                    final MaxOutputHolder max, final MinOutputHolder min,
                                    final long[] counts, final long[] counts1, boolean nullsInAccumulator,
                                    final int numCollapsedRecords) throws Exception {
-
     final SabotConfig sabotConfig = DremioTest.DEFAULT_SABOT_CONFIG;
 
     final ExecProtos.FragmentHandle fragmentHandle = ExecProtos.FragmentHandle.newBuilder()
@@ -504,7 +504,7 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
       final PartitionToLoadSpilledData partitionToLoadSpilledData = new PartitionToLoadSpilledData(
         allocator, fixedBufferSize, variableBlockSize,
         postSpillAccumulatorVectorFields, accumulatorTypes,
-        MAX_VALUES_PER_BATCH, estimatedVariableWidthKeySize * MAX_VALUES_PER_BATCH)) {
+        records, estimatedVariableWidthKeySize * records)) {
 
       /* pivot the data into temporary space */
       Pivots.pivot(pivot, records, fbv, var);
@@ -866,7 +866,7 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
   private AccumulatorSet createAccumulator(IntVector in1, BigIntVector in2,
                                               Float4Vector in3, Float8Vector in4,
                                               VarCharVector in5, VarCharVector in6,
-                                              VarCharVector[] tempVectors,
+                                              BaseVariableWidthVector[] tempVectors,
                                               final BufferAllocator allocator) {
     /* INT */
     BigIntVector in1SumOutputVector = new BigIntVector("int-sum", allocator);
@@ -993,13 +993,17 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
 
     VarCharVector v1 = new VarCharVector("varchar-min", allocator);
     final MinAccumulators.VarLenMinAccumulator in5MinAccum =
-      new MinAccumulators.VarLenMinAccumulator(in5, v1, v1, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, 95, tempVectors[0]);
+      new MinAccumulators.VarLenMinAccumulator(in5, v1, MAX_VALUES_PER_BATCH,
+        allocator, 15, 256, 95,
+        0, tempVectors[0], null);
     postSpillAccumulatorVectorFields.add(in5.getField());
     accumulatorTypes[17] = (byte)AccumulatorBuilder.AccumulatorType.MIN.ordinal();
 
     VarCharVector v2 = new VarCharVector("varchar-max", allocator);
     final MaxAccumulators.VarLenMaxAccumulator in6MaxAccum =
-      new MaxAccumulators.VarLenMaxAccumulator(in6, v2, v2, MAX_VALUES_PER_BATCH, allocator, MAX_VALUES_PER_BATCH * 15, 95, tempVectors[1]);
+      new MaxAccumulators.VarLenMaxAccumulator(in6, v2, MAX_VALUES_PER_BATCH,
+        allocator, 15, 256, 95,
+        1, tempVectors[1], null);
     postSpillAccumulatorVectorFields.add(in6.getField());
     accumulatorTypes[18] = (byte)AccumulatorBuilder.AccumulatorType.MAX.ordinal();
 

@@ -52,6 +52,7 @@ import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.ContextService;
@@ -106,6 +107,7 @@ import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
@@ -128,6 +130,7 @@ public class BaseTestReflection extends BaseTestServer {
   @BeforeClass
   public static void init() throws Exception {
     BaseTestServer.init();
+    BaseTestServer.getPopulator().populateTestUsers();
 
     final NamespaceService nsService = getNamespaceService();
     final SpaceConfig config = new SpaceConfig().setName(TEST_SPACE);
@@ -155,7 +158,7 @@ public class BaseTestReflection extends BaseTestServer {
 
   protected Catalog cat() {
     return l(CatalogService.class).getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(SYSTEM_USERNAME).build()));
+        SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME)).build()));
   }
 
   protected static NamespaceService getNamespaceService() {
@@ -178,6 +181,26 @@ public class BaseTestReflection extends BaseTestServer {
     final long requestTime = System.currentTimeMillis();
     DatasetConfig dataset = getNamespaceService().getDataset(datasetKey);
     getReflectionService().requestRefresh(dataset.getId().getId());
+    return requestTime;
+  }
+
+  protected static long requestRefreshWithRetry(NamespaceKey datasetKey, ReflectionMonitor monitor,
+                                                ReflectionId rawId, Materialization m) {
+    int retry = 3;
+    long requestTime;
+    while (true) {
+      try {
+        requestTime = requestRefresh(datasetKey);
+        monitor.waitUntilMaterialized(rawId, m);
+        break;
+      } catch (Throwable t) {
+        if (retry == 0) {
+          Throwables.propagate(t);
+        } else {
+          retry--;
+        }
+      }
+    }
     return requestTime;
   }
 

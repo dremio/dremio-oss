@@ -172,6 +172,7 @@ public class DatasetSaverImpl implements DatasetSaver {
       datasetConfig.setLastModified(savedConfig.getLastModified());
       datasetConfig = datasetMutator.apply(datasetConfig);
       datasetConfig.setTotalNumSplits(savedConfig.getTotalNumSplits());
+      datasetConfig.setTag(savedConfig.getTag());
 
       updateListener.metadataUpdated(canonicalKey);
     } catch (Exception e) {

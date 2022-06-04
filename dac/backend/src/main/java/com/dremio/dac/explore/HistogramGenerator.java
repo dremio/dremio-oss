@@ -190,7 +190,7 @@ class HistogramGenerator {
             hgQueryBuilder.append(format("date_trunc('%s', dremio_values_table.%s) as %s,\n", trucateTo.name, colNameClean, projectedColName));
             hgQueryBuilder.append("COUNT(*) as dremio_value_count\n");
             hgQueryBuilder.append(format(" FROM %s AS dremio_values_table\n", datasetPreviewJobResultsTable));
-            hgQueryBuilder.append(format("GROUP BY\n"));
+            hgQueryBuilder.append("GROUP BY\n");
             hgQueryBuilder.append(format("date_trunc('%s', dremio_values_table.%s)\n", trucateTo.name, colNameClean));
             hgQueryBuilder.append(format("ORDER BY %s ASC", projectedColName));
             isBinned = true;

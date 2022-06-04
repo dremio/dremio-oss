@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.expression.SchemaPath;
@@ -108,7 +109,7 @@ class FieldVarCharOutput extends TextOutput {
 
     for (int i = 0; i <= maxField; i++) {
       if (selectedFields[i]) {
-        Field field = new Field(outputColumns.get(i), true, MinorType.VARCHAR.getType(), null);
+        Field field = new Field(outputColumns.get(i), new FieldType(true, MinorType.VARCHAR.getType(), null), null);
         this.vectors[i] = outputMutator.addField(field, VarCharVector.class);
       }
     }

@@ -28,14 +28,18 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
+import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.ops.ViewExpansionContext.ViewExpansionToken;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
@@ -78,8 +82,32 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     return typeFlattener.rewrite(rootRel);
   }
 
+  @Override
+  protected RelNode convertSetOp(SqlCall call) {
+    RelNode result = super.convertSetOp(call);
+    RelNode left = result.getInput(0);
+    RelNode right = result.getInput(1);
+    List<RelDataType> types = ImmutableList.of(left.getRowType(), right.getRowType());
+    RelDataType consistentType;
+    if (ConsistentTypeUtil.allExactNumeric(types) && ConsistentTypeUtil.anyDecimal(types)) {
+      consistentType = ConsistentTypeUtil.consistentDecimalType(typeFactory, types);
+    } else {
+      consistentType = ConsistentTypeUtil.consistentType(typeFactory, SqlOperandTypeChecker.Consistency.LEAST_RESTRICTIVE, types);
+    }
+    final List<RelNode> convertedInputs = new ArrayList<>();
+    for (RelNode input: ImmutableList.of(left, right)) {
+      if (input != consistentType) {
+        convertedInputs.add(MoreRelOptUtil.createCastRel(input, consistentType));
+      }
+      else {
+        convertedInputs.add(input);
+      }
+    }
+    return result.copy(result.getTraitSet(), convertedInputs);
+  }
+
   private static RelRoot getExpandedRelNode(NamespaceKey path,
-                                            final String viewOwner,
+                                            final CatalogIdentity viewOwner,
                                             final String queryString,
                                             final List<String> context,
                                             final SqlConverter sqlConverter,
@@ -121,7 +149,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       root.validatedRowType, root.kind, root.fields, root.collation, ImmutableList.of());
   }
 
-  public static RelRoot expandView(NamespaceKey path, final String viewOwner, final String queryString, final List<String> context, final SqlConverter sqlConverter, final BatchSchema batchSchema) {
+  public static RelRoot expandView(NamespaceKey path, final CatalogIdentity viewOwner, final String queryString, final List<String> context, final SqlConverter sqlConverter, final BatchSchema batchSchema) {
     ViewExpansionToken token = null;
 
     try {
@@ -132,7 +160,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
         throw e;
       }
 
-      final String delegatedUser = sqlConverter.getViewExpansionContext().getQueryUser();
+      final CatalogIdentity delegatedUser = sqlConverter.getViewExpansionContext().getQueryUser();
       return getExpandedRelNode(path, delegatedUser, queryString, context, sqlConverter, batchSchema);
     } finally {
       if (token != null) {

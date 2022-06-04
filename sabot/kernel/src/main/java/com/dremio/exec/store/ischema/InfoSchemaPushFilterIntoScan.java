@@ -86,7 +86,7 @@ public abstract class InfoSchemaPushFilterIntoScan extends RelOptRule {
       return; //no filter pushdown ==> No transformation.
     }
 
-    RelNode input = new InfoSchemaScanPrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(), scan.getTableMetadata(), result.getQuery(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment());
+    RelNode input = new InfoSchemaScanPrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(), scan.getTableMetadata(), result.getQuery(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment(), scan.getRuntimeFilters());
 
     if (project != null) {
       input = project.copy(project.getTraitSet(), input, project.getProjects(), filter.getRowType());

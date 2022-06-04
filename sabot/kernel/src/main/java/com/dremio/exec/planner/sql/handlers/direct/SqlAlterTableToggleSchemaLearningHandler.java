@@ -20,8 +20,12 @@ import java.util.List;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableToggleSchemaLearning;
+import com.dremio.service.namespace.NamespaceKey;
 
 /**
  * Turns ON or OFF Schema Learning for the table specified by {@link SqlAlterTableToggleSchemaLearning}
@@ -30,13 +34,35 @@ public class SqlAlterTableToggleSchemaLearningHandler extends SimpleDirectHandle
   private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SqlAlterTableToggleSchemaLearningHandler.class);
 
   private final Catalog catalog;
+  private final SqlHandlerConfig config;
 
-  public SqlAlterTableToggleSchemaLearningHandler(Catalog catalog) {
+  public SqlAlterTableToggleSchemaLearningHandler(Catalog catalog, SqlHandlerConfig config) {
     this.catalog = catalog;
+    this.config = config;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
-    return Collections.singletonList(SimpleCommandResult.successful("Parsing Schema learning command is successful."));
+
+    final SqlAlterTableToggleSchemaLearning sqlToggleSchemaLearning = SqlNodeUtil.unwrap(sqlNode, SqlAlterTableToggleSchemaLearning.class);
+
+    NamespaceKey path = catalog.resolveSingle(sqlToggleSchemaLearning.getTable());
+    DremioTable table = catalog.getTableNoResolve(path);
+
+    if (table == null) {
+      throw UserException.validationError()
+        .message("Table [%s] not found", table)
+        .buildSilently();
+    }
+
+    final boolean enableSchemaLearning = sqlToggleSchemaLearning.getEnableSchemaLearning();
+
+    boolean isToggled = catalog.toggleSchemaLearning(path, enableSchemaLearning);
+    if (!isToggled) {
+      return Collections.singletonList(SimpleCommandResult.successful("Failed to toggle schema learning on table %s", path));
+    }
+
+    String message = String.format("Schema Learning on table %s is " + (enableSchemaLearning ? "enabled." : "disabled."), path);
+    return Collections.singletonList(SimpleCommandResult.successful(message));
   }
 }

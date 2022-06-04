@@ -17,8 +17,8 @@ package com.dremio.service.flight.auth2;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
@@ -94,23 +94,6 @@ public class TestDremioBearerTokenAuthenticator extends BasicFlightAuthenticatio
     assertTrue(bearerTokenHeader.containsKey(Auth2Constants.AUTHORIZATION_HEADER));
     assertEquals(Auth2Constants.BEARER_PREFIX + TOKEN,
       bearerTokenHeader.get(Auth2Constants.AUTHORIZATION_HEADER));
-  }
-
-  @Test
-  public void testAuthenticateWithTooManyUserSessions() throws Exception {
-    // Arrange
-    when(getMockDremioFlightSessionsManager().reachedMaxNumberOfSessions()).thenReturn(Boolean.TRUE);
-
-    // Act
-    try {
-      final CallHeaders incomingTestHeaders = new ErrorFlightMetadata();
-      incomingTestHeaders.insert(Auth2Constants.AUTHORIZATION_HEADER, Auth2Constants.BASIC_PREFIX +
-        Base64.getEncoder().encodeToString(String.format("%s:%s", USERNAME, PASSWORD).getBytes(StandardCharsets.UTF_8)));
-      bearerTokenAuthenticator.authenticate(incomingTestHeaders);
-      testFailed();
-    } catch (FlightRuntimeException exception) {
-      assertEquals(FlightStatusCode.UNAUTHENTICATED, exception.status().code());
-    }
   }
 
   @Test

@@ -16,7 +16,10 @@
 package com.dremio.exec.rpc.user.security.testing;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import org.apache.hadoop.security.UserGroupInformation;
 
@@ -37,17 +40,28 @@ import com.google.common.base.StandardSystemProperty;
  * + {@link TestInboundImpersonation user delegation}.
  */
 public class UserServiceTestImpl implements UserService {
-
-  private static final String ANONYMOUS = "anonymous";
-
+  public static final String ANONYMOUS = "anonymous";
   public static final String TEST_USER_1 = "testUser1";
   public static final String TEST_USER_2 = "testUser2";
+  public static final String TEST_USER_3 = "test";
   public static final String ADMIN_USER = "admin";
   public static final String PROCESS_USER = StandardSystemProperty.USER_NAME.value();
   public static final String TEST_USER_1_PASSWORD = "testUser1Password";
   public static final String TEST_USER_2_PASSWORD = "testUser2Password";
+  public static final String TEST_USER_3_PASSWORD = "testPassword";
   public static final String ADMIN_USER_PASSWORD = "adminUserPw";
   public static final String PROCESS_USER_PASSWORD = "processUserPw";
+
+  public static final String DEFAULT_PASSWORD = "dremio123";
+
+  private final Map<String, String> userPasswordMap = new HashMap<String, String>() {{
+    put(TEST_USER_1.toLowerCase(Locale.ROOT), TEST_USER_1_PASSWORD);
+    put(TEST_USER_2.toLowerCase(Locale.ROOT), TEST_USER_2_PASSWORD);
+    put(TEST_USER_3.toLowerCase(Locale.ROOT), TEST_USER_3_PASSWORD);
+    put(ADMIN_USER.toLowerCase(Locale.ROOT), ADMIN_USER_PASSWORD);
+    put(PROCESS_USER.toLowerCase(Locale.ROOT), PROCESS_USER_PASSWORD);
+    put(ANONYMOUS.toLowerCase(Locale.ROOT), DEFAULT_PASSWORD);
+  }};
 
   public static final String ADMIN_GROUP = "admingrp";
 
@@ -60,51 +74,48 @@ public class UserServiceTestImpl implements UserService {
   @Override
   public User getUser(UID uid) throws UserNotFoundException {
     final String userName = uid.getId();
-    switch (userName) {
-    case TEST_USER_1:
-    case TEST_USER_2:
-    case ADMIN_USER:
-    case "anonymous":
-      return SimpleUser.newBuilder()
-          .setUID(new UID(userName))
-          .setUserName(userName)
-          .setEmail(userName + "@dremio.test")
-          .setFirstName(userName + " FN")
-          .setLastName(userName + " LN")
-          .build();
 
-    case SystemUser.SYSTEM_USERNAME:
-      return SystemUser.SYSTEM_USER;
-    default:
-      throw new UserNotFoundException(userName);
+    if (userPasswordMap.containsKey(userName.toLowerCase(Locale.ROOT))) {
+      return SimpleUser.newBuilder()
+        .setUID(new UID(userName))
+        .setUserName(userName)
+        .setEmail(userName + "@dremio.test")
+        .setFirstName(userName + " FN")
+        .setLastName(userName + " LN")
+        .build();
     }
+
+    if (userName.equals(SystemUser.SYSTEM_USERNAME)) {
+      return SystemUser.SYSTEM_USER;
+    }
+
+    throw new UserNotFoundException(userName);
   }
 
   @Override
   public User getUser(String userName) throws UserNotFoundException {
-    switch (userName) {
-      case TEST_USER_1:
-      case TEST_USER_2:
-      case ADMIN_USER:
-      case "anonymous":
-        return SimpleUser.newBuilder()
-            .setUID(new UID(userName))
-            .setUserName(userName)
-            .setEmail(userName + "@dremio.test")
-            .setFirstName(userName + " FN")
-            .setLastName(userName + " LN")
-            .build();
-      case SystemUser.SYSTEM_USERNAME:
-        return SystemUser.SYSTEM_USER;
-      default:
-        throw new UserNotFoundException(userName);
+    if (userPasswordMap.containsKey(userName.toLowerCase(Locale.ROOT))) {
+      return SimpleUser.newBuilder()
+        .setUID(new UID(userName))
+        .setUserName(userName)
+        .setEmail(userName + "@dremio.test")
+        .setFirstName(userName + " FN")
+        .setLastName(userName + " LN")
+        .build();
     }
+
+    if (userName.equals(SystemUser.SYSTEM_USERNAME)) {
+      return SystemUser.SYSTEM_USER;
+    }
+
+    throw new UserNotFoundException(userName);
   }
 
   @Override
   public User createUser(User userConfig, String authKey)
       throws IOException, IllegalArgumentException {
-    throw new UnsupportedOperationException("not supported");
+    userPasswordMap.put(userConfig.getUserName().toLowerCase(Locale.ROOT), authKey);
+    return userConfig;
   }
 
   @Override
@@ -132,14 +143,11 @@ public class UserServiceTestImpl implements UserService {
       return AuthResult.of(ANONYMOUS);
     }
 
+    String lcUser = userName.toLowerCase(Locale.ROOT);
+
     if (
         !(PROCESS_USER.equals(user) && PROCESS_USER_PASSWORD.equals(password)) &&
-            /**
-             * Used in {@link com.dremio.exec.rpc.user.security.TestCustomUserAuthenticator}
-             */
-            !(TEST_USER_1.equals(user) && TEST_USER_1_PASSWORD.equals(password)) &&
-            !(TEST_USER_2.equals(user) && TEST_USER_2_PASSWORD.equals(password)) &&
-            !(ADMIN_USER.equals(user) && ADMIN_USER_PASSWORD.equals(password))) {
+        !(userPasswordMap.containsKey(lcUser) && password.equals(userPasswordMap.get(lcUser)))) {
       throw new UserLoginException(userName, "Invalid credentials.");
     }
 

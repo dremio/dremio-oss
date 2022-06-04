@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,10 +29,8 @@ import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.UnionPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
-import com.google.common.collect.Lists;
 
 public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeException>{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FinalColumnReorderer.class);
 
   private static FinalColumnReorderer INSTANCE = new FinalColumnReorderer();
 
@@ -49,7 +48,7 @@ public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeExc
     RelDataType t = prel.getRowType();
 
     RexBuilder b = prel.getCluster().getRexBuilder();
-    List<RexNode> projections = Lists.newArrayList();
+    List<RexNode> projections = new ArrayList<>();
     int projectCount = t.getFieldList().size();
 
     // no point in reordering if we only have one column
@@ -79,11 +78,8 @@ public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeExc
 
   @Override
   public Prel visitPrel(Prel prel, Void value) throws RuntimeException {
-    if(prel instanceof UnionPrel) {
-      return addColumnOrderingBelowUnion(prel);
-    }
 
-    List<RelNode> children = Lists.newArrayList();
+    List<RelNode> children = new ArrayList<>();
     boolean changed = false;
     for (Prel p : prel) {
       Prel newP = p.accept(this, null);
@@ -99,8 +95,13 @@ public class FinalColumnReorderer extends BasePrelVisitor<Prel, Void, RuntimeExc
     }
   }
 
+  @Override
+  public Prel visitUnion(UnionPrel prel, Void value) {
+    return addColumnOrderingBelowUnion(prel);
+  }
+
   private Prel addColumnOrderingBelowUnion(Prel prel) {
-    List<RelNode> children = Lists.newArrayList();
+    List<RelNode> children = new ArrayList<>();
     for (Prel p : prel) {
       Prel child = p.accept(this, null);
 

@@ -159,12 +159,13 @@ export const setSidebarSize = size => ({
 
 export const contentLoadActions = actionUtils.generateRequestActions('HOME_CONTENT_LOAD');
 
-export const loadHomeContent = (getDataUrl, entityType, viewId) => {
+export const loadHomeContent = (getDataUrl, entityType, viewId, params) => {
   const entitySchema = schemas[entityType];
   const meta = { viewId };
 
   const apiCall = new APIV2Call()
     .paths(getDataUrl)
+    .params(params || {})
     .uncachable();
 
   return {

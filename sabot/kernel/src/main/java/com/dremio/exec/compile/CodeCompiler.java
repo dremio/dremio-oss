@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
@@ -41,7 +42,7 @@ public class CodeCompiler {
   private final ClassTransformer transformer;
   private final ClassCompilerSelector selector;
   private final LoadingCache<CodeGenerator<?>, GeneratedClassEntry> generatedCodeToCompiledClazzCache;
-  private final LoadingCache<ExpressionEvalInfosHolder, GeneratedClassEntryWithFunctionErrorContextSizeInfo> expressionsToCompiledClazzCache;
+  private final LoadingCache<ExpressionsHolder, GeneratedClassEntryWithFunctionErrorContextSizeInfo> expressionsToCompiledClazzCache;
 
   public CodeCompiler(final SabotConfig config, final OptionManager optionManager) {
     transformer = new ClassTransformer(optionManager);
@@ -50,7 +51,7 @@ public class CodeCompiler {
     generatedCodeToCompiledClazzCache = CacheBuilder.newBuilder()
       .softValues()
       .maximumSize(cacheMaxSize)
-      .build(new GeneartedCodeToCompiledClazzCacheLoader());
+      .build(new GeneratedCodeToCompiledClazzCacheLoader());
     expressionsToCompiledClazzCache = CacheBuilder.newBuilder()
       .softValues()
       .maximumSize(cacheMaxSize)
@@ -69,8 +70,8 @@ public class CodeCompiler {
         if (cg.getRoot().doesLazyExpsContainComplexWriterFunctionHolder()) {
           cg.getRoot().evaluateAllLazyExps();
         } else {
-          ExpressionEvalInfosHolder expressionEvalInfoHolder = new ExpressionEvalInfosHolder(cg);
-          return getImplementationClassFromExpToCompiledClazzCache(expressionEvalInfoHolder, instanceNumber);
+          ExpressionsHolder expressionsHolder = new ExpressionsHolder(cg);
+          return getImplementationClassFromExpToCompiledClazzCache(expressionsHolder, instanceNumber);
         }
       }
       cg.generate();
@@ -81,17 +82,23 @@ public class CodeCompiler {
     }
   }
 
-  public <T> List<T> getImplementationClassFromExpToCompiledClazzCache(final ExpressionEvalInfosHolder expressionEvalInfosHolder, int instanceNumber) {
+  public <T> List<T> getImplementationClassFromExpToCompiledClazzCache(final ExpressionsHolder expressionsHolder, int instanceNumber) {
     try {
-      ClassGenerator<?> rootGenerator = expressionEvalInfosHolder.cg.getRoot();
-      final GeneratedClassEntryWithFunctionErrorContextSizeInfo ce = expressionsToCompiledClazzCache.get(expressionEvalInfosHolder);
+      ClassGenerator<?> rootGenerator = expressionsHolder.cg.getRoot();
+      final GeneratedClassEntryWithFunctionErrorContextSizeInfo ce = expressionsToCompiledClazzCache.get(expressionsHolder);
+      logger.debug("Expressions Cache access with key '{}' and value '{}'", expressionsHolder, ce);
       rootGenerator.registerFunctionErrorContext(ce.functionErrorContextsCount);
-      expressionEvalInfosHolder.cg = null;
+      expressionsHolder.cg = null;
       return getInstances(instanceNumber, ce.generatedClassEntry);
     } catch (ExecutionException | InstantiationException | IllegalAccessException e) {
       throw new ClassTransformationException(e);
+    } finally {
+      if (expressionsHolder.cg != null) {
+        // some error occurred, invalidate key if in cache
+        expressionsToCompiledClazzCache.invalidate(expressionsHolder);
+        expressionsHolder.cg = null;
+      }
     }
-
   }
 
   private <T> List<T> getInstances(int instanceNumber, GeneratedClassEntry ce) throws InstantiationException, IllegalAccessException {
@@ -107,20 +114,26 @@ public class CodeCompiler {
     this.expressionsToCompiledClazzCache.invalidateAll();
   }
 
-  private class ExpressionsToCompiledClazzCacheLoader extends CacheLoader<ExpressionEvalInfosHolder, GeneratedClassEntryWithFunctionErrorContextSizeInfo> {
+  private class ExpressionsToCompiledClazzCacheLoader extends CacheLoader<ExpressionsHolder,
+    GeneratedClassEntryWithFunctionErrorContextSizeInfo> {
     @Override
-    public GeneratedClassEntryWithFunctionErrorContextSizeInfo load(final ExpressionEvalInfosHolder expressionEvalInfosHolder) throws Exception {
+    public GeneratedClassEntryWithFunctionErrorContextSizeInfo load(final ExpressionsHolder expressionsHolder) throws Exception {
       final QueryClassLoader loader = new QueryClassLoader(selector);
-      ClassGenerator<?> rootGenerator = expressionEvalInfosHolder.cg.getRoot();
-      CodeGenerator<?> cg = expressionEvalInfosHolder.cg;
+      ClassGenerator<?> rootGenerator = expressionsHolder.cg.getRoot();
+      final int currentCount = rootGenerator.getFunctionErrorContextsCount();
+      CodeGenerator<?> cg = expressionsHolder.cg;
       cg.getRoot().evaluateAllLazyExps();
       cg.generate();
       final Class<?> c = transformer.getImplementationClass(loader, cg.getDefinition(), cg.getGeneratedCode(), cg.getMaterializedClassName());
-      return new GeneratedClassEntryWithFunctionErrorContextSizeInfo(c, rootGenerator.getFunctionErrorContextsCount());
+      final GeneratedClassEntryWithFunctionErrorContextSizeInfo ce =
+        new GeneratedClassEntryWithFunctionErrorContextSizeInfo(c,
+          rootGenerator.getFunctionErrorContextsCount() - currentCount);
+      logger.debug("Expressions Cache loaded with key '{}' and value '{}'", expressionsHolder, ce);
+      return ce;
     }
   }
 
-  private class GeneartedCodeToCompiledClazzCacheLoader extends CacheLoader<CodeGenerator<?>, GeneratedClassEntry> {
+  private class GeneratedCodeToCompiledClazzCacheLoader extends CacheLoader<CodeGenerator<?>, GeneratedClassEntry> {
     @Override
     public GeneratedClassEntry load(final CodeGenerator<?> cg) throws Exception {
       logger.debug("In Cache load; Compile code");
@@ -132,7 +145,7 @@ public class CodeCompiler {
     }
   }
 
-  private class GeneratedClassEntry {
+  private static class GeneratedClassEntry {
     private final Class<?> clazz;
 
     public GeneratedClassEntry(final Class<?> clazz) {
@@ -140,7 +153,7 @@ public class CodeCompiler {
     }
   }
 
-  private class GeneratedClassEntryWithFunctionErrorContextSizeInfo {
+  private static class GeneratedClassEntryWithFunctionErrorContextSizeInfo {
     private final GeneratedClassEntry generatedClassEntry;
     private final int functionErrorContextsCount;
 
@@ -148,23 +161,41 @@ public class CodeCompiler {
       this.generatedClassEntry = new GeneratedClassEntry(clazz);
       this.functionErrorContextsCount = functionErrorContextCount;
     }
+
+    @Override
+    public String toString() {
+      return "{clazz=" + generatedClassEntry.clazz.getName() + " cnt = " + functionErrorContextsCount + "}";
+    }
   }
 
-  private class ExpressionEvalInfosHolder {
-    private final List<ExpressionEvalInfo> expressionEvalInfos;
-    //This is only used once and we can make it null after that and also this is not used in the equals method,
+  private static class ExpressionsHolder {
+    private final List<ExpressionEvalInfo> expressionEvalInfoList;
+    // the starting error context idx has to match to avoid a split being matched with another expression's split
+    // that is located at a different starting point (say of another operator). As long as the split starts at the
+    // same starting point the generated code for the split can be reused even if the split is of another
+    // unrelated operator.
+    private final int startingErrorContextIdx;
+
+    // This is only used once and we can make it null after that and also this is not used in the equals method,
     // hence keeping it non final and mutable, but rest of the fields are and should be immutable
     private CodeGenerator<?> cg;
 
-    public ExpressionEvalInfosHolder(CodeGenerator<?> cg) {
+    public ExpressionsHolder(CodeGenerator<?> cg) {
       List<ExpressionEvalInfo> expEvalInfos = cg.getRoot().getExpressionEvalInfos();
+      startingErrorContextIdx = cg.getFunctionContext().getFunctionErrorContextSize();
       if (expEvalInfos == null) {
         expEvalInfos = Collections.emptyList();
       } else {
         expEvalInfos = ImmutableList.copyOf(expEvalInfos);
       }
-      this.expressionEvalInfos = expEvalInfos;
+      this.expressionEvalInfoList = expEvalInfos;
       this.cg = cg;
+    }
+
+    @Override
+    public String toString() {
+      return "{" + expressionEvalInfoList.stream().map(ExpressionEvalInfo::toString)
+        .collect(Collectors.joining(" ")) + "}";
     }
 
     @Override
@@ -176,13 +207,14 @@ public class CodeCompiler {
         return false;
       }
 
-      ExpressionEvalInfosHolder that = (ExpressionEvalInfosHolder) o;
-      return Objects.equals(expressionEvalInfos, that.expressionEvalInfos);
+      ExpressionsHolder that = (ExpressionsHolder) o;
+      return startingErrorContextIdx == that.startingErrorContextIdx
+        && expressionEvalInfoList.equals(that.expressionEvalInfoList);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(expressionEvalInfos);
+      return Objects.hash(expressionEvalInfoList, startingErrorContextIdx);
     }
   }
 }

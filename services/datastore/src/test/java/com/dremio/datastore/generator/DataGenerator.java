@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore.generator;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -71,7 +69,7 @@ public interface DataGenerator<K, V> {
    * @param actual the actual key.
    */
   default void assertKeyEquals(K expected, K actual) {
-    assertThat(actual, is(equalTo(expected)));
+    assertThat(actual).isEqualTo(expected);
   }
 
   /**
@@ -81,7 +79,7 @@ public interface DataGenerator<K, V> {
    * @param actual the actual value.
    */
   default void assertValueEquals(V expected, V actual) {
-    assertThat(actual, is(equalTo(expected)));
+    assertThat(actual).isEqualTo(expected);
   }
 
   /**

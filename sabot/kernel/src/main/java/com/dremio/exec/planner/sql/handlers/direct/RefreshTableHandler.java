@@ -41,6 +41,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.users.SystemUser;
 
 /**
  * Handler for {@link SqlRefreshTable} command.
@@ -48,7 +49,6 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 public class RefreshTableHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
-  private final String queryUserName;
   private final boolean allowUnlimitedSplits;
   private final NamespaceService namespaceService;
 
@@ -56,7 +56,6 @@ public class RefreshTableHandler extends SimpleDirectHandler {
                              boolean allowUnlimitedSplits, String queryUserName) {
     this.catalog = catalog;
     this.allowUnlimitedSplits = allowUnlimitedSplits;
-    this.queryUserName = queryUserName;
     this.namespaceService = namespaceService;
   }
 
@@ -71,8 +70,8 @@ public class RefreshTableHandler extends SimpleDirectHandler {
     if (!allowUnlimitedSplits) {
       if (isOptionEnabled(sqlRefreshTable.getAllFilesRefresh()) ||
           isOptionEnabled(sqlRefreshTable.getAllPartitionsRefresh()) || isOptionEnabled(sqlRefreshTable.getPartitionRefresh())) {
-        throw new UnsupportedOperationException(String.format(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName() + " should be enabled for" +
-          " ALL FILES/PARTITION, per-partition refresh"));
+        throw new UnsupportedOperationException(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName() + " should be enabled for" +
+          " ALL FILES/PARTITION, per-partition refresh");
       }
     }
 
@@ -99,7 +98,7 @@ public class RefreshTableHandler extends SimpleDirectHandler {
       builder.setPartition(createPartitionMap(sqlRefreshTable));
     }
 
-    builder.setRefreshQuery(new MetadataRefreshQuery(sqlRefreshTable.toRefreshDatasetQuery(tableNSKey.getPathComponents()), queryUserName));
+    builder.setRefreshQuery(new MetadataRefreshQuery(sqlRefreshTable.toRefreshDatasetQuery(tableNSKey.getPathComponents()), SystemUser.SYSTEM_USERNAME));
 
     UpdateStatus status = catalog.refreshDataset(tableNSKey, builder.build());
 

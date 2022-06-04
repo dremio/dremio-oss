@@ -44,8 +44,9 @@ public class EasyScanPrel extends ScanPrelBase {
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.scan.easy.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.scan.easy.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  public EasyScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId, TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
+  public EasyScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
+                      TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment, List<Info> runtimeFilters) {
+    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
   }
 
   @Override
@@ -59,12 +60,12 @@ public class EasyScanPrel extends ScanPrelBase {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new EasyScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment);
+    return new EasyScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, getRuntimeFilters());
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new EasyScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment);
+    return new EasyScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, getRuntimeFilters());
   }
 
 }

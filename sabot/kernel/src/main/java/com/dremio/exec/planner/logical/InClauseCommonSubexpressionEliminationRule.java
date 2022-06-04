@@ -92,7 +92,7 @@ public final class InClauseCommonSubexpressionEliminationRule extends RelOptRule
       return;
     }
 
-    final List<RexNode> projectNodes = MoreRelOptUtil.identityProjects(filterRel.getInput().getRowType(), null);
+    final List<RexNode> projectNodes = MoreRelOptUtil.identityProjects(filterRel.getInput().getRowType());
     final HashMap<RexNodeWithDeepEqualsAndHash, Integer> commonSubExpressionToProjectionIndex = new HashMap<>();
     for (RexNodeWithDeepEqualsAndHash commonSubexpression : complexCommonSubexpressions) {
       int index = projectNodes.size();
@@ -104,7 +104,7 @@ public final class InClauseCommonSubexpressionEliminationRule extends RelOptRule
       filterRel,
       commonSubExpressionToProjectionIndex);
 
-    List<RexNode> originalColumns = MoreRelOptUtil.identityProjects(filterRel.getInput().getRowType(), null);
+    List<RexNode> originalColumns = MoreRelOptUtil.identityProjects(filterRel.getInput().getRowType());
 
     final RelNode rewrittenRelNode = relOptRuleCall
       .builder()

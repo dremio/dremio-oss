@@ -29,6 +29,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.physical.config.BridgeFileReader;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.schedule.CompleteWork;
 import com.google.common.base.Preconditions;
@@ -90,6 +91,11 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
     extCommunicableMajorFragments.addAll(subScan.getExtCommunicableMajorFragments());
     // TODO - implement this
     return super.visitOp(subScan, value);
+  }
+
+  @Override
+  public PhysicalOperator visitBridgeFileReader(BridgeFileReader op, IndexedFragmentNode iNode) throws ExecutionSetupException {
+    return visitOp(op, iNode);
   }
 
   @Override

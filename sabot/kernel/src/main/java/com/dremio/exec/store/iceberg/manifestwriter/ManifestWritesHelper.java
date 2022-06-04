@@ -19,8 +19,6 @@ import static com.dremio.common.map.CaseInsensitiveImmutableBiMap.newImmutableMa
 import static com.dremio.exec.util.VectorUtil.getVectorFromSchemaPath;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -51,11 +49,9 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordWriter;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.FieldIdBroker;
-import com.dremio.exec.store.iceberg.IcebergFormatConfig;
+import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergMetadataInformation;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
@@ -63,19 +59,23 @@ import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
+import com.google.common.collect.Lists;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
 
 public class ManifestWritesHelper {
   private static final Logger logger = LoggerFactory.getLogger(ManifestWritesHelper.class);
+  private static final String outputExtension = "avro";
   private static final int DATAFILES_PER_MANIFEST_THRESHOLD = 10000;
+  private static final String CRC_FILE_EXTENTION = "crc";
   private final String ICEBERG_METADATA_FOLDER = "metadata";
+  private final List<String> listOfFilesCreated;
 
   protected ManifestWriter<DataFile> manifestWriter;
-  protected EasyWriter writer;
-  protected IcebergFormatConfig formatConfig;
+  protected IcebergManifestWriterPOP writer;
   protected long currentNumDataFileAdded = 0;
+  protected DremioFileIO dremioFileIO;
 
   protected VarBinaryVector inputDatafiles;
   protected Map<DataFile, byte[]> deletedDataFiles = new LinkedHashMap<>(); // required that removed file is cleared with each row.
@@ -83,18 +83,19 @@ public class ManifestWritesHelper {
   private final Set<IcebergPartitionData> partitionDataInCurrentManifest = new HashSet<>();
   private final byte[] schema;
 
-  public static ManifestWritesHelper getInstance(EasyWriter writer, IcebergFormatConfig formatConfig, int columnLimit) {
+  public static ManifestWritesHelper getInstance(IcebergManifestWriterPOP writer, int columnLimit) {
     if (writer.getOptions().getIcebergTableProps().isDetectSchema()) {
-      return new SchemaDiscoveryManifestWritesHelper(writer, formatConfig, columnLimit);
+      return new SchemaDiscoveryManifestWritesHelper(writer, columnLimit);
     } else {
-      return new ManifestWritesHelper(writer, formatConfig);
+      return new ManifestWritesHelper(writer);
     }
   }
 
-  protected ManifestWritesHelper(EasyWriter writer, IcebergFormatConfig formatConfig) {
+  protected ManifestWritesHelper(IcebergManifestWriterPOP writer) {
     this.writer = writer;
-    this.formatConfig = formatConfig;
     this.schema = writer.getOptions().getIcebergTableProps().getFullSchema().serialize();
+    this.listOfFilesCreated = Lists.newArrayList();
+    this.dremioFileIO = new DremioFileIO(writer.getPlugin().getFsConfCopy(), writer.getPlugin());
   }
 
   public void setIncoming(VectorAccessible incoming) {
@@ -105,12 +106,11 @@ public class ManifestWritesHelper {
     this.currentNumDataFileAdded = 0;
     final WriterOptions writerOptions = writer.getOptions();
     final String baseMetadataLocation = writerOptions.getIcebergTableProps().getTableLocation() + Path.SEPARATOR + ICEBERG_METADATA_FOLDER;
-    final FileSystemPlugin<?> plugin = writer.getFormatPlugin().getFsPlugin();
     final PartitionSpec partitionSpec = getPartitionSpec(writer.getOptions());
     this.partitionSpecId = Optional.of(partitionSpec.specId());
-    final String icebergManifestFileExt = "." + formatConfig.outputExtension;
-    final DremioFileIO dremioFileIO = new DremioFileIO(plugin.getFsConfCopy());
+    final String icebergManifestFileExt = "." + outputExtension;
     final OutputFile manifestLocation = dremioFileIO.newOutputFile(baseMetadataLocation + Path.SEPARATOR + UUID.randomUUID() + icebergManifestFileExt);
+    listOfFilesCreated.add(manifestLocation.location());
     partitionDataInCurrentManifest.clear();
     this.manifestWriter = ManifestFiles.write(partitionSpec, manifestLocation);
   }
@@ -220,8 +220,7 @@ public class ManifestWritesHelper {
       manifestWriter.close();
       ManifestFile manifestFile = manifestWriter.toManifestFile();
       logger.debug("Removing {} as it'll be re-written with a new schema", manifestFile.path());
-      String path = Path.getContainerSpecificRelativePath(Path.of(manifestFile.path()));
-      Files.deleteIfExists(Paths.get(path));
+      deleteManifestFileIfExists(dremioFileIO, manifestFile.path());
       manifestWriter = null;
     } catch (Exception e) {
       logger.warn("Error while closing stale manifest", e);
@@ -230,5 +229,36 @@ public class ManifestWritesHelper {
 
   Set<IcebergPartitionData> partitionDataInCurrentManifest() {
     return partitionDataInCurrentManifest;
+  }
+
+  protected void abort() {
+    for (String path : this.listOfFilesCreated) {
+      ManifestWritesHelper.deleteManifestFileIfExists(dremioFileIO, path);
+    }
+  }
+
+  public static boolean deleteManifestFileIfExists(DremioFileIO dremioFileIO, String filePath) {
+    try {
+      dremioFileIO.deleteFile(filePath);
+      deleteManifestCrcFileIfExists(dremioFileIO, filePath);
+      return true;
+    } catch (Exception e) {
+      logger.warn("Error while deleting file {}", filePath, e);
+      return false;
+    }
+  }
+
+  public static boolean deleteManifestCrcFileIfExists(DremioFileIO dremioFileIO, String manifestFilePath) {
+    try{
+      com.dremio.io.file.Path p = com.dremio.io.file.Path.of(manifestFilePath);
+      String fileName = p.getName();
+      com.dremio.io.file.Path parentPath = p.getParent();
+      String crcFilePath = parentPath + com.dremio.io.file.Path.SEPARATOR + "." + fileName + "." + CRC_FILE_EXTENTION;
+      dremioFileIO.deleteFile(crcFilePath);
+      return true;
+    } catch (Exception e) {
+      logger.warn("Error while deleting crc file for {}", manifestFilePath, e);
+      return false;
+    }
   }
 }

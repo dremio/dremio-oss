@@ -43,6 +43,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -292,7 +293,9 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     c.setAccelerationNeverExpire(Boolean.TRUE.equals(accelerationNeverExpire));
     c.setAccelerationNeverRefresh(Boolean.TRUE.equals(accelerationNeverRefresh));
     c.setMetadataPolicy(metadataPolicy.asMetadataPolicy());
-    c.setId(new EntityId(getId()));
+    if (!Strings.isNullOrEmpty(getId())) {
+      c.setId(new EntityId(getId()));
+    }
     c.setAllowCrossSourceSelection(Boolean.TRUE.equals(allowCrossSourceSelection));
     c.setDisableMetadataValidityCheck(Boolean.TRUE.equals(disableMetadataValidityCheck));
     return c;

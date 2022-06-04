@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -167,7 +168,7 @@ public class FlattenPrel extends SinglePrel implements Prel {
     public Field visit(ArrowType.List type) {
       if(field.getName().equals(column.getAsUnescapedPath())){
         Field child = field.getChildren().get(0);
-        return new Field(field.getName(), child.isNullable(), child.getType(), child.getChildren());
+        return new Field(field.getName(), new FieldType(child.isNullable(), child.getType(), child.getDictionary()), child.getChildren());
       }
       return field;
     }

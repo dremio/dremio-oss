@@ -13,32 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import React, { Component } from 'react';
 
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import deepEqual from 'deep-equal';
+import classNames from 'classnames';
 
+import { connect } from 'react-redux';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { splitFullPath, constructFullPath } from 'utils/pathUtils';
 
-import FontIcon from 'components/Icon/FontIcon';
 import Modal from 'components/Modals/Modal';
 import SQLEditor from 'components/SQLEditor';
 
 import DragTarget from 'components/DragComponents/DragTarget';
+import Art from '@app/components/Art';
 
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import SelectContextForm from '../forms/SelectContextForm';
 
 import './SqlAutoComplete.less';
+import RefPicker from './components/RefPicker';
 
 const DEFAULT_CONTEXT = '<none>';
-
 @Radium
-export default class SqlAutoComplete extends Component { // todo: pull SQLEditor into this class (and rename)
+export class SqlAutoComplete extends Component { // todo: pull SQLEditor into this class (and rename)
   static propTypes = {
     onChange: PropTypes.func,
+    onFunctionChange: PropTypes.func,
     pageType: PropTypes.oneOf(['details', 'recent']),
     defaultValue: PropTypes.string,
     isGrayed: PropTypes.bool,
@@ -46,12 +50,13 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
     errors: PropTypes.instanceOf(Immutable.List),
     name: PropTypes.string,
     sqlSize: PropTypes.number,
-    datasetsPanel: PropTypes.bool,
     funcHelpPanel: PropTypes.bool,
     changeQueryContext: PropTypes.func,
     style: PropTypes.object,
     dragType: PropTypes.string,
-    autoCompleteEnabled: PropTypes.bool.isRequired
+    autoCompleteEnabled: PropTypes.bool.isRequired,
+    children: PropTypes.any,
+    sidebarCollapsed: PropTypes.bool
   };
 
   static defaultProps = {
@@ -64,7 +69,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
   };
 
   monacoEditorComponent = null;
-  sqlEditor = null;
+  sqlAutoCompleteRef = null;
 
   constructor(props) {
     super(props);
@@ -75,7 +80,9 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
     this.updateContext = this.updateContext.bind(this);
 
     this.state = {
-      showSelectContextModal: false
+      showSelectContextModal: false,
+      isContrast: localStorageUtils.getSqlThemeContrast(),
+      funcHelpPanel: this.props.funcHelpPanel
     };
   }
 
@@ -85,10 +92,10 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
       nextProps.context !== this.props.context ||
       nextContext.location.query.version !== this.context.location.query.version ||
       nextProps.funcHelpPanel !== this.props.funcHelpPanel ||
-      nextProps.datasetsPanel !== this.props.datasetsPanel ||
       nextProps.isGrayed !== this.props.isGrayed ||
       nextProps.sqlSize !== this.props.sqlSize ||
       nextProps.autoCompleteEnabled !== this.props.autoCompleteEnabled ||
+      nextProps.sidebarCollapsed !== this.props.sidebarCollapsed ||
       !deepEqual(nextState, this.state)
     );
   }
@@ -107,11 +114,11 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
   };
 
   getMonacoEditorInstance() {
-    return this.sqlEditor.monacoEditorComponent.editor;
+    return this.sqlAutoCompleteRef.monacoEditorComponent.editor;
   }
 
   getMonaco() {
-    return this.sqlEditor.monaco;
+    return this.sqlAutoCompleteRef.monaco;
   }
 
   handleDragOver = (evt) => {
@@ -122,13 +129,13 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
   };
 
   focus() {
-    if (this.sqlEditor) {
-      this.sqlEditor.focus();
+    if (this.sqlAutoCompleteRef) {
+      this.sqlAutoCompleteRef.focus();
     }
   }
 
   resetValue() {
-    this.sqlEditor && this.sqlEditor.resetValue();
+    this.sqlAutoCompleteRef && this.sqlAutoCompleteRef.resetValue();
   }
 
   handleChange = () => {
@@ -215,7 +222,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
 
       // insertSnippet only works with the current selection, so move the selection to the input range
       this.getMonacoEditorInstance().setSelections(emptySelections);
-      this.sqlEditor.insertSnippet(text, undefined, undefined, false, false);
+      this.sqlAutoCompleteRef.insertSnippet(text, undefined, undefined, false, false);
     }
 
     this.getMonacoEditorInstance().getModel().pushStackElement();
@@ -256,19 +263,35 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
   renderContext() {
     const contextValue = this.props.context ? constructFullPath(this.props.context, true) : DEFAULT_CONTEXT;
     const showContext = this.props.pageType === 'details';
+    const emptyContext = typeof contextValue === 'string' && contextValue.trim() === '';
     return (
-      <div style={[styles.context, showContext && {display: 'none'}]} onClick={this.handleClickEditContext}>
-        <span className='context' style={styles.contextInner}>Context: {contextValue}</span>
-        <FontIcon type='Edit' theme={styles.editIcon} hoverType='EditActive'/>
+      <div className='sqlAutocomplete__context' style={[styles.context, showContext && {display: 'none'}]}>
+        {emptyContext ?
+          <span className='sqlAutocomplete__contextText' onClick={this.handleClickEditContext}>Context</span> :
+          <>Context:<span className='sqlAutocomplete__contextText' onClick={this.handleClickEditContext}>{contextValue}</span></>
+        }
       </div>
     );
   }
 
+  renderReferencePicker() {
+    return (
+      <RefPicker hide={this.props.pageType === 'details'} />
+    );
+  }
+
+  handleClick() {
+    localStorageUtils.setSqlThemeContrast(!this.state.isContrast);
+    this.setState((state) => {
+      return { isContrast: !state.isContrast };
+    });
+  }
+
   render() {
     const height = this.props.sqlSize;
-    const { datasetsPanel, funcHelpPanel, isGrayed, errors, autoCompleteEnabled, context } = this.props;
+    const { funcHelpPanel, isGrayed, errors, autoCompleteEnabled, context, onFunctionChange, sidebarCollapsed } = this.props;
     const { query } = this.context.location;
-    const widthSqlEditor = funcHelpPanel || datasetsPanel ? styles.smallerSqlEditor : {};
+    const widthSqlEditor = funcHelpPanel ? styles.smallerSqlEditorWidth : sidebarCollapsed ? styles.noSidebarEditorWidth  : styles.normalSqlEditorWidth;
     return (
       <DragTarget
         dragType={this.props.dragType}
@@ -276,37 +299,72 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
         onDragOver={this.handleDragOver}
       >
         <div
-          className='sql-autocomplete'
+          className={classNames('sqlAutocomplete', this.state.isContrast ? 'vs-dark' : 'vs')}
           name={this.props.name}
           style={[styles.base, widthSqlEditor, isGrayed && {opacity: 0.4, pointerEvents: 'none'}, this.props.style]}
         >
-          {this.renderSelectContextModal()}
+          <div className='sqlAutocomplete__actions'>
+            {this.renderSelectContextModal()}
+            { query.type !== 'transform' && this.renderContext() }
+            { query.type !== 'transform' && this.renderReferencePicker() }
+            <span
+              data-qa='toggle-icon'
+              id='toggle-icon'
+              className='function__toggleIcon'
+              onClick={onFunctionChange}
+              style={[ this.state.isContrast ? {color: 'white'} : {color: 'black'} ]}
+            >
+              fn
+            </span>
+            <span
+              data-qa='toggle-icon'
+              id='toggle-icon'
+              className='sql__toggleIcon'
+              onClick={this.handleClick.bind(this)}
+            >
+              <Art
+                src={this.state.isContrast ? 'sqlThemeWhite.svg' : 'sqlThemeGray.svg'}
+                alt='icon'
+                title={this.state.isContrast ? 'Light Mode' : 'Dark Mode'}
+                style={{ width: '15px' }}
+              />
+            </span>
+          </div>
+
           <SQLEditor
             height={height - 2} // .sql-autocomplete has 1px top and bottom border. Have to substract border width
-            ref={(ref) => this.sqlEditor = ref}
+            ref={(ref) => this.sqlAutoCompleteRef = ref}
             defaultValue={this.props.defaultValue}
             onChange={this.handleChange}
             errors={errors}
             autoCompleteEnabled={autoCompleteEnabled}
             sqlContext={context}
+            customTheme
+            theme={this.state.isContrast ? 'vs-dark' : 'vs'}
+            background={this.state.isContrast ? '#333333' : '#FFFFFF'}
           />
-          { query.type !== 'transform' && this.renderContext() }
+          { this.props.children }
         </div>
       </DragTarget>
     );
   }
 }
 
+export default connect(null, null, null, { forwardRef: true })(SqlAutoComplete);
+
 const styles = {
   base: {
     position: 'relative',
-    width: '100%',
-    transition: 'all .3s',
-    backgroundColor: '#fff'
+    width: '100%'
   },
-  smallerSqlEditor: {
-    width: 'calc(60% - 7px)', // 7px - indents from the edge of the screen
-    borderRight: 'none'
+  noSidebarEditorWidth: {
+    width: 'calc(100vw - 16rem)'
+  },
+  normalSqlEditorWidth: {
+    width: 'calc(100vw - 423px)'
+  },
+  smallerSqlEditorWidth: {
+    width: '60%'
   },
   tooltip: {
     padding: '5px 10px 5px 10px',
@@ -326,22 +384,6 @@ const styles = {
       alignItems: 'center',
       cursor: 'pointer'
     }
-  },
-  context: {
-    cursor: 'pointer',
-    position: 'absolute',
-    backgroundColor: 'rgba(216,218,222,0.50)',
-    border: '1px solid #D8DADE',
-    height: 20,
-    display: 'flex',
-    alignItems: 'center',
-    padding: 3,
-    bottom: 0,
-    right: 0
-  },
-  contextInner: {
-    color: '#B5BAC1',
-    fontSize: '10px'
   },
   contextInput: {
     minWidth: 139,

@@ -101,7 +101,7 @@ public class ExecutorServiceImpl extends ExecutorService {
     // get cpu
     while(threads.hasNext()) {
       ThreadsIterator.ThreadSummary summary = (ThreadsIterator.ThreadSummary) threads.next();
-      double cpuTime = summary.cpuTime == null ? 0 : summary.cpuTime;
+      double cpuTime = summary.cpu_time == null ? 0 : summary.cpu_time;
       double numCores = summary.cores;
       cpu += (cpuTime / numCores);
     }

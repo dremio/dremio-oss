@@ -17,7 +17,7 @@ import { shallow } from 'enzyme';
 import { Link } from 'react-router';
 import Immutable from 'immutable';
 
-import BreadCrumbs, {getPartialPath, getPathElements} from './BreadCrumbs';
+import BreadCrumbs, {getPartialPath, getPathElements, formatFullPath} from './BreadCrumbs';
 
 const getLinkText = (wrapper, index) => {
   return wrapper.children().at(index).find('Link').children().text();
@@ -38,11 +38,11 @@ describe('BreadCrumbs', () => {
       const wrapper = shallow(<BreadCrumbs {...commonProps}/>);
       expect(
         wrapper.children().first().text()
-      ).to.eql('<Link />.');
+      ).to.eql('<BreadCrumbItem />');
 
       expect(
         wrapper.children().at(1).text()
-      ).to.eql('bar');
+      ).to.eql('<BreadCrumbItem />');
     });
 
     it('should not render last item when hideLastItem is true', () => {
@@ -54,11 +54,11 @@ describe('BreadCrumbs', () => {
       expect(wrapper.children()).to.have.length(2);
       expect(
         wrapper.children().first().text()
-      ).to.eql('<Link />.');
+      ).to.eql('<BreadCrumbItem />');
       expect(getLinkText(wrapper, 0)).to.be.eql('foo');
       expect(
         wrapper.children().at(1).text()
-      ).to.eql('<Link />');
+      ).to.eql('<BreadCrumbItem />');
       expect(getLinkText(wrapper, 1)).to.be.eql('bar');
     });
   });
@@ -124,13 +124,13 @@ describe('BreadCrumbs', () => {
 
   describe('formatFullPath', () => {
     it('should wrap item with "" if it contains a dot', () => {
-      expect(BreadCrumbs.formatFullPath(Immutable.List(['foo.bar', 'baz']))).to.eql(
+      expect(formatFullPath(Immutable.List(['foo.bar', 'baz']))).to.eql(
         Immutable.List(['"foo.bar"', 'baz'])
       );
     });
 
     it('should not wrap item with "" if it contains a dot but only has one item in path', () => {
-      expect(BreadCrumbs.formatFullPath(Immutable.List(['foo.bar']))).to.eql(
+      expect(formatFullPath(Immutable.List(['foo.bar']))).to.eql(
         Immutable.List(['foo.bar'])
       );
     });

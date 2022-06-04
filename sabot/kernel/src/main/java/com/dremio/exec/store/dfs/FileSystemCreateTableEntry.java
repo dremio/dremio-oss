@@ -19,7 +19,6 @@ import java.io.IOException;
 
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -30,7 +29,7 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.service.namespace.NamespaceKey;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -46,30 +45,34 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSystemCreateTableEntry.class);
 
   private final String userName;
-  private final FileSystemPlugin plugin;
+  private final FileSystemPlugin<?> plugin;
   private final FormatPlugin formatPlugin;
   private final String location;
   private final WriterOptions options;
   private final IcebergTableProps icebergTableProps;
   private final NamespaceKey datasetPath;
+  private final StoragePluginId sourceTablePluginId;
 
   @JsonCreator
-  public FileSystemCreateTableEntry(@JsonProperty("userName") String userName,
-                                    @JsonProperty("pluginId") StoragePluginId pluginId,
-                                    @JsonProperty("formatConfig") FormatPluginConfig formatConfig,
-                                    @JsonProperty("location") String location,
-                                    @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
-                                    @JsonProperty("options") WriterOptions options,
-                                    @JsonProperty("datasetPath") NamespaceKey datasetPath,
-                                    @JacksonInject CatalogService catalogService)
-      throws ExecutionSetupException {
+  public FileSystemCreateTableEntry(
+      @JsonProperty("userName") String userName,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("formatConfig") FormatPluginConfig formatConfig,
+      @JsonProperty("location") String location,
+      @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
+      @JsonProperty("options") WriterOptions options,
+      @JsonProperty("datasetPath") NamespaceKey datasetPath,
+      @JsonProperty("sourceTablePluginId") StoragePluginId sourceTablePluginId,
+      @JacksonInject StoragePluginResolver storagePluginResolver
+  ) {
     this.userName = userName;
-    this.plugin = catalogService.getSource(pluginId);
+    this.plugin = storagePluginResolver.getSource(pluginId);
     this.formatPlugin = plugin.getFormatPlugin(formatConfig);
     this.location = location;
     this.options = options;
     this.icebergTableProps = icebergTableProps;
     this.datasetPath = datasetPath;
+    this.sourceTablePluginId = sourceTablePluginId;
   }
 
   /**
@@ -82,12 +85,26 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
    */
   public FileSystemCreateTableEntry(
       String userName,
-      FileSystemPlugin plugin,
+      FileSystemPlugin<?> plugin,
       FormatPlugin formatPlugin,
       String location,
       IcebergTableProps icebergTableProps,
       WriterOptions options,
-      NamespaceKey datasetPath) {
+      NamespaceKey datasetPath
+  ) {
+    this(userName, plugin, formatPlugin, location, icebergTableProps, options, datasetPath, null);
+  }
+
+  public FileSystemCreateTableEntry(
+      String userName,
+      FileSystemPlugin<?> plugin,
+      FormatPlugin formatPlugin,
+      String location,
+      IcebergTableProps icebergTableProps,
+      WriterOptions options,
+      NamespaceKey datasetPath,
+      StoragePluginId sourceTablePluginId
+  ) {
     this.userName = userName;
     this.plugin = plugin;
     this.formatPlugin = formatPlugin;
@@ -95,11 +112,16 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
     this.options = options;
     this.icebergTableProps = icebergTableProps;
     this.datasetPath = datasetPath;
+    this.sourceTablePluginId = sourceTablePluginId;
   }
 
   @JsonProperty("pluginId")
   public StoragePluginId getId() {
     return plugin.getId();
+  }
+
+  public StoragePluginId getSourceTablePluginId() {
+    return sourceTablePluginId;
   }
 
   @JsonProperty("formatConfig")
@@ -108,12 +130,12 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
   }
 
   @JsonProperty("location")
-  public String getLocation(){
+  public String getLocation() {
     return location;
   }
 
   @JsonIgnore
-  public FileSystemPlugin getPlugin(){
+  public FileSystemPlugin<?> getPlugin() {
     return plugin;
   }
 

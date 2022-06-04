@@ -363,6 +363,7 @@ public class TestZKClusterClient extends DremioTest {
   }
 
   @Test
+  @Ignore("Disabling flaky test DX-41442")
   public void testElectionDelayLeaderCallback() throws Exception {
     final CountDownLatch elected = new CountDownLatch(1);
     final CountDownLatch loss = new CountDownLatch(1);

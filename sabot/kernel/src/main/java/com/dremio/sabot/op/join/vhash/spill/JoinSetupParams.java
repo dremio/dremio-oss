@@ -22,11 +22,13 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.util.ImmutableBitSet;
 
+import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
+import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 
@@ -38,6 +40,7 @@ public final class JoinSetupParams {
 
   // common
   private final OptionManager options;
+  private final SabotConfig sabotConfig;
   // Allocator used for temporary allocations (no limit)
   private final BufferAllocator opAllocator;
   // Allocator used for long-lived data structures (i.e may stay around till the end-of-life of partition/operator)
@@ -81,6 +84,7 @@ public final class JoinSetupParams {
   private final List<FieldVector> probeOutputs;
 
   JoinSetupParams(OptionManager options,
+                  SabotConfig sabotConfig,
                   BufferAllocator opAllocator,
                   BufferAllocator buildAllocator,
                   FixedBlockVector pivotedFixedBlock,
@@ -100,6 +104,7 @@ public final class JoinSetupParams {
                   List<FieldVector> probeOutputs) {
 
     this.options = options;
+    this.sabotConfig = sabotConfig;
     this.opAllocator = opAllocator;
     this.buildAllocator = buildAllocator;
     this.pivotedFixedBlock = pivotedFixedBlock;
@@ -121,6 +126,10 @@ public final class JoinSetupParams {
 
   public OptionManager getOptions() {
     return options;
+  }
+
+  public SabotConfig getSabotConfig() {
+    return sabotConfig;
   }
 
   public BufferAllocator getOpAllocator() {

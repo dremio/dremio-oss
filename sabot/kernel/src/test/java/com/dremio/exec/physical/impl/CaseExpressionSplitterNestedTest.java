@@ -180,7 +180,8 @@ public class CaseExpressionSplitterNestedTest extends BaseExpressionSplitterTest
   @Test
   public void testNestedMixedSplits() throws Exception {
     final String _xxx0g = "(case when (greater_than_or_equal_to(c0, c1)) then (0i) else (-1i) end)";
-    final String _xxx1g = "greater_than_or_equal_to(c2, c1)";
+    final String _xxx1g = "(if (less_than(_xxx0,0i)) then (greater_than_or_equal_to(c2,c1)) " +
+      "else (cast((__$internal_null$__) as bit)) end)";
     final String _xxx2j = "(if (less_than(_xxx0, 0i)) then " +
       "((if (_xxx1) then (subtract(c3, 100i)) else (add(c4, 10i)) end)) " +
       "else (cast((__$INTERNAL_NULL$__) as INT)) end)";
@@ -209,18 +210,18 @@ public class CaseExpressionSplitterNestedTest extends BaseExpressionSplitterTest
 
     GandivaAnnotator annotator = new GandivaAnnotatorCase("greater_than_or_equal_to", "multiply", "divide");
     Split[] expSplits = new Split[] {
-      new Split(true, "_xxx0", _xxx0g, 1, 2),
-      new Split(true, "_xxx1", _xxx1g, 1, 1),
-      new Split(false, "_xxx2", _xxx2j, 2, 1, "_xxx0", "_xxx1"),
-      new Split(false, "_xxx3", _xxx3j, 3, 1, "_xxx0", "_xxx2"),
-      new Split(false, "_xxx4", _xxx4j, 4, 7, "_xxx3"),
-      new Split(true, "_xxx5", _xxx5g, 5, 1, "_xxx4"),
-      new Split(false, "_xxx6", _xxx6j, 6, 1, "_xxx4", "_xxx5"),
-      new Split(true, "_xxx7", _xxx7g, 7, 3, "_xxx4", "_xxx6"),
-      new Split(false, "_xxx8", _xxx8j, 8, 1, "_xxx4", "_xxx7"),
-      new Split(false, "_xxx9", _xxx9j, 8, 1, "_xxx4", "_xxx7"),
-      new Split(false, "_xxx10", _xxx10j, 5, 1, "_xxx4"),
-      new Split(true, "out", _xxx11g, 9, 0, "_xxx4", "_xxx7", "_xxx8", "_xxx9", "_xxx10")
+      new Split(true, "_xxx0", _xxx0g, 1, 3),
+      new Split(true, "_xxx1", _xxx1g, 2, 1, "_xxx0"),
+      new Split(false, "_xxx2", _xxx2j, 3, 1, "_xxx0", "_xxx1"),
+      new Split(true, "_xxx3", _xxx3j, 4, 1, "_xxx0", "_xxx2"),
+      new Split(false, "_xxx4", _xxx4j, 5, 7, "_xxx3"),
+      new Split(true, "_xxx5", _xxx5g, 6, 1, "_xxx4"),
+      new Split(false, "_xxx6", _xxx6j, 7, 1, "_xxx4", "_xxx5"),
+      new Split(true, "_xxx7", _xxx7g, 8, 3, "_xxx4", "_xxx6"),
+      new Split(false, "_xxx8", _xxx8j, 9, 1, "_xxx4", "_xxx7"),
+      new Split(false, "_xxx9", _xxx9j, 9, 1, "_xxx4", "_xxx7"),
+      new Split(false, "_xxx10", _xxx10j, 6, 1, "_xxx4"),
+      new Split(true, "out", _xxx11g, 10, 0, "_xxx4", "_xxx7", "_xxx8", "_xxx9", "_xxx10")
     };
     splitAndVerifyCase(nestedCaseQuery, nestedCaseInput, nestedCaseOutput, expSplits, annotator);
   }

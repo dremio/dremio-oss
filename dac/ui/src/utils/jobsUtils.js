@@ -16,8 +16,11 @@
 import moment from 'moment';
 import { Link } from 'react-router';
 
-import config from '@app/utils/config';
+import config from '@inject/utils/config';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import OverView from '@app/pages/JobDetailsPageNew/components/OverView/OverView.js';
+import SQL from '@app/pages/JobDetailsPageNew/components/SQLTab/SQLTab.js';
+import Profile from '@app/pages/JobDetailsPageNew/components/Profile/Profile.js';
 import timeUtils from './timeUtils';
 
 // see AttemptEvent.State
@@ -37,6 +40,90 @@ export const JobState = {
 
 const RECORD_STEP = 1000;
 const RECORDS_IN_THOUSTHAND = RECORD_STEP;
+
+export function getTabs() {
+  return ['Overview', 'SQL', 'Profile'];
+}
+
+export function getIconName(tab) {
+  switch (tab) {
+  case 'Overview':
+    return 'Shape_lite.svg';
+  case 'SQL':
+    return 'Union.svg';
+  case 'Profile':
+    return 'RawProfile.svg';
+  default:
+    return 'Shape_lite.svg';
+  }
+}
+
+export function getTagClassName(tab) {
+  return tab === 'Profile' ? 'topPanel-rawProfile__rawProfileIcon' : null;
+}
+
+export function renderExecutionContent() {
+  return (<div></div>);
+}
+
+export function renderContent(contentPage, renderProps) {
+  const {
+    jobDetails,
+    downloadJobFile,
+    isContrast,
+    setIsContrast,
+    jobDetailsFromStore,
+    showJobIdProfile,
+    location
+  } = renderProps;
+  switch (contentPage) {
+  case 'Overview':
+    return (
+      <OverView
+        sql={jobDetails.get('queryText')}
+        jobDetails={jobDetails}
+        downloadJobFile={downloadJobFile}
+        isContrast={isContrast}
+        onClick={setIsContrast}
+        status={
+          jobDetailsFromStore
+            ? jobDetailsFromStore.get('state')
+            : jobDetails.get('jobStatus')
+        }
+        location={location}
+      />
+    );
+  case 'SQL':
+    return (
+      <SQL
+        submittedSql={jobDetails.get('queryText')}
+        datasetGraph={jobDetails.get('datasetGraph')}
+        algebricMatch={jobDetails.get('algebraicReflectionsDataset')}
+        isContrast={isContrast}
+        onClick={setIsContrast}
+      />
+    );
+  case 'Profile':
+    return (
+      <Profile
+        jobDetails={jobDetails}
+        showJobProfile={showJobIdProfile}
+      />
+    );
+  default:
+    return (
+      <OverView
+        sql={jobDetails.get('queryText')}
+        status={
+          jobDetailsFromStore
+            ? jobDetailsFromStore.get('state')
+            : jobDetails.get('jobStatus')
+        }
+        location={location}
+      />
+    );
+  }
+}
 
 export class JobsUtils {
 
@@ -143,6 +230,9 @@ export class JobsUtils {
   }
 
   getFormattedNumber(number) {
+    if (number === undefined || Number.isNaN(number)) {
+      return '--';
+    }
     const units = [
       { value: 1, symbol: '' },
       { value: 1e3, symbol: 'K' },
@@ -154,7 +244,7 @@ export class JobsUtils {
     ];
     const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
     const filteredUnit = units.slice().reverse().find((unit) => number >= unit.value);
-    return filteredUnit ? (number / filteredUnit.value).toFixed(3).replace(rx, '$1') + filteredUnit.symbol : '0';
+    return filteredUnit ? (number / filteredUnit.value).toFixed(1).replace(rx, '$1') + filteredUnit.symbol : '0';
   }
 
   isMetadataJob(requestType) {
@@ -243,6 +333,89 @@ export class JobsUtils {
     );
   }
 
+  getSortLabel = (queryMeasure) => {
+    switch (queryMeasure) {
+    case 'Runtime':
+      return 'Time';
+    case 'Total Memory':
+      return 'Memory';
+    case 'Bytes processed':
+      return 'Bytes';
+    case 'Parquet':
+      return 'Parquet';
+    case 'Records':
+      return 'Records';
+    case 'Thread Skew':
+      return 'Thread Skew';
+    default:
+      return 'Time';
+    }
+  };
+
+  getSortKey = (queryMeasure) => {
+    switch (queryMeasure) {
+    case 'Runtime':
+      return 'runTime';
+    case 'Total Memory':
+      return 'totalMemory';
+    case 'Bytes processed':
+      return 'bytesProcessed';
+    case 'Parquet':
+      return 'Parquet';
+    case 'Records':
+      return 'recordsProcessed';
+    case 'Thread Skew':
+      return 'numThreads';
+    default:
+      return 'processingTime';
+    }
+  };
+
+  getSortedArray(arrayToSort, path, order) {
+    const pathSplitted = path.split('.');
+    return arrayToSort.sort((a, b) => {
+      let x = a;
+      let y = b;
+
+      pathSplitted && pathSplitted.forEach((key) => {
+        x = x[key];
+        y = y[key];
+      });
+
+      if (order === 'DESC') {
+        return y - x;
+      } else {
+        return x - y;
+      }
+    });
+  }
+
+  bytesToSize(bytes) {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes === -1 || bytes === undefined || Number.isNaN(bytes)) {
+      return '--';
+    }
+    if (bytes === 0) {
+      return '0 Bytes';
+    }
+    const radix = 10;
+    const decimals = 2;
+    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)), radix);
+    return Math.round(bytes / Math.pow(1024, i), decimals) + ' ' + sizes[i];
+  }
+
+  getMetrixValue = (node, sortValue) => {
+    switch (sortValue) {
+    case 'runtime':
+      return timeUtils.nanoSecondsUpToHours(node[sortValue]);
+    case 'totalMemory':
+      return this.bytesToSize(node[sortValue]);
+    case 'recordsProcessed':
+      return this.getFormattedNumber(node[sortValue]);
+    default:
+      return timeUtils.nanoSecondsUpToHours(node[sortValue]);
+    }
+  };
 }
 
 export default new JobsUtils();

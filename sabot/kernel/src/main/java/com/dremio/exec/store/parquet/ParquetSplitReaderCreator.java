@@ -47,6 +47,7 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableList;
@@ -84,6 +85,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
   private final ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator;
   private final boolean ignoreSchemaLearning;
   private final boolean isConvertedIcebergDataset;
+  private final UserDefinedSchemaSettings userDefinedSchemaSettings;
 
   private final BiConsumer<InputStreamProvider, MutableParquetMetadata> depletionListener = (inputStreamProvider, footer) -> {
     if (!prefetchReader || !fs.supportsAsync()) {
@@ -130,7 +132,8 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                                    ParquetSplitReaderCreatorIterator parquetSplitReaderCreatorIterator,
                                    ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr,
                                    boolean ignoreSchemaLearning,
-                                   boolean isConvertedIcebergDataset) {
+                                   boolean isConvertedIcebergDataset,
+                                   UserDefinedSchemaSettings userDefinedSchemaSettings) {
     this.pathToRowGroupsMap = pathToRowGroupsMap;
     this.parquetSplitReaderCreatorIterator = parquetSplitReaderCreatorIterator;
     this.datasetSplit = splitInfo;
@@ -169,6 +172,7 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
     this.icebergSchemaFields = icebergSchemaFields;
     this.ignoreSchemaLearning = ignoreSchemaLearning;
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
+    this.userDefinedSchemaSettings = userDefinedSchemaSettings;
   }
 
   @Override
@@ -318,7 +322,8 @@ public class ParquetSplitReaderCreator extends SplitReaderCreator implements Aut
                     vectorize,
                     enableDetailedTracing,
                     supportsColocatedReads,
-                    inputStreamProvider);
+                    inputStreamProvider,
+                    userDefinedSchemaSettings);
 
             Map<String, Field> fieldsByName = CaseInsensitiveMap.newHashMap();
             fullSchema.getFields().forEach(field -> fieldsByName.put(field.getName(), field));

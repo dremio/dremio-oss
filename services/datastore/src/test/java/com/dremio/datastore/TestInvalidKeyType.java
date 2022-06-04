@@ -48,6 +48,11 @@ public class TestInvalidKeyType {
     public void convert(DocumentWriter writer, K key, V record) {
 
     }
+
+    @Override
+    public Integer getVersion() {
+      return 0;
+    }
   }
 
   @Test(expected = DatastoreException.class)

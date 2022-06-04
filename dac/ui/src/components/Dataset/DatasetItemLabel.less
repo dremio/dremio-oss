@@ -1,0 +1,46 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/color-schema.less";
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .datasetItemLabel-item {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+
+    &:hover {
+      .datasetItemLabel-item__add {
+        opacity: 1;
+      }
+    }
+
+    &__add {
+      filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg) brightness(91%) contrast(85%);
+      height: 1.6rem;
+      margin-right: .5rem;
+      opacity: 0;
+      transition: 300ms ease all;
+      width: 1.6rem;
+
+      &:hover {
+        filter: invert(23%) sepia(91%) saturate(2296%) hue-rotate(165deg) brightness(99%) contrast(101%);
+      }
+    }
+
+    &__content {
+      flex: 1;
+    }
+  }
+ } 

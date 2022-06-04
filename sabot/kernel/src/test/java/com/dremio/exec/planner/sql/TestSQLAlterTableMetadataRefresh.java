@@ -235,4 +235,14 @@ public class TestSQLAlterTableMetadataRefresh {
     String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
     Assert.assertEquals("REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan')", refreshDatasetQuery);
   }
+
+  @Test
+  public void testAlterTableRefreshMetadataForPartitionAndForceUpdateAndAutoPromotoion() {
+    final String sql = "ALTER TABLE tbl REFRESH METADATA FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan') AUTO PROMOTION FORCE UPDATE MAINTAIN WHEN MISSING";
+    final SqlNode sqlNode = SqlConverter.parseSingleStatementImpl(sql, parserConfig, false);
+    Assert.assertTrue(sqlNode.isA(Sets.immutableEnumSet(SqlKind.OTHER)));
+    final SqlRefreshTable sqlRefreshTable = (SqlRefreshTable) sqlNode;
+    String refreshDatasetQuery = sqlRefreshTable.toRefreshDatasetQuery(Collections.singletonList("tbl"));
+    Assert.assertEquals("REFRESH DATASET \"tbl\" FOR PARTITIONS (\"year\" = '2021', \"month\" = 'Jan') AUTO PROMOTION FORCE UPDATE MAINTAIN WHEN MISSING", refreshDatasetQuery);
+  }
 }

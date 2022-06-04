@@ -51,6 +51,8 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
       case TIME:
       case TIMESTAMP:
         return SUPPORTED_DATETIME_PRECISION;
+      case FLOAT:
+        return 6;
       default:
         return super.getDefaultPrecision(typeName);
     }
@@ -177,8 +179,8 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
       .isDecimal(type1) && !SqlTypeUtil.isDecimal(type2))) {
       return null;
     } else {
-      ArrowType.Decimal operand1 = new ArrowType.Decimal(type1.getPrecision(), type1.getScale());
-      ArrowType.Decimal operand2 = new ArrowType.Decimal(type2.getPrecision(), type2.getScale());
+      ArrowType.Decimal operand1 = new ArrowType.Decimal(type1.getPrecision(), type1.getScale(), 128);
+      ArrowType.Decimal operand2 = new ArrowType.Decimal(type2.getPrecision(), type2.getScale(), 128);
       ArrowType.Decimal output = DecimalTypeUtil.getResultTypeForOperation(operationType, operand1,
         operand2);
       return typeFactory.createSqlType(SqlTypeName.DECIMAL, output.getPrecision(), output.getScale());

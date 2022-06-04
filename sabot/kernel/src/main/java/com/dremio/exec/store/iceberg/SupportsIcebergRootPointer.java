@@ -19,9 +19,11 @@ package com.dremio.exec.store.iceberg;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.TableOperations;
 
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.store.dfs.FormatPlugin;
+import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
@@ -83,4 +85,9 @@ public interface SupportsIcebergRootPointer {
    * is valid or not.
    */
   boolean isIcebergMetadataValid(DatasetConfig config, NamespaceKey key, NamespaceService userNamespaceService);
+
+  /**
+   * Based on the source plugin, creates an instance of corresponding Iceberg Catalog table operations.
+   */
+  TableOperations createIcebergTableOperations(FileSystem fs, String queryUserName, IcebergTableIdentifier tableIdentifier);
 }

@@ -15,9 +15,9 @@
  */
 package com.dremio.dac.service;
 
-import static java.util.Arrays.asList;
+import static com.dremio.dac.util.DatasetTestUtils.createDS;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,34 +25,18 @@ import java.util.Set;
 import org.apache.calcite.util.Pair;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
-import com.dremio.dac.proto.model.dataset.Column;
-import com.dremio.dac.proto.model.dataset.ExpColumnReference;
-import com.dremio.dac.proto.model.dataset.FromTable;
-import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
-import com.dremio.dac.service.errors.DatasetNotFoundException;
-import com.dremio.exec.catalog.TestOptions;
-import com.dremio.file.FilePath;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.Lists;
 
 /**
@@ -60,74 +44,11 @@ import com.google.common.collect.Lists;
  */
 public class TestDatasetService extends BaseTestServer {
 
-  /**
-   * Rule for tests that verify {@link com.dremio.common.exceptions.UserException} type and message. See
-   * {@link UserExceptionMatcher} and e.g. {@link TestOptions#checkValidationException}.
-   * Tests that do not use this rule are not affected.
-   */
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
-
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
   }
 
-  private Pair<String, String> createDS(DatasetVersionMutator service, String path, String name, String table, String version, Pair<String, String> idVersionPair)
-      throws NamespaceException, DatasetNotFoundException {
-    return createDS(service, path, name, table, new DatasetVersion(version), idVersionPair);
-  }
-
-  private Pair<String, String> createDS(DatasetVersionMutator service, String path, String name, String table, DatasetVersion version,
-      Pair<String, String> idVersionPair)
-      throws NamespaceException, DatasetNotFoundException {
-    DatasetPath path1 = new DatasetPath(path);
-    VirtualDatasetUI ds1 = new VirtualDatasetUI();
-    ds1.setFullPathList(path1.toPathList());
-    ds1.setVersion(version);
-    ds1.setSavedTag(idVersionPair == null ? null : idVersionPair.getValue());
-    ds1.setName(name);
-    ds1.setState(new VirtualDatasetState()
-        .setFrom(new FromTable(path1.toPathString()).wrap()));
-    ds1.getState().setColumnsList(asList(new Column("foo", new ExpColumnReference("bar").wrap())));
-    ds1.setSql("select * from " + table);
-    ds1.setId(idVersionPair == null ? null : idVersionPair.getKey());
-    ViewFieldType type = new ViewFieldType("hello", "float");
-    ds1.setSqlFieldsList(Collections.singletonList(type));
-    ds1.setCalciteFieldsList(Collections.singletonList(type));
-    service.put(ds1);
-    service.putVersion(ds1);
-    VirtualDatasetUI dsOut = service.get(path1);
-    return Pair.of(dsOut.getId(), dsOut.getSavedTag());
-  }
-
-  private String createPhysicalDS(NamespaceService ns, String path, DatasetType datasetType) throws NamespaceException{
-    DatasetConfig datasetConfig = new DatasetConfig();
-    PhysicalDatasetPath physicalDatasetPath = new PhysicalDatasetPath(path);
-    datasetConfig.setType(datasetType);
-    datasetConfig.setFullPathList(physicalDatasetPath.toPathList());
-    datasetConfig.setName(physicalDatasetPath.getLeaf().getName());
-    datasetConfig.setCreatedAt(System.currentTimeMillis());
-    datasetConfig.setTag(null);
-    datasetConfig.setOwner("test_user");
-    datasetConfig.setPhysicalDataset(new PhysicalDataset());
-    ns.addOrUpdateDataset(physicalDatasetPath.toNamespaceKey(), datasetConfig);
-    return datasetConfig.getTag();
-  }
-
-  private String createPhysicalDSInHome(NamespaceService ns, String path, DatasetType datasetType) throws NamespaceException{
-    DatasetConfig datasetConfig = new DatasetConfig();
-    FilePath filePath  = new FilePath(path);
-    datasetConfig.setType(datasetType);
-    datasetConfig.setFullPathList(filePath.toPathList());
-    datasetConfig.setName(filePath.getFileName().toString());
-    datasetConfig.setCreatedAt(System.currentTimeMillis());
-    datasetConfig.setTag(null);
-    datasetConfig.setOwner("test_user");
-    datasetConfig.setPhysicalDataset(new PhysicalDataset());
-    ns.addOrUpdateDataset(filePath.toNamespaceKey(), datasetConfig);
-    return datasetConfig.getTag();
-  }
 
   @Test
   public void testDS() throws Exception {
@@ -216,8 +137,8 @@ public class TestDatasetService extends BaseTestServer {
 
   @Test
   public void testVersionDatasetKeyFail() {
-    thrownException.expect(IllegalArgumentException.class);
-    DatasetVersionMutator.VersionDatasetKey versionDatasetKey = new DatasetVersionMutator.VersionDatasetKey("path1");
-    Assert.assertNotEquals(new DatasetPath("path1"), versionDatasetKey.getPath());
+    assertThatThrownBy(() -> new DatasetVersionMutator.VersionDatasetKey("path1"))
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("version dataset key should include path and version");
   }
 }

@@ -31,7 +31,9 @@ const initialState = Immutable.fromJS({
   isInProgress: false,
   isFailed: false,
   clusterType: 'NA',
-  isSupport: false
+  isSupport: false,
+  jobExecutionDetails: [],
+  jobExecutionOperatorDetails: {}
 });
 
 export default function jobs(state = initialState, action) {
@@ -52,15 +54,23 @@ export default function jobs(state = initialState, action) {
           ...action.payload
         }
       ));
-    }
-    return state;
+    }    return state;
   }
   case ActionTypes.UPDATE_QV_JOB_STATE: {
-    const index = state.get('jobList').findIndex(job => job.get('id') === action.jobId);
+    const jobsListInState = state.get('jobList');
+
+    const index = state
+      .get('jobList')
+      .findIndex((job) => job.get('id') === action.jobId);
     if (index !== -1) {
       const oldJob = state.getIn(['jobList', index]);
       if (!oldJob) return state;
-      return state.setIn(['jobList', index], Immutable.fromJS(action.payload));
+      return state.setIn(
+        ['jobList', index],
+        Immutable.fromJS(action.payload)
+      );
+    } else if (jobsListInState.size === 0) {
+      return state.set('jobList', Immutable.fromJS([action.payload]));
     }
     return state;
   }
@@ -124,6 +134,11 @@ export default function jobs(state = initialState, action) {
       .set('next', action.payload.next);
   case JobListActionTypes.LOAD_NEXT_JOBS_LIST_FAILURE:
     return state.set('isNextJobsInProgress', false);
+
+  case JobListActionTypes.FETCH_JOB_EXECUTION_DETAILS_BY_ID_SUCCESS:
+    return state.set('jobExecutionDetails', action.payload);
+  case JobListActionTypes.FETCH_JOB_EXECUTION_OPERATOR_DETAILS_BY_ID_SUCCESS:
+    return state.set('jobExecutionOperatorDetails', Immutable.fromJS(action.payload));
   default:
     return state;
   }

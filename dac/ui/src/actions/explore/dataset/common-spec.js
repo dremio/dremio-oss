@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { push } from 'react-router-redux';
+import Immutable from 'immutable';
 
 import * as Actions from './common';
 
@@ -33,12 +34,25 @@ const responsePayload = Immutable.fromJS({
         datasetVersion,
         links: {
           self: `${nextDatasetLink}?version=${encodeURIComponent(datasetVersion)}`
+        },
+        apiLinks: {
+          namespaceEntity: `${nextDatasetLink}?version=${encodeURIComponent(datasetVersion)}`
         }
       }
     }
   },
   result: datasetVersion
 });
+
+const emptyEntityState = {
+  resources: {
+    entities: new Immutable.Map({
+      history: new Immutable.Map({}),
+      historyItem: new Immutable.Map({}),
+      datasetUI: new Immutable.Map({})
+    })
+  }
+};
 
 describe('common', () => {
 
@@ -53,7 +67,8 @@ describe('common', () => {
         routing: {locationBeforeTransitions: {
           state: {},
           pathname: pathWithPageType
-        }}
+        }},
+        ...emptyEntityState
       });
       const result = Actions.navigateToNextDataset({payload: responsePayload})(obj => obj, getStateLocal);
       expect(result).to.eql(push({
@@ -73,7 +88,8 @@ describe('common', () => {
         pathname // should not be changed, unless changePathname or 'isSaveAs' is provided
       };
       getStore = () => ({
-        routing: {locationBeforeTransitions: location}
+        routing: {locationBeforeTransitions: location},
+        ...emptyEntityState
       });
     });
 

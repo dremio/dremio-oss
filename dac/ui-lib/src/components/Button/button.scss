@@ -17,22 +17,24 @@
  @import '../../styles/constants/index.scss';
 
 .btn {
+  align-items: center;
+  border: 1px solid $border-color;
   border-right: none;
   border-left: none;
-  border-top: none;
-  position: relative;
-  min-width: 100px;
-  height: 32px;
   border-radius: 4px;
-  margin-bottom: 5px;
+  border-top: none;
+  cursor: pointer;
+  display: flex;
+  height: 32px;
   font-size: $font-s;
   font-family: inherit;
-  outline: 0;
-  cursor: pointer;
-  border: 1px solid $border-color;
-  display: flex;
   justify-content: center;
-  align-items: center;
+  min-width: 100px;
+  outline: 0;
+  padding: 0 8px;
+  position: relative;
+  transition: 300ms ease all;
+  white-space: nowrap;
 
   &__primary {
     border: 1px solid $primary-color;
@@ -46,10 +48,30 @@
     }
 
     &.--outlined {
-      background-color: $white;
-      color: $primary-color;
+      background-color: transparent;
+      border-color: $iron;
+      color: $trout;
+
+      img {
+        filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg) brightness(88%) contrast(87%) !important;
+      }
+
       &:hover {
-        background-color: $white;
+        background-color: $cultured;
+      }
+
+      &.-noImgHover img {
+        filter: inherit !important;
+      }
+    }
+
+    &.--text {
+      background-color: transparent;
+      border: none;
+      color: $primary-color;
+      min-width: auto;
+      &:hover {
+        background-color: $lighter-neutral-color;
       }
     }
 
@@ -68,7 +90,7 @@
       }
     }
     &.--outlined {
-      background-color: $white;
+      background-color: transparent;
       &:hover {
         background-color: $white;
       }
@@ -80,13 +102,24 @@
       opacity: unset;
       pointer-events: none;
     }
+
+    &.--text {
+      background-color: transparent;
+      border: none;
+      color: $dark-gray;
+      min-width: auto;
+      &:hover {
+        color: $primary-color;
+      }
+    }
   }
 
   &__warn {
     border: 1px solid $bridesmaid;
 
     color: $sunglo;
-    &.--contained {
+    &.--contained,
+    &.--text {
       background-color: $bridesmaid;
     }
 
@@ -97,7 +130,10 @@
   }
 
   .btn__content {
-    position: relative;
+    align-items: center;
+    display: flex;
+    gap: 5px;
     line-height: 28px;
+    position: relative;
   }
 }

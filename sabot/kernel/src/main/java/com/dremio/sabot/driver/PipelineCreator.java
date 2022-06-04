@@ -29,6 +29,7 @@ import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.physical.base.Sender;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
+import com.dremio.exec.physical.config.BridgeFileReader;
 import com.dremio.exec.physical.config.EmptyValues;
 import com.dremio.exec.physical.config.HashJoinPOP;
 import com.dremio.exec.physical.config.MergeJoinPOP;
@@ -200,6 +201,18 @@ public class PipelineCreator {
               context,
               config,
               functionLookupContext));
+      return pair(null, receiver);
+    }
+
+    @Override
+    public OpPipe visitBridgeFileReader(BridgeFileReader config, Void value) throws Exception {
+      OperatorContext context = operatorContextCreator.newOperatorContext(config);
+      ProducerOperator receiver = record(
+        SmartOp.contextualize(
+          creator.getReceiverOperator(buffers, context, config),
+          context,
+          config,
+          functionLookupContext));
       return pair(null, receiver);
     }
 

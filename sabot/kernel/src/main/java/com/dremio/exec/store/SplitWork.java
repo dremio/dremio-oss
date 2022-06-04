@@ -32,6 +32,7 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedDa
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.google.common.collect.FluentIterable;
 import com.google.common.net.HostAndPort;
+import com.google.protobuf.ByteString;
 
 public class SplitWork implements CompleteWork {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitWork.class);
@@ -72,6 +73,10 @@ public class SplitWork implements CompleteWork {
       splitInfo.addAllAffinities(datasetSplit.getAffinitiesList());
     }
     return new SplitAndPartitionInfo(partitionInfo, splitInfo.build());
+  }
+
+  public ByteString getSplitExtendedProperty() {
+    return datasetSplit.getSplitExtendedProperty();
   }
 
   public SplitAndPartitionInfo getSplitAndPartitionInfo() {

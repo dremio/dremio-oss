@@ -97,7 +97,7 @@ class HeaderDetails extends PureComponent {
     const nextLocation = {
       // Setting pathname as temp/UNTITLED in case we dont have a datasetPath available
       pathname: datasetFullPath ? datasetPathUtils.toHref(resourcePath) : 'tmp/UNTITLED',
-      query: {jobId, version: jobDetails.get('datasetVersion')}
+      query: {jobId, version: jobDetails.get('datasetVersion'),  openResults: 'true'}
     };
 
     // make sure we get back into the right mode for "edit" queries

@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
@@ -146,7 +147,8 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
     }
 
     context.getCatalogService()
-        .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()))
+        .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
+          .build()))
         .createDataset(new NamespaceKey(getMaterializationPath(materialization)), datasetMutator);
   }
 

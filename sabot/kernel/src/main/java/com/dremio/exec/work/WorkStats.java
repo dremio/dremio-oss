@@ -58,69 +58,74 @@ public interface WorkStats {
    */
   class SlicingThreadInfo {
 
+    public final String node_id;
     /** Sabot node infos */
     public final String hostname;
     public final int fabric_port;
     /** current Java thread name */
-    public final String threadName;
+    public final String thread_name;
     /** slicing thread Id */
-    public final int slicingThreadId;
+    public final int slicing_thread_id;
     /** OS thread Id */
-    public final int osThreadId;
+    public final int os_thread_id;
     /** cpu id (core) */
-    public final int cpuId;
+    public final int cpu_id;
 
-    public final int numTasks;
+    public final int num_tasks;
 
-    public final int numStagedTasks;
+    public final int num_staged_tasks;
 
-    public final int numRequestedWork;
+    public final int num_requested_work;
 
-    public SlicingThreadInfo(String hostName, int fabricPort, TaskPool.ThreadInfo info) {
+    public SlicingThreadInfo(String hostName, int fabric_port, TaskPool.ThreadInfo info) {
       this.hostname = hostName;
-      this.fabric_port = fabricPort;
-      this.threadName = info.threadName;
-      this.slicingThreadId = info.slicingThreadId;
-      this.osThreadId = info.osThreadId;
-      this.cpuId = info.cpuId;
-      this.numTasks = info.numTasks;
-      this.numStagedTasks = info.numStagedTasks;
-      this.numRequestedWork = info.numRequestedWork;
+      this.fabric_port = fabric_port;
+      this.thread_name = info.threadName;
+      this.slicing_thread_id = info.slicingThreadId;
+      this.os_thread_id = info.osThreadId;
+      this.cpu_id = info.cpuId;
+      this.num_tasks = info.numTasks;
+      this.num_staged_tasks = info.numStagedTasks;
+      this.num_requested_work = info.numRequestedWork;
+      this.node_id = hostName + ":" + fabric_port;
     }
   }
 
   class FragmentInfo {
+    public final String node_id;
     public final String hostname;
-    public final String queryId;
-    public final int majorFragmentId;
-    public final int minorFragmentId;
-    public final Long memoryUsage;
+    public final String job_id;
+    public final int major_fragment_id;
+    public final int minor_fragment_id;
+    public final Long memory_usage;
     /**
      * The maximum number of input records across all Operators in fragment
      */
-    public final Long rowsProcessed;
-    public final Timestamp startTime;
+    public final Long rows_processed;
+    public final Timestamp start_time;
     public final String blocks;
 
     public final int thread;
-    public final String schedulerInfo;
+    public final String scheduler_info;
     public final long sleeping;
     public final long blocked;
 
-    public FragmentInfo(String hostname, String queryId, int majorFragmentId, int minorFragmentId, Long memoryUsage,
-                        Long rowsProcessed, Timestamp startTime, String blocks, TaskDescriptor taskDescriptor) {
+    public FragmentInfo(String hostname, String job_id, int major_fragment_id, int minor_fragment_id, Long memory_usage,
+                        Long rows_processed, Timestamp start_time, String blocks, TaskDescriptor taskDescriptor,
+                        long fabric_port) {
       this.hostname = hostname;
-      this.queryId = queryId;
-      this.majorFragmentId = majorFragmentId;
-      this.minorFragmentId = minorFragmentId;
-      this.memoryUsage = memoryUsage;
-      this.rowsProcessed = rowsProcessed;
-      this.startTime = startTime;
+      this.job_id = job_id;
+      this.major_fragment_id = major_fragment_id;
+      this.minor_fragment_id = minor_fragment_id;
+      this.memory_usage = memory_usage;
+      this.rows_processed = rows_processed;
+      this.start_time = start_time;
       this.blocks = blocks;
       this.thread = taskDescriptor.getThread();
-      this.schedulerInfo = taskDescriptor.toString();
+      this.scheduler_info = taskDescriptor.toString();
       this.sleeping = taskDescriptor.getSleepDuration();
       this.blocked = taskDescriptor.getTotalBlockedDuration();
+      this.node_id = hostname + ":" + fabric_port;
     }
   }
 

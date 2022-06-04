@@ -38,7 +38,6 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.SabotNode;
 import com.dremio.exec.service.executor.ExecutorServiceImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.SafeExit;
@@ -51,6 +50,8 @@ import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.exec.rpc.ExecProtocol;
 import com.dremio.sabot.exec.rpc.ExecTunnel;
+import com.dremio.sabot.exec.rpc.FabricExecTunnel;
+import com.dremio.sabot.exec.rpc.InProcessExecTunnel;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -223,7 +224,8 @@ public class FragmentWorkManager implements Service, SafeExit {
           rowsProcessed,
           startTime,
           fragmentExecutor.getBlockingStatus(),
-          fragmentExecutor.getTaskDescriptor());
+          fragmentExecutor.getTaskDescriptor(),
+          dbContext.get().getEndpoint().getFabricPort());
       }
 
     }
@@ -312,7 +314,8 @@ public class FragmentWorkManager implements Service, SafeExit {
       bitContext.getEndpoint(), bitContext.getOptionManager());
     fragmentExecutors = new FragmentExecutors(maestroProxy, callback, pool.get(), bitContext.getOptionManager());
 
-    final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)));
+    final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)),
+      bitContext.getOptionManager());
 
     final FragmentExecutorBuilder builder = new FragmentExecutorBuilder(
         clerk,
@@ -369,14 +372,24 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   public class ExecConnectionCreator {
     private final FabricRunnerFactory factory;
+    private boolean inProcessTunnelEnabled;
 
-    public ExecConnectionCreator(FabricRunnerFactory factory) {
+    public ExecConnectionCreator(FabricRunnerFactory factory, OptionManager options) {
       super();
       this.factory = factory;
+      this.inProcessTunnelEnabled = options.getOption(ExecConstants.ENABLE_IN_PROCESS_TUNNEL);
     }
 
     public ExecTunnel getTunnel(NodeEndpoint endpoint) {
-      return new ExecTunnel(factory.getCommandRunner(endpoint.getAddress(), endpoint.getFabricPort()));
+      return inProcessTunnelEnabled && isInProcessTarget(endpoint) ?
+        new InProcessExecTunnel(fragmentExecutors, allocator) :
+        new FabricExecTunnel(factory.getCommandRunner(endpoint.getAddress(), endpoint.getFabricPort()));
+    }
+
+    private boolean isInProcessTarget(NodeEndpoint endpoint) {
+      NodeEndpoint self = identity.get();
+      return endpoint.getAddress().equals(self.getAddress()) &&
+        endpoint.getFabricPort() == self.getFabricPort();
     }
   }
 

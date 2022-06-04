@@ -56,7 +56,6 @@ export default class DatasetOverviewForm extends PureComponent {
             name={entity.get('name')}
             fullPath={entity.get('fullPathList')}
             showFullPath
-            shouldShowOverlay={false}
             typeIcon={typeIcon}/>
         </div>
       </FormBody>

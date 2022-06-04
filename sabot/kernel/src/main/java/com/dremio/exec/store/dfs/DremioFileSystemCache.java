@@ -41,6 +41,7 @@ import org.apache.hadoop.util.StringUtils;
  */
 public class DremioFileSystemCache {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFileSystemCache.class);
+  private static final String disableDremioCacheName = "fs.impl.disable.dremio.cache";
 
   private final ClientFinalizer clientFinalizer = new ClientFinalizer();
 
@@ -60,12 +61,18 @@ public class DremioFileSystemCache {
 
     final String disableCacheName = String.format("fs.%s.impl.disable.cache", uri.getScheme());
 
+
     /**
      * Use Hadoop's FileSystem.get() if cache is explicitly disabled or there are no connection unique parameters
      * specified.
      */
     final boolean disableCache = conf.getBoolean(disableCacheName, false);
-    if (disableCache || key.uniqueConnectionPropValues == null || key.uniqueConnectionPropValues.isEmpty()) {
+
+    /**
+     * Check if user does not want to cache in Dremio cache
+     */
+    final boolean disableDremioCache = conf.getBoolean(disableDremioCacheName, false);
+    if (disableDremioCache || key.uniqueConnectionPropValues == null || key.uniqueConnectionPropValues.isEmpty()) {
       return FileSystem.get(uri, conf);
     }
 

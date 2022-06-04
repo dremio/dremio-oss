@@ -53,7 +53,7 @@ public class SelectionVector2 implements AutoCloseable {
 
     if (clear) {
       /* Increment the ref count for this buffer */
-      bufferHandle.retain(1);
+      bufferHandle.getReferenceManager().retain(1);
 
       /* We are passing ownership of the buffer to the
        * caller. clear the buffer from within our selection vector
@@ -69,7 +69,7 @@ public class SelectionVector2 implements AutoCloseable {
       clear();
 
       this.buffer = bufferHandle;
-      buffer.retain(1);
+      buffer.getReferenceManager().retain(1);
   }
 
   public char getIndex(int index) {
@@ -104,7 +104,7 @@ public class SelectionVector2 implements AutoCloseable {
      * buffer, it might get freed.
      */
     if (newSV.buffer != null) {
-      newSV.buffer.retain(1);
+      newSV.buffer.getReferenceManager().retain(1);
     }
     clear();
     return newSV;
@@ -123,7 +123,7 @@ public class SelectionVector2 implements AutoCloseable {
 
   public void clear() {
     if (buffer != null && buffer != DeadBuf.DEAD_BUFFER) {
-      buffer.release();
+      buffer.close();
       buffer = DeadBuf.DEAD_BUFFER;
       recordCount = 0;
     }

@@ -15,6 +15,11 @@
  */
 package com.dremio.common.util;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.joda.time.Period;

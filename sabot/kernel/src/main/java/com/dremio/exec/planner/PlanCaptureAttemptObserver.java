@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -45,6 +46,8 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo.Substitution;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
@@ -58,6 +61,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.reflection.hints.ReflectionExplanationsAndQueryDistance;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.google.common.base.Function;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -315,19 +319,34 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     return numPlanCacheUses;
   }
 
+  // Serializes and stores plans
+  private void serializeAndStoreRel(RelNode converted) throws Exception{
+    PlannerSettings settings = PrelUtil.getSettings(converted.getCluster());
+    if(!settings.isPlanSerializationEnabled()) {
+      return;
+    }
+    RelNode toSerialize = converted.accept(new RelShuttleImpl() {
+      @Override
+      public RelNode visit(TableScan scan) {
+        return LogicalTableScan.create(scan.getCluster(), scan.getTable(), ImmutableList.of());
+      }
+    });
+    String planString = RelOptUtil.toString(toSerialize);
+    if (planString != null && planString.length() < settings.getSerializationLengthLimit()) {
+      this.serializedPlan = relSerializerFactory.getSerializer(converted.getCluster(), funcRegistry).serializeToBytes(toSerialize);
+    }else{
+      logger.debug("Plan Serialization skipped due to size");
+    }
+
+  }
+
   @Override
   public void planConvertedToRel(RelNode converted, long millisTaken) {
     final String convertedRelTree = toStringOrEmpty(converted, true);
-
     try {
-      RelNode toSerialize = converted.accept(new RelShuttleImpl() {
-        @Override
-        public RelNode visit(TableScan scan) {
-          return LogicalTableScan.create(scan.getCluster(), scan.getTable(), ImmutableList.of());
-        }
-      });
-
-      serializedPlan = relSerializerFactory.getSerializer(converted.getCluster(), funcRegistry).serializeToBytes(toSerialize);
+      final Stopwatch stopwatch = Stopwatch.createStarted();
+      serializeAndStoreRel(converted);
+      millisTaken += stopwatch.elapsed(TimeUnit.MILLISECONDS);
     } catch (Throwable e) {
       logger.debug("Error", e);
     }

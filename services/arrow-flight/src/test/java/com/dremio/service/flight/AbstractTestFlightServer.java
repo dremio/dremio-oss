@@ -15,28 +15,30 @@
  */
 package com.dremio.service.flight;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStatusCode;
 import org.apache.arrow.flight.FlightStream;
+import org.apache.arrow.flight.SchemaResult;
+import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
-import org.junit.Rule;
+import org.junit.Assert;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 /**
  * Test functionality of the FlightClient communicating to the Flight endpoint.
@@ -45,9 +47,6 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   private static final String SELECT_QUERY = "SELECT 1 AS col_int, 'foobar' AS col_string";
   private static final String SELECT_QUERY_10K = "select * from cp.\"/10k_rows.parquet\"";
   private static final int TOTAL_ROWS_SELECT_QUERY_10K = 10001;
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   protected abstract String getAuthMode();
 
@@ -140,15 +139,12 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
   }
 
   @Test
-  public void testFlightClientWithInvalidQuery() throws Exception {
-    thrown.expect(FlightRuntimeException.class);
-    thrown.expect(FlightStatusCodeMatcher.statusCodeIs(FlightStatusCode.INVALID_ARGUMENT));
-
-    //CHECKSTYLE:OFF EmptyStatement|EmptyBlock
-    try (FlightStream stream = executeQuery("SELECT * from non_existent_table")) {
-      // Do nothing
-    }
-    //CHECKSTYLE:ON EmptyStatement|EmptyBlock
+  public void testFlightClientWithInvalidQuery() {
+    assertThatThrownBy(() -> executeQuery("SELECT * from non_existent_table"))
+      .isInstanceOf(FlightRuntimeException.class)
+      .extracting("status")
+      .extracting("code")
+      .isEqualTo(FlightStatusCode.INVALID_ARGUMENT);
   }
 
   @Test
@@ -172,56 +168,32 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
         " RecordType(INTEGER col_int, VARCHAR(6) col_string): rowcount = 1.0"));
   }
 
-  /**
-   * Matcher for comparing the FlightStatusCode of two FlightRuntimeException.
-   */
-  private static final class FlightStatusCodeMatcher extends TypeSafeMatcher<FlightRuntimeException> {
-    private final FlightStatusCode expectedStatusCode;
+  @Test
+  public void testGetSchemasUsingLegacyProducer() {
+    FlightDescriptor descriptor = FlightDescriptor.command(SELECT_QUERY_10K.getBytes(StandardCharsets.UTF_8));
 
-    public static FlightStatusCodeMatcher statusCodeIs(FlightStatusCode expectedStatusCode) {
-      return new FlightStatusCodeMatcher(expectedStatusCode);
-    }
-
-    private FlightStatusCodeMatcher(FlightStatusCode expectedStatusCode) {
-      this.expectedStatusCode = expectedStatusCode;
-    }
-
-    @Override
-    protected boolean matchesSafely(FlightRuntimeException e) {
-      return e.status().code().equals(expectedStatusCode);
-    }
-
-    @Override
-    public void describeTo(Description description) {
-      description.appendValue(expectedStatusCode.toString())
-        .appendText(" not found in the exception.");
-    }
+    SchemaResult schema = getSchema(descriptor);
+    Assert.assertEquals(schema.getSchema().getFields().size(), 1);
   }
 
-  private static FlightDescriptor toFlightDescriptor(String query) {
-    return FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
-  }
-
-  private FlightInfo getFlightInfo(String query) {
-    final FlightClientUtils.FlightClientWrapper  wrapper = getFlightClientWrapper();
-    return (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(wrapper.getAuthMode()))?
-      wrapper.getClient().getInfo(toFlightDescriptor(query)):
-      wrapper.getClient().getInfo(toFlightDescriptor(query), wrapper.getTokenCallOption());
-  }
-
-  private FlightStream executeQuery(FlightClientUtils.FlightClientWrapper wrapper, String query) {
+  private FlightStream executeQuery(FlightClientUtils.FlightClientWrapper wrapper, String query) throws SQLException {
     // Assumption is that we have exactly one endpoint returned.
-    return (DremioFlightService.FLIGHT_LEGACY_AUTH_MODE.equals(wrapper.getAuthMode()))?
-      wrapper.getClient().getStream(getFlightInfo(query).getEndpoints().get(0).getTicket()):
-      wrapper.getClient().getStream(getFlightInfo(query).getEndpoints().get(0).getTicket(), wrapper.getTokenCallOption());
+    Ticket ticket = getFlightInfo(query).getEndpoints().get(0).getTicket();
+    return wrapper.getClient().getStream(ticket, getCallOptions());
   }
 
-  private FlightStream executeQuery(String query) {
+  public SchemaResult getSchema(FlightDescriptor descriptor) {
+    FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
+
+    return wrapper.getClient().getSchema(descriptor, getCallOptions());
+  }
+
+  protected FlightStream executeQuery(String query) throws SQLException {
     // Assumption is that we have exactly one endpoint returned.
     return executeQuery(getFlightClientWrapper(), query);
   }
 
-  private List<String> executeQueryWithStringResults(String query) throws Exception {
+  protected List<String> executeQueryWithStringResults(String query) throws Exception {
     try (final FlightStream stream = executeQuery(query)) {
       final List<String> actualStringResults = new ArrayList<>();
 
@@ -239,8 +211,22 @@ public abstract class AbstractTestFlightServer extends BaseFlightQueryTest {
           }
         }
       }
-      stream.getRoot().clear();
       return actualStringResults;
     }
+  }
+
+  /**
+   * Return an array of {@link CallOption} used in all calls to Flight Server (getFlightInfo, getStream, etc.).
+   */
+  abstract CallOption[] getCallOptions();
+
+  /**
+   * Returns a FlightInfo for executing given query.
+   */
+  public FlightInfo getFlightInfo(String query) throws SQLException {
+    final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
+
+    final FlightDescriptor command = FlightDescriptor.command(query.getBytes(StandardCharsets.UTF_8));
+    return wrapper.getClient().getInfo(command, getCallOptions());
   }
 }

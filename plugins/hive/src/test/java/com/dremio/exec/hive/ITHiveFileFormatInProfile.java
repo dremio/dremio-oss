@@ -33,35 +33,35 @@ public class ITHiveFileFormatInProfile extends HiveStatsTestBase {
   @Test
   public void testParquetFileFormat() throws Exception {
     final String query = "select * from hive.parquet_region";
-    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.PARQUET.ordinal()));
+    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.PARQUET.ordinal()), true);
   }
 
   @Test
   public void testORCFileFormat() throws Exception {
     final String query = "select * from hive.orc_region";
-    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.ORC.ordinal()));
+    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.ORC.ordinal()), true);
   }
 
   @Test
   public void testAvroFileFormat() throws Exception {
     final String query = "select * from hive.db1.avro";
-    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.AVRO.ordinal()));
+    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.AVRO.ordinal()), true);
   }
 
   @Test
   public void testTextFileFormat() throws Exception {
     final String query = "select * from hive.text_date";
-    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.TEXT.ordinal()));
+    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.TEXT.ordinal()), false);
   }
 
   @Test
   public void testRcFileFormat() throws Exception {
     final String query = "select * from hive.skipper.kv_rcfile_large";
-    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.RCFILE.ordinal()));
+    runQueryAndVerifyFileFormat(query, (1 << ScanOperator.HiveFileFormat.RCFILE.ordinal()), false);
   }
 
-  private void runQueryAndVerifyFileFormat(final String query, long expectedValue) throws Exception {
-    final UserBitShared.OperatorProfile hiveReaderProfile = getHiveReaderProfile(query);
+  private void runQueryAndVerifyFileFormat(final String query, long expectedValue, boolean datasetSupportsVw) throws Exception {
+    final UserBitShared.OperatorProfile hiveReaderProfile = getHiveReaderProfile(query, datasetSupportsVw);
     final long numMetricValue = getMetricValue(hiveReaderProfile, ScanOperator.Metric.HIVE_FILE_FORMATS);
     Assert.assertEquals(expectedValue, numMetricValue);
   }

@@ -19,6 +19,7 @@ import static com.dremio.exec.ExecConstants.ENABLE_VERBOSE_ERRORS;
 import static com.dremio.exec.ExecConstants.ENABLE_VERBOSE_ERRORS_KEY;
 import static com.dremio.exec.ExecConstants.SLICE_TARGET;
 import static com.dremio.exec.ExecConstants.SLICE_TARGET_OPTION;
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -26,21 +27,15 @@ import static org.junit.Assert.assertTrue;
 import java.util.Collection;
 
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionValidator;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.test.DremioTest;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestOptionValidatorListing extends DremioTest {
   private static OptionValidatorListing optionValidatorListing;
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void setupClass() throws Exception {
@@ -54,11 +49,11 @@ public class TestOptionValidatorListing extends DremioTest {
   }
 
   @Test
-  public void testGetValidatorInvalid() throws Exception {
+  public void testGetValidatorInvalid() {
     String invalid_name = "invalid_name";
-    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-      String.format("The option '%s' does not exist.", invalid_name)));
-    optionValidatorListing.getValidator(invalid_name);
+    UserExceptionAssert.assertThatThrownBy(() -> optionValidatorListing.getValidator(invalid_name))
+      .hasErrorType(VALIDATION)
+      .hasMessageContaining(String.format("The option '%s' does not exist.", invalid_name));
   }
 
   @Test

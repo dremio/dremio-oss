@@ -23,6 +23,7 @@ import java.util.function.Function;
 
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -142,19 +143,19 @@ public class CalciteArrowHelper {
     }
     return new Field(
       name,
-      true,
-      MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.STRUCT)),
+      new FieldType(true,
+        MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.STRUCT)), null),
       children
     );
   }
 
   private static Field getListField(String name, RelDataType relDataType) {
     final List<Field> onlyChild = new ArrayList<>();
-    fieldFromCalciteRowType("component", relDataType.getComponentType()).ifPresent(onlyChild::add);
+    fieldFromCalciteRowType("$data$", relDataType.getComponentType()).ifPresent(onlyChild::add);
     return new Field(
       name,
-      true,
-      MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.LIST)),
+      new FieldType(true,
+        MajorTypeHelper.getArrowTypeForMajorType(Types.optional(MinorType.LIST)), null),
       onlyChild
     );
   }

@@ -60,7 +60,10 @@ export class ConfirmationContainer extends Component {
       promptFieldProps,
       dataQa,
       validatePromptText,
-      isCentered
+      isCentered,
+      closeButtonType,
+      className,
+      headerIcon
     } = this.props.confirmation;
     if (!isOpen) {
       return null;
@@ -86,6 +89,9 @@ export class ConfirmationContainer extends Component {
         dataQa={dataQa}
         validatePromptText={validatePromptText}
         isCentered={isCentered}
+        closeButtonType={closeButtonType}
+        className={className}
+        headerIcon={headerIcon}
       />
     );
   }

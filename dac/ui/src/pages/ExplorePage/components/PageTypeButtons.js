@@ -25,15 +25,17 @@ import { changePageTypeInUrl } from '@app/pages/ExplorePage/pageTypeUtils';
 import Art from '@app/components/Art';
 import { formatMessage } from '@app/utils/locale';
 import PageTypeButtonsMixin from 'dyn-load/pages/ExplorePage/components/PageTypeButtonsMixin';
+import exploreUtils from '@app/utils/explore/exploreUtils';
 import { buttonsContainer, button, buttonActive, icon as iconClass } from './PageTypeButtons.less';
 
-class PageTypeButtonView extends Component {
+export class SinglePageTypeButton extends Component {
   static propTypes = {
     text: PropTypes.string,
     icon: PropTypes.string,
     isSelected: PropTypes.bool,
     onClick: PropTypes.func,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
+    classname: PropTypes.string
   };
 
   render() {
@@ -42,11 +44,12 @@ class PageTypeButtonView extends Component {
       onClick,
       text,
       icon,
-      dataQa
+      dataQa,
+      classname
     } = this.props;
 
     return <span
-      className={classNames(button, isSelected && buttonActive)}
+      className={classNames(button, isSelected && buttonActive, classname)}
       onClick={onClick}
       data-qa={dataQa}>
       {icon && <Art src={`${icon}.svg`} className={iconClass} alt={text} />}
@@ -91,7 +94,7 @@ class ButtonController extends PureComponent {
       dataQa
     } = this.props;
 
-    return <PageTypeButtonView
+    return <SinglePageTypeButton
       isSelected={selectedPageType === pageType}
       text={text}
       icon={icon}
@@ -136,7 +139,8 @@ export class PageTypeButtonsView extends PureComponent {
     selectedPageType: pageTypesProp,
     dataset: PropTypes.instanceOf(Immutable.Map),
     showWiki: PropTypes.bool,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
+    location: PropTypes.object
   };
 
   getAvailablePageTypes() {
@@ -155,26 +159,34 @@ export class PageTypeButtonsView extends PureComponent {
   render() {
     const {
       selectedPageType,
-      dataQa
+      dataQa,
+      location
     } = this.props;
-    const pagetTypes = this.getAvailablePageTypes();
+    const pageTypes = this.getAvailablePageTypes();
+    const isDatasetPage = exploreUtils.isExploreDatasetPage(location);
 
-    return <span className={buttonsContainer}
-      data-qa={dataQa}>
-      {pagetTypes.map(pageType => {
-        const {
-          intlId,
-          ...rest
-        } = buttonsConfigs[pageType];
+    // Show tabbed content for dataset
+    if (pageTypes.length > 1 && isDatasetPage) {
+      return <span className={buttonsContainer}
+        data-qa={dataQa}>
+        {pageTypes.map(pageType => {
+          const {
+            intlId,
+            ...rest
+          } = buttonsConfigs[pageType];
 
-        return <PageTypeButton key={pageType}
-          selectedPageType={selectedPageType}
-          text={formatMessage(intlId)}
-          pageType={pageType}
-          {...rest}
-        />;
-      })}
-    </span>;
+          return <PageTypeButton key={pageType}
+            selectedPageType={selectedPageType}
+            text={formatMessage(intlId)}
+            pageType={pageType}
+            {...rest}
+          />;
+        })}
+      </span>;
+    } else {
+      // Hide all tabs for New Query and Updated Queries
+      return null;
+    }
   }
 }
 

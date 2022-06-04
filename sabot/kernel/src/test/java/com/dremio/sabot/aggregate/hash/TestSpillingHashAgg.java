@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.aggregate.hash;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -41,7 +42,6 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.HashAggregate;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
@@ -59,7 +59,7 @@ import com.dremio.sabot.op.common.ht2.FieldVectorPair;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.test.AllocatorRule;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestSpillingHashAgg extends BaseTestOperator {
 
@@ -249,82 +249,85 @@ public class TestSpillingHashAgg extends BaseTestOperator {
   /**
    * Test failure during operator setup when provided memory constraints
    * are lower than the memory required for preallocating data structures.
-   * @throws Exception
    */
   @Test
-  public void testSetupFailureForHashTableInit() throws Exception {
+  public void testSetupFailureForHashTableInit() {
     final HashAggregate agg = getHashAggregate(1_000_000, 2_100_000);
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-                                                    "Query was cancelled because it exceeded the memory limits set by the administrator.",
-                                                    VectorizedHashAggOperator.PREALLOC_FAILURE_PARTITIONS));
-    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
-      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
+    UserExceptionAssert.assertThatThrownBy(() -> {
+      try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+        try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
+          Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+          validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
+          final VectorizedHashAggSpillStats stats = agg.getSpillStats();
+          assertEquals(0, stats.getSpills());
+          assertEquals(0, stats.getOoms());
+          assertEquals(1, stats.getIterations());
+          assertEquals(0, stats.getRecursionDepth());
+        }
       }
-    }
+    }).hasErrorType(OUT_OF_MEMORY)
+      .hasMessageContaining("Query was cancelled because it exceeded the memory limits set by the administrator.")
+      .hasContext(VectorizedHashAggOperator.PREALLOC_FAILURE_PARTITIONS);
   }
 
   @Test
-  public void testSetupFailureForPreallocation() throws Exception {
+  public void testSetupFailureForPreallocation() {
     final HashAggregate agg = getHashAggregate(1_000_000, 5_000_000);
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-                                                    "Query was cancelled because it exceeded the memory limits set by the administrator.",
-                                                    VectorizedHashAggOperator.PREALLOC_FAILURE_PARTITIONS));
-    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
-      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
+    UserExceptionAssert.assertThatThrownBy(() -> {
+      try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+        try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
+          Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+          validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
+          final VectorizedHashAggSpillStats stats = agg.getSpillStats();
+          assertEquals(0, stats.getSpills());
+          assertEquals(0, stats.getOoms());
+          assertEquals(1, stats.getIterations());
+          assertEquals(0, stats.getRecursionDepth());
+        }
       }
-    }
+    }).hasErrorType(OUT_OF_MEMORY)
+      .hasMessageContaining("Query was cancelled because it exceeded the memory limits set by the administrator.")
+      .hasContext(VectorizedHashAggOperator.PREALLOC_FAILURE_PARTITIONS);
   }
 
   @Test
-  public void testSetupFailureForExtraPartition() throws Exception {
+  public void testSetupFailureForExtraPartition() {
     final HashAggregate agg = getHashAggregate(1_000_000, 8_800_000);
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-                                                    "Query was cancelled because it exceeded the memory limits set by the administrator.",
-                                                    VectorizedHashAggOperator.PREALLOC_FAILURE_LOADING_PARTITION));
-    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
-      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
+    UserExceptionAssert.assertThatThrownBy(() -> {
+      try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+        try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
+          Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+          validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
+          final VectorizedHashAggSpillStats stats = agg.getSpillStats();
+          assertEquals(0, stats.getSpills());
+          assertEquals(0, stats.getOoms());
+          assertEquals(1, stats.getIterations());
+          assertEquals(0, stats.getRecursionDepth());
+        }
       }
-    }
+    }).hasErrorType(OUT_OF_MEMORY)
+      .hasMessageContaining("Query was cancelled because it exceeded the memory limits set by the administrator.")
+      .hasContext(VectorizedHashAggOperator.PREALLOC_FAILURE_LOADING_PARTITION);
   }
 
   @Test
   public void testSetupFailureForAuxStructures() throws Exception {
     final HashAggregate agg = getHashAggregate(1_000_000, 9_900_000);
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-                                                    "Query was cancelled because it exceeded the memory limits set by the administrator.",
-                                                    VectorizedHashAggOperator.PREALLOC_FAILURE_AUX_STRUCTURES));
-    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
-      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
+    UserExceptionAssert.assertThatThrownBy(() -> {
+      try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+        try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
+          Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+          validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
+          final VectorizedHashAggSpillStats stats = agg.getSpillStats();
+          assertEquals(0, stats.getSpills());
+          assertEquals(0, stats.getOoms());
+          assertEquals(1, stats.getIterations());
+          assertEquals(0, stats.getRecursionDepth());
+        }
       }
-    }
+    }).hasErrorType(OUT_OF_MEMORY)
+      .hasMessageContaining("Query was cancelled because it exceeded the memory limits set by the administrator.")
+      .hasContext(VectorizedHashAggOperator.PREALLOC_FAILURE_AUX_STRUCTURES);
   }
 
   /*

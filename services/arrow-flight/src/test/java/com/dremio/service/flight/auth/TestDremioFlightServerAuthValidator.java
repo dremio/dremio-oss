@@ -15,8 +15,9 @@
  */
 package com.dremio.service.flight.auth;
 
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
@@ -67,25 +68,14 @@ public class TestDremioFlightServerAuthValidator extends BasicFlightAuthenticati
   @Test
   public void getTokenWithInvalidCredentialsThrowsException() throws Exception {
     // Arrange
-    thrown.expect(FlightRuntimeException.class);
-    thrown.expectMessage("Unable to authenticate user " + USERNAME +
-      ", exception: Invalid User credentials, user " + USERNAME);
     doThrow(new UserLoginException(USERNAME, "Invalid User credentials")).when(getMockUserService())
       .authenticate(eq(USERNAME), AdditionalMatchers.not(eq(PASSWORD)));
 
     // Act
-    dremioFlightServerAuthValidator.getToken(USERNAME, "INVALID_PASSWORD");
-  }
-
-  @Test
-  public void getTokenWithMaxNumberOfSessionsThrowsException() throws Exception {
-    // Arrange
-    thrown.expect(FlightRuntimeException.class);
-    thrown.expectMessage("Reached the maximum number of allowed sessions: " + MAX_NUMBER_OF_SESSIONS);
-    when(getMockDremioFlightSessionsManager().reachedMaxNumberOfSessions()).thenReturn(Boolean.TRUE);
-
-    // Act
-    dremioFlightServerAuthValidator.getToken(USERNAME, PASSWORD);
+    assertThatThrownBy(() -> dremioFlightServerAuthValidator.getToken(USERNAME, "INVALID_PASSWORD"))
+      .isInstanceOf(FlightRuntimeException.class)
+      .hasMessageContaining("Unable to authenticate user " + USERNAME +
+        ", exception: Invalid User credentials, user " + USERNAME);
   }
 
   @Test

@@ -13,10 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+ @import "~@app/uiTheme/less/color-schema.less";
+
  :global {
    .exploreJobStatus {
      display: flex;
      align-items: center;
+     height: 100%;
+
+     &__item {
+       align-items: center;
+       display: flex;
+       flex-direction: row;
+       gap: 5px;
+       position: relative;
+       border-right: 1px solid @SECONDARY_200;
+       height: 100%;
+       padding-right: 10px;
+       margin-right: 10px;
+     }
 
      &__label {
       font-weight: 500;
@@ -33,7 +49,7 @@
      }
 
      &__textLink {
-      color: #43B8C9;
+      color: @PRIMARY_600;
       margin-right: 0;
      }
 

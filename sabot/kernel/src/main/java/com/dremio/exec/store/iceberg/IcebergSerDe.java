@@ -18,6 +18,7 @@ package com.dremio.exec.store.iceberg;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InvalidClassException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
@@ -42,6 +43,7 @@ import com.google.common.base.Preconditions;
  * Serialization/Deserialization for iceberg entities.
  */
 public class IcebergSerDe {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergSerDe.class);
 
   public static byte[] serializeDataFile(DataFile dataFile) {
     try {
@@ -100,6 +102,9 @@ public class IcebergSerDe {
   public static Map<Integer, PartitionSpec> deserializePartitionSpecMap(byte[] serialized) {
     try {
       return deserializeFromByteArray(serialized);
+    } catch (InvalidClassException e) {
+      logger.debug("SerialVersionUID is mismatch for PartitionSpec Class");
+      return null; //serialVersionUID is mismatch;
     } catch (IOException e) {
       throw new RuntimeIOException(e, "failed to deserialize PartitionSpecMap");
     } catch (ClassNotFoundException e) {

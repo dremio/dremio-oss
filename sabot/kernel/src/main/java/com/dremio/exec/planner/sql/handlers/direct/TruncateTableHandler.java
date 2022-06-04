@@ -22,6 +22,10 @@ import java.util.Optional;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.TableMutationOptions;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
@@ -44,13 +48,22 @@ public class TruncateTableHandler extends SimpleDirectHandler {
     NamespaceKey path = catalog.resolveSingle(truncateTableNode.getPath());
 
     Optional<SimpleCommandResult> result = IcebergUtils.checkTableExistenceAndMutability(catalog,
-        config, path, truncateTableNode.checkTableExistence());
+      config, path, truncateTableNode.checkTableExistence());
     if(result.isPresent()) {
       return Collections.singletonList(result.get());
     }
 
-    catalog.truncateTable(path);
-    DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext, path.toString());
+    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
+      .setResolvedVersionContext(resolvedVersionContext)
+      .build();
+    catalog.truncateTable(path, tableMutationOptions);
+    if( !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
+      DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    }
 
     return Collections.singletonList(SimpleCommandResult.successful("Table [%s] truncated", path));
   }

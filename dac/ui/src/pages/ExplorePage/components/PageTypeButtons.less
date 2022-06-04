@@ -19,30 +19,55 @@
   composes: flex-container from '~@app/uiTheme/less/layout.less';
   align-items: stretch;
   height: 100%;
+  gap: 4px;
 }
 
 .button {
   composes: flex-container from '~@app/uiTheme/less/layout.less';
   align-items: center;
-  padding: 0 25px 0 15px;
-  cursor: pointer;
-  font-size: 12px;
   color: #7F8B95;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0 2.5rem 0 1.5rem;
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    background-color: @ELM;
+    bottom: -4px;
+    content: '';
+    display: block;
+    height: 4px;
+    left: 0;
+    position: absolute;
+    transition: 300ms ease-in-out bottom;
+    width: 100%;
+  }
 
   img {
-    opacity: 0.7;
+    filter: grayscale(1);
+    transition: 300ms ease all;
   }
 
   &.button-active {
-    background-color: @PALE_BLUE;
-    color: @font-color1;
     img {
-      opacity: 1;
+      filter: none !important;
+    }
+
+    &::after {
+      bottom: 0;
     }
   }
 
-  &:hover:not(.button-active) {
-    background: @PALE_BLUE;
+  &:hover:not(.button-active)::after {
+    background-color: @ELM;
+    bottom: 0;
+    content: '';
+    display: block;
+    height: 4px;
+    left: 0;
+    position: absolute;
+    width: 100%;
   }
 }
 

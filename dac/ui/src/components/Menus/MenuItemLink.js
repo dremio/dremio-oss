@@ -17,7 +17,6 @@ import { Component } from 'react';
 import { Link } from 'react-router';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import invariant from 'invariant';
 
 import MenuItem from './MenuItem';
 import './MenuItemLink.less';
@@ -50,8 +49,6 @@ export default class MenuItemLink extends Component {
   render() {
     const { href, text, disabled, external, newWindow, leftIcon, rightIcon } = this.props;
 
-    invariant(!newWindow || external && newWindow, 'newWindow cannot be enabled without external also being enabled');
-
     const target = newWindow ? '_blank' : null;
 
     const menuItem = (
@@ -62,7 +59,7 @@ export default class MenuItemLink extends Component {
 
     const link = external
       ? <a href={href} target={target} className='menuItemLink__link' onClick={this.onClick}>{menuItem}</a>
-      : <Link className='menuItemLink__link' to={href || ''} onClick={this.onClick}>{menuItem}</Link>;
+      : <Link className='menuItemLink__link' to={href || ''} target={target} onClick={this.onClick}>{menuItem}</Link>;
 
     return link;
   }

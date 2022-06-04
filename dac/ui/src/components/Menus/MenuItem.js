@@ -41,7 +41,8 @@ export default class MenuItem extends Component {
     disabled: PropTypes.bool,
     selected: PropTypes.bool,
     style: PropTypes.object,
-    isInformational: PropTypes.bool // shouldn't look intereactive
+    isInformational: PropTypes.bool, // shouldn't look intereactive,
+    classname: PropTypes.string
   };
 
   constructor(props) {
@@ -97,9 +98,9 @@ export default class MenuItem extends Component {
   };
 
   render() {
-    const { menuItems, rightIcon, leftIcon, title, onClick, disabled, selected, isInformational, style } = this.props;
+    const { menuItems, rightIcon, leftIcon, title, onClick, disabled, selected, isInformational, style, classname } = this.props;
     const itemStyle = {...styles.menuItem, ...(isInformational && styles.informational), ...(selected && styles.selected), ...style};
-    const className = classNames({disabled}, 'menu-item-inner');
+    const className = classNames({disabled}, 'menu-item-inner', classname);
     return (
       <div>
         <MenuItemMaterial

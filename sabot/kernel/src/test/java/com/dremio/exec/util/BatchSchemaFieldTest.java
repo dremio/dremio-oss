@@ -58,7 +58,7 @@ public class BatchSchemaFieldTest extends DremioTest {
     expectedType.add("double_field: DOUBLE");
 
     fields.add(new Field("decimal_field", FieldType.nullable(
-      new ArrowType.Decimal(10,5)), null));
+      new ArrowType.Decimal(10,5, 128)), null));
     expectedType.add("decimal_field: DECIMAL");
 
     Assert.assertEquals(fields.size(), expectedType.size());
@@ -98,7 +98,7 @@ public class BatchSchemaFieldTest extends DremioTest {
     fields.add(new Field("double_field", FieldType.nullable(
       new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
     fields.add(new Field("decimal_field", FieldType.nullable(
-      new ArrowType.Decimal(10,5)), null));
+      new ArrowType.Decimal(10,5, 128)), null));
 
     Field struct_field = new Field("struct_field", FieldType.nullable(
       new ArrowType.Struct()), fields);
@@ -122,7 +122,7 @@ public class BatchSchemaFieldTest extends DremioTest {
     fields.add(new Field("double_field", FieldType.nullable(
       new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
     fields.add(new Field("decimal_field", FieldType.nullable(
-      new ArrowType.Decimal(10,5)), null));
+      new ArrowType.Decimal(10,5, 128)), null));
 
     List<Field> list_struct_child = new ArrayList<>();
     list_struct_child.add(new Field("$data$", FieldType.nullable(
@@ -169,7 +169,7 @@ public class BatchSchemaFieldTest extends DremioTest {
     fields.add(new Field("double_field", FieldType.nullable(
       new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
     fields.add(new Field("decimal_field", FieldType.nullable(
-      new ArrowType.Decimal(10,5)), null));
+      new ArrowType.Decimal(10,5, 128)), null));
 
     List<Field> list_struct_child_src = new ArrayList<>();
     List<Field> list_struct_child_tgt = new ArrayList<>();
@@ -213,7 +213,7 @@ public class BatchSchemaFieldTest extends DremioTest {
     fields.add(new Field("double_field", FieldType.nullable(
       new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
     fields.add(new Field("decimal_field", FieldType.nullable(
-      new ArrowType.Decimal(10,5)), null));
+      new ArrowType.Decimal(10,5, 128)), null));
 
     List<Field> list_struct_child_src = new ArrayList<>();
     List<Field> list_struct_child_tgt = new ArrayList<>();
@@ -258,7 +258,7 @@ public class BatchSchemaFieldTest extends DremioTest {
     fields.add(new Field("double_field", FieldType.nullable(
       new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
     fields.add(new Field("decimal_field", FieldType.nullable(
-      new ArrowType.Decimal(10,5)), null));
+      new ArrowType.Decimal(10,5, 128)), null));
 
     List<Field> list_struct_child_src = new ArrayList<>();
     List<Field> list_struct_child_tgt = new ArrayList<>();

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.2.0-202205262146080444-038d6d1b</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -139,8 +139,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -177,12 +177,23 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+
+    <!--
+      Stub for com.sun.tools.attach as the symbols are not provided for Java 8
+      See https://bugs.openjdk.java.net/browse/JDK-8214165
+
+      Also good to have this so that IntelliJ can build.
+     -->
+    <dependency>
+      <groupId>io.earcam.wrapped</groupId>
+      <artifactId>com.sun.tools.attach</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <includes>**/*.java</includes>
@@ -217,6 +228,7 @@
             <classpathDependencyExclude>com.dremio.*:*-shaded-*</classpathDependencyExclude>
             <classpathDependencyExclude>com.dremio.*:*hive-plugin-shim*:jar</classpathDependencyExclude>
           </classpathDependencyExcludes>
+          <reuseForks>false</reuseForks>
         </configuration>
       </plugin>
       <plugin>
@@ -328,7 +340,6 @@
       <build>
         <plugins>
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
               <testExcludes>

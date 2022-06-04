@@ -16,12 +16,11 @@
 package com.dremio.common.utils;
 
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
 import io.protostuff.Input;
@@ -120,7 +119,7 @@ public class TestProtostuffUtils {
     Foo foo = new Foo();
     foo.bar = 42.0d;
 
-    assertThat(ProtostuffUtil.toJSON(foo, SCHEMA, false), CoreMatchers.containsString("42"));
+    assertThat(ProtostuffUtil.toJSON(foo, SCHEMA, false)).contains("42");
   }
 
   @Test
@@ -128,8 +127,8 @@ public class TestProtostuffUtils {
     Foo foo = new Foo();
     foo.bar = Double.NaN;
 
-    assertThat(ProtostuffUtil.toJSON(foo, SCHEMA, false), CoreMatchers.containsString("NaN"));
-    assertThat(ProtostuffUtil.toJSON(foo, SCHEMA, false), CoreMatchers.not(CoreMatchers.containsString("\"NaN\"")));
+    assertThat(ProtostuffUtil.toJSON(foo, SCHEMA, false)).contains("NaN");
+    assertThat(ProtostuffUtil.toJSON(foo, SCHEMA, false)).doesNotContain("\"NaN\"");
   }
 
   @Test

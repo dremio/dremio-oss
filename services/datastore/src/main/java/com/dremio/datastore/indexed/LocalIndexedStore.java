@@ -45,4 +45,9 @@ public class LocalIndexedStore<K, V> extends LocalKVStore<K, V> implements Index
   public List<Integer> getCounts(SearchQuery... conditions) {
     return coreIndexedStore.getCounts(conditions);
   }
+
+  @Override
+  public Integer version() {
+    return coreIndexedStore.version();
+  }
 }

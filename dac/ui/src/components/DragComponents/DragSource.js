@@ -23,6 +23,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { DragSource } from 'react-dnd';
+import classNames from 'classnames';
 
 const source = {
   beginDrag(props) {
@@ -59,7 +60,8 @@ export default class DragSourceWrap extends Component {
     index: PropTypes.number,
     args: PropTypes.string,
     id: PropTypes.any,
-    children: PropTypes.node
+    children: PropTypes.node,
+    className: PropTypes.string
   };
 
   constructor(props) {
@@ -78,11 +80,11 @@ export default class DragSourceWrap extends Component {
     const style = {
       width: '100%',
       userSelect: 'none',
-      opacity: this.props.isDragging ? 0 : 1
+      opacity: this.props.isDragging ? 0.3 : 1
     };
 
     const content = (
-      <div style={style} onDragStart={this.onDragStart}>
+      <div style={style} onDragStart={this.onDragStart} className={classNames('dragSource', this.props.className)}>
         {this.props.children}
       </div>
     );

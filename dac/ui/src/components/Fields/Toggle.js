@@ -17,7 +17,10 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Switch from '@material-ui/core/Switch';
+
 import { ToggleWithMixin } from '@inject/components/Fields/ToggleMixin.js';
+
+import './Toggle.less';
 
 export class Toggle extends Component {
   static propTypes = {
@@ -26,7 +29,16 @@ export class Toggle extends Component {
     label: PropTypes.node,
     style: PropTypes.object,
     size: PropTypes.any,
-    className: PropTypes.any
+    className: PropTypes.any,
+    defaultChecked: PropTypes.bool,
+    disabled: PropTypes.bool,
+    field: PropTypes.shape({
+      onChange: PropTypes.func,
+      name: PropTypes.string
+    }),
+    form: PropTypes.shape({
+      initialValues: PropTypes.object
+    })
   }
 
   static defaultProps = {
@@ -34,17 +46,41 @@ export class Toggle extends Component {
   }
 
   render() {
-    const { onChange, value, label, style, size, className } = this.props;
+    const {
+      onChange,
+      value,
+      label,
+      style,
+      size,
+      className,
+      defaultChecked,
+      disabled,
+      field,
+      form,
+      ...otherProps
+    } = this.props;
+
+    const name = field ? field.name : undefined;
+    const formikChangeHandler = field ? field.onChange : undefined;
+    const initialValues = form ? form.initialValues : undefined;
+
     const conditionalRenderingButtonStyling = this.checkToRenderToggle();
+    const isDefaultChecked = defaultChecked || (initialValues && initialValues[name]) || false;
+
     return (
       <FormControlLabel
         control={ conditionalRenderingButtonStyling ? (
           <Switch
             color='primary'
-            onChange={onChange}
+            onChange={onChange || formikChangeHandler}
             checked={value}
-            className='field'
+            className='toggle field'
             size={size}
+            disabled={disabled}
+            defaultChecked={isDefaultChecked}
+            {...field}
+            {...form}
+            {...otherProps}
           />
         ) : ( <div style={{marginLeft: 15}}></div> )
         // DX-34369: do we need this marginLeft?

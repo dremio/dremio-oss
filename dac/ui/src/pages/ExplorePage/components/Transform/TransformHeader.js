@@ -25,7 +25,7 @@ import { MAP, TEXT, LIST } from '@app/constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import FontIcon from 'components/Icon/FontIcon';
 import { h5 } from 'uiTheme/radium/typography';
-import { PALE_NAVY, GREY, BLACK } from 'uiTheme/radium/colors';
+import { GREY, BLACK } from 'uiTheme/radium/colors';
 
 export const EXTRACT_TAB = 'extract';
 export const SPLIT_TAB = 'split';
@@ -176,8 +176,7 @@ const styles = {
   'base': {
     display: 'flex',
     height: 38,
-    justifyContent: 'space-between',
-    backgroundColor: PALE_NAVY
+    justifyContent: 'space-between'
   },
   tab: {
     display: 'flex',

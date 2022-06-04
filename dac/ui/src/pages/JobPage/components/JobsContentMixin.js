@@ -79,7 +79,7 @@ export default function(input) {
       if (jobData && !jobsUtils.isNewJobsPage()) {
         router({...location, pathname: '/jobs', hash: `#${jobData.get('id')}`});
       } else {
-        router({...location, hash: ''});
+        router({...location, hash: jobData ? `#${jobData.get('id')}` : ''});
       }
     },
 

@@ -46,17 +46,42 @@
   min-height: @row-element-height;
 }
 
+.itemContainer {
+  overflow: hidden;
+  width: 100%;
+}
+
 .content {
   composes: table-row from '~@app/uiTheme/less/forms.less';
   position: relative;
   border: 1px solid transparent;
-  margin-left: @row-content-margin;
-  margin-right: @row-content-margin;
+  margin-left: 24px;
+  margin-right: 5px;
   cursor: move;
+  width: calc(100% - 29px); 
+  overflow: hidden;
 
   &:hover {
     .dragged-item-mixin();
     box-shadow: 0 0 4px 0 @TABLE_BORDER;
+
+    .dataset-add {
+      cursor: pointer;
+      opacity: 1;
+    }
+  }
+}
+
+
+.dataset-add {
+  filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg) brightness(91%) contrast(85%);
+  height: 1.6rem;
+  opacity: 0;
+  transition: 300ms ease all;
+  width: 1.6rem;
+
+  &:hover {
+    filter: invert(23%) sepia(91%) saturate(2296%) hue-rotate(165deg) brightness(99%) contrast(101%);
   }
 }
 

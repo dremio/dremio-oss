@@ -56,6 +56,7 @@ describe('ExploreInfoHeader', () => {
         { type: 'INTEGER'},
         { type: 'TEXT'}
       ]),
+      activeScript: {},
       saveDataset: sinon.stub().returns(Promise.resolve('saveAsDataset')),
       saveAsDataset: sinon.stub().returns(Promise.resolve('saveAsDataset')),
       runTableTransform: sinon.stub().returns(Promise.resolve('runTableTransform')),
@@ -96,54 +97,6 @@ describe('ExploreInfoHeader', () => {
     });
   });
 
-
-  it('preview, run, and save buttons should be enabled', () => {
-    expect(wrapper.find('.preview-button').length).to.equal(1);
-    expect(wrapper.find('.run-button').length).to.equal(1);
-    expect(wrapper.find('.explore-save-button').length).to.equal(1);
-    expect(wrapper.find('.preview-button').getElement().props.disabled).to.be.undefined;
-    expect(wrapper.find('.run-button').getElement().props.disabled).to.be.undefined;
-    expect(wrapper.find('.explore-save-button').getElement().props.disabled).to.be.false;
-  });
-
-  //TODO should be returned back after fix version problem
-  it.skip('run and save buttons should be disabled', () => {
-    const props = {
-      ...commonProps,
-      currentSql: '12',
-      dataset: Immutable.fromJS({
-        datasetConfig: {
-          version: '22',
-          sql: '12',
-          fullPathList: ['newSpace', 'newTable']
-        }
-      })
-    };
-    wrapper = shallow(<ExploreInfoHeader {...props}/>, {context});
-    expect(wrapper.find('.run-button').length).to.equal(1);
-    expect(wrapper.find('.run-button').getElement().props.disabled).to.equal(true);
-    expect(wrapper.find('.explore-save-button').getElement().props.disabled).to.equal(true);
-  });
-
-  //TODO should be returned back after fix version problem
-  it.skip('save button should be enabled and run button should be disabled', () => {
-    const props = {
-      ...commonProps,
-      currentSql: '12',
-      dataset: Immutable.fromJS({
-        datasetConfig: {
-          version: '223',
-          sql: '12',
-          fullPathList: ['newSpace', 'newTable']
-        }
-      })
-    };
-
-    wrapper = shallow(<ExploreInfoHeader {...props}/>, {context});
-    expect(wrapper.find('.run-button').length).to.equal(1);
-    expect(wrapper.find('.run-button').getElement().props.disabled).to.equal(true);
-    expect(wrapper.find('.explore-save-button').getElement().props.disabled).to.equal(false);
-  });
 
   describe('#isTransformNeeded', () => {
     it('should return true if sql has changed', () => {
@@ -351,18 +304,6 @@ describe('ExploreInfoHeader', () => {
       expect(node.find('FontIcon')).to.have.length(1);
       expect(node.find('EllipsedText').props().text).to.be.contains('displayTable');
       expect(node.find('EllipsedText').props().text).to.be.not.contains('(edited)');
-    });
-  });
-
-  describe('right part rendering', () => {
-    it('should render combined settings dropdown in enabled state when dataset is not new and saved', () => {
-      wrapper.setProps({
-        initialDatasetVersion: '1',
-        currentSql: '23',
-        dataset: commonProps.dataset.set('isNewQuery', false).set('tipVersion', '1')
-      });
-      const settingsDroopdownButton = wrapper.find('.explore-ellipsis-button');
-      expect(settingsDroopdownButton.props().disabled).to.be.false;
     });
   });
 });

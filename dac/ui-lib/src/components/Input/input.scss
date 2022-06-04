@@ -26,6 +26,7 @@
     border: solid 1px $border-color;
     display: flex;
     align-items: center;
+    background-color: $white;
 
     &.--focused {
       border: 1px solid $regentBlue;
@@ -33,12 +34,24 @@
 
     &:hover {
       border: 1px solid $regentBlue;
+
+      .input__numberButtons {
+        &.--disabled {
+          .icon {
+            display: none;
+          }
+        }
+        
+        .icon {
+          display: block;
+        }
+      }
     }
 
     &.--disabled {
       border-color: $border-color;
       background-color: $disabled-color;
-      color: $oslo-gray;
+      color: $FIGMA_TEXT_DISABLED;
 
       input {
         background-color: $disabled-color;
@@ -57,6 +70,34 @@
       height: 100%;
       display: grid;
       align-content: center;
+    }
+
+    .input__numberButtons {
+      width: 24px;
+      padding: 3px 0;
+      display: grid;
+      grid-template-columns: repeat(1fr, 2);
+
+      &.--focused {
+        background-color: $aliceBlue;
+
+        .input__numberButtons .icon {
+          display: block;
+        }
+      }
+
+      &.--disabled {
+        background-color: $disabled-color;
+        .input__numberButtons .icon {
+          display: none;
+        }
+      }
+
+      .icon {
+        width: 24px;
+        height: 12px;
+        display: none;
+      }
     }
     
     input {
@@ -81,6 +122,26 @@
         background-color: $aliceBlue;
       }
     }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 0; 
+    }
+
+    input[type=number] {
+      -moz-appearance:textfield;
+    }
+  }
+
+  &__labelContainer {
+    display: flex;
+    align-items: center;
+  }
+
+  &__label {
+    flex-grow: 4;
   }
 
 }

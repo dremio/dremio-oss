@@ -30,7 +30,6 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
@@ -93,13 +92,9 @@ public class SqlInsertTable extends SqlCall implements DataAdditionCmdCall {
   }
 
   @Override
-  public List<String> getPartitionColumns(DatasetCatalog datasetCatalog, NamespaceKey key) {
-    // TODO: currently we are returning partition columns list from KV store
-    // TODO: this should change to reading from iceberg folder
-    // We are forcing both Iceberg partition column list and KV store
-    // partition column list to be the same so it is Ok for now
-    DremioTable table = datasetCatalog.getTable(key);
-    List<String> columnNames = table.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
+  public List<String> getPartitionColumns(DremioTable dremioTable) {
+    Preconditions.checkNotNull(dremioTable);
+    List<String> columnNames =  dremioTable.getDatasetConfig().getReadDefinition().getPartitionColumnsList();
     return columnNames != null ? columnNames : Lists.newArrayList();
   }
 

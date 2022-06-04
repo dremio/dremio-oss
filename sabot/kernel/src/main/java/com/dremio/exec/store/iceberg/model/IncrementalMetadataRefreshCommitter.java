@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -32,11 +33,13 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.iceberg.SchemaConverter;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
@@ -88,13 +91,15 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
   private final String prevMetadataRootPointer;
   private final ExecutionControls executionControls;
   private final DatasetConfig datasetConfig;
+  private Table table;
+  private final MutablePlugin plugin;
 
   public IncrementalMetadataRefreshCommitter(OperatorContext operatorContext, String tableName, List<String> datasetPath, String tableLocation,
                                              String tableUuid, BatchSchema batchSchema,
                                              Configuration configuration, List<String> partitionColumnNames,
                                              IcebergCommand icebergCommand, boolean isFileSystem,
                                              DatasetCatalogGrpcClient datasetCatalogGrpcClient,
-                                             DatasetConfig datasetConfig) {
+                                             DatasetConfig datasetConfig, MutablePlugin plugin) {
     Preconditions.checkState(icebergCommand != null, "Unexpected state");
     Preconditions.checkNotNull(datasetCatalogGrpcClient, "Unexpected state: DatasetCatalogService client not provided");
     Preconditions.checkNotNull(datasetConfig.getPhysicalDataset().getIcebergMetadata().getMetadataFileLocation());
@@ -118,11 +123,23 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
     this.tableLocation = tableLocation;
     this.datasetPath = datasetPath;
     this.executionControls = operatorContext.getExecutionControls();
+    this.plugin = plugin;
   }
 
-  @Override
-  public Snapshot commit() {
-    Stopwatch stopwatch = Stopwatch.createStarted();
+  boolean hasAnythingChanged() {
+    if ((newColumnTypes.size() + updatedColumnTypes.size() + deleteDataFilesList.size() + manifestFileList.size()) > 0) {
+      return true;
+    }
+
+    if (isFileSystem) {
+      return false;
+    }
+
+    return (dropColumns.size() > 0);
+  }
+
+  @VisibleForTesting
+  public void beginMetadataRefreshTransaction() {
     this.icebergCommand.beginMetadataRefreshTransaction();
 
     String currMetadataRootPointer = icebergCommand.getRootPointer();
@@ -132,15 +149,28 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
       throw UserException.concurrentModificationError().message(message).buildSilently();
     }
 
-    if(newColumnTypes.size() > 0) {
+    if (hasAnythingChanged()) {
+      Snapshot snapshot = icebergCommand.getCurrentSnapshot();
+      Preconditions.checkArgument(snapshot != null, "Iceberg metadata does not have a snapshot");
+      long snapshotId = snapshot.snapshotId();
+      // Mark the transaction as a read-modify-write transaction to ensure
+      // that the Iceberg table is updated only if the snapshotId is the same as the
+      // one that is read as part of incremental metadata refresh
+      icebergCommand.setIsReadModifyWriteTransaction(snapshotId);
+    }
+  }
+
+  @VisibleForTesting
+  public void performUpdates() {
+    if (newColumnTypes.size() > 0) {
       icebergCommand.consumeAddedColumns(newColumnTypes);
     }
 
-    if(updatedColumnTypes.size() > 0) {
+    if (updatedColumnTypes.size() > 0) {
       icebergCommand.consumeUpdatedColumns(updatedColumnTypes);
     }
 
-    if(!isFileSystem && dropColumns.size() > 0) {
+    if (!isFileSystem && dropColumns.size() > 0) {
       icebergCommand.consumeDroppedColumns(dropColumns);
     }
 
@@ -154,30 +184,52 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
       icebergCommand.consumeManifestFiles(manifestFileList);
       icebergCommand.finishInsert();
     }
+  }
 
-    Snapshot snapshot = icebergCommand.endMetadataRefreshTransaction();
-    long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
-    operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
+  @VisibleForTesting
+  public Snapshot endMetadataRefreshTransaction() {
+    table = icebergCommand.endMetadataRefreshTransaction();
+    return table.currentSnapshot();
+  }
+
+  @VisibleForTesting
+  public Snapshot postCommitTransaction(Snapshot snapshot) {
     injector.injectChecked(executionControls, INJECTOR_AFTER_ICEBERG_COMMIT_ERROR, UnsupportedOperationException.class);
-    long numRecords = Long.parseLong(snapshot.summary().getOrDefault("total-records", "0"));
+    long numRecords = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-records", "0"));
     datasetCatalogRequestBuilder.setNumOfRecords(numRecords);
-    long numDataFiles = Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0"));
+    long numDataFiles = Long.parseLong(table.currentSnapshot().summary().getOrDefault("total-data-files", "0"));
     datasetCatalogRequestBuilder.setNumOfDataFiles(numDataFiles);
-    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, snapshot.snapshotId(), conf, isPartitioned, getCurrentSpecMap());
+    datasetCatalogRequestBuilder.setIcebergMetadata(getRootPointer(), tableUuid, table.currentSnapshot().snapshotId(), conf, isPartitioned, getCurrentSpecMap(), plugin);
+    BatchSchema newSchemaFromIceberg = new SchemaConverter().fromIceberg(table.schema());
+    datasetCatalogRequestBuilder.overrideSchema(newSchemaFromIceberg);
     logger.debug("Committed incremental metadata change of table {}. Updating Dataset Catalog store", tableName);
     try {
       client.getCatalogServiceApi().addOrUpdateDataset(datasetCatalogRequestBuilder.build());
     } catch (StatusRuntimeException sre) {
       if (sre.getStatus().getCode() == Status.Code.ABORTED) {
         String message = "Metadata refresh failed. Dataset: "
-                + Arrays.toString(datasetPath.toArray())
-                + " TableLocation: " + tableLocation;
+          + Arrays.toString(datasetPath.toArray())
+          + " TableLocation: " + tableLocation;
         logger.error(message);
         throw UserException.concurrentModificationError(sre).message(message).build(logger);
       }
       throw sre;
     }
-    return snapshot;
+    return table.currentSnapshot();
+  }
+
+  @Override
+  public Snapshot commit() {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    try {
+      beginMetadataRefreshTransaction();
+      performUpdates();
+      Snapshot snapshot = endMetadataRefreshTransaction();
+      return postCommitTransaction(snapshot);
+    } finally {
+      long totalCommitTime = stopwatch.elapsed(TimeUnit.MILLISECONDS);
+      operatorStats.addLongStat(WriterCommitterOperator.Metric.ICEBERG_COMMIT_TIME, totalCommitTime);
+    }
   }
 
   @Override
@@ -194,6 +246,11 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
   public void updateSchema(BatchSchema newSchema) {
     //handle update of columns from batch schema dropped columns and updated columns
     if(datasetConfig.getPhysicalDataset().getInternalSchemaSettings() != null) {
+
+      if(!datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getSchemaLearningEnabled()) {
+        return;
+      }
+
       List<Field> droppedColumns = new ArrayList<>();
       if(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getDroppedColumns() != null) {
         droppedColumns = BatchSchema.deserialize(datasetConfig.getPhysicalDataset().getInternalSchemaSettings().getDroppedColumns()).getFields();
@@ -208,8 +265,18 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
         newSchema = newSchema.dropField(field);
       }
 
+      Map<String, Field> originalFieldsMap = batchSchema.getFields().stream().collect(Collectors.toMap(x -> x.getName().toLowerCase(), Function.identity()));
+
       for(Field field : updatedColumns) {
-        newSchema = newSchema.changeType(field);
+          if(field.getChildren().isEmpty()) {
+            newSchema = newSchema.changeTypeTopLevel(field);
+          } else {
+            //If complex we don't want schema learning on all fields. So
+            //we drop the new struct field and replace it with old struct from the original batch schema.
+            Field oldField = originalFieldsMap.get(field.getName().toLowerCase());
+            newSchema = newSchema.dropField(field.getName());
+            newSchema = newSchema.mergeWithUpPromotion(BatchSchema.of(oldField));
+        }
       }
     }
 
@@ -272,6 +339,11 @@ public class IncrementalMetadataRefreshCommitter implements IcebergOpCommitter {
   @Override
   public Map<Integer, PartitionSpec> getCurrentSpecMap() {
     return icebergCommand.getPartitionSpecMap();
+  }
+
+  @Override
+  public boolean isIcebergTableUpdated() {
+    return !icebergCommand.getRootPointer().equals(prevMetadataRootPointer);
   }
 
   @Override

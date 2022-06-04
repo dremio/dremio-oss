@@ -23,6 +23,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -60,6 +61,7 @@ public class TableFunctionContext {
   private final Collection<List<String>> referencedTables;
   private final boolean isConvertedIcebergDataset;
   private final boolean isIcebergMetadata;
+  private final UserDefinedSchemaSettings userDefinedSchemaSettings;
 
   public TableFunctionContext(@JsonProperty("formatSettings") FileConfig formatSettings,
                               @JsonProperty("schema") BatchSchema fullSchema,
@@ -74,7 +76,8 @@ public class TableFunctionContext {
                               @JsonProperty("extendedProperty") ByteString extendedProperty,
                               @JsonProperty("arrowCachingEnabled") boolean arrowCachingEnabled,
                               @JsonProperty("convertedIcebergDataset") boolean isConvertedIcebergDataset,
-                              @JsonProperty("icebergMetadata") boolean isIcebergMetadata) {
+                              @JsonProperty("icebergMetadata") boolean isIcebergMetadata,
+                              @JsonProperty("userDefinedSchemaSettings") UserDefinedSchemaSettings userDefinedSchemaSettings) {
     this.fullSchema = fullSchema;
     this.tableSchema = tableSchema;
     this.referencedTables = tablePath;
@@ -90,6 +93,7 @@ public class TableFunctionContext {
     this.arrowCachingEnabled = arrowCachingEnabled;
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
     this.isIcebergMetadata = isIcebergMetadata;
+    this.userDefinedSchemaSettings = userDefinedSchemaSettings;
   }
 
   public FileConfig getFormatSettings(){
@@ -152,5 +156,9 @@ public class TableFunctionContext {
 
   public Collection<List<String>> getReferencedTables() {
     return referencedTables;
+  }
+
+  public UserDefinedSchemaSettings getUserDefinedSchemaSettings() {
+    return userDefinedSchemaSettings;
   }
 }

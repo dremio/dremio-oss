@@ -15,10 +15,8 @@
  */
 package com.dremio.service.namespace;
 
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -79,31 +77,31 @@ public class TestNamespaceInternalKeyCompatibility {
     final byte[] ac = new byte[expectedKeyLength];
     System.arraycopy(expected, 0, ex, 0, expectedKeyLength);
     System.arraycopy(actual, 0, ac, 0, expectedKeyLength);
-    assertThat(ac, is(equalTo(ex)));
+    assertThat(ac).isEqualTo(ex);
 
 
     final byte[] terminator = NamespaceInternalKey.MAX_2_BYTES_UTF8_VALUE;
     final byte[] lastTwoBytes = new byte[2];
     System.arraycopy(actual, actual.length - 2, lastTwoBytes, 0, terminator.length);
-    assertThat(lastTwoBytes, is(equalTo(terminator)));
+    assertThat(lastTwoBytes).isEqualTo(terminator);
   }
 
   @Test
   public void testNamespaceKeyCompatibility() {
-    assertThat(newKey(path).getKey().getBytes(StandardCharsets.UTF_8),
-      is(equalTo(newLegacyKey(path).getKey())));
+    assertThat(newKey(path).getKey().getBytes(StandardCharsets.UTF_8))
+      .isEqualTo(newLegacyKey(path).getKey());
   }
 
   @Test
   public void testNamespaceRangeStartKeyCompatibility() {
-    assertThat(newKey(path).getRangeStartKey().getBytes(StandardCharsets.UTF_8),
-      is(equalTo(newLegacyKey(path).getRangeStartKey())));
+    assertThat(newKey(path).getRangeStartKey().getBytes(StandardCharsets.UTF_8))
+      .isEqualTo(newLegacyKey(path).getRangeStartKey());
   }
 
   @Test
   public void testRootLookupStartKey() {
-    assertThat(NamespaceInternalKey.getRootLookupStartKey().getBytes(StandardCharsets.UTF_8),
-      is(equalTo(LegacyNamespaceInternalKey.getRootLookupStart())));
+    assertThat(NamespaceInternalKey.getRootLookupStartKey().getBytes(StandardCharsets.UTF_8))
+      .isEqualTo(LegacyNamespaceInternalKey.getRootLookupStart());
   }
 
   @Test

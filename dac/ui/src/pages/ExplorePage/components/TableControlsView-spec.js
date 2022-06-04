@@ -30,10 +30,10 @@ describe('TableControlsView', () => {
       handleRequestClose: sinon.stub(),
       columnNames: Immutable.fromJS([]),
       join: sinon.stub(),
-      sqlState: false,
       dropdownState: false,
       exploreViewState: Immutable.Map(),
-      dataset: Immutable.Map()
+      dataset: Immutable.Map(),
+      tableColumns: Immutable.List()
     };
     commonProps = {
       ...minimalProps,

@@ -31,8 +31,6 @@ process.env.SKIP_SENTRY_STEP = 'true';
 const config = require('./webpack.config');
 config.bail = false; // to not fail on compilation error in dev mode
 
-
-
 const port = 3005;
 const compiler = webpack(config);
 const devMiddleware = webpackDevMiddleware(compiler, {
@@ -46,8 +44,6 @@ const devMiddleware = webpackDevMiddleware(compiler, {
 });
 app.use(devMiddleware);
 
-let storedProxy;
-let prevAPIOrigin;
 const readServerSettings = () => {
   return JSON.parse(fs.readFileSync( // eslint-disable-line no-sync
     path.resolve(__dirname, 'server.config.json'),
@@ -61,26 +57,33 @@ const getApiOrigin = (pattern) => {
   return settings[pattern.origin || 'apiOrigin'] + (pattern.subDomain || '');
 };
 
+//Unused for now: The following can be used for proxying directly to a nessie
+// const getNessieDirectOptions = (pattern) => {
+//   if (pattern.origin && pattern.origin === 'nessieApi' && process.env.NESSIE_DIRECT_URL) {
+//     return {
+//       pathRewrite: { '^/nessie/projects/.*?/': '/api/v1/' },
+//       target: process.env.NESSIE_DIRECT_URL
+//     };
+//   } else {
+//     return {};
+//   }
+// };
+
 // Job profiles load their css/js from /static/*, so redirect those calls as well
 settings.proxyPatterns.forEach(p => {
-  console.error('Patterns: ', p);
-  app.use(p.patterns, function() {
-    const newAPIOrigin = getApiOrigin(p);
-    if (newAPIOrigin !== prevAPIOrigin) {
-      storedProxy = proxy({
-        target: newAPIOrigin,
-        changeOrigin: true,
-        logLevel: 'debug',
-        ws: p.patterns.length === 2,
-        onProxyRes(proxyRes) {
-          proxyRes.headers['x-proxied-from'] = newAPIOrigin; // useful for HAR reports
-        }
-      });
-      prevAPIOrigin = newAPIOrigin;
-    }
-
-    return storedProxy(...arguments);
-  });
+  const target = p.target || getApiOrigin(p);
+  app.use(
+    p.patterns,
+    proxy({
+      ...p,
+      target,
+      changeOrigin: true,
+      logLevel: 'debug',
+      onProxyRes(proxyRes) {
+        proxyRes.headers['x-proxied-from'] = target; // useful for HAR reports
+      }
+    })
+  );
 });
 
 // todo: this doesn't show dyn-loader tests

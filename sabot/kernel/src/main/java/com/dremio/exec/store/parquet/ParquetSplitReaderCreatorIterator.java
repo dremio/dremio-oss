@@ -71,6 +71,7 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -112,6 +113,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
   private final boolean arrowCachingEnabled;
   private final boolean isConvertedIcebergDataset;
   private final FileConfig formatSettings;
+  private UserDefinedSchemaSettings userDefinedSchemaSettings;
   private List<SplitAndPartitionInfo> inputSplits;
   private boolean ignoreSchemaLearning = false;
   private List<IcebergProtobuf.IcebergSchemaField> icebergSchemaFields;
@@ -210,6 +212,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
 
   public ParquetSplitReaderCreatorIterator(FragmentExecutionContext fragmentExecContext, final OperatorContext context, OpProps props, final TableFunctionConfig config, boolean fromRowGroupBasedSplit, boolean produceFromBufferedSplits) throws ExecutionSetupException {
     this.config = null;
+    this.userDefinedSchemaSettings = config.getFunctionContext().getUserDefinedSchemaSettings();
     this.inputSplits = null;
     this.tablePath = config.getFunctionContext().getTablePath();
     ScanFilter scanFilter = config.getFunctionContext().getScanFilter();
@@ -504,7 +507,7 @@ public class ParquetSplitReaderCreatorIterator implements SplitReaderCreatorIter
             readerConfig, readerFactory, realFields, supportsColocatedReads, trimRowGroups, vectorize,
             currentSplitInfo, tablePath, conditions, columns, fullSchema, arrowCachingEnabled, formatSettings, icebergSchemaFields,
             pathToRowGroupsMap, this, rowGroupSplitIterator.next(), this.isIgnoreSchemaLearning(),
-      isConvertedIcebergDataset);
+      isConvertedIcebergDataset, userDefinedSchemaSettings);
 
     if (!fromRowGroupBasedSplit && isFirstRowGroup) {
       creator.setInputStreamProvider(inputStreamProviderOfFirstRowGroup);

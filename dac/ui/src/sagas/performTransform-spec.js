@@ -190,11 +190,13 @@ describe('performTransform saga', () => {
 
       gen = getFetchDatasetMetaAction(payload);
       next = gen.next();
+      next = gen.next();
       expect(next.value).to.eql(call(getTransformData, payload.dataset, 'select * from foo', undefined, undefined));
     });
 
     const goToTransformData = transformDataResult => {
       next = gen.next(); // skip getTransformData
+      next = gen.next(); // skip nessieReferences
       next = gen.next(transformDataResult);
     };
 
@@ -209,7 +211,7 @@ describe('performTransform saga', () => {
           viewId
         });
         goToTransformData();
-        expect(next.value).to.be.eql(call(newUntitledSqlAndRun, currentSql, queryContext, viewId));
+        expect(next.value).to.be.eql(call(newUntitledSqlAndRun, currentSql, queryContext, viewId, undefined));
 
         const mockApiAction = 'mock api call';
         next = gen.next(mockApiAction);
@@ -272,7 +274,7 @@ describe('performTransform saga', () => {
           viewId
         });
         goToTransformData();
-        expect(next.value).to.be.eql(call(newUntitledSql, currentSql, queryContext.toJS(), viewId));
+        expect(next.value).to.be.eql(call(newUntitledSql, currentSql, queryContext.toJS(), viewId, undefined));
 
         const mockApiAction = 'mock api call';
         next = gen.next(mockApiAction);

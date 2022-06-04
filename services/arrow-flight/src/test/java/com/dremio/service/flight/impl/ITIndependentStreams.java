@@ -155,14 +155,15 @@ public class ITIndependentStreams extends BaseFlightQueryTest {
                                           Provider<UserWorker> workerProvider,
                                           Provider<OptionManager> optionManagerProvider,
                                           FlightProducer.ServerStreamListener clientListener,
-                                          BufferAllocator allocator) {
+                                          BufferAllocator allocator,
+                                          Runnable queryCompletionCallback) {
       if (!isFirstHandlerCreated) {
         isFirstHandlerCreated = true;
         return new DelegatingRunQueryResponseHandler(runExternalId, userSession, workerProvider, optionManagerProvider,
-          clientListener, allocator, firstSendDataLatch, didLatchCountDown);
+          clientListener, allocator, firstSendDataLatch, didLatchCountDown, queryCompletionCallback);
       } else {
         return RunQueryResponseHandlerFactory.DEFAULT.getHandler(runExternalId, userSession, workerProvider,
-          optionManagerProvider, clientListener, allocator);
+          optionManagerProvider, clientListener, allocator, queryCompletionCallback);
       }
     }
 
@@ -180,8 +181,9 @@ public class ITIndependentStreams extends BaseFlightQueryTest {
                                         FlightProducer.ServerStreamListener clientListener,
                                         BufferAllocator allocator,
                                         CountDownLatch firstSendDataLatch,
-                                        AtomicBoolean didLatchCountDown) {
-        this.delegate = new BasicResponseHandler(runExternalId, userSession, workerProvider, clientListener, allocator);
+                                        AtomicBoolean didLatchCountDown,
+                                        Runnable queryCompletionCallback) {
+        this.delegate = new BasicResponseHandler(runExternalId, userSession, workerProvider, clientListener, allocator, queryCompletionCallback);
         this.firstSendDataLatch = firstSendDataLatch;
         this.didLatchCountDown = didLatchCountDown;
       }

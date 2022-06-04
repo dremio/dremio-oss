@@ -173,7 +173,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
     List<String> list = whitelistedContainers.asList();
     for (String c : list) {
       try {
-        logger.debug("Exists validation for whitelisted azure container " + account + ":" + c);
+        logger.debug("Exists validation for allowlisted azure container " + account + ":" + c);
         assertContainerExists(c);
       } catch (Retryer.OperationFailedAfterRetriesException e) {
         throw UserException.validationError()

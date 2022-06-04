@@ -22,11 +22,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -40,7 +40,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -116,7 +116,7 @@ public class TestUserRpcServer {
 
   public void verifySendResponse(int numFinishedSpans) {
     Response r = mock(Response.class);
-    verifyZeroInteractions(responseSender);
+    verifyNoInteractions(responseSender);
     captorSender.getValue().send(r);
     verify(responseSender).send(r);
     assertEquals(numFinishedSpans, tracer.finishedSpans().size());
@@ -161,7 +161,7 @@ public class TestUserRpcServer {
     assertEquals(tracer.finishedSpans().size(), 0);
 
     UserRpcException r = mock(UserRpcException.class);
-    verifyZeroInteractions(responseSender);
+    verifyNoInteractions(responseSender);
     captorSender.getValue().sendFailure(r);
     verify(responseSender).sendFailure(r);
     assertEquals(1, tracer.finishedSpans().size());

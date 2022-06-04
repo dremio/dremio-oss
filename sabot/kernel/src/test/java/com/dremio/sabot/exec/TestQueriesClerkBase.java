@@ -231,6 +231,11 @@ public class TestQueriesClerkBase {
     }
 
     @Override
+    public int getApproximateQuerySize() {
+      return 0;
+    }
+
+    @Override
     public void unableToBuildQuery(Exception e) {
       fail(String.format("Unable to build query. Received exception: %s", e.toString()));
     }

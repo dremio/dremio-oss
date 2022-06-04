@@ -66,5 +66,11 @@ public interface IcebergOpCommitter {
    */
   Map<Integer, PartitionSpec> getCurrentSpecMap();
 
+  /**
+   * Checks is iceberg table is updated or not
+   * @return  true when the committer detectects iceberg table root pointer
+   */
+  boolean isIcebergTableUpdated();
+
   default void updateReadSignature(ByteString newReadSignature) {}
 }

@@ -52,9 +52,10 @@ public class SystemScanPrel extends ScanPrelBase {
       RelOptTable table,
       TableMetadata dataset,
       List<SchemaPath> projectedColumns,
-      double observedRowcountAdjustment
+      double observedRowcountAdjustment,
+      List<Info> runtimeFilters
       ) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
+    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
 
     final EntityPath datasetPath = new EntityPath(dataset.getName().getPathComponents());
     final Optional<SystemTable> systemTable = SystemStoragePlugin.getDataset(datasetPath);
@@ -73,9 +74,10 @@ public class SystemScanPrel extends ScanPrelBase {
       TableMetadata dataset,
       List<SchemaPath> projectedColumns,
       double observedRowcountAdjustment,
-      RelDataType rowType
+      RelDataType rowType,
+      List<Info> runtimeFilters
       ) {
-    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
+    super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
 
     final EntityPath datasetPath = new EntityPath(dataset.getName().getPathComponents());
     final Optional<SystemTable> systemTable = SystemStoragePlugin.getDataset(datasetPath);
@@ -115,12 +117,12 @@ public class SystemScanPrel extends ScanPrelBase {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     Preconditions.checkArgument(inputs == null || inputs.size() == 0);
-    return new SystemScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), getProjectedColumns(), getCostAdjustmentFactor());
+    return new SystemScanPrel(getCluster(), traitSet, getTable(), getTableMetadata(), getProjectedColumns(), getCostAdjustmentFactor(), getRuntimeFilters());
   }
 
   @Override
   public SystemScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new SystemScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), projection, getCostAdjustmentFactor());
+    return new SystemScanPrel(getCluster(), getTraitSet(), getTable(), getTableMetadata(), projection, getCostAdjustmentFactor(), getRuntimeFilters());
   }
 
 }

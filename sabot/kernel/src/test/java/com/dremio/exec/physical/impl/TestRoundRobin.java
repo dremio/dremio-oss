@@ -79,35 +79,35 @@ public class TestRoundRobin extends PlanTestBase {
 
   @Test
   public void testRoundRobinBiggerData() throws Exception {
-    final String pmulti = FileUtils.getResourceAsFile("/multilevel/parquet").toURI().toString();
-    final String queryPmulti = "SELECT * FROM dfs_test.\"" + pmulti + "\" ORDER BY o_orderkey, o_custkey desc, o_orderdate";
+      final String pmulti = FileUtils.getResourceAsFile("/multilevel/parquet").toURI().toString();
+      final String queryPmulti = "SELECT * FROM dfs_test.\"" + pmulti + "\" ORDER BY o_orderkey, o_custkey desc, o_orderdate";
 
-    try {
-      testNoResult(useHashSort);
+      try {
+        testNoResult(useHashSort);
+        testPlanMatchingPatterns(queryPmulti,
+          new String[]{
+            "SingleMergeExchange\\(sort0=\\[2\\], sort1=\\[3 DESC\\], sort2=\\[6\\]\\)",
+            "Sort\\(sort0=\\[\\$2\\], sort1=\\[\\$3\\], sort2=\\[\\$6\\], dir0=\\[ASC\\], dir1=\\[DESC\\], dir2=\\[ASC\\]\\)",
+            "HashToRandomExchange\\(dist0=\\[\\[\\$2\\]\\], dist1=\\[\\[\\$3\\]\\], dist2=\\[\\[\\$6\\]\\]\\)"},
+          null);
+      } finally {
+        testNoResult(useRoundRobinSort);
+      }
+
       testPlanMatchingPatterns(queryPmulti,
-        new String[] {
-          "SingleMergeExchange\\(sort0=\\[0\\], sort1=\\[1 DESC\\], sort2=\\[4\\]\\)",
-          "Sort\\(sort0=\\[\\$0\\], sort1=\\[\\$1\\], sort2=\\[\\$4\\], dir0=\\[ASC\\], dir1=\\[DESC\\], dir2=\\[ASC\\]\\)",
-          "HashToRandomExchange\\(dist0=\\[\\[\\$0\\]\\], dist1=\\[\\[\\$1\\]\\], dist2=\\[\\[\\$4\\]\\]\\)"},
-        null );
-    } finally {
-      testNoResult(useRoundRobinSort);
-    }
+        new String[]{
+          "SingleMergeExchange\\(sort0=\\[2\\], sort1=\\[3 DESC\\], sort2=\\[6\\]\\)",
+          "Sort\\(sort0=\\[\\$2\\], sort1=\\[\\$3\\], sort2=\\[\\$6\\], dir0=\\[ASC\\], dir1=\\[DESC\\], dir2=\\[ASC\\]\\)",
+          "RoundRobinExchange"},
+        null);
 
-    testPlanMatchingPatterns(queryPmulti,
-      new String[] {
-        "SingleMergeExchange\\(sort0=\\[0\\], sort1=\\[1 DESC\\], sort2=\\[4\\]\\)",
-        "Sort\\(sort0=\\[\\$0\\], sort1=\\[\\$1\\], sort2=\\[\\$4\\], dir0=\\[ASC\\], dir1=\\[DESC\\], dir2=\\[ASC\\]\\)",
-        "RoundRobinExchange"},
-      null );
-
-    // Compare results for the two queries with and without round robin distribution for sorting.
-    testBuilder()
-      .optionSettingQueriesForTestQuery(useRoundRobinSort)
-      .optionSettingQueriesForBaseline(useHashSort)
-      .ordered()
-      .sqlQuery(queryPmulti)
-      .sqlBaselineQuery(queryPmulti)
-      .go();
+      // Compare results for the two queries with and without round robin distribution for sorting.
+      testBuilder()
+        .optionSettingQueriesForTestQuery(useRoundRobinSort)
+        .optionSettingQueriesForBaseline(useHashSort)
+        .ordered()
+        .sqlQuery(queryPmulti)
+        .sqlBaselineQuery(queryPmulti)
+        .go();
   }
 }

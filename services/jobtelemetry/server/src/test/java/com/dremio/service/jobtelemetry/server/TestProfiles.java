@@ -15,9 +15,11 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,8 +35,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -77,9 +77,6 @@ import io.grpc.testing.GrpcCleanupRule;
  */
 public class TestProfiles {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestProfiles.class);
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Rule
   public final GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule();
@@ -213,19 +210,17 @@ public class TestProfiles {
   // expect failure if profile doesn't exist.
   @Test
   public void testGetQueryProfileQueryIdNotExists() {
-    thrown.expect(io.grpc.StatusRuntimeException.class);
-    thrown.expectMessage("profile not found for the given queryId");
-
     final QueryId queryId = QueryId.newBuilder()
       .setPart1(99L)
       .setPart1(88L)
       .build();
 
-    server.getQueryProfile(
-      GetQueryProfileRequest.newBuilder()
-        .setQueryId(queryId)
-        .build()
-    );
+    assertThatThrownBy(() -> server.getQueryProfile(
+        GetQueryProfileRequest.newBuilder()
+          .setQueryId(queryId)
+          .build()
+      )).isInstanceOf(io.grpc.StatusRuntimeException.class)
+      .hasMessageContaining("profile not found for the given queryId");
   }
 
   @Test
@@ -286,6 +281,15 @@ public class TestProfiles {
     return recordsProcessed.value;
   }
 
+  // fetch the last metric received.
+  private QueryProgressMetrics getSimpleQueryProgressMetricsUnary(QueryId queryId) throws InterruptedException {
+    GetQueryProgressMetricsResponse response =
+      server.getQueryProgressMetricsUnary(GetQueryProgressMetricsRequest.newBuilder()
+        .setQueryId(queryId)
+        .build());
+    return response.getMetrics();
+  }
+
   @Test
   public void testSimpleGetProgressMetrics() throws InterruptedException {
     final int numExecutors = 2;
@@ -301,6 +305,8 @@ public class TestProfiles {
 
     // verify metrics.
     assertEquals(numRecords, getSimpleQueryProgressMetrics(profileSet.queryId));
+    assertEquals(getSimpleQueryProgressMetricsUnary(profileSet.queryId).getRowsProcessed(),
+      getSimpleQueryProgressMetrics(profileSet.queryId));
   }
 
   @Test
@@ -308,12 +314,12 @@ public class TestProfiles {
     final int numExecutors = 3;
     final ProfileSet profileSet = new ProfileSet(numExecutors);
     final CountDownLatch responseLatch = new CountDownLatch(1);
-    final List<Long> recordsProcessed = new ArrayList<>();
+    final List<QueryProgressMetrics> metrics = new ArrayList<>();
 
     StreamObserver<GetQueryProgressMetricsResponse> responseObserver = new StreamObserver<GetQueryProgressMetricsResponse>() {
       @Override
       public void onNext(GetQueryProgressMetricsResponse metricsResponse) {
-        recordsProcessed.add(metricsResponse.getMetrics().getRowsProcessed());
+        metrics.add(metricsResponse.getMetrics());
       }
 
       @Override
@@ -338,10 +344,12 @@ public class TestProfiles {
 
     // publish executor profiles.
     long expectedRecords = 0;
+    long outputRecords = 0;
     for (int i = 0; i < numExecutors; i++) {
       PutExecutorProfileRequest req = profileSet.executorQueryProfileRequests.get(i);
       server.putExecutorProfile(req);
       expectedRecords += req.getProfile().getProgress().getRowsProcessed();
+      outputRecords += req.getProfile().getProgress().getOutputRecords();
 
       Thread.sleep(100);
     }
@@ -353,8 +361,14 @@ public class TestProfiles {
     responseLatch.await();
 
     // verify metrics.
-    assertTrue(recordsProcessed.size() > 1);
-    assertEquals(expectedRecords, recordsProcessed.get(recordsProcessed.size() - 1).longValue());
+    assertTrue(metrics.size() > 1);
+    assertEquals(expectedRecords, metrics.get(metrics.size() - 1).getRowsProcessed());
+    assertEquals(outputRecords, metrics.get(metrics.size() - 1).getOutputRecords());
+
+    // verify metrics via unary call
+    QueryProgressMetrics metrics2 = getSimpleQueryProgressMetricsUnary(profileSet.queryId);
+    assertEquals(expectedRecords, metrics2.getRowsProcessed());
+    assertEquals(outputRecords, metrics2.getOutputRecords());
   }
 
   @Test
@@ -366,17 +380,24 @@ public class TestProfiles {
     server.putQueryPlanningProfile(profileSet.planningProfileRequest);
 
     // publish only executor profiles.
-    int expectedRecords = 0;
+    long expectedRecords = 0;
+    long outputRecords = 0;
     for (int i = 0; i < numExecutors; ++i) {
       PutExecutorProfileRequest req = profileSet.executorQueryProfileRequests.get(i);
       server.putExecutorProfile(req);
 
       expectedRecords += req.getProfile().getProgress().getRowsProcessed();
+      outputRecords  += req.getProfile().getProgress().getOutputRecords();
     }
 
-    // verify metrics
+    // verify metrics via streaming call
     long recordsProcessed = getSimpleQueryProgressMetrics(profileSet.queryId);
     assertEquals(expectedRecords, recordsProcessed);
+
+    // verify metrics via unary call
+    QueryProgressMetrics metrics = getSimpleQueryProgressMetricsUnary(profileSet.queryId);
+    assertEquals(expectedRecords, metrics.getRowsProcessed());
+    assertEquals(outputRecords, metrics.getOutputRecords());
 
     // publish tail profile.
     server.putQueryTailProfile(profileSet.tailProfileRequest);
@@ -397,16 +418,17 @@ public class TestProfiles {
       .build());
 
     // expect empty metrics.
-    assertEquals(0, getSimpleQueryProgressMetrics(profileSet.queryId));
+    assertEquals(-1, getSimpleQueryProgressMetrics(profileSet.queryId));
+    assertEquals(-1, getSimpleQueryProgressMetricsUnary(profileSet.queryId).getRowsProcessed());
+    assertEquals(-1, getSimpleQueryProgressMetricsUnary(profileSet.queryId).getOutputRecords());
 
     // expect error on GetProfile
-    thrown.expect(io.grpc.StatusRuntimeException.class);
-    thrown.expectMessage("profile not found for the given queryId");
-    server.getQueryProfile(
+    assertThatThrownBy(() -> server.getQueryProfile(
       GetQueryProfileRequest.newBuilder()
         .setQueryId(profileSet.queryId)
         .build()
-    );
+    )).isInstanceOf(io.grpc.StatusRuntimeException.class)
+      .hasMessageContaining("profile not found for the given queryId");
   }
 
   @Test
@@ -432,9 +454,9 @@ public class TestProfiles {
     // fail putFullProfile some number of times
     final int attempts = 3;
     final int[] count = {0};
-    Mockito.doAnswer(new Answer() {
+    doAnswer(new Answer<Void>() {
       @Override
-      public Object answer(InvocationOnMock invocation) throws Throwable {
+      public Void answer(InvocationOnMock invocation) throws Throwable {
         ++count[0];
         if (count[0] >= attempts) {
           return null;
@@ -480,7 +502,7 @@ public class TestProfiles {
           .build();
 
         final QueryProgressMetrics queryProgressMetrics =
-          QueryProgressMetrics.newBuilder().setRowsProcessed(6666).build();
+          QueryProgressMetrics.newBuilder().setRowsProcessed(6666).setOutputRecords(8888).build();
         List<NodePhaseStatus> nodePhaseStatuses = new ArrayList<>();
         nodePhaseStatuses.add(
           NodePhaseStatus.newBuilder().setMajorFragmentId(0).setMaxMemoryUsed(6).build());

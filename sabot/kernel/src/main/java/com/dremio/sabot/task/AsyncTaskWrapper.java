@@ -77,6 +77,8 @@ public class AsyncTaskWrapper implements Task {
   private final SchedulingGroup<AsyncTaskWrapper> schedulingGroup;
   private final AsyncTask asyncTask;
   private final AutoCloseable cleaner;
+  private final long taskWeight;
+
   private SharedResourceType blockedOnResource;
   private int lastThread;
   private long lastSleepDuration;
@@ -84,8 +86,10 @@ public class AsyncTaskWrapper implements Task {
 
   private final TaskDescriptorImpl taskDescriptor = new TaskDescriptorImpl();
 
-  public AsyncTaskWrapper(SchedulingGroup<AsyncTaskWrapper> schedulingGroup, AsyncTask asyncTask, AutoCloseable cleaner, int warnMaxTime) {
+  public AsyncTaskWrapper(long taskWeight, SchedulingGroup<AsyncTaskWrapper> schedulingGroup, AsyncTask asyncTask,
+                          AutoCloseable cleaner, int warnMaxTime) {
     super();
+    this.taskWeight = taskWeight;
     this.schedulingGroup = Preconditions.checkNotNull(schedulingGroup, "Scheduling group required");
     this.asyncTask = Preconditions.checkNotNull(asyncTask);
     asyncTask.setTaskDescriptor(taskDescriptor);
@@ -100,6 +104,10 @@ public class AsyncTaskWrapper implements Task {
 
   public SchedulingGroup<AsyncTaskWrapper> getSchedulingGroup() {
     return schedulingGroup;
+  }
+
+  public long getTaskWeight() {
+    return taskWeight;
   }
 
   public void run() {

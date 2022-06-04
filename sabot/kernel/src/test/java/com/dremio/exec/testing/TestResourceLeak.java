@@ -131,7 +131,7 @@ public class TestResourceLeak extends DremioTest {
 
     @Override
     public void eval() {
-      buf.retain();
+      buf.getReferenceManager().retain();
       out.value = in.value;
     }
   }

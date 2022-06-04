@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.sql.hive;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -24,24 +26,18 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.sql.TestBaseViewSupport;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
-import com.google.inject.AbstractModule;
 
 public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
-
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
 
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(100, TimeUnit.SECONDS);
@@ -60,21 +56,6 @@ public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
 
   @BeforeClass
   public static void generateHive() throws Exception{
-    SimpleJobRunner jobRunner = (query, userName, queryType) -> {
-      try {
-        runSQL(query); // queries we get here are inner 'refresh dataset' queries
-      } catch (Exception e) {
-        throw new IllegalStateException(e);
-      }
-    };
-
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(SimpleJobRunner.class).toInstance(jobRunner);
-      }
-    });
-    setupDefaultTestCluster();
     hiveTest = HiveTestDataGenerator.getInstance();
     Objects.requireNonNull(hiveTest);
     hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
@@ -166,9 +147,9 @@ public class ITViewSupportOnHiveTables extends TestBaseViewSupport {
     hiveTest.executeDDL("INSERT INTO existing_table VALUES(1, 'a')");
     hiveTest.executeDDL("CREATE VIEW existing_view AS SELECT * FROM existing_table");
     try {
-      exception.expect(RpcException.class);
-      exception.expectMessage("Hive views are not supported");
-      client.runQuery(UserBitShared.QueryType.SQL, "SELECT * FROM hive.\"default\".\"existing_view\"");
+      assertThatThrownBy(() -> client.runQuery(UserBitShared.QueryType.SQL, "SELECT * FROM hive.\"default\".\"existing_view\""))
+        .isInstanceOf(RpcException.class)
+        .hasMessageContaining("Hive views are not supported");
     } finally {
       hiveTest.executeDDL("DROP VIEW existing_view");
       hiveTest.executeDDL("DROP TABLE existing_table");

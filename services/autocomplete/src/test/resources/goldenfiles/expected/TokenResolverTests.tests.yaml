@@ -1,0 +1,132 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "EMPTY STRING"
+  input: ""
+  output:
+    tokens:
+     - "SELECT"
+     - "UPDATE"
+     - "WITH"
+     - "DELETE"
+     - "TABLE"
+    numRemainingResults: 131
+ -
+  description: "MID SELECT"
+  input: "S"
+  output:
+    tokens:
+     - "SELECT"
+     - "SECOND"
+     - "SESSION_USER"
+     - "SET"
+     - "SPECIFIC"
+    numRemainingResults: 6
+ -
+  description: "SELECT"
+  input: "SELECT "
+  output:
+    tokens:
+     - "<IDENTIFIER>"
+     - "<UNSIGNED_INTEGER_LITERAL>"
+     - "SUM"
+     - "MIN"
+     - "AVG"
+    numRemainingResults: 128
+ -
+  description: "SELECT STAR"
+  input: "SELECT * "
+  output:
+    tokens:
+     - "FROM"
+     - ","
+     - "<EOF>"
+     - "EXCEPT"
+     - "FETCH"
+    numRemainingResults: 6
+ -
+  description: "SELECT STAR FROM"
+  input: "SELECT * FROM "
+  output:
+    tokens:
+     - "<IDENTIFIER>"
+     - "("
+     - ","
+     - "<BACK_QUOTED_IDENTIFIER>"
+     - "<BRACKET_QUOTED_IDENTIFIER>"
+    numRemainingResults: 15
+ -
+  description: "SELECT STAR FROM IDENTIFIER"
+  input: "SELECT * FROM emp "
+  output:
+    tokens:
+     - ","
+     - "WHERE"
+     - "GROUP"
+     - "ORDER"
+     - "JOIN"
+    numRemainingResults: 19
+ -
+  description: "SELECT STAR FROM IDENTIFIER WHERE"
+  input: "SELECT * FROM emp WHERE "
+  output:
+    tokens:
+     - "<IDENTIFIER>"
+     - "EXISTS"
+     - "NOT"
+     - "CAST"
+     - "("
+    numRemainingResults: 140
+ -
+  description: "SELECT STAR FROM IDENTIFIER WHERE IDENTIFIER"
+  input: "SELECT * FROM emp WHERE age "
+  output:
+    tokens:
+     - "."
+     - "="
+     - "GROUP"
+     - "ORDER"
+     - "<"
+    numRemainingResults: 40
+ -
+  description: "MID TOKEN + VALID QUERY"
+  input: "SELECT MI"
+  output:
+    tokens:
+     - "MIN"
+     - "MINUS"
+     - "MINUTE"
+    numRemainingResults: 0
+ -
+  description: "MID TOKEN + INVALID QUERY"
+  input: "SELECT * FROM emp WHER"
+  output:
+    tokens:
+     - "WHERE"
+    numRemainingResults: 0
+ -
+  description: "FUNCTION"
+  input: "SELECT ABS("
+  output:
+    tokens:
+     - "<IDENTIFIER>"
+     - "SELECT"
+     - "<UNSIGNED_INTEGER_LITERAL>"
+     - "VALUES"
+     - "CASE"
+    numRemainingResults: 151

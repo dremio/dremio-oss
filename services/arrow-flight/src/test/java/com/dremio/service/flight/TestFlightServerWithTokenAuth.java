@@ -13,9 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.dremio.service.flight;
 
+import static org.junit.Assert.assertEquals;
+
+import java.util.Collections;
+import java.util.List;
+
+import org.apache.arrow.flight.CallOption;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import com.dremio.service.flight.impl.FlightWorkManager;
 
@@ -35,5 +43,18 @@ public class TestFlightServerWithTokenAuth extends AbstractTestFlightServer {
   @Override
   protected String getAuthMode() {
     return DremioFlightService.FLIGHT_AUTH2_AUTH_MODE;
+  }
+
+  @Test
+  public void testSelectAfterUse() throws Exception {
+    executeQueryWithStringResults("USE cp");
+    final List<String> results = executeQueryWithStringResults("SELECT * FROM \"10k_rows.parquet\" LIMIT 1");
+    assertEquals(Collections.singletonList("val"), results);
+  }
+
+  @Override
+  CallOption[] getCallOptions() {
+    final FlightClientUtils.FlightClientWrapper wrapper = getFlightClientWrapper();
+    return new CallOption[] {wrapper.getTokenCallOption()};
   }
 }

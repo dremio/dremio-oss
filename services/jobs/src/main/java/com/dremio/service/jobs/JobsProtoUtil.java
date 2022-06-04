@@ -16,11 +16,14 @@
 package com.dremio.service.jobs;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.datastore.SearchTypes;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
@@ -559,6 +562,10 @@ public final class JobsProtoUtil {
     }
   }
 
+  public static JobState toStuff(JobProtobuf.JobState jobState) {
+    return JobState.valueOf(jobState.getNumber());
+  }
+
   /**
    * Utility method that maps protostuf (proto2) queryType to protobuf (proto3) queryType
    */
@@ -598,6 +605,8 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.QueryType.FLIGHT;
       case METADATA_REFRESH:
         return com.dremio.service.job.QueryType.METADATA_REFRESH;
+      case INTERNAL_ICEBERG_METADATA_DROP:
+        return com.dremio.service.job.QueryType.INTERNAL_ICEBERG_METADATA_DROP;
       default:
         return QueryType.UNKNOWN;
     }
@@ -740,6 +749,8 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.proto.QueryType.FLIGHT;
       case METADATA_REFRESH:
         return com.dremio.service.job.proto.QueryType.METADATA_REFRESH;
+      case INTERNAL_ICEBERG_METADATA_DROP:
+        return com.dremio.service.job.proto.QueryType.INTERNAL_ICEBERG_METADATA_DROP;
       default:
         return com.dremio.service.job.proto.QueryType.UNKNOWN;
     }
@@ -763,8 +774,49 @@ public final class JobsProtoUtil {
     if (!Strings.isNullOrEmpty(sqlQuery.getEngineName())) {
       sqlQueryBuilder.setEngineName(sqlQuery.getEngineName());
     }
+    if (!Strings.isNullOrEmpty(sqlQuery.getSessionId())) {
+      sqlQueryBuilder.setSessionId(sqlQuery.getSessionId());
+    }
+    if (sqlQuery.getReferences() != null && !sqlQuery.getReferences().isEmpty()) {
+      putSourceVersionReferences(sqlQuery, sqlQueryBuilder);
+    }
 
     return sqlQueryBuilder.build();
   }
 
+  private static void putSourceVersionReferences(com.dremio.service.jobs.SqlQuery sqlQuery, SqlQuery.Builder sqlQueryBuilder) {
+    for (Map.Entry<String, JobsVersionContext> sourceVersionMapping: sqlQuery.getReferences().entrySet()) {
+
+      //Each reference maps to one source as "key" with version context as "value"
+      String source = sourceVersionMapping.getKey();
+      JobsVersionContext jobsVersionContext = sourceVersionMapping.getValue();
+
+      SqlQuery.VersionContext.Builder versionContextBuilder = SqlQuery.VersionContext.newBuilder();
+      versionContextBuilder.setValue(jobsVersionContext.getValue());
+      if (jobsVersionContext.getType() == JobsVersionContext.VersionContextType.BRANCH) {
+        versionContextBuilder.setType(SqlQuery.VersionContextType.BRANCH);
+      } else if (jobsVersionContext.getType() == JobsVersionContext.VersionContextType.TAG) {
+        versionContextBuilder.setType(SqlQuery.VersionContextType.TAG);
+      } else if (jobsVersionContext.getType() == JobsVersionContext.VersionContextType.BARE_COMMIT) {
+        versionContextBuilder.setType(SqlQuery.VersionContextType.BARE_COMMIT);
+      }
+
+      sqlQueryBuilder.putSourceVersionMapping(source, versionContextBuilder.build());
+    }
+  }
+
+  public static Map<String, VersionContext> toSourceVersionMapping(Map<String, SqlQuery.VersionContext> sourceWithVersionContextMap) {
+    Map<String, VersionContext> sourceVersionMapping = new HashMap<>();
+    for (Map.Entry<String, SqlQuery.VersionContext> entry: sourceWithVersionContextMap.entrySet()) {
+      if (entry.getValue().getType() == SqlQuery.VersionContextType.BRANCH) {
+        sourceVersionMapping.put(entry.getKey(), VersionContext.ofBranch(entry.getValue().getValue()));
+      } else if (entry.getValue().getType() == SqlQuery.VersionContextType.TAG) {
+        sourceVersionMapping.put(entry.getKey(), VersionContext.ofTag(entry.getValue().getValue()));
+      } else if (entry.getValue().getType() == SqlQuery.VersionContextType.BARE_COMMIT) {
+        sourceVersionMapping.put(entry.getKey(), VersionContext.ofBareCommit(entry.getValue().getValue()));
+      }
+    }
+
+    return sourceVersionMapping;
+  }
 }

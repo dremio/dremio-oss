@@ -21,6 +21,7 @@ import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.FunctionContext;
+import com.dremio.sabot.op.copier.FieldBufferCopier;
 
 public interface HashTable extends AutoCloseable {
 
@@ -44,7 +45,7 @@ public interface HashTable extends AutoCloseable {
 
   // Build side batch record link. Each link is 6 bytes.
   // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
-  int BUILD_RECORD_LINK_SIZE = 6;
+  int BUILD_RECORD_LINK_SIZE = FieldBufferCopier.BUILD_RECORD_LINK_SIZE;
 
   static public enum PutStatus {KEY_PRESENT, KEY_ADDED, PUT_FAILED;}
 

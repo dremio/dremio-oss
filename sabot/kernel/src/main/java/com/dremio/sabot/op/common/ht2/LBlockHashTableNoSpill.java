@@ -216,7 +216,7 @@ public final class LBlockHashTableNoSpill implements AutoCloseable {
    * keyFixedAddr is the destination memory for fixed keys
    * keyVarAddr is the destination memory for variable keys
    */
-  public void copyKeyToBuffer(long keyOffsetAddr, final int count, long keyFixedAddr, long keyVarAddr) {
+  public void copyKeysToBuffer(long keyOffsetAddr, final int count, long keyFixedAddr, long keyVarAddr) {
     final long maxAddr = keyOffsetAddr + count * ORDINAL_SIZE;
     final int blockWidth = pivot.getBlockWidth();
     if (fixedOnly) {
@@ -588,7 +588,7 @@ public final class LBlockHashTableNoSpill implements AutoCloseable {
    * Stop tracing the insert(), and release any buffers that were allocated
    */
   public void traceEnd() {
-    traceBuf.release();
+    traceBuf.close();
     traceBuf = null;
     traceBufNext = 0;
   }

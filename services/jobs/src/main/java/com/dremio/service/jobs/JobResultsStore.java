@@ -128,7 +128,7 @@ public class JobResultsStore implements Service {
         PathUtils.constructFullPath(getOutputTablePath(jobId)));
   }
 
-  public RecordBatches loadJobData(JobId jobId, JobResult job, int offset, int limit){
+  public RecordBatches loadJobData(JobId jobId, JobResult job, int offset, int limit) {
     try (TimedBlock b = time("getJobResult")) {
 
       final List<JobAttempt> attempts = job.getAttemptsList();
@@ -155,7 +155,7 @@ public class JobResultsStore implements Service {
       final Path jobOutputDir = getJobOutputDir(jobId);
       if (!doesQueryResultsDirExists(jobOutputDir, jobId)) {
         throw UserException.dataReadError()
-            .message("Job '%s' output doesn't exist", jobId.getId())
+            .message(getErrorMessageQueryResultsDirNotexists(), jobId.getId())
             .build(logger);
       }
 
@@ -228,6 +228,10 @@ public class JobResultsStore implements Service {
           .message("Failed to load results for job %s", jobId.getId())
           .build(logger);
     }
+  }
+
+  public String getErrorMessageQueryResultsDirNotexists() {
+    return "Job '%s' output doesn't exist";
   }
 
   private boolean shouldSkipJobResults(JobId jobId) {

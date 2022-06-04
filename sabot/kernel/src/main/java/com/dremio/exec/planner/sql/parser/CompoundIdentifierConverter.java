@@ -190,8 +190,8 @@ public class CompoundIdentifierConverter extends SqlShuttle {
 
     rules.put(SqlSelect.class, R(D, E, D, E, E, E, E, E, D, D));
     rules.put(SqlInsertTable.class, R(D, E, D));
-    rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, E, D, D));
-    rules.put(SqlCreateEmptyTable.class, R(D, D, D, D, D, D, D, D));
+    rules.put(SqlCreateTable.class, R(D, D, D, D, D, D, D, E, D, D));
+    rules.put(SqlCreateEmptyTable.class, R(D, D, D, D, D, D, D, D, D));
     rules.put(SqlCreateView.class, R(D, E, E, D));
     rules.put(SqlDescribeTable.class, R(D, D, E));
     rules.put(SqlDropView.class, R(D, D));
@@ -222,7 +222,7 @@ public class CompoundIdentifierConverter extends SqlShuttle {
     rules.put(SqlAlterTableSetOption.class, R(D, D, D, D));
     rules.put(SqlAlterClearPlanCache.class, R());
     rules.put(SqlAnalyzeTableStatistics.class, R(D, D, D));
-    rules.put(SqlAlterDatasetReflectionRouting.class, R(D, D, D, D));
+    rules.put(SqlAlterDatasetReflectionRouting.class, R(D, D, D, D, D));
 
     REWRITE_RULES = ImmutableMap.copyOf(rules);
   }

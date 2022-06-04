@@ -105,6 +105,38 @@ public final class DatasetHelper {
     return DatasetHelper.isIcebergFile(dataset.getPhysicalDataset().getFormatSettings());
   }
 
+  public static boolean isNativeIcebergTable(DatasetConfig dataset) {
+    if (dataset.getPhysicalDataset() == null) {
+      return false;
+    }
+    return DatasetHelper.isIcebergFile(dataset.getPhysicalDataset().getFormatSettings());
+  }
+
+  public static boolean isJsonDataset(DatasetConfig dataset) {
+    if (dataset.getPhysicalDataset() == null) {
+      return false;
+    }
+
+    if (dataset.getPhysicalDataset().getFormatSettings().getType() == FileType.JSON) {
+      return true;
+    }
+
+    return false;
+  }
+
+  public static boolean isInternalIcebergTable(DatasetConfig dataset) {
+    if (dataset.getPhysicalDataset() == null) {
+      return false;
+    }
+
+    return (dataset.getPhysicalDataset().getIcebergMetadataEnabled() != null
+      && dataset.getPhysicalDataset().getIcebergMetadataEnabled());
+  }
+
+  public static boolean isInternalIcebergTableOrJsonTable(DatasetConfig dataset) {
+    return isInternalIcebergTable(dataset) || isJsonDataset(dataset);
+  }
+
   /**
    * Checks if dataset is delta lake dataset
    *

@@ -21,7 +21,11 @@ import com.dremio.sabot.task.TaskManager.TaskHandle;
  */
 public interface SchedulingGroup<T extends Task> {
 
-  SchedulingGroup<T> addGroup(long weight);
+  default SchedulingGroup<T> addGroup(long weight) {
+    return addGroup(weight, false);
+  }
+
+  SchedulingGroup<T> addGroup(long weight, boolean weightBasedScheduler);
 
   TaskHandle<T> addTask(T t, long weight);
 }

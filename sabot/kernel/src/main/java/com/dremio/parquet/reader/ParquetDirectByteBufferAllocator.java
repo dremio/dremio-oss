@@ -60,7 +60,7 @@ public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
     // If it is not found in the allocated buffers, do nothing
     if(bb != null) {
 //      logger.debug("ParquetDirectByteBufferAllocator: Freed byte buffer. Allocated ByteBuffer id: {}", key.hash);
-      bb.release();
+      bb.close();
       allocatedBuffers.remove(key);
     }
   }

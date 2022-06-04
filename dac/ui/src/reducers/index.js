@@ -24,9 +24,8 @@ import account from '@inject/reducers/account';
 import admin from '@inject/reducers/admin';
 import roles from '@inject/reducers/roles';
 import init from '@app/reducers/init';
-import privileges from '@inject/reducers/privileges';
 import user from '@inject/reducers/user';
-import userMapping from '@inject/reducers/userMapping';
+import additionalReducers from '@inject/reducers/additionalReducers';
 import { getExploreState } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
 
@@ -34,6 +33,7 @@ import search from './search';
 
 import home from './home/home';
 import ui from './ui/ui';
+import nessie from './nessie/nessie';
 
 import jobs from './jobs/index';
 import modals from './modals/index';
@@ -67,9 +67,9 @@ const appReducers = combineReducers({
   appError: prodError,
   modulesState,
   passDataBetweenModalTabs,
-  privileges,
   user,
-  userMapping
+  nessie,
+  ...additionalReducers
 });
 
 const actionCancelGroups = {};

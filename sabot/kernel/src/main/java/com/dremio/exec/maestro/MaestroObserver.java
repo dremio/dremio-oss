@@ -100,6 +100,12 @@ public interface MaestroObserver {
   void recordsProcessed(long recordCount);
 
   /**
+   * Number of output records
+   * @param recordCount output records
+   */
+  void recordsOutput(long recordCount);
+
+  /**
    * Time taken for sending start fragment rpcs to all nodes.
    * @param millisTaken
    */

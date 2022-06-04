@@ -165,6 +165,6 @@ Reflection.propTypes = {
   reflectionsNotUsed: PropTypes.instanceOf(Immutable.List),
   isAcceleration: PropTypes.bool,
   reflections: PropTypes.instanceOf(Immutable.List),
-  location: PropTypes.object.isRequired
+  location: PropTypes.object
 };
 export default injectIntl(Reflection);

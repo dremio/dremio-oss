@@ -16,10 +16,15 @@
 import { Component } from 'react';
 import { connect } from 'react-redux';
 import NotificationSystem from 'react-notification-system';
+import PropTypes from 'prop-types';
+import deepEqual from 'deep-equal';
 
 import Message from 'components/Message';
 
 export class NotificationContainer extends Component {
+  static propTypes = {
+    notification: PropTypes.object
+  };
 
   constructor(props) {
     super(props);
@@ -35,7 +40,6 @@ export class NotificationContainer extends Component {
     if (removeMessageType) {
       this.removeMessages(removeMessageType);
     }
-
     const handleDismiss = () => {
       this.notificationSystem.removeNotification(notification);
       return false;
@@ -50,9 +54,13 @@ export class NotificationContainer extends Component {
       level,
       position: 'tc',
       // see https://dremio.atlassian.net/browse/DX-5316 for commentary
-      autoDismiss: autoDismiss || (level === 'success' ? 10 : 0)
+      autoDismiss: autoDismiss || (level === 'success' ? 5 : 0)
     });
     if (notification) {
+      // if the notification is the same as last then remove the previous one instead of stack.
+      if (deepEqual(newProps.notification, this.props.notification)) {
+        this.notificationSystem.removeNotification(notification.uid - 1);
+      }
       // message is defined if notification is truthy; if message has type, store it in the local list
       const messageType = message.messageType || (message.get && message.get('messageType'));
       if (messageType) {
@@ -74,7 +82,7 @@ export class NotificationContainer extends Component {
 
   render() {
     return (
-      <NotificationSystem ref='notificationSystem' style={style} />
+      <NotificationSystem ref='notificationSystem' style={style} newOnTop />
     );
   }
 }
@@ -103,11 +111,38 @@ const style = {
   },
   NotificationItem: {
     DefaultStyle: {
-      margin: 5,
-      borderRadius: 1,
+      borderBottom: 'none',
+      boxShadow: 'none',
+      margin: 0,
+      marginBottom: '8px',
+      borderRadius: 0,
       border: 'none',
-      padding: 0,
-      background: 'none'
+      padding: 0
+    },
+    success: {
+      backgroundColor: '#E9F5F9',
+      borderTop: 'none'
+    },
+    error: {
+      backgroundColor: '#E9F5F9',
+      borderTop: 'none'
+    },
+    warning: {
+      backgroundColor: '#E9F5F9',
+      borderTop: 'none'
+    },
+    info: {
+      backgroundColor: '#E9F5F9',
+      borderTop: 'none'
+    }
+  },
+  Containers: {
+    DefaultStyle: {
+      padding: '0',
+      width: 800
+    },
+    tl: {
+      left: '64px'
     }
   }
 };

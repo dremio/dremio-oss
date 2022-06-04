@@ -21,7 +21,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -36,13 +35,11 @@ public class TestMergingReceiverSpooling extends BaseTestQuery {
 
   @Test
   public void tpch18() throws Exception{
-    updateTestCluster(2, SabotConfig.create("dremio-spooling-test.conf"));
 
     String query = "select l_orderkey from cp.\"tpch/lineitem.parquet\" group by l_orderkey having sum(l_quantity) > 300";
 
     setSessionOption(ExecConstants.SLICE_TARGET, "10");
     setSessionOption(PlannerSettings.HASHAGG, "false");
-
     testRunAndPrint(UserBitShared.QueryType.SQL, query);
   }
 

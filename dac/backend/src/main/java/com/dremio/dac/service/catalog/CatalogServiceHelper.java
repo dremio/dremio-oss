@@ -64,6 +64,7 @@ import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
@@ -202,6 +203,17 @@ public class CatalogServiceHelper {
     return Optional.fromNullable(table.getDatasetConfig());
   }
 
+  public Optional<NameSpaceContainer> getContainerById(String id) {
+    try {
+      NameSpaceContainer container = namespaceService.getEntityById(id);
+
+      return Optional.fromNullable(container);
+    } catch (NamespaceNotFoundException e) {
+      return Optional.absent();
+    }
+  }
+
+
   private HomeConfig getHomeForCurrentUser() throws NamespaceException {
     HomePath homePath = new HomePath(HomeName.getUserHomePath(context.getUserPrincipal().getName()));
 
@@ -256,8 +268,7 @@ public class CatalogServiceHelper {
 
       return getCatalogEntityFromCatalogItem(internalItem.get(), !exclude.contains(DetailType.children.name()));
     } else {
-      return getCatalogEntityFromNamespaceContainer(extractFromNamespaceContainer(entity).get(),
-        !exclude.contains(DetailType.children.name()));
+      return getCatalogEntityFromNamespaceContainer(entity, !exclude.contains(DetailType.children.name()));
     }
   }
 
@@ -269,51 +280,12 @@ public class CatalogServiceHelper {
       return Optional.absent();
     }
 
-    return getCatalogEntityFromNamespaceContainer(entity.get(), !exclude.contains(DetailType.children.name()));
+    return getCatalogEntity(entity.get(), !exclude.contains(DetailType.children.name()));
   }
 
-  private Optional<CatalogEntity> getCatalogEntityFromNamespaceContainer(Object object, boolean includeChildren)
-    throws NamespaceException {
-    if (object instanceof SourceConfig) {
-      SourceConfig config = (SourceConfig) object;
-
-      Source source = fromSourceConfig(config,
-        includeChildren ? getChildrenForPath(new NamespaceKey(config.getName())) : Collections.emptyList());
-      return Optional.of(source);
-    } else if (object instanceof SpaceConfig) {
-      SpaceConfig config = (SpaceConfig) object;
-
-      Space space = getSpaceFromConfig(config,
-        includeChildren ? getChildrenForPath(new NamespaceKey(config.getName())) : Collections.emptyList());
-      return Optional.of(space);
-    } else if (object instanceof DatasetConfig) {
-      DatasetConfig config = (DatasetConfig) object;
-
-      Dataset dataset;
-
-      // only set acceleration settings if one exists in the store - we don't want inherited settings
-      Optional<AccelerationSettings> settings = getStoredReflectionSettingsForDataset(config);
-      if (settings.isPresent()) {
-        dataset = getDatasetFromConfig(config, new Dataset.RefreshSettings(settings.get()));
-      } else {
-        dataset = getDatasetFromConfig(config, null);
-      }
-
-      return Optional.of(dataset);
-    } else if (object instanceof HomeConfig) {
-      HomeConfig config = (HomeConfig) object;
-
-      List<CatalogItem> children = includeChildren ?
-        getChildrenForPath(new NamespaceKey(HomeName.getUserHomePath(config.getOwner()).getName())) :
-        Collections.emptyList();
-      Home home = getHomeFromConfig(config, children);
-      return Optional.of(home);
-    } else if (object instanceof FolderConfig) {
-      FolderConfig config = (FolderConfig) object;
-
-      Folder folder = getFolderFromConfig(config,
-        includeChildren ? getChildrenForPath(new NamespaceKey(config.getFullPathList())) : Collections.emptyList());
-      return Optional.of(folder);
+  private Optional<CatalogEntity> getCatalogEntity(Object object, boolean includeChildren) throws NamespaceException {
+    if (object instanceof NameSpaceContainer) {
+      return getCatalogEntityFromNamespaceContainer((NameSpaceContainer) object, includeChildren);
     } else if (object instanceof CatalogEntity) {
       // this is something not in the namespace, a file/folder from a filesystem source
       CatalogEntity catalogEntity = (CatalogEntity) object;
@@ -323,11 +295,58 @@ public class CatalogServiceHelper {
     }
   }
 
+  private Optional<CatalogEntity> getCatalogEntityFromNamespaceContainer(NameSpaceContainer container, boolean includeChildren)
+    throws NamespaceException {
+
+    switch (container.getType()) {
+      case SOURCE:
+        Source source = toSourceAPI(container,
+          includeChildren ? getChildrenForPath(new NamespaceKey(container.getFullPathList())) : Collections.emptyList());
+        return Optional.of(source);
+      case SPACE:
+        SpaceConfig config = container.getSpace();
+
+        Space space = toSpaceAPI(container,
+          includeChildren ? getChildrenForPath(new NamespaceKey(config.getName())) : Collections.emptyList());
+        return Optional.of(space);
+      case DATASET:
+        DatasetConfig datasetConfig = container.getDataset();
+
+        Dataset dataset;
+
+        // only set acceleration settings if one exists in the store - we don't want inherited settings
+        Optional<AccelerationSettings> settings = getStoredReflectionSettingsForDataset(datasetConfig);
+        if (settings.isPresent()) {
+          dataset = toDatasetAPI(container, new Dataset.RefreshSettings(settings.get()));
+        } else {
+          dataset = toDatasetAPI(container, null);
+        }
+
+        return Optional.of(dataset);
+      case HOME:
+        HomeConfig homeConfig = container.getHome();
+
+        List<CatalogItem> children = includeChildren ?
+          getChildrenForPath(new NamespaceKey(HomeName.getUserHomePath(homeConfig.getOwner()).getName())) :
+          Collections.emptyList();
+        Home home = getHomeFromConfig(homeConfig, children);
+        return Optional.of(home);
+      case FOLDER:
+        FolderConfig folderConfig = container.getFolder();
+
+        Folder folder = toFolderAPI(container,
+          includeChildren ? getChildrenForPath(new NamespaceKey(folderConfig.getFullPathList())) : Collections.emptyList());
+        return Optional.of(folder);
+      default:
+        throw new IllegalArgumentException(String.format("Unexpected catalog type found [%s].", container.getType()));
+    }
+  }
+
   /**
    * Given an id, retrieves the entity from the namespace.  Also handles fake ids (using generateInternalId) that we
    * generate for folders/files that exist in file-based sources that are not in the namespace.
    *
-   * Note: this returns the namespace object (DatasetConfig, etc) for entites found in the namespace.  For non-namespace
+   * Note: this returns the namespace container found in the namespace.  For non-namespace
    * items it returns the appropriate CatalogEntity item (Folder/File only).
    */
   private Optional<?> getById(String id) {
@@ -348,12 +367,12 @@ public class CatalogServiceHelper {
 
         return getCatalogEntityFromCatalogItem(item);
       } else {
-        Optional<?> optional = extractFromNamespaceContainer(namespaceService.getEntityById(id));
-        if (!optional.isPresent()) {
+        NameSpaceContainer container = namespaceService.getEntityById(id);
+        if (container == null) {
           logger.debug("Could not find entity with id [{}]", id);
         }
 
-        return optional;
+        return Optional.fromNullable(container);
       }
     } catch (NamespaceException e) {
       logger.debug("Failed to get entity ", e);
@@ -632,9 +651,9 @@ public class CatalogServiceHelper {
 
     sabotContext.getViewCreator(context.getUserPrincipal().getName()).createView(dataset.getPath(), dataset.getSql(), dataset.getSqlContext(), attributes);
 
-    DatasetConfig created = namespaceService.getDataset(namespaceKey);
+    NameSpaceContainer created = namespaceService.getEntityByPath(namespaceKey);
 
-    return getDatasetFromConfig(created, null);
+    return toDatasetAPI(created, null);
   }
 
   /**
@@ -686,7 +705,7 @@ public class CatalogServiceHelper {
       physicalDatasetConfig.setFullPathList(path);
 
       catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(namespaceKey.getRoot()),
-        new PhysicalDatasetPath(path).toNamespaceKey(), toDatasetConfig(physicalDatasetConfig, null), getNamespaceAttributes(dataset));
+        new PhysicalDatasetPath(path).toNamespaceKey(), toDatasetConfig(physicalDatasetConfig, context.getUserPrincipal().getName()), getNamespaceAttributes(dataset));
 
       if (dataset.getAccelerationRefreshPolicy() != null) {
         reflectionServiceHelper.getReflectionSettings()
@@ -696,13 +715,14 @@ public class CatalogServiceHelper {
       throw new UnsupportedOperationException(String.format("Can only promote a folder or a file but found [%s]", catalogItem.get().getType()));
     }
 
-    return getDatasetFromConfig(namespaceService.getDataset(namespaceKey), null);
+    return toDatasetAPI(namespaceService.getEntityByPath(namespaceKey), null);
   }
 
   private void updateDataset(Dataset dataset, NamespaceAttribute... attributes) throws NamespaceException, IOException {
     Preconditions.checkArgument(dataset.getId() != null, "Dataset Id is missing.");
 
-    DatasetConfig currentDatasetConfig = namespaceService.findDatasetByUUID(dataset.getId());
+    NameSpaceContainer container = namespaceService.getEntityById(dataset.getId());
+    DatasetConfig currentDatasetConfig = container.getDataset();
     if (currentDatasetConfig == null) {
       throw new IllegalArgumentException(String.format("Could not find dataset with id [%s]", dataset.getId()));
     }
@@ -754,7 +774,7 @@ public class CatalogServiceHelper {
     } else if (dataset.getType() == Dataset.DatasetType.VIRTUAL_DATASET) {
       Preconditions.checkArgument(type == VIRTUAL_DATASET, "Dataset type can not be modified");
       VirtualDataset virtualDataset = currentDatasetConfig.getVirtualDataset();
-      Dataset currentDataset = getDatasetFromConfig(currentDatasetConfig, null);
+      Dataset currentDataset = toDatasetAPI(container, null);
 
       // Check if the dataset is being renamed
       if (!Objects.equals(currentDatasetConfig.getFullPathList(), dataset.getPath())) {
@@ -821,8 +841,7 @@ public class CatalogServiceHelper {
 
   public void removeFormatFromDataset(DatasetConfig config, String version) {
     PhysicalDatasetPath datasetPath = new PhysicalDatasetPath(config.getFullPathList());
-
-    sourceService.deletePhysicalDataset(datasetPath.getSourceName(), datasetPath, version);
+    sourceService.deletePhysicalDataset(datasetPath.getSourceName(), datasetPath, version, CatalogUtil.getDeleteCallback(sabotContext.getOrphanageFactory().get()));
   }
 
   private void validateDataset(Dataset dataset) {
@@ -860,7 +879,7 @@ public class CatalogServiceHelper {
 
     namespaceService.addOrUpdateSpace(namespaceKey, getSpaceConfig(space).setCtime(System.currentTimeMillis()), attributes);
 
-    return getSpaceFromConfig(namespaceService.getSpace(namespaceKey), null);
+    return toSpaceAPI(namespaceService.getEntityByPath(namespaceKey), null);
   }
 
   protected void updateSpace(Space space, NamespaceAttribute... attributes) throws NamespaceException {
@@ -878,7 +897,8 @@ public class CatalogServiceHelper {
 
   protected CatalogEntity createSource(Source source, NamespaceAttribute... attributes) throws NamespaceException, ExecutionSetupException {
     SourceConfig sourceConfig = sourceService.createSource(source.toSourceConfig(), attributes);
-    return fromSourceConfig(sourceConfig, getChildrenForPath(new NamespaceKey(sourceConfig.getName())));
+    return toSourceAPI(namespaceService.getEntityById(sourceConfig.getId().getId()),
+      getChildrenForPath(new NamespaceKey(sourceConfig.getName())));
   }
 
   public CatalogEntity updateCatalogItem(CatalogEntity entity, String id) throws NamespaceException, UnsupportedOperationException, ExecutionSetupException, IOException {
@@ -922,41 +942,51 @@ public class CatalogServiceHelper {
 
     Object object = entity.get();
 
-    if (object instanceof SourceConfig) {
-      SourceConfig config = (SourceConfig) object;
+    if (object instanceof NameSpaceContainer) {
+      NameSpaceContainer container = (NameSpaceContainer) object;
+      switch (container.getType()) {
+        case SOURCE:
+          SourceConfig config = container.getSource();
 
-      if (tag != null) {
-        config.setTag(tag);
+          if (tag != null) {
+            config.setTag(tag);
+          }
+
+          sourceService.deleteSource(config);
+          break;
+        case SPACE:
+          SpaceConfig spaceConfig = container.getSpace();
+
+          String version = spaceConfig.getTag();
+
+          if (tag != null) {
+            version = tag;
+          }
+          deleteSpace(spaceConfig, version);
+          break;
+        case DATASET:
+          DatasetConfig datasetConfig = container.getDataset();
+
+          try {
+            deleteDataset(datasetConfig, tag);
+          } catch (IOException e) {
+            throw new IllegalArgumentException(e);
+          }
+          break;
+        case FOLDER:
+          FolderConfig folderConfig = container.getFolder();
+
+          String folderVersion = folderConfig.getTag();
+
+          if (tag != null) {
+            folderVersion = tag;
+          }
+
+          namespaceService.deleteFolder(new NamespaceKey(folderConfig.getFullPathList()), folderVersion);
+          break;
+        default:
+          throw new UnsupportedOperationException(String.format("Catalog item [%s] of type [%s] can not be deleted.", id, container.getType()));
       }
-
-      sourceService.deleteSource(config);
-    } else if (object instanceof SpaceConfig) {
-      SpaceConfig config = (SpaceConfig) object;
-
-      String version = config.getTag();
-
-      if (tag != null) {
-        version = tag;
-      }
-      deleteSpace(config, version);
-    } else if (object instanceof DatasetConfig) {
-      DatasetConfig config = (DatasetConfig) object;
-
-      try {
-        deleteDataset(config, tag);
-      } catch (IOException e) {
-        throw new IllegalArgumentException(e);
-      }
-    } else if (object instanceof FolderConfig) {
-      FolderConfig config = (FolderConfig) object;
-
-      String version = config.getTag();
-
-      if (tag != null) {
-        version = tag;
-      }
-
-      namespaceService.deleteFolder(new NamespaceKey(config.getFullPathList()), version);
     } else {
       throw new UnsupportedOperationException(String.format("Catalog item [%s] of type [%s] can not be deleted.", id, object.getClass().getName()));
     }
@@ -988,7 +1018,7 @@ public class CatalogServiceHelper {
       }
     }
 
-    return getFolderFromConfig(namespaceService.getFolder(key), null);
+    return toFolderAPI(namespaceService.getEntityByPath(key), null);
   }
 
   protected FolderConfig updateFolder(Folder folder, NamespaceAttribute... attributes) throws NamespaceException {
@@ -1012,9 +1042,9 @@ public class CatalogServiceHelper {
     return namespaceService.getFolder(namespaceKey);
   }
 
-  public Source fromSourceConfig(SourceConfig config, List<CatalogItem> children) {
+  public Source toSourceAPI(NameSpaceContainer container, List<CatalogItem> children) {
     // TODO: clean up source config creation, move it all into this class
-    return sourceService.fromSourceConfig(config, children);
+    return sourceService.fromSourceConfig(container.getSource(), children);
   }
 
   /**
@@ -1029,7 +1059,7 @@ public class CatalogServiceHelper {
 
     Object object = entity.get();
 
-    if (object instanceof DatasetConfig) {
+    if (object instanceof NameSpaceContainer && ((NameSpaceContainer) object).getType() == NameSpaceContainer.Type.DATASET) {
       reflectionServiceHelper.refreshReflectionsForDataset(id);
     } else {
       throw new UnsupportedOperationException(String.format("Can only refresh datasets but found [%s].", object.getClass().getName()));
@@ -1052,8 +1082,8 @@ public class CatalogServiceHelper {
 
     Object object = entity.get();
 
-    if (object instanceof DatasetConfig) {
-      final NamespaceKey namespaceKey = catalog.resolveSingle(new NamespaceKey(((DatasetConfig)object).getFullPathList()));
+    if (object instanceof NameSpaceContainer && ((NameSpaceContainer) object).getType() == NameSpaceContainer.Type.DATASET) {
+      final NamespaceKey namespaceKey = catalog.resolveSingle(new NamespaceKey(((NameSpaceContainer) object).getFullPathList()));
       final DatasetRetrievalOptions.Builder retrievalOptionsBuilder = DatasetRetrievalOptions.newBuilder();
 
       if (delete != null) {
@@ -1079,7 +1109,8 @@ public class CatalogServiceHelper {
     return reflectionServiceHelper.getReflectionSettings().getStoredReflectionSettings(new NamespaceKey(datasetConfig.getFullPathList()));
   }
 
-  public Dataset getDatasetFromConfig(DatasetConfig config, Dataset.RefreshSettings refreshSettings) {
+  public Dataset toDatasetAPI(NameSpaceContainer container, Dataset.RefreshSettings refreshSettings) {
+    final DatasetConfig config = container.getDataset();
     if (config.getType() == VIRTUAL_DATASET) {
       String sql = null;
       List<String> sqlContext = null;
@@ -1144,7 +1175,8 @@ public class CatalogServiceHelper {
     );
   }
 
-  protected Space getSpaceFromConfig(SpaceConfig config, List<CatalogItem> children) {
+  protected Space toSpaceAPI(NameSpaceContainer container, List<CatalogItem> children) {
+    SpaceConfig config = container.getSpace();
     return new Space(
       config.getId().getId(),
       config.getName(),
@@ -1166,7 +1198,8 @@ public class CatalogServiceHelper {
     return config;
   }
 
-  protected Folder getFolderFromConfig(FolderConfig config, List<CatalogItem> children) {
+  protected Folder toFolderAPI(NameSpaceContainer container, List<CatalogItem> children) {
+    FolderConfig config = container.getFolder();
     return new Folder(config.getId().getId(), config.getFullPathList(), String.valueOf(config.getTag()), children);
   }
 

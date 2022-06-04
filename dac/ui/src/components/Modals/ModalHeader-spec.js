@@ -28,7 +28,7 @@ describe('ModalHeader', () => {
 
   it('should render close button by default', () => {
     const wrapper = shallow(<ModalHeader {...minimalProps}/>);
-    expect(wrapper.find('FontIcon').props().type).to.be.eql('XBigWhite');
+    expect(wrapper.find('FontIcon').props().type).to.be.eql('XBig');
   });
 
   it('should hide close button when hideCloseButton is true', () => {

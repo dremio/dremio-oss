@@ -160,7 +160,7 @@ const makeNewDataset = context => {
     //have to decode a context parameter. This should be consistent with NewQueryButton.getNewQueryHref
     context: context ? splitFullPath(context).map(decodeURIComponent) : [],
     sql: '',
-    datasetType: 'VIRTUAL_DATASET',
+    datasetType: 'SCRIPT',
     apiLinks: {
       self: '/dataset/tmp/UNTITLED/new_untitled_sql'
     },

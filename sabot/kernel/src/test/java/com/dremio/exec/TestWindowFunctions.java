@@ -15,13 +15,18 @@
  */
 package com.dremio.exec;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION;
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.math.BigDecimal;
 import java.util.stream.IntStream;
 
 import org.joda.time.LocalDateTime;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
@@ -30,15 +35,24 @@ import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedFunctionException;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.TemporarySystemProperties;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestWindowFunctions extends BaseTestQuery {
   static final String WORKING_PATH = TestTools.getWorkingPath();
   static final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
+  @BeforeClass
+  public static void ignoreIfUnlimitedSplits() {
+    assumeFalse(getSabotContext().getOptionManager().getOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT));
+  }
 
   private static void throwAsUnsupportedException(UserException ex) throws Exception {
     SqlUnsupportedException.errorClassNameToException(ex.getOrCreatePBError(false).getException().getExceptionClass());
@@ -190,54 +204,54 @@ public class TestWindowFunctions extends BaseTestQuery {
   }
 
   @Test // DRILL-3360
-  public void testWindowInWindow() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
+  public void testWindowInWindow() {
     String query = "select rank() over(order by row_number() over(order by n_nationkey)) \n" +
         "from cp.\"tpch/nation.parquet\"";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasErrorType(VALIDATION);
   }
 
   @Test // DRILL-3280
-  public void testMissingOverWithWindowClause() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
+  public void testMissingOverWithWindowClause() {
     String query = "select rank(), cume_dist() over w \n" +
         "from cp.\"tpch/nation.parquet\" \n" +
         "window w as (partition by n_name order by n_nationkey)";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasErrorType(VALIDATION);
   }
 
   @Test // DRILL-3601
-  public void testLeadMissingOver() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
+  public void testLeadMissingOver() {
     String query = "select lead(n_nationkey) from cp.\"tpch/nation.parquet\"";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasErrorType(VALIDATION);
   }
 
   @Test // DRILL-3649
-  public void testMissingOverWithConstant() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
+  public void testMissingOverWithConstant() {
     String query = "select NTILE(1) from cp.\"tpch/nation.parquet\"";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasErrorType(VALIDATION);
   }
 
   @Test // DRILL-3344
-  public void testWindowGroupBy() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
+  public void testWindowGroupBy() {
     String query = "explain plan for SELECT max(n_nationkey) OVER (), n_name as col2 \n" +
         "from cp.\"tpch/nation.parquet\" \n" +
         "group by n_name";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasErrorType(VALIDATION);
   }
 
   @Test // DRILL-3346
   public void testWindowGroupByOnView() throws Exception {
     try {
-      thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
       String createView = "create view testWindowGroupByOnView(a, b) as \n" +
           "select n_nationkey, n_name from cp.\"tpch/nation.parquet\"";
       String query = "explain plan for SELECT max(a) OVER (), b as col2 \n" +
@@ -246,9 +260,10 @@ public class TestWindowFunctions extends BaseTestQuery {
 
       test("use dfs_test");
       test(createView);
-      test(query);
+      UserExceptionAssert.assertThatThrownBy(() -> test(query))
+        .hasErrorType(VALIDATION);
     } finally {
-      test("drop view testWindowGroupByOnView");
+       test("drop view testWindowGroupByOnView");
     }
   }
 
@@ -1102,34 +1117,34 @@ public class TestWindowFunctions extends BaseTestQuery {
   }
 
   @Test
-  public void testWindowUnderPrecedentOperation() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
-      "DISTINCT for window aggregate functions is not currently supported"));
-    test("select 1/(count(distinct n_nationKey) over (partition by n_nationKey)) \n" +
-      "from cp.\"tpch/nation.parquet\"");
+  public void testWindowUnderPrecedentOperation() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("select 1/(count(distinct n_nationKey) over (partition by n_nationKey)) \n" +
+      "from cp.\"tpch/nation.parquet\""))
+      .hasErrorType(UNSUPPORTED_OPERATION)
+      .hasMessageContaining("DISTINCT for window aggregate functions is not currently supported");
   }
 
   @Test
-  public void testWindowUnderNestedPrecedentOperation() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
-      "DISTINCT for window aggregate functions is not currently supported"));
-    test("select 1/(1/(count(distinct n_nationKey) over (partition by n_nationKey))) \n" +
-      "from cp.\"tpch/nation.parquet\"");
+  public void testWindowUnderNestedPrecedentOperation() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("select 1/(1/(count(distinct n_nationKey) over (partition by n_nationKey))) \n" +
+      "from cp.\"tpch/nation.parquet\""))
+      .hasErrorType(UNSUPPORTED_OPERATION)
+      .hasMessageContaining("DISTINCT for window aggregate functions is not currently supported");
   }
 
   @Test
-  public void testAggregateWindowCountUnderPrecedentOperation() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
-      "DISTINCT for window aggregate functions is not currently supported"));
-    test("select 1/(count(distinct n_nationKey) over (partition by n_nationKey)) \n" +
-      "from cp.\"tpch/nation.parquet\"");
+  public void testAggregateWindowCountUnderPrecedentOperation() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("select 1/(count(distinct n_nationKey) over (partition by n_nationKey)) \n" +
+      "from cp.\"tpch/nation.parquet\""))
+      .hasErrorType(UNSUPPORTED_OPERATION)
+      .hasMessageContaining("DISTINCT for window aggregate functions is not currently supported");
   }
 
   @Test
-  public void testAggregateWindowCountUnderNestedPrecedentOperation() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
-      "DISTINCT for window aggregate functions is not currently supported"));
-    test("select 1/(1/(count(distinct n_nationKey) over (partition by n_nationKey))) \n" +
-      "from cp.\"tpch/nation.parquet\"");
+  public void testAggregateWindowCountUnderNestedPrecedentOperation() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("select 1/(1/(count(distinct n_nationKey) over (partition by n_nationKey))) \n" +
+      "from cp.\"tpch/nation.parquet\""))
+      .hasErrorType(UNSUPPORTED_OPERATION)
+      .hasMessageContaining("DISTINCT for window aggregate functions is not currently supported");
   }
 }

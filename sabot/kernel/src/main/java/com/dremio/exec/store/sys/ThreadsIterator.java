@@ -98,6 +98,7 @@ public class ThreadsIterator implements Iterator<Object> {
   }
 
   public static class ThreadSummary {
+    public final String node_id;
     /**
      * The SabotNode hostname
      */
@@ -107,34 +108,35 @@ public class ThreadsIterator implements Iterator<Object> {
      * The SabotNode user port
      */
     public final long fabric_port;
-    public final String threadName;
-    public final long threadId;
-    public final boolean inNative;
+    public final String thread_name;
+    public final long thread_id;
+    public final boolean is_native;
     public final boolean suspended;
-    public final String threadState;
+    public final String thread_state;
     /**
      * Thread cpu time during last second. Between 0 and 100
      */
-    public final Integer cpuTime;
+    public final Integer cpu_time;
     /**
      * Thread user cpu time during last second. Between 0 and 100
      */
-    public final Integer userTime;
+    public final Integer user_time;
     public final Integer cores;
-    public final String stackTrace;
+    public final String stack_trace;
 
-    public ThreadSummary(String hostname, long fabric_port, String threadName, long threadId, boolean inNative, boolean suspended, String threadState, Integer cpuTime, Integer userTime, Integer cores, String stackTrace) {
+    public ThreadSummary(String hostname, long fabric_port, String thread_name, long thread_id, boolean is_native, boolean suspended, String thread_state, Integer cpu_time, Integer user_time, Integer cores, String stack_trace) {
       this.hostname = hostname;
       this.fabric_port = fabric_port;
-      this.threadName = threadName;
-      this.threadId = threadId;
-      this.inNative = inNative;
+      this.thread_name = thread_name;
+      this.thread_id = thread_id;
+      this.is_native = is_native;
       this.suspended = suspended;
-      this.threadState = threadState;
-      this.cpuTime = cpuTime;
-      this.userTime = userTime;
+      this.thread_state = thread_state;
+      this.cpu_time = cpu_time;
+      this.user_time = user_time;
       this.cores = cores;
-      this.stackTrace = stackTrace;
+      this.stack_trace = stack_trace;
+      this.node_id = hostname + ":" + fabric_port;
     }
   }
 }

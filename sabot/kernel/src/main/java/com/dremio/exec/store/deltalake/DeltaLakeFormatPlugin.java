@@ -42,6 +42,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -139,14 +140,17 @@ public class DeltaLakeFormatPlugin extends EasyFormatPlugin<DeltaLakeFormatConfi
   }
 
   @Override
-  public FileDatasetHandle getDatasetAccessor(DatasetType type,
-                                              PreviousDatasetInfo previousInfo,
-                                              FileSystem fs,
-                                              FileSelection fileSelection,
-                                              FileSystemPlugin fsPlugin,
-                                              NamespaceKey tableSchemaPath,
-                                              FileProtobuf.FileUpdateKey updateKey,
-                                              int maxLeafColumns) {
+  public FileDatasetHandle getDatasetAccessor(
+      DatasetType type,
+      PreviousDatasetInfo previousInfo,
+      FileSystem fs,
+      FileSelection fileSelection,
+      FileSystemPlugin fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileProtobuf.FileUpdateKey updateKey,
+      int maxLeafColumns,
+      TimeTravelOption.TimeTravelRequest timeTravelRequest
+  ) {
     return new DeltaLakeFormatDatasetAccessor(type, fs, fsPlugin, fileSelection, tableSchemaPath, this);
   }
 

@@ -23,6 +23,7 @@ import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FilenameUtils;
@@ -34,7 +35,6 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
 import com.dremio.io.file.Path;
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Stopwatch;
@@ -142,11 +142,11 @@ public class FileSelection {
   }
 
   public Optional<FileAttributes> getFirstFile() throws IOException {
-    return Iterables.tryFind(fileAttributesList, FileAttributes::isRegularFile);
+    return Iterables.tryFind(fileAttributesList, FileAttributes::isRegularFile).toJavaUtil();
   }
 
-  public static Optional<FileAttributes> getFirstFileIteratively(FileSystem fs, final List<String> fullPath) throws IOException {
-    return getFirstFileIteratively(fs,getPathBasedOnFullPath(fullPath));
+  public Optional<FileAttributes> getFirstFileIteratively(FileSystem fs) throws IOException {
+    return getFirstFileIteratively(fs, originalRootPath);
   }
 
   public static Optional<FileAttributes> getFirstFileIteratively(FileSystem fs, Path path) throws IOException {
@@ -155,16 +155,16 @@ public class FileSelection {
       if (fileAttribute.isRegularAndNoHiddenFile()) {
         return Optional.of(fileAttribute);
       } else {
-        return Optional.absent();
+        return Optional.empty();
       }
     } else {
       if (!fs.exists(path)) {
-        return Optional.absent();
+        return Optional.empty();
       }
     }
 
     try(DirectoryStream<FileAttributes> stream = fs.listFiles(path, true)) {
-      return Iterables.tryFind(stream, FileAttributes::isRegularAndNoHiddenFile);
+      return Iterables.tryFind(stream, FileAttributes::isRegularAndNoHiddenFile).toJavaUtil();
     } catch (DirectoryIteratorException e) {
       throw e.getCause();
     }

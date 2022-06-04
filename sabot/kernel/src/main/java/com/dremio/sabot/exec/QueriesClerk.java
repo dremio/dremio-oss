@@ -63,16 +63,19 @@ public class QueriesClerk {
    * cached. Closing the ticket will return the reservation and eventually close the corresponding query ticket along with
    * its allocator
    *
-   * @param queryTicket    the query ticket, obtained from the callback from {@link #buildAndStartQuery(PlanFragmentFull, SchedulingInfo, QueryStarter)}, above
+   * @param queryTicket    the query ticket, obtained from the callback from
+   *                       {@link #buildAndStartQuery(PlanFragmentFull, SchedulingInfo, QueryStarter)}
    * @param fragment       fragment plan
    * @param schedulingInfo information about where should 'fragment' run
    * @return reserved query allocator
    */
-  public FragmentTicket newFragmentTicket(final QueryTicket queryTicket, final PlanFragmentFull fragment, final SchedulingInfo schedulingInfo) {
+  public FragmentTicket newFragmentTicket(final QueryTicket queryTicket, final PlanFragmentFull fragment,
+                                          final SchedulingInfo schedulingInfo) {
     // Note: applying query limit to the phase, as that doesn't add any additional restrictions. If an when we have
     // phase limits on the plan fragment, we could apply them here.
     PhaseTicket phaseTicket = queryTicket
-      .getOrCreatePhaseTicket(fragment.getHandle().getMajorFragmentId(), queryTicket.getAllocator().getLimit());
+      .getOrCreatePhaseTicket(fragment.getHandle().getMajorFragmentId(), queryTicket.getAllocator().getLimit(),
+        fragment.getMajor().getFragmentExecWeight());
     return new FragmentTicket(phaseTicket, fragment.getHandle(), queryTicket.getSchedulingGroup());
   }
 
@@ -87,8 +90,8 @@ public class QueriesClerk {
    *
    * Gets all of the fragment tickets associated with a query.
    *
-   * @param queryId
-   * @return
+   * @param queryId Query Id
+   * @return collection of fragment tickets
    */
   Collection<FragmentTicket> getFragmentTickets(QueryId queryId) {
     List<FragmentTicket> fragmentTickets = new ArrayList<>();

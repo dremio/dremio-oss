@@ -75,6 +75,17 @@ public class LocalSchedulerService implements SchedulerService {
   }
 
   public LocalSchedulerService(int corePoolSize,
+                               String threadNamePrefix,
+                               Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
+                               Provider<ClusterElectionManager> clusterElectionManagerProvider,
+                               Provider<CoordinationProtos.NodeEndpoint> currentNode,
+                               boolean assumeTaskLeadership) {
+    this(new CloseableSchedulerThreadPool(threadNamePrefix, corePoolSize),
+      clusterServiceSetManagerProvider, clusterElectionManagerProvider, currentNode,
+      assumeTaskLeadership);
+  }
+
+  public LocalSchedulerService(int corePoolSize,
                                Provider<ClusterServiceSetManager> clusterServiceSetManagerProvider,
                                Provider<ClusterElectionManager> clusterElectionManagerProvider,
                                Provider<CoordinationProtos.NodeEndpoint> currentNode,

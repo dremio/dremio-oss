@@ -115,6 +115,8 @@ export default class APICall {
         value.forEach((v) => {
           urlSearchParams.append(key, v);
         });
+      } else if (typeof value === 'object') {
+        urlSearchParams.set(key, JSON.stringify(value));
       } else {
         urlSearchParams.set(key, value);
       }

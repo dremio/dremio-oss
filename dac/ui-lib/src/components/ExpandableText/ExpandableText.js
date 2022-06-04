@@ -30,10 +30,12 @@ const ExpandableText = (props) => {
     classes = {},
     children,
     defaultExpanded,
+    hideOnlyOnIcon,
     open,
     label,
     indentChildren,
-    onClick
+    onClick,
+    onToggle
   } = props;
 
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -43,7 +45,6 @@ const ExpandableText = (props) => {
       setExpanded(open);
     }
   }, [open]);
-
 
   const useStylesBase = makeStyles((theme) => {
     const {
@@ -61,10 +62,27 @@ const ExpandableText = (props) => {
     };
   });
 
-  const handleClick = () => {
-    setExpanded(!expanded);
+  const handleIconClick = (event) => {
+    if (hideOnlyOnIcon && expanded) {
+      setExpanded(!expanded);
+      if (onToggle && typeof onToggle === 'function') {
+        onToggle(!expanded);
+      }
+      event.stopPropagation();
+    }
+  };
+
+  const handleLabelClick = () => {
+    let updatedIsExpanded = expanded;
+    if (!hideOnlyOnIcon || !expanded) {
+      updatedIsExpanded = !expanded;
+      setExpanded(updatedIsExpanded);
+      if (onToggle && typeof onToggle === 'function') {
+        onToggle(updatedIsExpanded);
+      }
+    }
     if (onClick && typeof onClick === 'function') {
-      onClick(!expanded);
+      onClick(updatedIsExpanded);
     }
   };
 
@@ -72,14 +90,14 @@ const ExpandableText = (props) => {
 
   const rootClasses = clsx('expandable-text-root', { [classes.root]: classes.root });
   const labelContainerClasses = clsx('expandable-text-label-container', 'noselect', { [classes.labelContainer]: classes.labelContainer });
-  const labelClasses = clsx('expandable-text-label', { [classes.label]: classes.label }, classesBase.label);
+  const labelClasses = clsx('expandable-text-label', classesBase.label, { [classes.label]: classes.label });
   const collapsableContainerClasses = clsx('collapsable-container', { 'indented-collapsable-container': indentChildren }, { [classes.collapsableContainer]: classes.collapsableContainer });
 
   const Icon = expanded ? Collapse : Expand;
   return (
     <div className={rootClasses}>
-      <div className={labelContainerClasses} onClick={handleClick}>
-        <div><Icon fontSize='small' /></div>
+      <div className={labelContainerClasses} onClick={handleLabelClick}>
+        <div className='expandable-text-label-icon' onClick={handleIconClick}><Icon fontSize='small'/></div>
         <div className={labelClasses}>{label}</div>
       </div>
       {
@@ -104,9 +122,15 @@ ExpandableText.propTypes = {
     Proptypes.arrayOf(Proptypes.node)
   ]).isRequired,
   defaultExpanded: Proptypes.bool,
+  hideOnlyOnIcon: Proptypes.bool,
   indentChildren: Proptypes.bool,
   onClick: Proptypes.func,
-  label: Proptypes.string.isRequired,
+  onToggle: Proptypes.func,
+  label: Proptypes.oneOfType([
+    Proptypes.string,
+    Proptypes.node,
+    Proptypes.arrayOf(Proptypes.node)
+  ]).isRequired,
   open: Proptypes.oneOfType([
     Proptypes.bool,
     Proptypes.object
@@ -116,6 +140,7 @@ ExpandableText.propTypes = {
 ExpandableText.defaultProps = {
   classes: {},
   defaultExpanded: false,
+  hideOnlyOnIcon: false,
   indentChildren: false
 };
 

@@ -1,0 +1,43 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+:global {
+  .branch-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    &-search {
+      width: 25%;
+      margin-top: 16px;
+    }
+
+    &-default-branch {
+      margin: 16px 0;
+      height: 78px;
+      .branch-list-container [role="grid"] {
+        overflow: hidden !important;
+      }
+    }
+
+    &-all-branch-list {
+      flex: 1;
+      // Add min-height to prevent flex: 1 item from overflowing
+      //https://stackoverflow.com/questions/42130384/why-should-i-specify-height-0-even-if-i-specified-flex-basis-0-in-css3-flexbox
+      min-height: 0;
+    }
+  }
+}

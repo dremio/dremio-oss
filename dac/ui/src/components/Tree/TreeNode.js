@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component, createRef } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
@@ -39,12 +39,14 @@ export default class TreeNode extends Component {
     ));
   }
 
+  nodeRef = createRef(null);
+
   render() {
     const { node, isNodeExpanded } = this.props;
     const styles = node.get('fullPath') && node.get('fullPath').size === 1 ? style.root : style.base;
     return (
-      <div style={styles}>
-        {this.props.renderNode(node)}
+      <div style={styles} className='treeNode' ref={this.nodeRef}>
+        {this.props.renderNode(node, this.nodeRef.current)}
         {isNodeExpanded(node) && this.renderResources()}
       </div>
     );
@@ -53,7 +55,8 @@ export default class TreeNode extends Component {
 
 const style = {
   base: {
-    padding: '0 0 0 30px',
+    padding: '0 0 0 12px',
+    minHeight: 24,
     width: '100%',
     ':hover': {
       backgroundColor: '#FFF5DC'

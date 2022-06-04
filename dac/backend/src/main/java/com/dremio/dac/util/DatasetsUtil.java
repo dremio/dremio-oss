@@ -19,6 +19,7 @@ import static com.dremio.dac.proto.model.dataset.ExtractRuleType.pattern;
 import static com.dremio.dac.proto.model.dataset.ExtractRuleType.position;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -72,6 +73,8 @@ import io.protostuff.ByteString;
  * To deal with protostuff
  */
 public class DatasetsUtil {
+
+  private static final List<String> TEMPORARY_DATASET_PATH = Arrays.asList("tmp", "UNTITLED");
 
   /**
    * Helper method which gets the completed preview data job for given query on given dataset path and version.
@@ -360,4 +363,17 @@ public class DatasetsUtil {
   private static Set<String> toSet(List<String> list) {
     return list != null ? new HashSet<>(list) : Collections.emptySet();
   }
+
+  /**
+   * Indicates if the {@link DatasetConfig} is has a temporary dataset path.
+   *
+   * @param path  The {@code path} that will be verified.
+   *
+   * @return {@code true} if, and only if, the full path of the config is
+   *         'tmp.UNTITLED'.
+   */
+  public static boolean isTemporaryPath(final List<String> path) {
+    return path != null && !path.isEmpty() && TEMPORARY_DATASET_PATH.equals(path);
+  }
+
 }

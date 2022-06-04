@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.service;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.DATA_READ;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -33,7 +34,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.daemon.DACDaemonModule;
@@ -43,11 +43,10 @@ import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
@@ -73,16 +72,13 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.users.SystemUser;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.io.Files;
 
 /**
  * Tests for job results store.
  */
 public class TestJobResultsStore extends BaseTestServer {
-
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
 
   @Rule
   public final TemporaryFolder tmpDir = new TemporaryFolder();
@@ -125,7 +121,8 @@ public class TestJobResultsStore extends BaseTestServer {
     }
   }
 
-  private void fetchValidateResultsAtOffset(JobId jobId, int offset, int limit, int expectedRows) throws JobNotFoundException {
+  private void fetchValidateResultsAtOffset(JobId jobId, int offset, int limit, int expectedRows)
+    throws JobNotFoundException {
     try (
       JobDataFragment expectedResult = l(LocalJobsService.class).getJobData(jobId, offset, limit);
       JobDataFragment actualResult = JobDataClientUtils.getJobData(l(JobsService.class), allocator, jobId, offset, limit);
@@ -152,7 +149,7 @@ public class TestJobResultsStore extends BaseTestServer {
 
     // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
     // This is reset at end of this method.
-    setSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY, "5");
+    setSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "5");
     try {
       final JobId jobId = submitJobAndWaitUntilCompletion(
         JobRequest.newBuilder()
@@ -169,7 +166,7 @@ public class TestJobResultsStore extends BaseTestServer {
         fetchValidateResultsAtOffset(jobId, offsets[i], limits[i], expectedRows[i]);
       }
     } finally {
-      resetSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY);
+      resetSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 
@@ -226,7 +223,7 @@ public class TestJobResultsStore extends BaseTestServer {
 
     // There are 5 fragments for above query, so setting MAX_WIDTH_PER_NODE_KEY to 5.
     // This is reset at end of this method.
-    setSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY, "5");
+    setSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "5");
     try {
       final JobId jobId = submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
                                                                     .setSqlQuery(sqlQuery)
@@ -234,9 +231,9 @@ public class TestJobResultsStore extends BaseTestServer {
                                                                     .build());
 
       JobDetailsRequest jobDetailsRequest =  JobDetailsRequest.newBuilder()
-                                                              .setJobId(JobsProtoUtil.toBuf(jobId))
-                                                              .setUserName(SystemUser.SYSTEM_USERNAME)
-                                                              .build();
+        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .setUserName(SystemUser.SYSTEM_USERNAME)
+        .build();
 
       JobDetails jobDetails = l(JobsService.class).getJobDetails(jobDetailsRequest);
       JobProtobuf.JobAttempt jobAttempt = jobDetails.getAttempts(jobDetails.getAttemptsCount()-1);
@@ -245,7 +242,7 @@ public class TestJobResultsStore extends BaseTestServer {
       // Fetch last 500 records to verify that there is no truncation of results while fetching stored results.
       fetchValidateResultsAtOffset(jobId, expectedNumRecords-500, 500, 500);
     } finally {
-      resetSystemOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY);
+      resetSystemOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 
@@ -297,9 +294,6 @@ public class TestJobResultsStore extends BaseTestServer {
 
   @Test
   public void testCancelBeforeLoadingJob() {
-    exception.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ,
-      "Could not load results as the query was canceled"));
-
     final JobResultsStore jobResultsStore = mock(JobResultsStore.class);
     JobResult jobResult = new JobResult();
     JobAttempt jobAttempt = new JobAttempt();
@@ -308,7 +302,9 @@ public class TestJobResultsStore extends BaseTestServer {
     attempts.add(jobAttempt);
     jobResult.setAttemptsList(attempts);
     when(jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0)).thenCallRealMethod();
-    jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0);
+    UserExceptionAssert.assertThatThrownBy(() -> jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0))
+      .hasErrorType(DATA_READ)
+      .hasMessageContaining("Could not load results as the query was canceled");
   }
 
   /**
@@ -317,8 +313,6 @@ public class TestJobResultsStore extends BaseTestServer {
   @Test
   public void testLoadJobDataOfFailedQuery() {
     String failureMessage = "job failed";
-    exception.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ,
-                     failureMessage));
 
     final JobResultsStore jobResultsStore = mock(JobResultsStore.class);
     JobFailureInfo.Error error = new JobFailureInfo.Error();
@@ -341,7 +335,9 @@ public class TestJobResultsStore extends BaseTestServer {
     jobResult.setAttemptsList(attempts);
 
     when(jobResultsStore.loadJobData(new JobId("Failed JobID"),jobResult,0,0)).thenCallRealMethod();
-    jobResultsStore.loadJobData(new JobId("Failed JobID"),jobResult,0,0);
+    UserExceptionAssert.assertThatThrownBy(() -> jobResultsStore.loadJobData(new JobId("Failed JobID"),jobResult,0,0))
+      .hasErrorType(DATA_READ)
+      .hasMessageContaining(failureMessage);
   }
 
   @Test

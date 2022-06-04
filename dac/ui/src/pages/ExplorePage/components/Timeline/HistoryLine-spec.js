@@ -31,7 +31,8 @@ describe('HistoryLine', () => {
       historyItems: Immutable.fromJS([
         {datasetVersion: '12345'}, {datasetVersion: 'abcde'}
       ]),
-      onTimeDotClick: sinon.spy()
+      onTimeDotClick: sinon.spy(),
+      pageType: 'default'
     };
   });
 

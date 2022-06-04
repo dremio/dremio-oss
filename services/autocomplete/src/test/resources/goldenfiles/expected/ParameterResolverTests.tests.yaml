@@ -1,0 +1,393 @@
+#
+# Copyright (C) 2017-2019 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+ -
+  description: "NO FUNCTION"
+  input: "SELECT "
+ -
+  description: "COMPLETED FUNCTION"
+  input: "ZERO_ARG_FUNCTION()"
+ -
+  description: "NO PARAMETER FUNCTION"
+  input: "ZERO_ARG_FUNCTION("
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "ZERO_ARG_FUNCTION"
+      typesUsedSoFar: []
+ -
+  description: "ONE PARAMETER FUNCTION AND ONE SIGNATURE"
+  input: "ONE_ARG_BOOLEAN_FUNCTION("
+  output:
+    columns:
+     - "BOOLEAN_COLUMN"
+    functions:
+     - "ONE_ARG_BOOLEAN_FUNCTION"
+    debugInfo:
+      functionName: "ONE_ARG_BOOLEAN_FUNCTION"
+      typesUsedSoFar: []
+ -
+  description: "ONE PARAMETER BUT MULTIPLE SIGNATURES"
+  input: "ONE_ARG_NUMERIC_FUNCTION("
+  output:
+    columns:
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+    debugInfo:
+      functionName: "ONE_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar: []
+ -
+  description: "ONE PARAMETER FUNCTION WITH PARAMETER FILLED IN"
+  input: "ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN"
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "ONE_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"
+ -
+  description: "ONE PARAMETER FUNCTION WITH LITERAL"
+  input: "ONE_ARG_NUMERIC_FUNCTION(42"
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "ONE_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "DECIMAL"
+ -
+  description: "TWO PARAMETER FUNCTION"
+  input: "TWO_ARG_NUMERIC_FUNCTION("
+  output:
+    columns:
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar: []
+ -
+  description: "TWO PARAMETER FUNCTION WITH ONE PARAMETER FILLED IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, "
+  output:
+    columns:
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"
+ -
+  description: "TWO PARAMETER FUNCTION WITH ONE LITERAL IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(42, "
+  output:
+    columns:
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "DECIMAL"
+ -
+  description: "TWO PARAMETER FUNCTION WITH TWO PARAMETER FILLED IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, INTEGER_COLUMN"
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"
+       - "INTEGER"
+ -
+  description: "TWO PARAMETER FUNCTION WITH TWO LITERAL FILLED IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(42, 1337"
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "DECIMAL"
+       - "DECIMAL"
+ -
+  description: "TWO PARAMETER FUNCTION WITH PARAMETER THEN LITERAL FILLED IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN, 1337"
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"
+       - "DECIMAL"
+ -
+  description: "TWO PARAMETER FUNCTION WITH LITERAL THEN PARAMETER FILLED IN"
+  input: "TWO_ARG_NUMERIC_FUNCTION(1337, INTEGER_COLUMN"
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "DECIMAL"
+       - "INTEGER"
+ -
+  description: "NESTED FUNCTION WITH INCOMPLETE FUNCTION"
+  input: "ONE_ARG_BOOLEAN_FUNCTION(ONE_ARG_BOOLEAN_FUNCTION("
+  output:
+    columns:
+     - "BOOLEAN_COLUMN"
+    functions:
+     - "ONE_ARG_BOOLEAN_FUNCTION"
+    debugInfo:
+      functionName: "ONE_ARG_BOOLEAN_FUNCTION"
+      typesUsedSoFar: []
+ -
+  description: "NESTED FUNCTION WITH COMPLETE FUNCTION"
+  input: "TWO_ARG_NUMERIC_FUNCTION(ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN), "
+  output:
+    columns:
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"
+ -
+  description: "NESTED FUNCTION WITH COMPLETE FUNCTION 2"
+  input: "TWO_ARG_NUMERIC_FUNCTION(ONE_ARG_NUMERIC_FUNCTION(INTEGER_COLUMN), INTEGER_COLUMN "
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"
+       - "INTEGER"
+ -
+  description: "NESTED FUNCTION WITH UNSTABLE RETURN TYPE 1"
+  input: "TWO_ARG_NUMERIC_FUNCTION(UNSTABLE_RETURN_TYPE_FUNCTION(INTEGER_COLUMN), INTEGER_COLUMN "
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"
+       - "INTEGER"
+ -
+  description: "NESTED FUNCTION WITH UNSTABLE RETURN TYPE 2"
+  input: "TWO_ARG_NUMERIC_FUNCTION(UNSTABLE_RETURN_TYPE_FUNCTION(DOUBLE_COLUMN), INTEGER_COLUMN "
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "DECIMAL"
+       - "INTEGER"
+ -
+  description: "VARADIC FUNCTION NO PARAMETERS"
+  input: "VARADIC_FUNCTION("
+  output:
+    columns:
+     - "VARCHAR_COLUMN"
+    functions: []
+    debugInfo:
+      functionName: "VARADIC_FUNCTION"
+      typesUsedSoFar: []
+ -
+  description: "VARADIC FUNCTION ONE PARAMETER"
+  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, "
+  output:
+    columns:
+     - "VARCHAR_COLUMN"
+    functions: []
+    debugInfo:
+      functionName: "VARADIC_FUNCTION"
+      typesUsedSoFar:
+       - "VARCHAR"
+ -
+  description: "VARADIC FUNCTION TWO PARAMETER BUT 3RD IS OPTIONAL"
+  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN"
+  output:
+    columns:
+     - "VARCHAR_COLUMN"
+    functions: []
+    debugInfo:
+      functionName: "VARADIC_FUNCTION"
+      typesUsedSoFar:
+       - "VARCHAR"
+       - "VARCHAR"
+ -
+  description: "VARADIC FUNCTION TWO PARAMETER BUT 3RD IS REQUIRED"
+  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN, "
+  output:
+    columns:
+     - "VARCHAR_COLUMN"
+    functions: []
+    debugInfo:
+      functionName: "VARADIC_FUNCTION"
+      typesUsedSoFar:
+       - "VARCHAR"
+       - "VARCHAR"
+ -
+  description: "VARADIC FUNCTION WITH MORE THAN MIN NUMBER OF PARAMETERS"
+  input: "VARADIC_FUNCTION(VARCHAR_COLUMN, VARCHAR_COLUMN, VARCHAR_COLUMN, "
+  output:
+    columns: []
+    functions: []
+    debugInfo:
+      functionName: "VARADIC_FUNCTION"
+      typesUsedSoFar:
+       - "VARCHAR"
+       - "VARCHAR"
+       - "VARCHAR"
+ -
+  description: "OVERLOADED FUNCTION WITH NO PARAMETERS"
+  input: "OVERLOADED_FUNCTION( "
+  output:
+    columns:
+     - "BINARY_COLUMN"
+     - "BOOLEAN_COLUMN"
+     - "DATE_COLUMN"
+    functions:
+     - "ONE_ARG_BOOLEAN_FUNCTION"
+    debugInfo:
+      functionName: "OVERLOADED_FUNCTION"
+      typesUsedSoFar: []
+ -
+  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 1"
+  input: "OVERLOADED_FUNCTION(BINARY_COLUMN, "
+  output:
+    columns:
+     - "BOOLEAN_COLUMN"
+    functions:
+     - "ONE_ARG_BOOLEAN_FUNCTION"
+    debugInfo:
+      functionName: "OVERLOADED_FUNCTION"
+      typesUsedSoFar:
+       - "BINARY"
+ -
+  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 2"
+  input: "OVERLOADED_FUNCTION(DATE_COLUMN, "
+  output:
+    columns:
+     - "BINARY_COLUMN"
+    functions: []
+    debugInfo:
+      functionName: "OVERLOADED_FUNCTION"
+      typesUsedSoFar:
+       - "DATE"
+ -
+  description: "OVERLOADED FUNCTION WITH ONE PARAMETER 3"
+  input: "OVERLOADED_FUNCTION(BOOLEAN_COLUMN, "
+  output:
+    columns:
+     - "DATE_COLUMN"
+    functions: []
+    debugInfo:
+      functionName: "OVERLOADED_FUNCTION"
+      typesUsedSoFar:
+       - "BOOLEAN"
+ -
+  description: "COMPLEX CALL 1"
+  input: "TWO_ARG_NUMERIC_FUNCTION(2 + 2, "
+  output:
+    columns:
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"
+ -
+  description: "COMPLEX CALL 2"
+  input: "TWO_ARG_NUMERIC_FUNCTION(2 + ONE_ARG_NUMERIC_FUNCTION(2), "
+  output:
+    columns:
+     - "DECIMAL_COLUMN"
+     - "DOUBLE_COLUMN"
+     - "FLOAT_COLUMN"
+     - "INTEGER_COLUMN"
+    functions:
+     - "ONE_ARG_NUMERIC_FUNCTION"
+     - "OVERLOADED_FUNCTION"
+     - "TWO_ARG_NUMERIC_FUNCTION"
+     - "UNSTABLE_RETURN_TYPE_FUNCTION"
+     - "VARADIC_FUNCTION"
+     - "ZERO_ARG_FUNCTION"
+    debugInfo:
+      functionName: "TWO_ARG_NUMERIC_FUNCTION"
+      typesUsedSoFar:
+       - "INTEGER"

@@ -20,6 +20,7 @@ import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 import java.lang.reflect.Field;
 
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.exception.SchemaChangeException;
@@ -40,7 +41,8 @@ abstract class AbstractWriter<V extends ValueVector> implements PojoWriter{
   @Override
   public void init(OutputMutator output) throws SchemaChangeException {
 //    MaterializedField mf = MajorTypeHelper.getFieldForNameAndMajorType(field.getName(), type);
-    org.apache.arrow.vector.types.pojo.Field mf = new org.apache.arrow.vector.types.pojo.Field(field.getName(), true, getArrowMinorType(type.getMinorType()).getType(), null);
+    org.apache.arrow.vector.types.pojo.Field mf = new org.apache.arrow.vector.types.pojo.Field(field.getName(), new FieldType(true,  getArrowMinorType(type.getMinorType()).getType(), null),
+    null);
     @SuppressWarnings("unchecked")
     Class<V> valueVectorClass = (Class<V>) TypeHelper.getValueVectorClass(getArrowMinorType(type.getMinorType()));
     this.vector = output.addField(mf, valueVectorClass);

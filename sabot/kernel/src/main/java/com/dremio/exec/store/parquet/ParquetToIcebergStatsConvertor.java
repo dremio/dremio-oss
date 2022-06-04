@@ -87,8 +87,8 @@ public class ParquetToIcebergStatsConvertor {
       lowerBounds.remove(fieldId);
       upperBounds.remove(fieldId);
     }
-
-    return new Metrics(rowCount, columnSizes, valueCounts, nullValueCounts,
+    // The column's Statistics does not have nan values api. Put empty map for 'nanValueCounts'.
+    return new Metrics(rowCount, columnSizes, valueCounts, nullValueCounts, new HashMap<>(),
       toBufferMap(fileSchema, lowerBounds), toBufferMap(fileSchema, upperBounds));
   }
 

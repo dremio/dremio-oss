@@ -112,6 +112,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
         ReflectionState cr = consideredReflections.get(reflectionExplanationsAndQueryDistance.getReflectionId());
         cr.queryDistance = reflectionExplanationsAndQueryDistance.getQueryDistance();
         cr.explanations = reflectionExplanationsAndQueryDistance.getDisplayHintMessageList();
+        cr.hideHint = reflectionExplanationsAndQueryDistance.isHintHidden();
       }
     } catch (Exception e) {
       logger.error("AccelerationDetails populator failed to handle planSubstituted()", e);
@@ -198,6 +199,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
               .setSnowflake(reflectionState.snowflake)
               .setQueryDistance(reflectionState.queryDistance)
               .setReflectionExplanationList(reflectionState.explanations)
+              .setHideHint(reflectionState.hideHint)
             );
           } else {
             // maybe its a external reflections?
@@ -230,6 +232,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
               .setReflection(layoutDescriptor)
               .setQueryDistance(reflectionState.queryDistance)
               .setReflectionExplanationList(reflectionState.explanations)
+              .setHideHint(reflectionState.hideHint)
             );
           }
         }
@@ -338,6 +341,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
     private final String reflectionId;
     private final boolean matched;
     private boolean chosen;
+    private boolean hideHint = false;
     private boolean snowflake;
     private double queryDistance = Double.NaN;
     private List<ReflectionExplanation> explanations = ImmutableList.of();

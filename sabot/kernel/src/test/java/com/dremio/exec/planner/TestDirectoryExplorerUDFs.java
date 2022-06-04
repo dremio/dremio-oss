@@ -15,8 +15,7 @@
  */
 package com.dremio.exec.planner;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
@@ -134,12 +133,9 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
 
     for (Map.Entry<String, String> configEntry : configMap.entrySet()) {
       for (ConstantFoldingTestConfig functionConfig : tests) {
-        try {
-          test(String.format(configEntry.getKey(), functionConfig.funcName));
-        } catch (UserRemoteException e) {
-          assertThat(e.getMessage(), containsString(
-              String.format("Directory explorers [MAXDIR, IMAXDIR, MINDIR, IMINDIR] functions are not supported in %s", configEntry.getValue())));
-        }
+        assertThatThrownBy(() -> test(String.format(configEntry.getKey(), functionConfig.funcName)))
+          .isInstanceOf(UserRemoteException.class)
+          .hasMessageContaining("Directory explorers [MAXDIR, IMAXDIR, MINDIR, IMINDIR] functions are not supported in %s", configEntry.getValue());
       }
     }
   }
@@ -150,12 +146,10 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
       test("set \"planner.enable_constant_folding\" = false;");
       String query = "select * from dfs.\"" + path + "/*/*.csv\" where dir0 = %s('dfs_root','" + path + "')";
       for (ConstantFoldingTestConfig config : tests) {
-        try {
-          test(String.format(query, config.funcName));
-        } catch (UserRemoteException e) {
-          assertThat(e.getMessage(), containsString("Directory explorers [MAXDIR, IMAXDIR, MINDIR, IMINDIR] functions can not be used " +
-              "when planner.enable_constant_folding option is set to false"));
-        }
+        assertThatThrownBy(() -> test(String.format(query, config.funcName)))
+          .isInstanceOf(UserRemoteException.class)
+          .hasMessageContaining("Directory explorers [MAXDIR, IMAXDIR, MINDIR, IMINDIR] functions can not be used " +
+              "when planner.enable_constant_folding option is set to false");
       }
     } finally {
       test("set \"planner.enable_constant_folding\" = true;");

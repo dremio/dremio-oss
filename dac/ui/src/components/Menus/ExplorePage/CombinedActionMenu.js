@@ -34,18 +34,22 @@ export class CombinedActionMenu extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     datasetColumns: PropTypes.array,
-    action: PropTypes.func,
-    closeMenu: PropTypes.func.isRequired,
+    closeMenu: PropTypes.func,
     isSettingsDisabled: PropTypes.bool,
+    updateDownloading: PropTypes.func,
     intl: PropTypes.object.isRequired,
     //connected
-    jobProgress: PropTypes.object,
-    router: PropTypes.object,
-    location: PropTypes.object
+    jobProgress: PropTypes.object
   };
 
+  static contextTypes = {
+    router: PropTypes.object,
+    location: PropTypes.object
+  }
+
   handleSettingsClick = () => {
-    const { isSettingsDisabled, dataset, router, location, closeMenu } = this.props;
+    const { isSettingsDisabled, dataset, closeMenu } = this.props;
+    const { router, location } = this.context;
     closeMenu();
     if (isSettingsDisabled) return;
 
@@ -66,8 +70,8 @@ export class CombinedActionMenu extends PureComponent {
     const isRun = jobProgress && jobProgress.isRun;
     const headerText = isRun ? la('Download (limited)') : la('Download (sample)');
     const helpContent = isRun ?
-      intl.formatMessage({ id: 'Explore.run.warning' }) :
-      intl.formatMessage({ id: 'Explore.preview.warning' });
+      intl.formatMessage({ id: 'Explore.Run.Warning' }) :
+      intl.formatMessage({ id: 'Explore.Preview.Warning' });
     return (
       <MenuLabel>
         {headerText}<HoverHelp content={helpContent} placement='bottom-start' />

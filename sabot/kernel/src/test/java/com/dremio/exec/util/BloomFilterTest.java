@@ -329,7 +329,7 @@ public class BloomFilterTest {
         try (final BloomFilter f1 = new BloomFilter(bfTestAllocator, TEST_NAME, 64)) {
             f1.setup();
 
-            f1.getDataBuffer().retain();
+            f1.getDataBuffer().getReferenceManager().retain();
             assertEquals(2, f1.getDataBuffer().refCnt());
             f1.close();
             assertEquals(1, f1.getDataBuffer().refCnt());

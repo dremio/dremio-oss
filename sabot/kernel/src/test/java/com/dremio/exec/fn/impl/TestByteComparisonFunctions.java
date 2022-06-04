@@ -17,9 +17,9 @@ package com.dremio.exec.fn.impl;
 
 import static org.junit.Assert.assertTrue;
 
+import org.apache.arrow.memory.util.ByteFunctionHelpers;
 import org.apache.arrow.vector.ValueHolderHelper;
 import org.apache.arrow.vector.holders.VarCharHolder;
-import org.apache.arrow.vector.util.ByteFunctionHelpers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,10 +44,10 @@ public class TestByteComparisonFunctions extends ExecTest {
 
   @After
   public void teardown() {
-    hello.buffer.release();
-    helloLong.buffer.release();
-    goodbye.buffer.release();
-    goodbyeLong.buffer.release();
+    hello.buffer.close();
+    helloLong.buffer.close();
+    goodbye.buffer.close();
+    goodbyeLong.buffer.close();
   }
 
   @Test

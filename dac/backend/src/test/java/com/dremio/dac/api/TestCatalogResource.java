@@ -16,6 +16,7 @@
 package com.dremio.dac.api;
 
 import static java.util.Arrays.asList;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -39,9 +40,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.util.TestTools;
@@ -55,6 +54,7 @@ import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
@@ -81,10 +81,10 @@ import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
-import com.dremio.service.namespace.file.proto.TextFileConfig;
+import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -150,9 +150,6 @@ public class TestCatalogResource extends BaseTestServer {
     assertEquals(sourceCount, 1);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-
   @Test
   public void testSpace() throws Exception {
     // create a new space
@@ -175,8 +172,8 @@ public class TestCatalogResource extends BaseTestServer {
 
     // delete the space
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(spaceConfig.getId().getId())).buildDelete());
-    thrown.expect(NamespaceException.class);
-    newNamespaceService().getSpace(new NamespaceKey(spaceConfig.getName()));
+    assertThatThrownBy(() -> newNamespaceService().getSpace(new NamespaceKey(spaceConfig.getName())))
+      .isInstanceOf(NamespaceException.class);
   }
 
   @Test
@@ -426,14 +423,15 @@ public class TestCatalogResource extends BaseTestServer {
     final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
 
     final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName2);
-    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION, msg));
 
-    submitJobAndWaitUntilCompletion(
+    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
         .setQueryType(QueryType.UI_INTERNAL_RUN)
         .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+        .build()))
+      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
+      .hasMessageContaining(msg);
   }
 
   @Test
@@ -484,15 +482,15 @@ public class TestCatalogResource extends BaseTestServer {
     final String query2 = query + String.format("join \"@dremio\".\"%s\" as f on d.name = f.name", vdsName3);
 
     final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName3);
-    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION, msg));
 
-    submitJobAndWaitUntilCompletion(
+    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(new SqlQuery(query2, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
         .setQueryType(QueryType.UI_INTERNAL_RUN)
         .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-
+        .build()))
+      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
+      .hasMessageContaining(msg);
   }
 
   @Test
@@ -528,14 +526,15 @@ public class TestCatalogResource extends BaseTestServer {
     final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name", sourceName1, sourceName2);
 
     final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName2);
-    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION, msg));
 
-    submitJobAndWaitUntilCompletion(
+    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
         .setQueryType(QueryType.UI_INTERNAL_RUN)
         .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
+        .build()))
+      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
+      .hasMessageContaining(msg);
   }
 
   @Test
@@ -581,15 +580,15 @@ public class TestCatalogResource extends BaseTestServer {
     final String query2 = query + String.format("join %s.\"myFile3.json\" as f on d.name = f.name", sourceName3);
 
     final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName3);
-    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION, msg));
 
-    submitJobAndWaitUntilCompletion(
+    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(new SqlQuery(query2, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
         .setQueryType(QueryType.UI_INTERNAL_RUN)
         .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-
+        .build()))
+      .hasErrorType(UserBitShared.DremioPBError.ErrorType.VALIDATION)
+      .hasMessageContaining(msg);
   }
 
   @Test
@@ -754,9 +753,8 @@ public class TestCatalogResource extends BaseTestServer {
     ((CatalogServiceImpl) l(ContextService.class).get().getCatalogService()).refreshSource(new NamespaceKey(sourceName1), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     dataset1 = p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName1, "nestedDir")).toNamespaceKey());
     assertEquals("nestedDir", dataset1.getName());
-    thrown.expect(NamespaceException.class);
-    p(NamespaceService.class).get().getDataset(datasetKey);
-
+    assertThatThrownBy(() -> p(NamespaceService.class).get().getDataset(datasetKey))
+      .isInstanceOf(NamespaceException.class);
   }
 
   private boolean isComplete(DatasetConfig config) {
@@ -800,8 +798,8 @@ public class TestCatalogResource extends BaseTestServer {
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
     // Expect to receive an NamespaceException if try to find the deleted metadata in kv store
-    thrown.expect(NamespaceException.class);
-    p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    assertThatThrownBy(() -> p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey()))
+      .isInstanceOf(NamespaceException.class);
 
   }
 
@@ -832,16 +830,16 @@ public class TestCatalogResource extends BaseTestServer {
 
     // Expect to receive an UserException if try to forget metadata on the deleted metadata in kv store
     final String msg = String.format("PARSE ERROR: Unable to find table %s.\"myFile.json\"", sourceName);
-    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.PARSE, msg));
 
     // Forget metadata again
-    jobId = submitJobAndWaitUntilCompletion(
+    UserExceptionAssert.assertThatThrownBy(() -> submitJobAndWaitUntilCompletion(
       JobRequest.newBuilder()
         .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
         .setQueryType(QueryType.UI_INTERNAL_RUN)
         .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build());
-
+        .build()))
+      .hasErrorType(ErrorType.PARSE)
+      .hasMessageContaining(msg);
   }
 
   @Test
@@ -908,8 +906,8 @@ public class TestCatalogResource extends BaseTestServer {
     assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
 
     // Expect to receive an NamespaceException if try to find the deleted metadata in kv store
-    thrown.expect(NamespaceException.class);
-    p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey());
+    assertThatThrownBy(() -> p(NamespaceService.class).get().getDataset(new DatasetPath(ImmutableList.of(sourceName, "myFile.json")).toNamespaceKey()))
+      .isInstanceOf(NamespaceException.class);
   }
 
   @Test
@@ -975,9 +973,9 @@ public class TestCatalogResource extends BaseTestServer {
     // delete source
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildDelete());
 
-    thrown.expect(NamespaceException.class);
-    newNamespaceService().getSource(new NamespaceKey(source.getName()));
-
+    Source finalSource = source;
+    assertThatThrownBy(() -> newNamespaceService().getSource(new NamespaceKey(finalSource.getName())))
+      .isInstanceOf(NamespaceException.class);
   }
 
   @Test
@@ -1054,9 +1052,8 @@ public class TestCatalogResource extends BaseTestServer {
     // we want to use the path that the backend gives us so fetch the full folder
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
 
-    TextFileConfig textFileConfig = new TextFileConfig();
-    textFileConfig.setLineDelimiter("\n");
-    dataset = createPDS(folder.getPath(), textFileConfig);
+    ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
+    dataset = createPDS(folder.getPath(), parquetFileConfig);
 
     dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
 
@@ -1395,9 +1392,8 @@ public class TestCatalogResource extends BaseTestServer {
     // we want to use the path that the backend gives us so fetch the full folder
     Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
 
-    final TextFileConfig textFileConfig = new TextFileConfig();
-    textFileConfig.setLineDelimiter("\n");
-    Dataset dataset = createPDS(folder.getPath(), textFileConfig);
+    final ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
+    Dataset dataset = createPDS(folder.getPath(), parquetFileConfig);
 
     dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
 
@@ -1418,7 +1414,7 @@ public class TestCatalogResource extends BaseTestServer {
       .path("folderdataset");
 
     folder = expectSuccess(getBuilder(target).buildGet(), new GenericType<Folder>() {});
-    dataset = createPDS(folder.getPath(), textFileConfig);
+    dataset = createPDS(folder.getPath(), parquetFileConfig);
     dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
 
     // unpromote the folder
@@ -1482,11 +1478,10 @@ public class TestCatalogResource extends BaseTestServer {
     // we want to use the path that the backend gives us so fetch the full folder
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
 
-    TextFileConfig textFileConfig = new TextFileConfig();
-    textFileConfig.setLineDelimiter("\n");
+    ParquetFileConfig parquetFileConfig = new ParquetFileConfig();
     Dataset.RefreshSettings refreshSettings = new Dataset.RefreshSettings(null, 5000L, 5000L, RefreshMethod.INCREMENTAL, false, false);
 
-    Dataset dataset = createPDS(folder.getPath(), textFileConfig, refreshSettings);
+    Dataset dataset = createPDS(folder.getPath(), parquetFileConfig, refreshSettings);
 
     dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
 

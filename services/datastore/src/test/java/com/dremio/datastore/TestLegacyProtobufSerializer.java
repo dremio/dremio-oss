@@ -15,9 +15,7 @@
  */
 package com.dremio.datastore;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.Test;
 
@@ -78,7 +76,7 @@ public class TestLegacyProtobufSerializer {
               )
         .build();
 
-    assertThat(LegacyProtobufSerializer.parseFrom(SearchQuery.PARSER, query.toByteString()), is(equalTo(expected)));
+    assertThat(LegacyProtobufSerializer.parseFrom(SearchQuery.PARSER, query.toByteString())).isEqualTo(expected);
   }
 
 

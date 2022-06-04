@@ -85,6 +85,7 @@ import org.apache.arrow.vector.types.UnionMode;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.BasicTypeHelper;
 
 import com.dremio.common.util.MajorTypeHelper;
@@ -318,7 +319,7 @@ public class TypeHelper extends BasicTypeHelper {
         .getArrowMinorType(serializedField.getMajorType().getMinorType());
     switch (serializedField.getMajorType().getMinorType()) {
     case LIST:
-      return new Field(name, true, arrowMinorType.getType(),
+      return new Field(name, new FieldType(true, arrowMinorType.getType(), null),
           ImmutableList.of(getFieldForSerializedField(serializedField.getChild(2))));
     case STRUCT: {
       ImmutableList.Builder<Field> builder = ImmutableList.builder();
@@ -331,7 +332,7 @@ public class TypeHelper extends BasicTypeHelper {
         SerializedField child = childList.get(i);
         builder.add(getFieldForSerializedField(child));
       }
-      return new Field(name, true, arrowMinorType.getType(), builder.build());
+      return new Field(name, new FieldType(true, arrowMinorType.getType(), null), builder.build());
     }
     case UNION: {
       ImmutableList.Builder<Field> builder = ImmutableList.builder();
@@ -345,13 +346,12 @@ public class TypeHelper extends BasicTypeHelper {
 
       // TODO: not sure the sparse mode is correct.
       final Union unionType = new Union(UnionMode.Sparse, typeIds);
-      return new Field(name, true, unionType, builder.build());
+      return new Field(name, new FieldType(true, unionType, null), builder.build());
     }
     case DECIMAL:
-      return new Field(name, true,
-          new Decimal(serializedField.getMajorType().getPrecision(), serializedField.getMajorType().getScale()), null);
+      return new Field(name, new FieldType(true,  new Decimal(serializedField.getMajorType().getPrecision(), serializedField.getMajorType().getScale(), 128), null), null);
     default:
-      return new Field(name, true, arrowMinorType.getType(), null);
+      return new Field(name, new FieldType(true, arrowMinorType.getType(), null), null);
     }
   }
 }

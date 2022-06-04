@@ -31,9 +31,7 @@ import javax.inject.Provider;
 import org.glassfish.jersey.uri.UriComponent;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -56,9 +54,6 @@ public class TestTokenManager {
 
   private static final String username = "testuser";
   private static final String clientAddress = "localhost";
-
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
 
   @BeforeClass
   public static void startServices() throws Exception {

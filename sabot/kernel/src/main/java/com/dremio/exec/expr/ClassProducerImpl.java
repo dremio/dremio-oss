@@ -203,7 +203,7 @@ public class ClassProducerImpl implements ClassProducer {
 
     @Override
     public int getFunctionErrorContextSize() {
-      return errorContexts.size();
+      return nextErrorContextId;
     }
 
     @Override

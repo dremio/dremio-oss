@@ -53,7 +53,7 @@ import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 
 @Options
-public class StreamAggPrel extends AggPrelBase implements Prel{
+public class StreamAggPrel extends AggregatePrel implements Prel{
 
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.streamingagg.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.streamingagg.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
@@ -75,7 +75,7 @@ public class StreamAggPrel extends AggPrelBase implements Prel{
                        List<ImmutableBitSet> groupSets,
                        List<AggregateCall> aggCalls,
                        OperatorPhase phase) throws InvalidRelException {
-    final RelTraitSet adjustedTraits = AggPrelBase.adjustTraits(traits, child, groupSet)
+    final RelTraitSet adjustedTraits = AggregatePrel.adjustTraits(traits, child, groupSet)
         .replaceIf(RelCollationTraitDef.INSTANCE, () -> {
           // Validate input collation which should match groups
           if (AssertionUtil.isAssertionsEnabled()) {

@@ -15,10 +15,8 @@
  */
 package com.dremio.io.file;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
@@ -106,13 +104,13 @@ public class TestMorePosixFilePermissions extends DremioTest {
 
     @Test
     public void checkFromOctalModeInt() {
-      assertThat(MorePosixFilePermissions.fromOctalMode(mode), is(equalTo(expected)));
+      assertThat(MorePosixFilePermissions.fromOctalMode(mode)).isEqualTo(expected);
     }
 
     @Test
     public void checkFromOctalModeString() {
       String s = Integer.toOctalString(mode);
-      assertThat(MorePosixFilePermissions.fromOctalMode(s), is(equalTo(expected)));
+      assertThat(MorePosixFilePermissions.fromOctalMode(s)).isEqualTo(expected);
     }
   }
 
@@ -129,11 +127,7 @@ public class TestMorePosixFilePermissions extends DremioTest {
   }
 
   public void assertFails(Runnable r) {
-    try {
-      r.run();
-      fail("Expected method to fail");
-    } catch (IllegalArgumentException e) {
-      // expected
-    }
+    assertThatThrownBy(r::run)
+      .isInstanceOf(IllegalArgumentException.class);
   }
 }

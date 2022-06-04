@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.expression.BasePath;
+import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
@@ -77,11 +78,15 @@ public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<Vector
    * @return the total size of the data
    */
   public int load(RawFragmentBatch batch) {
+    return load(batch.getHeader(), batch.getBody());
+  }
+
+  public int load(FragmentRecordBatch header, ArrowBuf body) {
     container.zeroVectors();
     int size = 0;
     try {
-      RecordBatch recordBatch = RecordBatch.getRootAsRecordBatch(batch.getHeader().getArrowRecordBatch().asReadOnlyByteBuffer());
-      if (batch.getBody() == null) {
+      RecordBatch recordBatch = RecordBatch.getRootAsRecordBatch(header.getArrowRecordBatch().asReadOnlyByteBuffer());
+      if (body == null) {
         for (VectorWrapper<?> w : container) {
           AllocationHelper.allocate(w.getValueVector(), 0, 0, 0);
         }
@@ -95,8 +100,8 @@ public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<Vector
       if (valueCount == 0) {
         return 0;
       }
-      size = (batch.getBody() == null) ? 0 : LargeMemoryUtil.checkedCastToInt(batch.getBody().readableBytes());
-      load(recordBatch, container, batch.getBody());
+      size = (body == null) ? 0 : LargeMemoryUtil.checkedCastToInt(body.readableBytes());
+      load(recordBatch, container, body);
     } catch (final Throwable cause) {
       // We have to clean up new vectors created here and pass over the actual cause. It is upper layer who should
       // adjudicate to call upper layer specific clean up logic.
@@ -133,7 +138,7 @@ public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<Vector
     ArrowRecordBatch arrowRecordBatch =
       new ArrowRecordBatch((int)recordBatchFB.length(), nodes, buffers, NoCompressionCodec.DEFAULT_BODY_COMPRESSION, false);
     for (ArrowBuf buf : buffers) {
-      buf.release();
+      buf.close();
     }
     return arrowRecordBatch;
   }

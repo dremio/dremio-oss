@@ -47,7 +47,6 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
   //  while (resultSet.next()) {
   //  }
   //}
-
   @Test // DRILL-3635
   public void testFix3635() throws Exception {
     // When we run a CTAS query, executeQuery() should return after the table has been flushed to disk even though we
@@ -60,6 +59,8 @@ public class TestJdbcQuery extends JdbcTestQueryBase {
       Statement s = conn.createStatement();
       s.executeQuery(String.format("CREATE TABLE %s AS SELECT * FROM cp.\"employee.json\"", tableName));
     }
+    //Refresh Dataset for support of unlimited splits
+    testQuery("REFRESH DATASET \"dfs_test\".\"testDDLs\"");
 
     testQuery(String.format("SELECT * FROM %s LIMIT 1", tableName));
   }

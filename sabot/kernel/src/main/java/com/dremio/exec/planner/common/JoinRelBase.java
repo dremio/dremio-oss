@@ -307,6 +307,9 @@ public abstract class JoinRelBase extends Join {
     // is the same whether the bigger table is used as left input or right. In order to overcome that,
     // we will use the Hash Join cost as the logical cost such that cardinality of left and right inputs
     // is considered appropriately.
+    if(this.condition.isAlwaysTrue() && PrelUtil.getPlannerSettings(planner).isUseCartesianCostForLogicalNljEnabled()){
+      return computeCartesianJoinCost(planner, relMetadataQuery);
+    }
     return computeHashJoinCost(planner, relMetadataQuery);
   }
 

@@ -16,12 +16,14 @@
 package com.dremio.dac.cmd;
 
 import com.dremio.attach.DremioAgent;
+import com.dremio.common.SuppressForbidden;
 import com.sun.tools.attach.VirtualMachine;
 import com.sun.tools.attach.VirtualMachineDescriptor;
 
 /**
  * Attach Tool
  */
+@SuppressForbidden
 public class DremioAttach {
   private static String DREMIO_PROCESS_NAME = "DremioDaemon";
 

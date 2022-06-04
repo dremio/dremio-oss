@@ -18,6 +18,7 @@ package com.dremio.sabot.exec;
 import java.util.Optional;
 
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
 import com.dremio.service.maestroservice.MaestroClient;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -70,5 +71,10 @@ public class NoOpQueryTracker implements QueryTracker {
 
   @Override
   public void setQuerySentTime(long querySentTime) {
+  }
+
+  @Override
+  public FileCursorManagerFactory getFileCursorManagerFactory() {
+    return null;
   }
 }

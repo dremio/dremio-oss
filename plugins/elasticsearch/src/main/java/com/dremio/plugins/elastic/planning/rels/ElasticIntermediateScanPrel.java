@@ -54,8 +54,9 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
       RelOptTable table,
       TableMetadata dataset,
       List<SchemaPath> projectedColumns,
-      double observedRowcountAdjustment) {
-    super(cluster, traits(cluster, table.getRowCount(), dataset.getSplitCount(), traitSet), table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
+      double observedRowcountAdjustment,
+      List<Info> runtimeFilters) {
+    super(cluster, traits(cluster, table.getRowCount(), dataset.getSplitCount(), traitSet), table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
   }
 
   private static RelTraitSet traits(
@@ -103,7 +104,7 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ElasticIntermediateScanPrel(getCluster(), traitSet, getTable(), tableMetadata, getProjectedColumns(), observedRowcountAdjustment);
+    return new ElasticIntermediateScanPrel(getCluster(), traitSet, getTable(), tableMetadata, getProjectedColumns(), observedRowcountAdjustment, getRuntimeFilters());
   }
 
   @Override
@@ -113,7 +114,7 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
 
   @Override
   public ElasticIntermediateScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new ElasticIntermediateScanPrel(getCluster(), getTraitSet(), table, tableMetadata, projection, observedRowcountAdjustment);
+    return new ElasticIntermediateScanPrel(getCluster(), getTraitSet(), table, tableMetadata, projection, observedRowcountAdjustment, getRuntimeFilters());
   }
 
   @Override

@@ -280,6 +280,11 @@ public class BaseTestOperator extends ExecTest {
       }
 
       @Override
+      public RawFragmentBatchProvider getBuffersFromFiles(String uniqueId, int readerFragId) {
+        return batchProviders[0][0];
+      }
+
+      @Override
       public boolean isPotentiallyBlocked() {
         return false;
       }

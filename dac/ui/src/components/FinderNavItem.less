@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 @import "../components/colors.less";
+@import '~@app/uiTheme/less/mixins.less';
 
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .finder-nav-item {
+    &.active, &:hover, &:focus {
+      background-color: #fff5dc;
+    }
+
     a.finder-nav-item-link {
       height: 28px;
       padding: 0 2px 0 10px;
@@ -38,8 +43,25 @@
           visibility: visible;
         }
       }
-      &.active, &:hover, &:focus {
-        background-color: #fff5dc;
+    }
+    
+    &.withExtra {
+      .entity-link-wrapper {
+        .flex-center;
+      }
+      a.finder-nav-item-link {
+        flex: 0;
+        max-width: 60%;
+      }
+    }
+
+    .extra-content {
+      margin-left: 8px;
+      margin-right: 8px;
+      flex: 1;
+      min-width: 0;
+      .branchPickerTag {
+        max-width: 100%
       }
     }
 

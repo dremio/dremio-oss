@@ -18,6 +18,11 @@
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   .explore-info-header {
+    display: flex;
+    justify-content: space-between;
+    padding-left: 7px;
+    min-height: 54px;
+    width: 100%;
 
     .cur-link {
       color: #B3B3B3;
@@ -25,13 +30,6 @@
 
     .title-wrap {
       font-size: 11px;
-      .Breadcrumbs {
-        display: inline-block;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        white-space: nowrap;
-        max-width: 100%; // do not let to exceed parent width
-      }
     }
 
     .toogler {
@@ -99,6 +97,7 @@
       display: flex;
       align-items: center;
       margin-right: 15px;
+      gap: 6px;
 
       .preview-button {
         margin-right: 5px;
@@ -134,6 +133,26 @@
           opacity: 1;
         }
       }
+    }
+
+    [data-qa="Graph"] img {
+      filter: grayscale(1) contrast(0);
+    }
+
+    .page-title {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 20px;
+      color: #202124;
+
+      &.--untitledScript {
+        color: #B0B7BF;
+      }
+    }
+    .dataset-edited {
+      font-size: 12px;
+      font-weight: 400;
+      color: #202124
     }
   }
 }

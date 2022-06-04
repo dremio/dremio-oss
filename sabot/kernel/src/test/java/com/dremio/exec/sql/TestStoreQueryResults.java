@@ -305,7 +305,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
         .build();
 
     TestQueryObserver queryObserver = new TestQueryObserver(checkWriterDistributionTrait);
-    localQueryExecutor.submitLocalQuery(ExternalIdHelper.generateExternalId(), queryObserver, queryCmd, false, config, false);
+    localQueryExecutor.submitLocalQuery(ExternalIdHelper.generateExternalId(), queryObserver, queryCmd, false, config, false, null);
 
     queryObserver.waitForCompletion();
 

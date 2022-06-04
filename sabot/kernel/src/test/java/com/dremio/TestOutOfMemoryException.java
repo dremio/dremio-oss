@@ -44,6 +44,9 @@ public class TestOutOfMemoryException extends BaseTestQuery {
   public void testIncomingBuffersOOM() throws Exception {
     setSessionOption(ExecConstants.SLICE_TARGET, "10");
 
+    // refresh the table beforehand so that excpetions can be injected during select query
+    test("ALTER TABLE cp.\"tpch/lineitem.parquet\" REFRESH METADATA");
+
     final String controlsString = Controls.newBuilder()
       .addException(IncomingBuffers.class, IncomingBuffers.INJECTOR_DO_WORK, OutOfMemoryException.class)
       .build();

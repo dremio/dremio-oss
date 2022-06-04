@@ -94,6 +94,7 @@ enum WorkloadType {
   UI_DOWNLOAD = 11;
   FLIGHT = 12;
   METADATA_REFRESH = 13;
+  INTERNAL_ICEBERG = 14;
 }
 
 message DremioPBError{
@@ -679,6 +680,10 @@ enum CoreOperatorType {
   GRPC_WRITER = 57;
   MANIFEST_WRITER = 58;
   FLIGHT_SUB_SCAN = 59;
+  BRIDGE_FILE_WRITER_SENDER = 60;
+  BRIDGE_FILE_READER_RECEIVER = 61;
+  BRIDGE_FILE_READER = 62;
+  ICEBERG_MANIFEST_WRITER = 63;
 }
 
 message MetricDef {

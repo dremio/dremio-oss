@@ -22,9 +22,10 @@ import org.apache.calcite.rel.RelNode;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchIntermediatePrel;
 import com.dremio.plugins.elastic.planning.rels.ElasticsearchScanDrel;
-import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Rule that converts elastic logical to physical scan
@@ -47,7 +48,8 @@ public class ElasticScanPrule extends RelOptRule {
         logicalScan.getTable(),
         logicalScan.getTableMetadata(),
         logicalScan.getProjectedColumns(),
-        logicalScan.getObservedRowcountAdjustment()
+        logicalScan.getObservedRowcountAdjustment(),
+        ImmutableList.of()
         );
 
     RelNode converted = new ElasticsearchIntermediatePrel(

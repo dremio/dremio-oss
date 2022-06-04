@@ -21,6 +21,7 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
+import com.dremio.resource.GroupResourceInformation;
 
 /**
  * Placeholder for all sort related test. Can be used as we move
@@ -62,7 +63,7 @@ public class TestSort extends BaseTestQuery {
 
   @Test
   public void testSortSpill() throws Exception {
-    setSessionOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY, "6");
+    setSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, "6");
     try {
       test("CREATE TABLE dfs_test.test_sort PARTITION BY (l_modline, l_moddate) AS " +
         "SELECT l.*, l_shipdate - ((EXTRACT(DAY FROM l_shipdate) - 1) * INTERVAL '1' DAY) l_moddate, " +
@@ -70,7 +71,7 @@ public class TestSort extends BaseTestQuery {
         "FROM cp.\"tpch/lineitem.parquet\" l ORDER BY l_moddate"
       );
     } finally {
-      runSQL("ALTER SESSION RESET \"" + ExecConstants.MAX_WIDTH_PER_NODE_KEY + "\"");
+      resetSessionOption(GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY);
     }
   }
 }

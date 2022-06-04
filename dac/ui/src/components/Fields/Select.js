@@ -134,7 +134,7 @@ export default class Select extends PureComponent {
     // TODO: can't easily remove textOverflow in favor of <EllipsedText> because the content comes in externally
     return (
       <SelectView
-        content={<span className={labelCls} style={{...customLabelStyle, ...formDefault}}>{buttonLabel}</span>}
+        content={<span className={labelCls} style={{...formDefault, ...customLabelStyle}}>{buttonLabel}</span>}
         disabled={disabled}
         className={classNames(['field', button, className])}
         style={style}

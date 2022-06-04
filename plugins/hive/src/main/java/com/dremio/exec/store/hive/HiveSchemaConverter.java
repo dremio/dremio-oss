@@ -108,7 +108,7 @@ public class HiveSchemaConverter {
         if (inner == null) {
           return null;
         }
-        return new Field(name, true, Types.MinorType.LIST.getType(),
+        return new Field(name, new FieldType(true, Types.MinorType.LIST.getType(), null),
           Collections.singletonList(inner));
       }
       case STRUCT: {
@@ -131,7 +131,7 @@ public class HiveSchemaConverter {
         if (structFields.isEmpty()) {
           return null;
         }
-        return new Field(name, true, Types.MinorType.STRUCT.getType(),
+        return new Field(name, new FieldType(true, Types.MinorType.STRUCT.getType(), null),
           structFields);
       }
       case UNION: {
@@ -172,41 +172,41 @@ public class HiveSchemaConverter {
       switch (pTypeInfo.getPrimitiveCategory()) {
       case BOOLEAN:
 
-        return new Field(name, true, new Bool(), null);
+        return new Field(name, new FieldType(true, new Bool(), null), null);
       case BYTE:
-        return new Field(name, true, new Int(32, true), null);
+        return new Field(name, new FieldType(true, new Int(32, true), null), null);
       case SHORT:
-        return new Field(name, true, new Int(32, true), null);
+        return new Field(name, new FieldType(true, new Int(32, true), null), null);
 
       case INT:
-        return new Field(name, true, new Int(32, true), null);
+        return new Field(name, new FieldType(true, new Int(32, true), null), null);
 
       case LONG:
-        return new Field(name, true, new Int(64, true), null);
+        return new Field(name, new FieldType(true, new Int(64, true), null), null);
 
       case FLOAT:
-        return new Field(name, true, new FloatingPoint(FloatingPointPrecision.SINGLE), null);
+        return new Field(name, new FieldType(true, new FloatingPoint(FloatingPointPrecision.SINGLE), null), null);
 
       case DOUBLE:
-        return new Field(name, true, new FloatingPoint(FloatingPointPrecision.DOUBLE), null);
+        return new Field(name, new FieldType(true, new FloatingPoint(FloatingPointPrecision.DOUBLE), null), null);
 
       case DATE:
-        return new Field(name, true, new Date(DateUnit.MILLISECOND), null);
+        return new Field(name, new FieldType(true, new Date(DateUnit.MILLISECOND), null), null);
 
       case TIMESTAMP:
-        return new Field(name, true, new Timestamp(TimeUnit.MILLISECOND, null), null);
+        return new Field(name, new FieldType(true, new Timestamp(TimeUnit.MILLISECOND, null), null), null);
 
       case BINARY:
-        return new Field(name, true, new Binary(), null);
+        return new Field(name, new FieldType(true, new Binary(), null), null);
       case DECIMAL: {
         DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) pTypeInfo;
-        return new Field(name, true, new Decimal(decimalTypeInfo.getPrecision(), decimalTypeInfo.getScale()), null);
+        return new Field(name, new FieldType(true, new Decimal(decimalTypeInfo.getPrecision(), decimalTypeInfo.getScale(), 128), null), null);
       }
 
       case STRING:
       case VARCHAR:
       case CHAR: {
-        return new Field(name, true, new Utf8(), null);
+        return new Field(name, new FieldType(true, new Utf8(), null), null);
       }
       case UNKNOWN:
       case VOID:

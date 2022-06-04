@@ -27,6 +27,18 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 public class ITHiveProjectPushDown extends HiveTestBase {
   protected static String queryPlanKeyword = "mode=[NATIVE_PARQUET]";
 
+  private static AutoCloseable icebergDisabled;
+
+  @BeforeClass
+  public static void enableUnlimitedSplitFeature() {
+    icebergDisabled = disableUnlimitedSplitsAndIcebergSupportFlags();
+  }
+
+  @AfterClass
+  public static void resetUnlimitedSplitSupport() throws Exception {
+    icebergDisabled.close();
+  }
+
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {

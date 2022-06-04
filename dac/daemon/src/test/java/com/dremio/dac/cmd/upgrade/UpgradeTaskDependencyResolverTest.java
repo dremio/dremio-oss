@@ -15,19 +15,15 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -37,11 +33,8 @@ import com.google.common.collect.Maps;
  */
 public class UpgradeTaskDependencyResolverTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-
   @Test
-  public void testDependencySort() throws Exception {
+  public void testDependencySort() {
     // no dependencies
     UpgradeTask1 upgradeTask1 = new UpgradeTask1(ImmutableList.of());
     // depends on 1
@@ -56,12 +49,11 @@ public class UpgradeTaskDependencyResolverTest {
 
     List<UpgradeTask> sortedUpgradeTasks = upgradeTaskDependencyResolver.topologicalTasksSort();
 
-    assertThat(sortedUpgradeTasks, contains(
-      instanceOf(UpgradeTask1.class),
-      instanceOf(UpgradeTask2.class),
-      instanceOf(UpgradeTask3.class),
-      instanceOf(UpgradeTask4.class)
-    ));
+    assertThat(sortedUpgradeTasks).hasSize(4);
+    assertThat(sortedUpgradeTasks.get(0)).isInstanceOf(UpgradeTask1.class);
+    assertThat(sortedUpgradeTasks.get(1)).isInstanceOf(UpgradeTask2.class);
+    assertThat(sortedUpgradeTasks.get(2)).isInstanceOf(UpgradeTask3.class);
+    assertThat(sortedUpgradeTasks.get(3)).isInstanceOf(UpgradeTask4.class);
   }
 
   @Test
@@ -102,15 +94,15 @@ public class UpgradeTaskDependencyResolverTest {
       i++;
     }
     // make sure dependencies are met
-    assertTrue(nameToIndexMap.get("upgradeTaskAny8") > nameToIndexMap.get("upgradeTaskAny4"));
-    assertTrue(nameToIndexMap.get("upgradeTaskAny8") > nameToIndexMap.get("upgradeTaskAny3"));
-    assertTrue(nameToIndexMap.get("upgradeTaskAny7") > nameToIndexMap.get("upgradeTaskAny4"));
-    assertTrue(nameToIndexMap.get("upgradeTaskAny7") > nameToIndexMap.get("upgradeTaskAny5"));
-    assertTrue(nameToIndexMap.get("upgradeTaskAny5") > nameToIndexMap.get("upgradeTaskAny2"));
-    assertTrue(nameToIndexMap.get("upgradeTaskAny5") > nameToIndexMap.get("upgradeTaskAny3"));
-    assertTrue(nameToIndexMap.get("upgradeTaskAny6") > nameToIndexMap.get("upgradeTaskAny4"));
-    assertTrue(nameToIndexMap.get("upgradeTaskAny4") > nameToIndexMap.get("upgradeTaskAny1"));
-    assertTrue(nameToIndexMap.get("upgradeTaskAny4") > nameToIndexMap.get("upgradeTaskAny2"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny8")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny8")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny3"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny7")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny7")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny5"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny5")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny2"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny5")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny3"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny6")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny4"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny4")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny1"));
+    assertThat(nameToIndexMap.get("upgradeTaskAny4")).isGreaterThan(nameToIndexMap.get("upgradeTaskAny2"));
   }
 
   @Test
@@ -127,10 +119,9 @@ public class UpgradeTaskDependencyResolverTest {
       ImmutableList.of(upgradeTask1, upgradeTask2, upgradeTask3, upgradeTask4)
     );
 
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("Dependencies loop detected: UpgradeTask2");
-    upgradeTaskDependencyResolver.topologicalTasksSort();
-
+    assertThatThrownBy(upgradeTaskDependencyResolver::topologicalTasksSort)
+      .isInstanceOf(IllegalStateException.class)
+      .hasMessageContaining("Dependencies loop detected: UpgradeTask2");
   }
 
   private static class UpgradeTask1 extends UpgradeTask {

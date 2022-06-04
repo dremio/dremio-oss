@@ -62,7 +62,7 @@ $gutter-quadruple: map-get($map: $gutter-sizes, $key: quadruple);
 
       &[disabled] {
         background-color: $disabled-color;
-        color: $oslo-gray;
+        color: $FIGMA_TEXT_DISABLED;
         border: none;
       }
 
@@ -101,9 +101,11 @@ $gutter-quadruple: map-get($map: $gutter-sizes, $key: quadruple);
       right: 12px;
       bottom: 6px;
       visibility: hidden;
-      svg {
-        path {
-          fill: $oslo-gray;
+      &:hover {
+        svg {
+          path {
+            fill: $pelorous;
+          }
         }
       }
     }
@@ -116,16 +118,6 @@ $gutter-quadruple: map-get($map: $gutter-sizes, $key: quadruple);
   &__labelContainer {
     display: flex;
     align-items: center;
-    .textAreaRoot__icon {
-      display: flex;
-      svg {
-        height: 22px;
-        width: 22px;
-        path {
-          fill: $primary-color;
-        }
-      }
-    }
   }
 
   &__label {

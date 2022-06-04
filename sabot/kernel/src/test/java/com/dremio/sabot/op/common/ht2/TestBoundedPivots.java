@@ -517,7 +517,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
           assertEquals(in.getObject(i), out.getObject(i));
         }
       }
-      tempBuf.release();
+      tempBuf.close();
     }
   }
 }

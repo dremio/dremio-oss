@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.store.iceberg;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import java.io.File;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.TestTools;
@@ -31,9 +31,6 @@ import com.dremio.exec.work.foreman.AttemptManager;
 // Inject a failure during commit, and verify that it bails out (no timeout/hang).
 public class TestCommitFailure extends BaseTestQuery {
 
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
-
   @Test
   public void commit() throws Exception {
     for (String testSchema: SCHEMAS_FOR_TEST) {
@@ -43,7 +40,6 @@ public class TestCommitFailure extends BaseTestQuery {
         .addException(AttemptManager.class, "commit-failure", UnsupportedOperationException.class)
         .build();
 
-      expectedEx.expectMessage("commit-failure");
       try (AutoCloseable c = enableIcebergTables()) {
         try {
           final String testWorkingPath = TestTools.getWorkingPath();
@@ -53,7 +49,8 @@ public class TestCommitFailure extends BaseTestQuery {
             testSchema, tableName);
 
           ControlsInjectionUtil.setControls(client, controls);
-          test(ctasQuery);
+          assertThatThrownBy(() -> test(ctasQuery))
+            .hasMessageContaining("commit-failure");
 
         } finally {
           FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));

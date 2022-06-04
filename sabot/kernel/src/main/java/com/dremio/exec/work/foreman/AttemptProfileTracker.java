@@ -31,6 +31,7 @@ import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
+import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.work.protector.UserRequest;
@@ -39,6 +40,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
+import com.dremio.service.jobtelemetry.GetQueryProgressMetricsRequest;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.PutPlanningProfileRequest;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
@@ -142,21 +144,43 @@ class AttemptProfileTracker {
   }
 
   // Send tail profile to JTS (used after query terminates).
-  void sendTailProfile(UserException userException) {
+  UserBitShared.QueryProfile sendTailProfile(UserException userException) throws Exception {
+    // fetch latest progress metrics before publishing tail profile, as they'll be deleted in putQueryTailProfile
+    getLatestQueryProgressMetrics();
+
     this.userException = userException;
 
     // DX-28440 : when query is cancelled from flight service
     // sometimes the original context might not be valid.
     // fork a new context always.
+    UserBitShared.QueryProfile profile = getPlanningProfile();
     grpcContext.run( () -> {
       jobTelemetryClient.getBlockingStub()
         .putQueryTailProfile(
           PutTailProfileRequest.newBuilder()
             .setQueryId(queryId)
-            .setProfile(getPlanningProfile())
+            .setProfile(profile)
             .build()
         );
     });
+    return profile;
+  }
+
+  private void getLatestQueryProgressMetrics() throws Exception {
+    QueryProgressMetrics metrics = grpcContext.call( () -> {
+      return jobTelemetryClient.getBlockingStub()
+        .getQueryProgressMetricsUnary(
+          GetQueryProgressMetricsRequest.newBuilder()
+            .setQueryId(queryId)
+            .build()
+        ).getMetrics();
+    });
+    if (metrics.getRowsProcessed() >= 0) {
+      mergedObserver.recordsProcessed(metrics.getRowsProcessed());
+    }
+    if (metrics.getOutputRecords() >= 0) {
+      mergedObserver.recordsOutput(metrics.getOutputRecords());
+    }
   }
 
   // Get the latest planning profile.

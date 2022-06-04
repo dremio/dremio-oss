@@ -15,26 +15,19 @@
  */
 package com.dremio.plugins.s3.store;
 
-import java.util.List;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_PROFILE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
 
 import javax.inject.Provider;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
-import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
-import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.dfs.CacheProperties;
-import com.dremio.exec.store.dfs.FileSystemConf;
-import com.dremio.exec.store.dfs.SchemaMutability;
-import com.dremio.io.file.Path;
-import com.dremio.options.OptionManager;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.dremio.plugins.util.awsauth.AWSCredentialsConfigurator;
 
 import io.protostuff.Tag;
 
@@ -42,84 +35,9 @@ import io.protostuff.Tag;
  * Connection Configuration for S3.
  */
 @SourceType(value = "S3", label = "Amazon S3", uiConfig = "s3-layout.json")
-public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlugin> {
-  @Tag(1)
-  @DisplayMetadata(label = "AWS Access Key")
-  public String accessKey = "";
-
-  @Tag(2)
-  @Secret
-  @DisplayMetadata(label = "AWS Access Secret")
-  public String accessSecret = "";
-
-  @Tag(3)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Encrypt connection")
-  public boolean secure;
-
-  @Tag(4)
-  @DisplayMetadata(label = "Buckets")
-  public List<String> externalBucketList;
-
-  @Tag(5)
-  @DisplayMetadata(label = "Connection Properties")
-  public List<Property> propertyList;
-
-  @Tag(6)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
-  @JsonIgnore
-  public boolean allowCreateDrop;
-
-  @Tag(7)
-  @DisplayMetadata(label = "Root Path")
-  public String rootPath = "/";
-
+public class S3PluginConfig extends AbstractS3PluginConfig {
   @Tag(8)
   public AWSAuthenticationType credentialType = AWSAuthenticationType.ACCESS_KEY;
-
-  @Tag(9)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable asynchronous access when possible")
-  public boolean enableAsync = true;
-
-  @Tag(10)
-  @DisplayMetadata(label = "Enable compatibility mode")
-  public boolean compatibilityMode = false;
-
-  @Tag(11)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable local caching when possible")
-  public boolean isCachingEnabled = true;
-
-  @Tag(12)
-  @NotMetadataImpacting
-  @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
-  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
-  @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
-  public int maxCacheSpacePct = 100;
-
-  @Tag(13)
-  @DisplayMetadata(label = "Whitelisted buckets")
-  public List<String> whitelistedBuckets;
-
-  @Tag(15)
-  @DisplayMetadata(label = "IAM Role to Assume")
-  public String assumedRoleARN;
-
-  @Tag(16)
-  @DisplayMetadata(label = "Server side encryption key ARN")
-  @NotMetadataImpacting
-  public String kmsKeyARN;
-
-  @Tag(17)
-  @DisplayMetadata(label = "Apply requester-pays to S3 requests")
-  public boolean requesterPays = false;
-
-  @Tag(18)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Enable file status check")
-  public boolean enableFileStatusCheck = true;
 
   @Tag(19)
   @DisplayMetadata(label = "AWS Profile")
@@ -127,51 +45,36 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
 
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new S3StoragePlugin(this, context, name, pluginIdProvider);
+    return new S3StoragePlugin(this, context, name, pluginIdProvider,
+            getS3CredentialsProvider(),
+            AWSAuthenticationType.NONE.equals(credentialType));
   }
 
-  @Override
-  public Path getPath() {
-    return Path.of(rootPath);
+  public AWSAuthenticationType getCredentialType() {
+    return credentialType;
   }
 
-  @Override
-  public boolean isImpersonationEnabled() {
-    return false;
+  public String getAwsProfile() {
+    return awsProfile;
   }
 
-  @Override
-  public String getConnection() {
-    return CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme() + ":///";
-  }
-
-  @Override
-  public SchemaMutability getSchemaMutability() {
-    return SchemaMutability.USER_TABLE;
-  }
-
-  @Override
-  public List<Property> getProperties() {
-    return propertyList;
-  }
-
-  @Override
-  public boolean isAsyncEnabled() {
-    return enableAsync;
-  }
-
-  @Override
-  public CacheProperties getCacheProperties() {
-    return new CacheProperties() {
-      @Override
-      public boolean isCachingEnabled(final OptionManager optionManager) {
-        return isCachingEnabled;
-      }
-
-      @Override
-      public int cacheMaxSpaceLimitPct() {
-        return maxCacheSpacePct;
-      }
-    };
+  private AWSCredentialsConfigurator getS3CredentialsProvider() {
+    switch (credentialType) {
+      case ACCESS_KEY:
+        return properties -> getAccessKeyProvider(properties, accessKey, accessSecret);
+      case AWS_PROFILE:
+        return properties -> {
+          if (awsProfile != null) {
+            properties.add(new Property("com.dremio.awsProfile", awsProfile));
+          }
+          return AWS_PROFILE_PROVIDER;
+        };
+      case EC2_METADATA:
+        return properties -> EC2_METADATA_PROVIDER;
+      case NONE:
+        return properties -> NONE_PROVIDER;
+      default:
+        throw new UnsupportedOperationException("Failure creating S3 connection. Unsupported credential type:" + credentialType);
+    }
   }
 }

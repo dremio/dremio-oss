@@ -43,9 +43,9 @@ interface Sizer {
   void reset();
 
   /**
-   * Compute size in bits required to copy the specifies sv2 entries from incoming
+   * Compute size in bits required to copy the specified sv2 entries from incoming
    *
-   * @param start start position in the sv2
+   * @param sv2Addr sv2 address
    * @param count number of entries in the sv2
    * @return The amount of space consumed in bits.
    */

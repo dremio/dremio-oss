@@ -101,7 +101,7 @@ public class SourceResource {
   }
 
   private final SourceService sourceService;
-  private final SabotContext sabotContext;
+  protected final SabotContext sabotContext;
 
   @Inject
   public SourceResource(SourceService sourceService, SabotContext sabotContext) {

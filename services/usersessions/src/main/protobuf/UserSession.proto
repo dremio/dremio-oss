@@ -70,4 +70,5 @@ message UserSessionRPC {
   optional bool tracingEnabled = 15;
   optional int32 maxMetadataCount = 16;
   optional SubstitutionSettingsRPC substitutionSettings = 17;
+  map<string, string> sourceVersionMapping = 18;
 }

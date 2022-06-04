@@ -28,6 +28,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.complex.FieldIdUtil2;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.CallBack;
 import org.apache.arrow.vector.util.TransferPair;
@@ -158,7 +159,7 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
   }
 
   public <T extends ValueVector> T addOrGet(String name, MajorType type, Class<T> clazz) {
-    Field field = new Field(name, true, getArrowMinorType(type.getMinorType()).getType(), null);
+    Field field = new Field(name, new FieldType(true, getArrowMinorType(type.getMinorType()).getType(), null), null);
     return addOrGet(field);
   }
 

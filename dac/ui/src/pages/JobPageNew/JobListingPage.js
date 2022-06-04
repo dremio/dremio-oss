@@ -56,10 +56,15 @@ const JobListingPage = (props) => {
     location,
     next,
     isNextJobsInProgress,
+    dataFromUserFilter,
     dataWithItemsForFilters,
     admin,
     jobList,
-    loadNextJobsList
+    loadNextJobsList,
+    dispatchFetchJobsList,
+    dispatchUpdateQueryState,
+    dispatchLoadItemsForFilter,
+    dispatchSetClusterType
   } = props;
   const {
     state: {
@@ -73,17 +78,16 @@ const JobListingPage = (props) => {
   useEffect(() => {
     handleCluster();
   }, []);
-
   useEffect(() => {
     if ((!isEmpty(location.query)) && !isEqual(queryState, prevQueryState)) {
-      props.fetchJobsList(queryState, JOB_PAGE_NEW_VIEW_ID);
+      dispatchFetchJobsList(queryState, JOB_PAGE_NEW_VIEW_ID);
     }
   }, [queryState]);
 
   useEffect(() => {
     if (isEmpty(location.query) && location.pathname === '/jobs') {
       if (!queryState.equals(prevQueryState)) {
-        props.updateQueryState(queryState.setIn(['filters', 'qt'], ['UI', 'EXTERNAL']));
+        dispatchUpdateQueryState(queryState.setIn(['filters', 'qt'], ['UI', 'EXTERNAL']));
       }
     }
   }, [location]);
@@ -95,7 +99,7 @@ const JobListingPage = (props) => {
       clusterType: clusterInfo.clusterType,
       isSupport: supportInfo
     };
-    clusterInfo.clusterType !== undefined ? props.setClusterType(data) : props.setClusterType('NP');
+    clusterInfo.clusterType !== undefined ? dispatchSetClusterType(data) : dispatchSetClusterType('NP');
   };
 
   const changePages = (data) => {
@@ -103,12 +107,16 @@ const JobListingPage = (props) => {
       state: locationState
     } = location;
     const currentJobId = data && data.rowData.data.job.value;
+    const selectedJob = jobList.find((job) => job.get('id') === currentJobId);
+    const attempts = selectedJob ? selectedJob.get('totalAttempts') : 1;
     if (data !== null && location.pathname !== `/job/${currentJobId}`) {
       router.push({
         ...location,
         pathname: `/job/${currentJobId}`,
         search: null,
-        query: null,
+        query: {
+          attempts
+        },
         hash: null,
         state: {
           ...locationState,
@@ -160,8 +168,9 @@ const JobListingPage = (props) => {
         next={next}
         isNextJobsInProgress={isNextJobsInProgress}
         viewState={viewState}
-        onUpdateQueryState={props.updateQueryState}
-        loadItemsForFilter={props.loadItemsForFilter}
+        onUpdateQueryState={dispatchUpdateQueryState}
+        loadItemsForFilter={dispatchLoadItemsForFilter}
+        dataFromUserFilter={dataFromUserFilter}
         dataWithItemsForFilters={dataWithItemsForFilters}
         changePages={changePages}
       />
@@ -178,30 +187,34 @@ JobListingPage.propTypes = {
   next: PropTypes.string,
   viewState: PropTypes.instanceOf(Immutable.Map),
   isNextJobsInProgress: PropTypes.bool,
+  dataFromUserFilter: PropTypes.array,
   dataWithItemsForFilters: PropTypes.object,
   clusterType: PropTypes.string,
   admin: PropTypes.bool,
 
 
   //actions
-  updateQueryState: PropTypes.func.isRequired,
-  fetchJobsList: PropTypes.func.isRequired,
-  loadItemsForFilter: PropTypes.func,
+  dispatchUpdateQueryState: PropTypes.func.isRequired,
+  dispatchFetchJobsList: PropTypes.func.isRequired,
+  dispatchLoadItemsForFilter: PropTypes.func,
   loadNextJobsList: PropTypes.func,
   style: PropTypes.object,
   intl: PropTypes.object.isRequired,
-  setClusterType: PropTypes.func
+  dispatchSetClusterType: PropTypes.func
 };
 
 function mapStateToProps(state, ownProps) {
   const { location } = ownProps;
   const jobId = location.hash && location.hash.slice(1);
+  const users = getDataWithItemsForFilters(state).get('users');
+
   return {
     jobId,
     jobList: getJobList(state, ownProps),
     queryState: parseQueryState(location.query),
     next: state.jobs.jobs.get('next'),
     isNextJobsInProgress: state.jobs.jobs.get('isNextJobsInProgress'),
+    dataFromUserFilter: users,
     dataWithItemsForFilters: getDataWithItemsForFilters(state),
     viewState: getViewState(state, JOB_PAGE_NEW_VIEW_ID),
     clusterType: state.jobs.jobs.get('clusterType'),
@@ -210,11 +223,11 @@ function mapStateToProps(state, ownProps) {
 }
 
 const mapDispatchToProps = {
-  updateQueryState,
-  fetchJobsList,
-  loadItemsForFilter,
+  dispatchUpdateQueryState: updateQueryState,
+  dispatchFetchJobsList: fetchJobsList,
+  dispatchLoadItemsForFilter: loadItemsForFilter,
   loadNextJobsList: loadNextJobs,
-  setClusterType
+  dispatchSetClusterType: setClusterType
 };
 
 export default compose(

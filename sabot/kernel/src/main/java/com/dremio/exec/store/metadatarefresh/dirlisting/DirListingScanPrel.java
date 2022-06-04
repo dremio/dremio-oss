@@ -56,20 +56,21 @@ public class DirListingScanPrel extends ScanPrelBase {
 
 
   public DirListingScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                            TableMetadata tableMetadata, double observedRowcountAdjustment, boolean allowRecursiveListing,  Function<RelMetadataQuery, Double> estimateRowCountFn) {
-    super(cluster, traitSet, table, pluginId, tableMetadata, PROJECTED_COLS, observedRowcountAdjustment);
+                            TableMetadata tableMetadata, double observedRowcountAdjustment, boolean allowRecursiveListing,
+                            Function<RelMetadataQuery, Double> estimateRowCountFn, List<Info> runtimeFilters) {
+    super(cluster, traitSet, table, pluginId, tableMetadata, PROJECTED_COLS, observedRowcountAdjustment, runtimeFilters);
     this.allowRecursiveListing = allowRecursiveListing;
     this.estimateRowCountFn = estimateRowCountFn;
   }
 
   @Override
   public DirListingScanPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, allowRecursiveListing, estimateRowCountFn);
+    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, allowRecursiveListing, estimateRowCountFn, getRuntimeFilters());
   }
 
   @Override
   public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
-    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, allowRecursiveListing, estimateRowCountFn);
+    return new DirListingScanPrel(getCluster(), traitSet, table, pluginId, tableMetadata, observedRowcountAdjustment, allowRecursiveListing, estimateRowCountFn, getRuntimeFilters());
   }
 
   @Override

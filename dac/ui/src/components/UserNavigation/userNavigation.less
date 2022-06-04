@@ -18,24 +18,46 @@
 :global {
   .userNavigation {
     &__container {
-      background-color: @PRIMARY_100;
+      background-color: @FIGMA_USERNAV_BACKGROUND;
       min-width: 272px;
+      font-size: 14px;
     }
 
     &__link:hover {
       text-decoration: none !important; // Have to set important here since global anchor has a !important to show underline
     }
 
+    &__iconContainer {
+      margin-left: 8px;
+    }
+
+    &__titleContainer {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      color: @FIGMA_TEXT_MAIN;
+    }
+
     &__title {
       display: flex;
       flex-direction: row;
       align-items: center;
-      padding: 0 16px;
-      background-color: @PRIMARY_200;
-      height: 54px;
-      margin-bottom: 20px;
-      font-weight: 500;
-      font-size: 18px;
+      padding: 9px 16px;
+      background-color: @FIGMA_PRIMARY_150;
+      height: 64px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    &__loneTitle {
+      padding: 9px 20px;
+    }
+
+    &__location {
+      font-size: 12px;
+      padding-bottom: 4px;
+      font-weight: 400;
+      color: @TROUT;
     }
 
     &__item, &__header, &__headerLink, &__navigation {
@@ -45,16 +67,14 @@
       margin: 2px 16px 0 54px;
       border-radius: 4px;
       text-decoration: none;
-      color: @BLACK;
-      font-weight: 300;
-
-      &:hover {
-        background-color: @PRIMARY_300;
-      }
+      color: @FIGMA_TEXT_MAIN;
+      font-weight: 400;
+      height: 40px;
 
       &.--selected {
-        background-color: @PRIMARY_900 !important; // Important is needed here to ignore the :hover's background
+        background-color: @FIGMA_PRIMARY_600 !important; // Important is needed here to ignore the :hover's background
         color: @WHITE;
+        font-weight: 600;
       }
     }
 
@@ -67,9 +87,9 @@
     }
 
     &__headerLink {
-      margin: 2px 16px 0 16px;
+      margin: 0px 16px 0 16px;
       &:hover {
-        background-color: @PRIMARY_300;
+        background-color: @FIGMA_PRIMARY_150;
       }
     }
 
@@ -88,19 +108,19 @@
       margin: 0 8px 0 0;
       height: 24px;
       width: 24px;
-      &.--unselected {
-        filter: invert(48%) sepia(8%) saturate(774%) hue-rotate(174deg) brightness(94%) contrast(80%);
-      }
     }
 
-    
+    &__itemList {
+      margin-top: 8px;
+    }
+
     &__title-icon {
-      margin: 0 8px;
+      margin-right: 8px;
       height: 24px;
       width: 24px;
     }
   }
   #selected {
-    filter: invert(91%) sepia(10%) saturate(944%) hue-rotate(146deg) brightness(97%) contrast(85%);
+    filter: brightness(0) invert(1);
   }
 }

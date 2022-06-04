@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12.0796 17.7744L11.9796 17.7814C11.7981 17.7816 11.6228 17.7161 11.486 17.5969C11.3492 17.4778 11.2602 17.3131 11.2356 17.1334L11.2286 17.0314L11.2296 9.77737L9.72759 11.2804C9.60061 11.4074 9.43223 11.4846 9.25312 11.498C9.07402 11.5114 8.89605 11.4601 8.75158 11.3534L8.66758 11.2814C8.5403 11.1543 8.4629 10.9858 8.44951 10.8064C8.43611 10.6271 8.48759 10.4489 8.59458 10.3044L8.66658 10.2204L11.4456 7.43837C11.5725 7.31135 11.7409 7.23413 11.92 7.22073C12.0991 7.20733 12.2771 7.25866 12.4216 7.36537L12.5056 7.43837L15.335 10.2636C15.468 10.3976 15.5455 10.5768 15.5521 10.7655C15.5588 10.9541 15.4941 11.1384 15.3708 11.2814C15.2476 11.4244 15.075 11.5157 14.8875 11.5371C14.6999 11.5584 14.5112 11.5083 14.359 11.3966L14.275 11.3246L12.7296 9.78137V17.0314C12.7295 17.2129 12.6636 17.3883 12.544 17.5249C12.4245 17.6615 12.2595 17.7502 12.0796 17.7744Z" fill="#505862"/>
+</svg>

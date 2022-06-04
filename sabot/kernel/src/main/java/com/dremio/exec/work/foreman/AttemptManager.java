@@ -52,6 +52,7 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.util.Utilities;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.user.OptionProvider;
@@ -102,8 +103,9 @@ public class AttemptManager implements Runnable {
   private static final Counter RUN_1D = Metrics.newCounter(Metrics.join("jobs", "active_1d"), ResetType.PERIODIC_1D);
   private static final Counter FAILED_15M = Metrics.newCounter(Metrics.join("jobs", "failed_15m"), ResetType.PERIODIC_15M);
   private static final Counter FAILED_1D = Metrics.newCounter(Metrics.join("jobs", "failed_1d"), ResetType.PERIODIC_1D);
-  private static final Counter SERVER_ERROR_15M = Metrics.newCounter(Metrics.join("jobs",
-    "server_error_15m"), ResetType.PERIODIC_15M);
+  private static final Counter FAILED = Metrics.newCounter(Metrics.join("jobs", "failed"), ResetType.NEVER);
+  private static final Counter SERVER_ERROR = Metrics.newCounter(Metrics.join("jobs", "server_error"), ResetType.NEVER);
+  private static final Counter TOTAL = Metrics.newCounter(Metrics.join("jobs", "total"), ResetType.NEVER);
   private static final Set<UserBitShared.DremioPBError.ErrorType> CLIENT_ERRORS =
     ImmutableSet.of(UserBitShared.DremioPBError.ErrorType.PARSE,
       UserBitShared.DremioPBError.ErrorType.PERMISSION,
@@ -134,8 +136,6 @@ public class AttemptManager implements Runnable {
   @VisibleForTesting
   public static final String INJECTOR_TAIL_PROFLE_ERROR = "tail-profile-error";
 
-  @VisibleForTesting
-  public static final String INJECTOR_GET_FULL_PROFLE_ERROR = "get-full-profile-error";
 
   @VisibleForTesting
   public static final String INJECTOR_METADATA_RETRIEVAL_PAUSE = "metadata-retrieval-pause";
@@ -215,6 +215,7 @@ public class AttemptManager implements Runnable {
 
     RUN_15M.increment();
     RUN_1D.increment();
+    TOTAL.increment();
     recordNewState(QueryState.ENQUEUED);
     injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_CONSTRUCTOR_ERROR);
   }
@@ -557,15 +558,16 @@ public class AttemptManager implements Runnable {
 
       FAILED_15M.increment();
       FAILED_1D.increment();
+      FAILED.increment();
       // increment server error only ifs not a known client error
       if (exception instanceof UserException) {
         UserBitShared.DremioPBError.ErrorType errorType =
           ((UserException) exception).getErrorType();
         if (!CLIENT_ERRORS.contains(errorType)) {
-          SERVER_ERROR_15M.increment();
+          SERVER_ERROR.increment();
         }
       } else {
-        SERVER_ERROR_15M.increment();
+        SERVER_ERROR.increment();
       }
       resultState = QueryState.FAILED;
       resultException = exception;
@@ -689,11 +691,12 @@ public class AttemptManager implements Runnable {
          * send anything to.
          */
 
+        UserBitShared.QueryProfile queryProfile = null;
         boolean sendTailProfileFailed = false;
         try {
           // send whatever result we ended up with
           injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_TAIL_PROFLE_ERROR);
-          profileTracker.sendTailProfile(uex);
+          queryProfile = profileTracker.sendTailProfile(uex);
         } catch (Exception e) {
           logger.warn("Exception sending tail profile. Setting query state to failed", resultException);
           sendTailProfileFailed = true;
@@ -705,32 +708,37 @@ public class AttemptManager implements Runnable {
               .addContext("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing.")
               .addIdentity(queryContext.getCurrentEndpoint()).build(logger);
           }
-        }
-
-        UserBitShared.QueryProfile queryProfile = null;
-        try {
-          injector.injectUnchecked(queryContext.getExecutionControls(), INJECTOR_GET_FULL_PROFLE_ERROR);
-          queryProfile = profileTracker.getFullProfile();
-
-          // full profile from store will not have latest info when sendTailProfile fails, so update with in-memory state
-          if (sendTailProfileFailed) {
-            QueryProfile.Builder profileBuilder = queryProfile.toBuilder();
-            profileTracker.addLatestState(profileBuilder);
-            queryProfile = profileBuilder.build();
-          }
-        } catch (Exception e) {
-          logger.warn("Exception while getting full profile. Setting query state to failed", e);
-          addException(e);
-          recordNewState(QueryState.FAILED);
-          resultState = QueryState.FAILED;
-          if (uex == null) {
-            uex = UserException.systemError(resultException)
-              .addContext("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing.")
-              .addIdentity(queryContext.getCurrentEndpoint()).build(logger);
-          }
-          // As full profile cannot be retrieved and as we are marking the query as failed, let us get the planning profile
+          // As tail profile cannot be retrieved and as we are marking the query as failed, let us get the planning profile
           // to use in query result.
           queryProfile = profileTracker.getPlanningProfile();
+        }
+
+        // Reflection queries are dependant on stats in Executor Profile, so fetching full profile instead of just planning profile
+        if (Utilities.isAccelerationType(queryContext.getWorkloadType())) {
+          try {
+            logger.debug("Fetching full profile for Acceleration type queries.");
+            queryProfile = profileTracker.getFullProfile();
+
+            // full profile from store will not have latest info when sendTailProfile fails, so update with in-memory state
+            if (sendTailProfileFailed) {
+              QueryProfile.Builder profileBuilder = queryProfile.toBuilder();
+              profileTracker.addLatestState(profileBuilder);
+              queryProfile = profileBuilder.build();
+            }
+          } catch (Exception e) {
+            logger.warn("Exception while getting full profile. Setting query state to failed", e);
+            addException(e);
+            recordNewState(QueryState.FAILED);
+            resultState = QueryState.FAILED;
+            if (uex == null) {
+              uex = UserException.systemError(resultException)
+                .addContext("Query failed due to kvstore or network errors. Details and profile information for this job may be partial or missing.")
+                .addIdentity(queryContext.getCurrentEndpoint()).build(logger);
+            }
+            // As full profile cannot be retrieved and as we are marking the query as failed, let us get the planning profile
+            // to use in query result.
+            queryProfile = profileTracker.getPlanningProfile();
+          }
         }
 
         try {

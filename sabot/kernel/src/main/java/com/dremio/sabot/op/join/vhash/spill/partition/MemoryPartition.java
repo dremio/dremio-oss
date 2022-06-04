@@ -31,6 +31,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
 import com.dremio.sabot.op.join.vhash.spill.list.PageListMultimap;
 import com.dremio.sabot.op.join.vhash.spill.pool.PagePool;
@@ -44,6 +45,7 @@ class MemoryPartition implements Partition {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryPartition.class);
 
   private final JoinSetupParams setupParams;
+  private final CopierFactory copierFactory;
   private final BufferAllocator allocator;
   private final PagePool pool;
   private final long sv2Addr;
@@ -59,8 +61,9 @@ class MemoryPartition implements Partition {
   private VectorizedProbe probe = null;
   private int buildBatchIndex = 0;
 
-  MemoryPartition(JoinSetupParams setupParams, int partitionIdx, long sv2Addr, long tableHashAddr4B)  {
+  MemoryPartition(JoinSetupParams setupParams, CopierFactory copierFactory, int partitionIdx, long sv2Addr, long tableHashAddr4B)  {
     this.setupParams = setupParams;
+    this.copierFactory = copierFactory;
     this.allocator = setupParams.getBuildAllocator().newChildAllocator("partition-" + partitionIdx, 0, Long.MAX_VALUE);
     this.sv2Addr = sv2Addr;
     this.tableHashAddr4B = tableHashAddr4B;
@@ -71,9 +74,9 @@ class MemoryPartition implements Partition {
      */
 
     // hash table
-    this.table = new BlockJoinTable(setupParams.getBuildKeyPivot(), setupParams.getProbeKeyPivot(), allocator,
-      setupParams.getComparator(),
-      (int)setupParams.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE);
+    this.table = new BlockJoinTable(setupParams.getBuildKeyPivot(), allocator, setupParams.getComparator(),
+      (int)setupParams.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE,
+      setupParams.getSabotConfig(), setupParams.getOptions());
     // linked list to link duplicate records (not collisions)
     this.linkedList = new PageListMultimap(pool);
     // slicer to slice and copy incoming build batch into fixed size pages.
@@ -82,6 +85,11 @@ class MemoryPartition implements Partition {
     this.hyperContainer = new ExpandableHyperContainer(allocator, setupParams.getCarryAlongSchema());
     // temp buffer to hold hash table ordinals, post-insertion into the table
     this.hashTableOrdinals4B = allocator.buffer(setupParams.getMaxInputBatchSize() * ORDINAL_SIZE);
+  }
+
+  @Override
+  public void hashPivoted(int records, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashoutAddr8B) {
+    table.hashPivoted(records, keyFixedVectorAddr, keyVarVectorAddr, seed, hashoutAddr8B);
   }
 
   @Override
@@ -138,7 +146,7 @@ class MemoryPartition implements Partition {
 
   private void checkAndCreateProbe() {
     if (probe == null) {
-      probe = new VectorizedProbe(setupParams, sv2Addr, tableHashAddr4B, table, linkedList, hyperContainer);
+      probe = new VectorizedProbe(setupParams, copierFactory, sv2Addr, tableHashAddr4B, table, linkedList, hyperContainer);
     }
   }
 

@@ -17,8 +17,9 @@
 package com.dremio.exec.planner.physical.visitor;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.calcite.rel.RelNode;
@@ -43,12 +44,14 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
   private static final AtomicLong tableNumber = new AtomicLong(0);
 
-  private boolean prefixedForStar = false;
-  private boolean prefixedForWriter = false;
+  private boolean prefixedForStar;
+  private boolean prefixedForWriter;
+  private boolean prefixedForStarUsed;
 
   private StarColumnConverter() {
     prefixedForStar = false;
     prefixedForWriter = false;
+    prefixedForStarUsed = false;
   }
 
   public static Prel insertRenameProject(Prel root) {
@@ -73,7 +76,7 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
   public Prel visitScreen(ScreenPrel prel, Void value) throws RuntimeException {
     Prel child = ((Prel) prel.getInput(0)).accept(this, null);
 
-    if (prefixedForStar) {
+    if (prefixedForStar && prefixedForStarUsed) {
       if (!prefixedForWriter) {
         // Prefix is added for SELECT only, not for CTAS writer.
         return insertProjUnderScreenOrWriter(prel, prel.getInput().getRowType(), child);
@@ -190,6 +193,7 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
   @Override
   public Prel visitLeaf(LeafPrel scanPrel, Void value) throws RuntimeException {
     if (StarColumnHelper.containsStarColumn(scanPrel.getRowType()) && prefixedForStar ) {
+      prefixedForStarUsed = true;
 
       List<RexNode> exprs = Lists.newArrayList();
 
@@ -228,8 +232,9 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
     // That means we should pick a different name that does not conflict with the original names, in additional
     // to make sure it's unique in the set of unique names.
 
-    HashSet<String> uniqueNames = new HashSet<>();
-    HashSet<String> origNames = new HashSet<>(names);
+    Set<String> uniqueNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    Set<String> origNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+    origNames.addAll(names);
 
     List<String> newNames = Lists.newArrayList();
 

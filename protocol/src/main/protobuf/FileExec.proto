@@ -1,0 +1,33 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto2";
+package exec.bit.data;
+
+option java_package = "com.dremio.exec.proto";
+option java_outer_classname = "FileExec";
+option optimize_for = SPEED;
+
+import "ExecRPC.proto";
+
+message FileMessage {
+  optional RpcType type = 1;
+  optional int64 msg_seq = 2;
+  optional int64 body_size = 3;
+
+  optional FragmentRecordBatch record_batch = 6;
+  optional FragmentStreamComplete stream_complete = 7;
+}
+

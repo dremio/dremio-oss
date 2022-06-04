@@ -22,7 +22,12 @@ import DocumentTitle from 'react-document-title';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import uuid from 'uuid';
-import { loadJobDetails, JOB_DETAILS_VIEW_ID } from 'actions/joblist/jobList';
+import {
+  loadJobDetails,
+  JOB_DETAILS_VIEW_ID,
+  fetchJobExecutionDetails,
+  fetchJobExecutionOperatorDetails
+} from 'actions/joblist/jobList';
 import { showJobProfile, cancelJobAndShowNotification } from 'actions/jobs/jobs';
 import { updateViewState } from 'actions/resources';
 import { downloadFile } from 'sagas/downloadFile';
@@ -30,21 +35,24 @@ import { getViewState } from 'selectors/resources';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import jobsUtils from '@app/utils/jobsUtils';
+import { renderContent } from 'dyn-load/utils/jobsUtils';
 import SideNav from '@app/components/SideNav/SideNav';
 import socket from '@inject/utils/socket';
+import { GetIsSocketForSingleJob } from '@inject/pages/JobDetailsPageNew/utils';
 
 import TopPanel from './components/TopPanel/TopPanel';
-import OverView from './components/OverView/OverView';
-import SQL from './components/SQLTab/SQLTab';
-import Profile from './components/Profile/Profile';
 import './JobDetailsPage.less';
+
+const POLL_INTERVAL = 3000;
 
 const JobDetailsPage = (props) => {
   const isSqlContrast = localStorageUtils.getSqlThemeContrast();
   const [currentTab, setCurrentTab] = useState('Overview');
   const [isContrast, setIsContrast] = useState(isSqlContrast);
   const [jobDetails, setJobDetails] = useState(Immutable.Map());
+  const [pollId, setPollId] = useState(null);
   const [isListeningForProgress, setIsListeningForProgress] = useState(false);
+
   const {
     intl: {
       formatMessage
@@ -57,81 +65,156 @@ const JobDetailsPage = (props) => {
     getJobDetails,
     showJobIdProfile,
     cancelJob,
-    totalAttempts,
     getViewStateDetails,
-    jobDetailsFromStore
+    jobDetailsFromStore,
+    getJobExecutionDetails,
+    jobExecutionDetails,
+    getJobExecutionOperatorDetails,
+    jobExecutionOperatorDetails
   } = props;
+
+  const propsForRenderContent = {
+    jobDetails,
+    downloadJobFile,
+    isContrast,
+    setIsContrast,
+    jobDetailsFromStore,
+    showJobIdProfile,
+    jobId,
+    jobExecutionDetails,
+    getJobExecutionOperatorDetails,
+    jobExecutionOperatorDetails,
+    location
+  };
 
   // TODO: Revisit this to fetch the info from socket instead of making multiple calls to get job details
   useEffect(() => {
-    // Skip start action for updates to the same job to avoid screen flickering (due to the spinner)
-    const skipStartAction = jobDetails && jobDetails.size !== 0 && jobDetails.get('id') === jobId;
-    getJobDetails(jobId, JOB_DETAILS_VIEW_ID, totalAttempts, skipStartAction)
-      .then((response) => {
-        if (!response) return; // no-payload error
+    if (GetIsSocketForSingleJob()) {
+      const { query: { attempts = 1 } = {} } = location || {};
 
-        if (!response.error) {
-          if (
-            (jobDetails.size === 0 || jobDetails.get('id') !== jobId) &&
-            jobsUtils.isJobRunning(response.jobStatus)
-          ) {
-            socket.startListenToQVJobProgress(jobId);
-            setIsListeningForProgress(true);
-          }
-          setJobDetails(Immutable.fromJS(response));
-        } else if (response.status === 404) {
-          const errorMessage = formatMessage({ id: 'Job.Details.NoData'});
-          getViewStateDetails(JOB_DETAILS_VIEW_ID, {
-            isFailed: false,
-            isWarning: true,
-            isInProgress: false,
-            error: {
-              message: errorMessage,
-              id: uuid.v4()
-            }
-          });
+      const skipStartAction =
+        jobDetails && jobDetails.size !== 0 && jobDetails.get('id') === jobId;
+      fetchJobDetails(skipStartAction);
+      const jobAttempt = jobDetailsFromStore
+        ? jobDetailsFromStore.get('totalAttempts')
+        : attempts;
+      router.replace({
+        ...location,
+        query: {
+          attempts: jobAttempt
         }
       });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId, jobDetailsFromStore]);
+
+  useEffect(() => {
+    const pollJobDetails = async () => {
+      const firstResponse = await fetchJobDetails();
+      if (
+        firstResponse &&
+        jobsUtils.isJobRunning(firstResponse && firstResponse.jobStatus)
+      ) {
+        const id = setInterval(async () => {
+          const { query: { attempts = 1 } = {} } = location || {};
+          let jobAttempts = attempts;
+          const response = await fetchJobDetails(true);
+          if (
+            response &&
+            response.totalAttempts &&
+            attempts !== response.totalAttempts
+          ) {
+            jobAttempts = response.totalAttempts;
+          } else if (
+            response &&
+            response.attemptDetails &&
+            attempts !== response.attemptDetails.length
+          ) {
+            jobAttempts = response.attemptDetails.length;
+          }
+          router.replace({
+            ...location,
+            query: {
+              attempts: jobAttempts
+            }
+          });
+          if (!jobsUtils.isJobRunning(response && response.jobStatus)) {
+            clearInterval(id);
+          }
+        }, POLL_INTERVAL);
+        setPollId(id);
+      }
+    };
+    if (!GetIsSocketForSingleJob() && jobId) {
+      pollJobDetails();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
 
   useEffect(() => {
     if (isListeningForProgress) {
       return () => socket.stoptListenToQVJobProgress(jobId);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isListeningForProgress]);
+
+  useEffect(() => {
+    if (pollId) {
+      return () => clearInterval(pollId);
+    }
+  }, [pollId]);
+
+  const fetchJobDetails = async (skipStartAction) => {
+    const { query: { attempts = 1 } = {} } = location || {};
+    // Skip start action for updates to the same job to avoid screen flickering (due to the spinner)
+    const response = await getJobDetails(
+      jobId,
+      JOB_DETAILS_VIEW_ID,
+      attempts,
+      skipStartAction
+    );
+    if (!response) return; // no-payload error
+
+    if (!response.error) {
+      if (
+        GetIsSocketForSingleJob() &&
+        (jobDetails.size === 0 || jobDetails.get('id') !== jobId) &&
+        jobsUtils.isJobRunning(response.jobStatus)
+      ) {
+        socket.startListenToQVJobProgress(jobId);
+        setIsListeningForProgress(true);
+      }
+      setJobDetails(Immutable.fromJS(response));
+    } else if (response.status === 404) {
+      const errorMessage = formatMessage({ id: 'Job.Details.NoData' });
+      getViewStateDetails(JOB_DETAILS_VIEW_ID, {
+        isFailed: false,
+        isWarning: true,
+        isInProgress: false,
+        error: {
+          message: errorMessage,
+          id: uuid.v4()
+        }
+      });
+    }
+    getJobExecutionDetails(
+      jobId,
+      JOB_DETAILS_VIEW_ID,
+      attempts,
+      skipStartAction
+    );
+    return response;
+  };
+
+  const jobStatus = jobDetailsFromStore && GetIsSocketForSingleJob() ?
+    jobDetailsFromStore.get('state') :
+    jobDetails.get('jobStatus');
 
   const breadcrumbRouting = () => {
     const { state: { history } } = location;
     router.push({
       ...history
     });
-  };
-
-  const renderContent = (contentPage) => {
-    switch (contentPage) {
-    case 'Overview':
-      return <OverView
-        sql={jobDetails.get('queryText')}
-        jobDetails={jobDetails}
-        downloadJobFile={downloadJobFile}
-        isContrast = {isContrast}
-        onClick = {setIsContrast}
-        status={jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')}
-        location={location}
-      />;
-    case 'SQL':
-      return <SQL
-        submittedSql={jobDetails.get('queryText')}
-        datasetGraph={jobDetails.get('datasetGraph')}
-        algebricMatch={jobDetails.get('algebraicReflectionsDataset')}
-        isContrast = {isContrast}
-        onClick = {setIsContrast}
-      />;
-    case 'Profile':
-      return <Profile jobDetails={jobDetails} showJobProfile={showJobIdProfile}/>;
-    default:
-      return <OverView sql={jobDetails.get('queryText')} status={jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')} />;
-    }
   };
 
   return (
@@ -149,14 +232,14 @@ const JobDetailsPage = (props) => {
                     jobId={jobDetails.get('id')}
                     breadcrumbRouting={breadcrumbRouting}
                     setComponent={setCurrentTab}
-                    jobStatus={ jobDetailsFromStore ? jobDetailsFromStore.get('state') : jobDetails.get('jobStatus')}
+                    jobStatus={ jobStatus}
                     jobDetails={jobDetails}
                     showJobProfile={showJobIdProfile}
                     cancelJob={cancelJob}
                   />
                 </div>
-                <div className='gutter-left--double full-height'>
-                  {renderContent(currentTab)}
+                <div className='gutter-left--double gutter-right--double full-height jobDetails__bottomPanel'>
+                  {renderContent(currentTab, propsForRenderContent)}
                 </div>
               </div>
             }
@@ -174,13 +257,16 @@ JobDetailsPage.propTypes = {
   jobId: PropTypes.string,
   getJobDetails: PropTypes.func,
   showJobIdProfile: PropTypes.func,
-  totalAttempts: PropTypes.number,
   getViewStateDetails: PropTypes.func,
   downloadJobFile: PropTypes.func,
   cancelJob: PropTypes.func,
   jobDetailsFromStore: PropTypes.object,
   router: PropTypes.object.isRequired,
-  location: PropTypes.object.isRequired
+  location: PropTypes.object.isRequired,
+  getJobExecutionDetails: PropTypes.func,
+  getJobExecutionOperatorDetails: PropTypes.func,
+  jobExecutionDetails: PropTypes.any,
+  jobExecutionOperatorDetails: PropTypes.any
 };
 
 
@@ -200,7 +286,9 @@ function mapStateToProps(state, ownProps) {
     jobId,
     totalAttempts,
     jobDetailsFromStore: currentJob,
-    viewState: getViewState(state, JOB_DETAILS_VIEW_ID)
+    viewState: getViewState(state, JOB_DETAILS_VIEW_ID),
+    jobExecutionDetails: state.jobs.jobs.get('jobExecutionDetails'),
+    jobExecutionOperatorDetails: state.jobs.jobs.get('jobExecutionOperatorDetails')
   };
 }
 
@@ -209,7 +297,9 @@ const mapDispatchToProps = {
   showJobIdProfile: showJobProfile,
   getViewStateDetails: updateViewState,
   cancelJob: cancelJobAndShowNotification,
-  downloadJobFile: downloadFile
+  downloadJobFile: downloadFile,
+  getJobExecutionDetails: fetchJobExecutionDetails,
+  getJobExecutionOperatorDetails: fetchJobExecutionOperatorDetails
 };
 
 export default compose(

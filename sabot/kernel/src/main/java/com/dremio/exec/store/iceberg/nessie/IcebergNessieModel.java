@@ -15,44 +15,83 @@
  */
 package com.dremio.exec.store.iceberg.nessie;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.projectnessie.client.api.NessieApiV1;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.store.NoDefaultBranchException;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
 import com.dremio.io.file.FileSystem;
+import com.dremio.plugins.NessieClient;
+import com.dremio.plugins.NessieClientImpl;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.service.nessieapi.ContentsApiGrpc;
-import com.dremio.service.nessieapi.TreeApiGrpc;
 
 /**
  * Iceberg nessie model
  */
 public class IcebergNessieModel extends IcebergBaseModel {
-    private final ContentsApiGrpc.ContentsApiBlockingStub nessieContentsApiBlockingStub;
-    private final TreeApiGrpc.TreeApiBlockingStub treeApiBlockingStub;
+    private final NessieClient nessieClient;
+    private final MutablePlugin plugin;
 
     public IcebergNessieModel(String namespace, Configuration configuration,
-                              ContentsApiGrpc.ContentsApiBlockingStub nessieContentsApiBlockingStub,
-                              TreeApiGrpc.TreeApiBlockingStub treeApiBlockingStub,
-                              FileSystem fs, OperatorContext context, List<String> dataset,
-                              DatasetCatalogGrpcClient datasetCatalogGrpcClient) {
-        super(namespace, configuration, fs, context, dataset, datasetCatalogGrpcClient);
-        this.nessieContentsApiBlockingStub = nessieContentsApiBlockingStub;
-        this.treeApiBlockingStub = treeApiBlockingStub;
+                              NessieApiV1 api,
+                              FileSystem fs, OperatorContext context,
+                              DatasetCatalogGrpcClient datasetCatalogGrpcClient,
+                              MutablePlugin plugin) {
+        super(namespace, configuration, fs, context, datasetCatalogGrpcClient, plugin);
+        this.nessieClient = new NessieClientImpl(api);
+        this.plugin = plugin;
     }
 
-    protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
-        return new IcebergNessieCommand(tableIdentifier, this.configuration,
-                this.nessieContentsApiBlockingStub, this.treeApiBlockingStub,
-                fs, context, dataset);
-    }
+  protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
+    IcebergNessieTableOperations tableOperations = new IcebergNessieTableOperations((context == null ? null : context.getStats()),
+      nessieClient,
+      new DremioFileIO(fs, context, null, null, null, configuration, plugin),
+      ((IcebergNessieTableIdentifier) tableIdentifier));
+    return new IcebergNessieCommand(tableIdentifier, configuration, fs, tableOperations);
+  }
 
     @Override
     public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
         return new IcebergNessieTableIdentifier(namespace, rootFolder);
     }
+
+  @Override
+  public void deleteTable(IcebergTableIdentifier tableIdentifier) {
+    super.deleteTable(tableIdentifier);
+
+  }
+
+  private void deleteKey(IcebergNessieTableIdentifier icebergNessieTableIdentifier) {
+    nessieClient.deleteCatalogEntry(
+      getNessieKey(icebergNessieTableIdentifier.getTableIdentifier()),
+      getDefaultBranch());
+  }
+
+  private List<String> getNessieKey(TableIdentifier tableIdentifier) {
+    return Arrays.asList(
+      tableIdentifier.namespace().toString(),
+      tableIdentifier.name());
+  }
+
+  private ResolvedVersionContext getDefaultBranch() {
+    try {
+      return nessieClient.getDefaultBranch();
+    } catch (NoDefaultBranchException e) {
+      throw UserException.sourceInBadState(e)
+        .message("No default branch set.")
+        .buildSilently();
+    }
+  }
+
 }

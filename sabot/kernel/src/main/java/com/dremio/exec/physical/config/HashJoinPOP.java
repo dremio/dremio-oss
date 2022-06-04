@@ -21,7 +21,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.calcite.rel.core.JoinRelType;
 
@@ -31,7 +30,6 @@ import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
-import com.dremio.exec.planner.physical.filter.RuntimeFilterEntry;
 import com.dremio.exec.planner.physical.filter.RuntimeFilterInfo;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -130,8 +128,8 @@ public class HashJoinPOP extends AbstractBase {
     if (getRuntimeFilterInfo() == null) {
       return Collections.emptySet();
     }
-    // Collect all probe scan side major fragments on runtime filter join columns.
-    return Stream.concat(getRuntimeFilterInfo().getPartitionJoinColumns().stream(), getRuntimeFilterInfo().getNonPartitionJoinColumns().stream())
-            .map(RuntimeFilterEntry::getProbeScanMajorFragmentId).collect(Collectors.toSet());
+    return runtimeFilterInfo.getRuntimeFilterProbeTargets().stream()
+      .map(RuntimeFilterProbeTarget::getProbeScanMajorFragmentId)
+      .collect(Collectors.toSet());
   }
 }

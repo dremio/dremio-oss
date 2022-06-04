@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.text;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.DATA_READ;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -47,7 +48,6 @@ import com.dremio.common.util.FileUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.hadoop.HadoopCompressionCodecFactory;
 import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SampleMutator;
@@ -59,7 +59,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.test.AllocatorRule;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestNewTextReader extends BaseTestQuery {
 
@@ -262,13 +262,13 @@ public class TestNewTextReader extends BaseTestQuery {
     p.print("5,7\n");
     p.close();
 
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ,
-      "DATA_READ ERROR: UTF-16 files not supported"));
     // NB: using test() instead of testBuilder() because it unwraps the thrown RpcException and re-throws the
-    // underlying UserException (which is then matched with the UserExceptionMatcher)
-    test(String.format("select * from table(dfs.\"%s\" (type => 'text', " +
+    // underlying UserException
+    UserExceptionAssert.assertThatThrownBy(() -> test(String.format("select * from table(dfs.\"%s\" (type => 'text', " +
         "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
-      testFile.getAbsolutePath()));
+      testFile.getAbsolutePath())))
+      .hasErrorType(DATA_READ)
+      .hasMessageContaining("DATA_READ ERROR: UTF-16 files not supported");
   }
 
   @Test

@@ -47,6 +47,8 @@ public final class Conditions {
    */
   public static final PushProjector.ExprCondition PRESERVE_ITEM_CASE = new PushProjectorExprCondition();
 
+  public static final PushProjector.ExprCondition PRESERVE_CASE_NESTED_FIELDS = new PushProjectorExprConditionForNestedFields();
+
   private static class PushProjectorExprCondition extends PredicateImpl<RexNode>
     implements PushProjector.ExprCondition {
     @Override
@@ -57,6 +59,21 @@ public final class Conditions {
             || "case".equals(call.getOperator().getName().toLowerCase())
             || STRUCTURED_WRAPPER.getName().equalsIgnoreCase(call.getOperator().getName())
         );
+      }
+      return false;
+    }
+  };
+
+  private static class PushProjectorExprConditionForNestedFields extends PredicateImpl<RexNode>
+    implements PushProjector.ExprCondition {
+    @Override
+    public boolean test(RexNode expr) {
+      if (expr instanceof RexCall) {
+        RexCall call = (RexCall)expr;
+        return
+          "case".equals(call.getOperator().getName().toLowerCase())
+          || STRUCTURED_WRAPPER.getName().equalsIgnoreCase(call.getOperator().getName())
+          || "dot".equals(call.getOperator().getName().toLowerCase());
       }
       return false;
     }

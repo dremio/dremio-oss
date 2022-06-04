@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.server.options;
 
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;

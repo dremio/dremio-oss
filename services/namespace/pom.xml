@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.2.0-202205262146080444-038d6d1b</version>
   </parent>
   <artifactId>dremio-services-namespace</artifactId>
   <name>Services - Namespace</name>
@@ -132,6 +132,11 @@
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

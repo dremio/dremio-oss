@@ -117,7 +117,8 @@ public abstract class JSONOutputRecordWriter extends AbstractRowBasedRecordWrite
   <#case "Float8">
     <#assign typeName = "Double">
     <#break>
-    
+
+  <#case "IntervalMonthDayNano">
   <#case "IntervalDay">
   <#case "IntervalYear">
     <#assign typeName = "Interval">

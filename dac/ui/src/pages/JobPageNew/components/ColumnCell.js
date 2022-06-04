@@ -30,11 +30,6 @@ const ColumnCell = ({ data, isNumeric }) => {
     border: '1.5px solid #43B8C9'
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => setTooltipOpen(false), 3000);
-    return () => clearTimeout(timer);
-  }, [tooltipOpen]);
-
   const handleMouseEnter = () => {
     if (isTruncated) {
       setTooltipOpen(true);
@@ -56,6 +51,9 @@ const ColumnCell = ({ data, isNumeric }) => {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       data-qa='columnCell'
+      className={classNames({
+        'jobsContent__noDataCell': !data
+      })}
     >
       <div className={classNames(
         { 'jobsContent__columnCell': isTruncated },

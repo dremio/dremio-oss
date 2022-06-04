@@ -1,0 +1,108 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "~@app/uiTheme/less/mixins.less";
+@import "~@app/uiTheme/less/color-schema.less";
+
+:global {
+    .nessieBreadcrumb {
+        font-size: 16px;
+        font-weight: 400;
+        .flex-center;
+        .font-icon {
+            display: flex !important;
+        }
+
+        .MuiBreadcrumbs-separator {
+            margin-left: 4px;
+            margin-right: 4px;
+        }
+
+        &-menuTrigger {
+            cursor: pointer;
+        }
+        
+        .MuiBreadcrumbs-root {
+            color: @MAIN_TEXT !important;
+            font-size: 16px !important;
+            margin-left: 4px;
+        }
+
+        .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+            max-width: 375px;
+            white-space: nowrap;
+            display: inline-block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: top;
+        }
+
+        &-repoIcon {
+            display: flex;
+            color: @FIGMA_TEXT_LESS_IMPORTANT;
+        }
+
+        .MuiBreadcrumbs-separator,
+        span.nessieBreadcrumb-item {
+            font-weight: 600;
+        }
+    }
+
+    #nessieBreadcrumb-popper {
+        .menuContent-item {
+            padding: 4px 0px;
+            background: white;
+            box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+        }
+
+        .nessieBreadcrumb-menuItem {
+            color: @TEXT_COLOR;
+            .flex-center;
+            padding: 0 18px;
+            font-size: 14px;
+            
+            transition: background-color 0.2s linear;
+            &:focus, &:hover {
+                text-decoration: none !important;
+                background-color: @PRIMARY_100;
+            }
+
+            .font-icon {
+                display: flex !important;
+            }
+
+            .nessieBreadcrumb-menuItemContent {
+                margin-left: 4px;
+            }
+        }
+    }
+
+    @media screen and (max-width: 1692px) {
+        .nessieBreadcrumb {
+            .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+                max-width: 330px;
+            }
+        }
+      }
+
+      @media screen and (max-width: 1550px) {
+        .nessieBreadcrumb {
+            .MuiBreadcrumbs-li.MuiBreadcrumbs-li > * {
+                max-width: 240px;
+            }
+        }
+      }
+}

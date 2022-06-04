@@ -182,6 +182,13 @@ public class ReflectionGoalsStore {
 
 
   private static final class StoreConverter implements DocumentConverter<ReflectionId, ReflectionGoal> {
+    private Integer version = 0;
+
+    @Override
+    public Integer getVersion() {
+      return version;
+    }
+
     @Override
     public void convert(DocumentWriter writer, ReflectionId key, ReflectionGoal record) {
       writer.write(REFLECTION_ID, key.getId());

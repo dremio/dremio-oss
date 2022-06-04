@@ -30,6 +30,7 @@ import javax.ws.rs.client.Entity;
 
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -157,23 +158,23 @@ public class TestDatasetProfiles extends BaseTestServer {
   }
 
   private static Field bigInt(String name) {
-    return new Field(name, true, MinorType.BIGINT.getType(), null);
+    return new Field(name, new FieldType(true, MinorType.BIGINT.getType(), null), null);
   }
 
   private static Field varchar(String name) {
-    return new Field(name, true, MinorType.VARCHAR.getType(), null);
+    return new Field(name, new FieldType(true, MinorType.VARCHAR.getType(), null), null);
   }
 
   private static Field dbl(String name) {
-    return new Field(name, true, MinorType.FLOAT8.getType(), null);
+    return new Field(name, new FieldType(true, MinorType.FLOAT8.getType(), null), null);
   }
 
   private static Field map(String name, Field...children) {
-    return new Field(name, true, MinorType.STRUCT.getType(), Arrays.asList(children));
+    return new Field(name, new FieldType(true, MinorType.STRUCT.getType(), null), Arrays.asList(children));
   }
 
   private static Field list(String name, Field inner) {
-    return new Field(name, true, MinorType.LIST.getType(),
+    return new Field(name, new FieldType(true, MinorType.LIST.getType(), null),
       Collections.singletonList(inner));
   }
 

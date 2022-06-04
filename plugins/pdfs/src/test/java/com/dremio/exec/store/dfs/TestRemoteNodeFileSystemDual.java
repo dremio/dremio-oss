@@ -38,9 +38,7 @@ import org.apache.hadoop.fs.RemoteIterator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
@@ -73,8 +71,6 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
 
   @ClassRule public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
   @ClassRule  public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
-
-  @Rule public final ExpectedException exception = ExpectedException.none();
 
   private static ServiceHolder data;
   private static ServiceHolder client;

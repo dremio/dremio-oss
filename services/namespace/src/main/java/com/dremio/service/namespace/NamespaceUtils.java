@@ -42,7 +42,7 @@ public final class NamespaceUtils {
     return (t == HOME || t == SPACE || t == FOLDER || t == SOURCE);
   }
 
-  static boolean isPhysicalDataset(DatasetType datasetType) {
+  public static boolean isPhysicalDataset(DatasetType datasetType) {
     return (datasetType == DatasetType.PHYSICAL_DATASET
         || datasetType == DatasetType.PHYSICAL_DATASET_SOURCE_FILE
         || datasetType == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER);
@@ -205,5 +205,18 @@ public final class NamespaceUtils {
    */
   public static <T> List<T> getOrEmptyList(List<T> list) {
     return list == null ? Collections.emptyList() : list;
+  }
+
+  public static boolean isRestrictedInternalSource(NameSpaceContainer rootEntity) {
+    if (rootEntity.getType() != NameSpaceContainer.Type.SOURCE) {
+      return false;
+    }
+
+    final List<String> rootFullPathList = rootEntity.getFullPathList();
+    return "INFORMATION_SCHEMA".equals(rootEntity.getSource().getType())
+      || "ESYS".equals(rootEntity.getSource().getType())
+      || "ESYSFLIGHT".equals(rootEntity.getSource().getType())
+      || ("INTERNAL".equals(rootEntity.getSource().getType()) && "$scratch".equals(rootEntity.getSource().getName()))
+      || rootFullPathList.get(0).startsWith("__");
   }
 }

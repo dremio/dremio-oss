@@ -15,17 +15,18 @@
  */
 import { PureComponent } from 'react';
 import Radium from 'radium';
-import { Overlay, Portal } from 'react-overlays';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import TextHighlight from 'components/TextHighlight';
 import EllipsedText from 'components/EllipsedText';
-import {EXTRA_POPPER_CONFIG} from '@app/constants/Constants';
 // need this util as MainInfoItemName.js wraps label into a link. If we do not block event bubbling
 // redirect would occur
 import { stopPropagation } from '@app/utils/reactEventUtils';
+import Art from '../Art';
 import DatasetOverlayContent from './DatasetOverlayContent';
+
+import './DatasetItemLabel.less';
 
 @Radium
 export default class DatasetItemLabel extends PureComponent {
@@ -42,6 +43,9 @@ export default class DatasetItemLabel extends PureComponent {
     iconSize: PropTypes.oneOf(['MEDIUM', 'LARGE']),
     style: PropTypes.object,
     shouldShowOverlay: PropTypes.bool,
+    shouldAllowAdd: PropTypes.bool,
+    addtoEditor: PropTypes.func,
+    isExpandable: PropTypes.bool,
     className: PropTypes.string
   };
 
@@ -49,7 +53,7 @@ export default class DatasetItemLabel extends PureComponent {
     fullPath: Immutable.List(),
     showFullPath: false,
     iconSize: 'MEDIUM',
-    shouldShowOverlay: true
+    shouldShowOverlay: false
   };
 
   state = {
@@ -74,9 +78,9 @@ export default class DatasetItemLabel extends PureComponent {
   };
 
   handleClick = (evt) => {
-    if (!this.props.shouldShowOverlay) return;
+    if (!this.props.shouldShowOverlay || !this.props.isExpandable) return;
     stopPropagation(evt);
-    this.setOpenOverlay();
+    this.setState((prevState) => ({ isOpenOverlay: !prevState.isOpenOverlay }));
   };
 
   renderDefaultNode() {
@@ -89,10 +93,10 @@ export default class DatasetItemLabel extends PureComponent {
 
     return (
       <div style={styles.datasetLabel}>
-        <EllipsedText text={name} data-qa={name}>
+        <EllipsedText text={name} data-qa={name} className='heading'>
           <TextHighlight text={name} inputValue={inputValue}/>
         </EllipsedText>
-        { showFullPath && <EllipsedText text={joinedPath}>
+        { showFullPath && <EllipsedText text={joinedPath} className='heading2'>
           <TextHighlight text={joinedPath} inputValue={inputValue}/>
         </EllipsedText> }
       </div>
@@ -100,59 +104,63 @@ export default class DatasetItemLabel extends PureComponent {
   }
 
   render() {
-    const { fullPath, customNode, typeIcon, isNewQuery, style, iconSize, shouldShowOverlay, className } = this.props;
+    const { fullPath,
+      customNode,
+      typeIcon,
+      isNewQuery,
+      style,
+      iconSize,
+      shouldShowOverlay,
+      isExpandable,
+      className,
+      shouldAllowAdd,
+      addtoEditor
+    } = this.props;
+
     const iconStyle = iconSize === 'LARGE' ? styles.largeIcon : {};
     const labelTypeIcon = iconSize === 'LARGE' ? `${typeIcon}Large` : typeIcon;
-    const infoIconStyle = iconSize === 'LARGE' ? { width: 18, height: 18 } : {};
     const node = customNode || this.renderDefaultNode();
     const canShowOverlay = Boolean(!isNewQuery && fullPath.size && shouldShowOverlay);
-
+    const arrowIconType = this.state.isOpenOverlay ? 'ArrowDown' : 'ArrowRight';
     const showInfoIcon = canShowOverlay && (this.state.isOpenOverlay || this.state.isIconHovered);
 
     return (
       <div style={[styles.base, style]} className={className}>
-        <div
-          data-qa='info-icon'
-          style={{...styles.iconsBase, ...(showInfoIcon && {cursor: 'pointer'})}}
-          onMouseEnter={this.handleMouseEnterIcon}
-          onMouseLeave={this.handleMouseLeaveIcon}
-          onClick={this.handleClick}
-        >
-          <FontIcon
-            type={labelTypeIcon}
-            ref='dataset'
-            iconStyle={{...iconStyle, verticalAlign: 'middle', flexShrink: 0, opacity: showInfoIcon ? 0.65 : 1}}
-          />
-          {showInfoIcon && <FontIcon
-            ref='info'
-            type='Info'
-            theme={{
-              ...styles.infoTheme,
-              Icon: {
-                ...styles.infoTheme.Icon,
-                ...infoIconStyle
+
+        <div style={styles.list} className='datasetItemLabel'>
+          <div className='datasetItemLabel-item'>
+            <div
+              data-qa='info-icon'
+              style={{...styles.iconsBase, ...(showInfoIcon && isExpandable && {cursor: 'pointer'})}}
+              onMouseEnter={this.handleMouseEnterIcon}
+              onMouseLeave={this.handleMouseLeaveIcon}
+              onClick={this.handleClick}
+              className='datasetItemLabel-item__content'
+            >
+              { isExpandable &&
+                <Art src={`${arrowIconType}.svg`} alt='' style={{ height: 24, width: 24 }} />
               }
-            }}
-          />}
-        </div>
-        { node }
-        {canShowOverlay && this.state.isOpenOverlay && !this.state.isDragInProgress
-        && <Portal container={document && document.body}>
-          <div style={styles.backdrop} onClick={stopPropagation}>
+              <FontIcon
+                type={labelTypeIcon}
+                ref='dataset'
+                iconStyle={{...iconStyle, verticalAlign: 'middle', flexShrink: 0 }}
+              />
+              { node }
+            </div>
+            {
+              shouldAllowAdd &&
+                <Art
+                  src='CirclePlus.svg'
+                  alt=''
+                  className='datasetItemLabel-item__add'
+                  onClick={() => addtoEditor(fullPath)}
+                  title='Add to SQL editor'
+                />
+            }
           </div>
-        </Portal>}
-        { canShowOverlay && <Overlay
-          rootClose
-          show={this.state.isOpenOverlay}
-          onHide={this.setCloseOverlay}
-          container={document && document.body}
-          target={() => this.refs.dataset}
-          popperConfig={EXTRA_POPPER_CONFIG}
-          placement={this.props.placement || 'left'}>
-          {
-            ({ props: overlayProps }) => <DatasetOverlayContent
-              onRef={overlayProps.ref}
-              style={overlayProps.style}
+
+          { this.state.isOpenOverlay &&
+            <DatasetOverlayContent
               fullPath={fullPath}
               showFullPath
               placement={this.props.placement}
@@ -160,9 +168,11 @@ export default class DatasetItemLabel extends PureComponent {
               toggleIsDragInProgress={this.toggleIsDragInProgress}
               typeIcon={typeIcon}
               onClose={this.setCloseOverlay}
+              shouldAllowAdd={shouldAllowAdd}
+              addtoEditor={addtoEditor}
             />
           }
-        </Overlay> }
+        </div>
       </div>
     );
   }
@@ -170,23 +180,24 @@ export default class DatasetItemLabel extends PureComponent {
 
 const styles = {
   base: {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    position: 'relative'
+    width: '100%'
   },
   datasetLabel: {
     minWidth: 0,
     marginBottom: 1,
-    marginLeft: 5
+    marginLeft: 5,
+    paddingright: 10,
+    flexGrow: 1
   },
   largeIcon: {
     width: 40,
     height: 38
   },
   iconsBase: {
-    position: 'relative'
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    overflow: 'hidden'
   },
   backdrop: {
     position: 'fixed',
@@ -216,5 +227,9 @@ const styles = {
       right: 0,
       margin: 'auto'
     }
+  },
+  list: {
+    display: 'flex',
+    flexDirection: 'column'
   }
 };

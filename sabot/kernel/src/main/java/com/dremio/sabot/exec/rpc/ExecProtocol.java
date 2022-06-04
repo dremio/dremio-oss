@@ -122,7 +122,7 @@ public class ExecProtocol implements FabricProtocol {
   private void handleFragmentRecordBatch(FragmentRecordBatch fragmentBatch, ByteBuf body, ResponseSender sender)
       throws RpcException {
 
-    final AckSender ack = new AckSender(sender);
+    final AckSenderImpl ack = new AckSenderImpl(sender);
 
     // increment so we don't get false returns.
     ack.increment();

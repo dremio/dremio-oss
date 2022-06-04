@@ -140,7 +140,8 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     final int maxKillAttempts = dremioConfig.getInt(MAX_KILL_ATTEMPTS);
     final long killReattemptIntervalMs = dremioConfig.getMilliseconds(KILL_REATTEMPT_INTERVAL_MS);
     final String classpath = APPLICATION_JAR + "/lib/*:" + TWILL_JAR + "/lib/*";
-    final ProcessBuilder yarnWatchdogProcessBuilder = new ProcessBuilder("java",
+    final String javaHome = System.getenv("JAVA_HOME");
+    final ProcessBuilder yarnWatchdogProcessBuilder = new ProcessBuilder(javaHome+"/bin/java",
       "-D" + YARN_WATCHDOG_LOG_LEVEL + "=" + getYarnWatchdogLogLevel(),
       "-cp", classpath, YarnWatchdog.class.getName(),
       Long.toString(watchedPID), Integer.toString(livenessPort), Long.toString(pollTimeoutMs),

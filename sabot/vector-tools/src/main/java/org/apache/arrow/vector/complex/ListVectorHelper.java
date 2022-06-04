@@ -80,7 +80,7 @@ public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> 
 
     listVector.validityBuffer = buffer.slice(0, actualLength);
     listVector.validityBuffer.writerIndex(actualLength);
-    listVector.validityBuffer.retain(1);
+    listVector.validityBuffer.getReferenceManager().retain(1);
   }
 
   public void materialize(Field field) {

@@ -16,8 +16,7 @@
 package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,9 +30,7 @@ import java.util.stream.StreamSupport;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.datastore.SearchQueryUtils;
@@ -66,9 +63,6 @@ import com.google.protobuf.ByteString;
 public class TestNamespaceServiceCleanSplitOrphans {
   private static final long REFRESH_PERIOD_MS = TimeUnit.HOURS.toMillis(24);
   private static final long GRACE_PERIOD_MS = TimeUnit.HOURS.toMillis(48);
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   private LegacyKVStoreProvider kvstore;
   private NamespaceService namespaceService;
@@ -109,7 +103,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
       j++;
       savePhysicalDataset(Arrays.asList("test", "dataset3"), DatasetType.PHYSICAL_DATASET_SOURCE_FILE, now - TimeUnit.HOURS.toMillis(i), 25);
     }
-    assertThat(j, is(12));
+    assertThat(j).isEqualTo(12);
     deleteDataset(Arrays.asList("test", "dataset3"));
 
     addSource("OTHER");
@@ -120,8 +114,8 @@ public class TestNamespaceServiceCleanSplitOrphans {
 
     // Assert the total number of splits
     assertThat(
-        StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count(),
-        is((long) 10 + 20 + 29 * 100 + 1000 + 12 * 25 + 29 * 100));
+        StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count())
+      .isEqualTo((long) 10 + 20 + 29 * 100 + 1000 + 12 * 25 + 29 * 100);
   }
 
   @After
@@ -133,26 +127,26 @@ public class TestNamespaceServiceCleanSplitOrphans {
   public void testKeepCurrentVersion() throws Exception {
     namespaceService.deleteSplitOrphans(KEEP_CURRENT_VERSION_ONLY, true);
     assertThat(
-        namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
-        is(10 + 20 + 100 + 1000 + 100));
+        namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())))
+      .isEqualTo(10 + 20 + 100 + 1000 + 100);
 
 
     DatasetConfig dataset1 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
     generatePartitionChunks(now, 100).forEach(split -> {
       PartitionChunkId id = PartitionChunkId.of(dataset1, split, now);
-      assertThat(partitionChunksStore.get(id), is(split));
+      assertThat(partitionChunksStore.get(id)).isEqualTo(split);
     });
 
     DatasetConfig dataset2 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset2")));
     generatePartitionChunks(now, 1000).forEach(split -> {
       PartitionChunkId id = PartitionChunkId.of(dataset2, split, now);
-      assertThat(partitionChunksStore.get(id), is(split));
+      assertThat(partitionChunksStore.get(id)).isEqualTo(split);
     });
 
     DatasetConfig dataset4 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("other", "dataset4")));
     generatePartitionChunks(now, 100).forEach(split -> {
       PartitionChunkId id = PartitionChunkId.of(dataset4, split, now);
-      assertThat(partitionChunksStore.get(id), is(split));
+      assertThat(partitionChunksStore.get(id)).isEqualTo(split);
     });
   }
 
@@ -160,21 +154,21 @@ public class TestNamespaceServiceCleanSplitOrphans {
   public void testKeepValidSplits() throws Exception {
     namespaceService.deleteSplitOrphans(SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS, true);
     assertThat(
-        namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
-        is(10 + 20 + 24 * 100 + 1000 + 24 * 100));
+        namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())))
+      .isEqualTo(10 + 20 + 24 * 100 + 1000 + 24 * 100);
     DatasetConfig dataset1 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
     for(int i = 23; i >= 0; i--) {
       final long splitVersion = now - TimeUnit.HOURS.toMillis(i);
       generatePartitionChunks(splitVersion, 100).forEach(split -> {
         PartitionChunkId id = PartitionChunkId.of(dataset1, split, splitVersion);
-        assertThat(partitionChunksStore.get(id), is(split));
+        assertThat(partitionChunksStore.get(id)).isEqualTo(split);
       });
     }
 
     DatasetConfig dataset2 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset2")));
     generatePartitionChunks(now, 1000).forEach(split -> {
       PartitionChunkId id = PartitionChunkId.of(dataset2, split, now);
-      assertThat(partitionChunksStore.get(id), is(split));
+      assertThat(partitionChunksStore.get(id)).isEqualTo(split);
     });
 
     DatasetConfig dataset4 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("other", "dataset4")));
@@ -182,7 +176,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
       final long splitVersion = now - TimeUnit.HOURS.toMillis(i);
       generatePartitionChunks(splitVersion, 100).forEach(split -> {
         PartitionChunkId id = PartitionChunkId.of(dataset4, split, splitVersion);
-        assertThat(partitionChunksStore.get(id), is(split));
+        assertThat(partitionChunksStore.get(id)).isEqualTo(split);
       });
     }
   }

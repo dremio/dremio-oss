@@ -46,9 +46,6 @@
 
     &.--data {
       border-bottom: 1px solid $border-color;
-      &:nth-child(even) {
-        background: $lighter-neutral-color;
-       }
     }
 
     &.--empty {

@@ -19,6 +19,7 @@ import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.fsDe
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.setupLocalFS;
 import static com.dremio.exec.store.metadatarefresh.RefreshDatasetTestUtils.verifyIcebergMetadata;
 import static junit.framework.TestCase.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -29,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -44,46 +46,24 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
-import com.dremio.exec.server.SimpleJobRunner;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
-import com.google.inject.AbstractModule;
 
 public class TestNewMetadataRefresh extends BaseTestQuery {
-
-  @Rule
-  public final ExpectedException expectedEx = ExpectedException.none();
 
   private static FileSystem fs;
   static String testRootPath = "/tmp/metadatarefresh/";
   static String finalIcebergMetadataLocation;
 
   @BeforeClass
-  public static void setUpJobRunner() throws Exception {
-    SimpleJobRunner jobRunner = (query, userName, queryType) -> {
-      try {
-        runSQL(query); // queries we get here are inner 'refresh dataset' queries
-      } catch (Exception e) {
-        throw new IllegalStateException(e);
-      }
-    };
-
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(SimpleJobRunner.class).toInstance(jobRunner);
-      }
-    });
-    BaseTestQuery.setupDefaultTestCluster();
+  public static void setupIcebergMetadataLocation() {
     finalIcebergMetadataLocation = getDfsTestTmpSchemaLocation();
   }
 
@@ -116,6 +96,7 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
     fs.mkdirs(new Path(testRootPath + "/path.with/special_chars/and space"));
     copyFromJar("metadatarefresh/onlyFull", java.nio.file.Paths.get(testRootPath + "/path.with/special_chars/and space"));
     copyFromJar("metadatarefresh/maxLeafCols", java.nio.file.Paths.get(testRootPath + "/maxLeafCols"));
+    copyFromJar("metadatarefresh/multiLevel", java.nio.file.Paths.get(testRootPath + "/multiLevel"));
   }
 
 
@@ -264,6 +245,35 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
               .baselineColumns("cnt")
               .baselineValues(4L)
               .go();
+
+      testBuilder()
+              .ordered()
+              .sqlQuery("select count(*) as cnt from dfs.tmp.metadatarefresh.onlyFullWithPartition where dir0 = null")
+              .baselineColumns("cnt")
+              .baselineValues(0L)
+              .go();
+
+      testBuilder()
+              .ordered()
+              .sqlQuery("select count(*) as cnt from dfs.tmp.metadatarefresh.onlyFullWithPartition where not(dir0 = null)")
+              .baselineColumns("cnt")
+              .baselineValues(0L)
+              .go();
+
+      testBuilder()
+              .ordered()
+              .sqlQuery("select count(*) as cnt from dfs.tmp.metadatarefresh.onlyFullWithPartition where dir0 is null")
+              .baselineColumns("cnt")
+              .baselineValues(2L)
+              .go();
+
+      testBuilder()
+              .ordered()
+              .sqlQuery("select count(*) as cnt from dfs.tmp.metadatarefresh.onlyFullWithPartition where dir0 is not null")
+              .baselineColumns("cnt")
+              .baselineValues(2L)
+              .go();
+
     }
   }
 
@@ -436,15 +446,25 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
   }
 
   @Test
+  public void testSecondLevelPromotion() throws Exception {
+    test("select * from dfs.tmp.metadatarefresh.\"incrementRefreshAddingPartition.level1\"");
+
+    Schema expectedSchema = new Schema(Collections.singletonList(
+      Types.NestedField.optional(1, "col1", new Types.IntegerType())));
+    // verify v2 execution
+    verifyIcebergMetadata(finalIcebergMetadataLocation, 1, 0, expectedSchema , new HashSet<>(), 1);
+  }
+
+  @Test
   public void testColumnCountTooLarge() throws Exception {
     try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
       test("ALTER SYSTEM SET \"store.plugin.max_metadata_leaf_columns\" = 2");
-      final String sql = "alter table dfs.tmp.metadatarefresh.concatSchemaFullRefresh refresh metadata";
+      final String sql = "ALTER TABLE dfs.tmp.metadatarefresh.concatSchemaFullRefresh REFRESH METADATA";
 
       //this will do a full refresh first
-      expectedEx.expect(UserRemoteException.class);
-      expectedEx.expectMessage("Number of fields in dataset exceeded the maximum number of fields of 2");
-      runSQL(sql);
+      assertThatThrownBy(() -> runSQL(sql))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining("Number of fields in dataset exceeded the maximum number of fields of 2");
 
     } finally {
       test("ALTER SYSTEM RESET \"store.plugin.max_metadata_leaf_columns\"");
@@ -658,8 +678,8 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
       final String sql = "alter table dfs.tmp.metadatarefresh.failPartialRefreshForFirstQuery refresh metadata for partitions (\"dir0\" = 'lala');";
 
       //Should throw an error. First query cannot be a partial refresh.
-      expectedEx.expectMessage("Selective refresh is not allowed on unknown datasets. Please run full refresh on dfs.tmp.metadatarefresh.failPartialRefreshForFirstQuery");
-      runSQL(sql);
+      assertThatThrownBy(() -> runSQL(sql))
+        .hasMessageContaining("Selective refresh is not allowed on unknown datasets. Please run full refresh on dfs.tmp.metadatarefresh.failPartialRefreshForFirstQuery");
     }
   }
 
@@ -677,8 +697,8 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
         java.nio.file.Paths.get(testRootPath + "failPartialOnProvidingIncompletePartition/int.parquet"));
 
       //This should error out as we are providing only on partition
-      expectedEx.expectMessage("Refresh dataset command must include all partitions.");
-      runSQL(sql + " for partitions (\"dir0\" = 'lala')");
+      assertThatThrownBy(() -> runSQL(sql + " for partitions (\"dir0\" = 'lala')"))
+        .hasMessageContaining("Refresh dataset command must include all partitions.");
     }
   }
 
@@ -694,8 +714,8 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
       copyFromJar("metadatarefresh/level2", java.nio.file.Paths.get(testRootPath + "failOnAddingPartition/level1/level2"));
 
       //This should error out as we have added a partition
-      expectedEx.expectMessage("Addition of a new level dir is not allowed in incremental refresh. Please forget and promote the table again.");
-      runSQL(sql);
+      assertThatThrownBy(() -> runSQL(sql))
+        .hasMessageContaining("Addition of a new level dir is not allowed in incremental refresh. Please forget and promote the table again.");
     }
   }
 
@@ -745,9 +765,9 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
     try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
       final String createTableQuery = String.format("CREATE TABLE %s.%s(id int, code int)", "dfs_test", tblName);
 
-      expectedEx.expect(UserRemoteException.class);
-      expectedEx.expectMessage("does not support CREATE TABLE");
-      test(createTableQuery);
+      assertThatThrownBy(() -> test(createTableQuery))
+        .isInstanceOf(UserRemoteException.class)
+        .hasMessageContaining("does not support CREATE TABLE");
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tblName));
     }
@@ -861,6 +881,42 @@ public class TestNewMetadataRefresh extends BaseTestQuery {
       FileUtils.copyFileToDirectory(nestedParquet, dir, false);
       runSQL("alter table dfs.tmp.metadatarefresh.testRefreshAndSelectOnNestedStructParquet refresh metadata");
       runSQL("select * from dfs.tmp.metadatarefresh.testRefreshAndSelectOnNestedStructParquet");
+    }
+  }
+
+  @Test
+  public void testRefreshAddFileInsideEmptyFolder() throws Exception {
+    try (AutoCloseable c1 = enableUnlimitedSplitsSupportFlags()) {
+      final String sql = "alter table dfs.tmp.metadatarefresh.multiLevel refresh metadata";
+
+      //this will do a full refresh first
+      runSQL(sql);
+
+      //table only has 1 record
+      final ImmutableList.Builder<Map<String, Object>> recordBuilder1 = ImmutableList.builder();
+      long val1 = 2;
+      recordBuilder1.add(ImmutableMap.of("`cnt`", val1));
+      testBuilder()
+        .ordered()
+        .sqlQuery("select count(*) as cnt from dfs.tmp.metadatarefresh.multiLevel")
+        .baselineColumns("col1")
+        .baselineRecords(recordBuilder1.build())
+        .go();
+
+      copyFromJar("metadatarefresh/float.parquet", java.nio.file.Paths.get(testRootPath + "multiLevel/level1/float.parquet"));
+
+      runSQL(sql);
+
+      //table should now have 2 records since read signature check passed
+      final ImmutableList.Builder<Map<String, Object>> recordBuilder2 = ImmutableList.builder();
+      long val2 = 4;
+      recordBuilder2.add(ImmutableMap.of("`cnt`", val2));
+      testBuilder()
+        .ordered()
+        .sqlQuery("select count(*) as cnt from dfs.tmp.metadatarefresh.multiLevel")
+        .baselineColumns("col1")
+        .baselineRecords(recordBuilder2.build())
+        .go();
     }
   }
 }

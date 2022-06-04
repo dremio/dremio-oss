@@ -115,7 +115,8 @@ public class TestSQLAnalyzer {
     // Utilize custom catalog reader implementation to return specific suggestions,
     // without requiring server startup
     MockCatalogReader mockCatalogReader = new MockCatalogReader(typeFactory, false);
-    SqlValidatorWithHints validator =  new SqlAdvisorValidator(new OperatorTable(sabotContext.getFunctionImplementationRegistry()), mockCatalogReader, typeFactory, DremioSqlConformance.INSTANCE);
+    SqlValidatorWithHints validator =  new SqlAdvisorValidator(new OperatorTable(sabotContext.getFunctionImplementationRegistry()),
+      mockCatalogReader, typeFactory, SqlAdvisorValidator.Config.DEFAULT.withSqlConformance(DremioSqlConformance.INSTANCE));
     sqlAnalyzer = new SQLAnalyzer(validator);
   }
 

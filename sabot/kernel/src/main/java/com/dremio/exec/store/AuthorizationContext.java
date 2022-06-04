@@ -15,17 +15,19 @@
  */
 package com.dremio.exec.store;
 
+import com.dremio.exec.catalog.CatalogIdentity;
+
 public class AuthorizationContext {
-  private final String username;
+  private final CatalogIdentity subject;
   private final boolean ignoreAuthErrors;
 
-  public AuthorizationContext(final String username, final boolean ignoreAuthErrors) {
-    this.username = username;
+  public AuthorizationContext(final CatalogIdentity subject, final boolean ignoreAuthErrors) {
+    this.subject = subject;
     this.ignoreAuthErrors = ignoreAuthErrors;
   }
 
-  public String getUsername() {
-    return username;
+  public CatalogIdentity getSubject() {
+    return subject;
   }
 
   public boolean getIgnoreAuthErrors() {

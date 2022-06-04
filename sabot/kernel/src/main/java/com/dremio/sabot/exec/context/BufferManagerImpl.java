@@ -56,7 +56,7 @@ public class BufferManagerImpl implements SlicedBufferManager {
     managedBuffers.forEach(new LongObjectPredicate<ArrowBuf>() {
       @Override
       public boolean apply(long key, ArrowBuf value) {
-        value.release();
+        value.close();
         return true;
       }
     });
@@ -67,7 +67,7 @@ public class BufferManagerImpl implements SlicedBufferManager {
     if (managedBuffers.remove(old.memoryAddress()) == null) {
       throw new IllegalStateException("Tried to remove unmanaged buffer.");
     }
-    old.release(1);
+    old.getReferenceManager().release(1);
     return getManagedBuffer(newSize);
   }
 

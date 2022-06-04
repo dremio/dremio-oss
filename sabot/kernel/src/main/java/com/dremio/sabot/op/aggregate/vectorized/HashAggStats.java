@@ -77,6 +77,7 @@ public class HashAggStats {
     FORCE_ACCUM_TIME_NS,       /* total time for all force accumulations */
     NUM_ACCUM_COMPACTS,        /* Total number of compactions for mutable varchar vector */
     ACCUM_COMPACTS_TIME_NS,    /* Total time spent on compactions for mutable varchar vector */
+    MAX_VARLEN_KEY_SIZE,     /* Maximum variable length field length used by VarBinary accumulator */
 
     // OOB related metrics
     OOB_SENDS, // Number of times operator informed others of spilling

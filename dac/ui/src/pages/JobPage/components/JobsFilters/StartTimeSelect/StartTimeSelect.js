@@ -51,13 +51,16 @@ class StartTimeSelect extends Component {
         : LeftPanel.getHours(endMoment, startMoment);
       return `Custom (${rangeText})`;
     }
-    return (!selectedInterval || selectedType === IntervalTypes.ALL_TIME_INTERVAL)
-      && <div>
+    if (!selectedInterval || selectedType === IntervalTypes.ALL_TIME_INTERVAL) {
+      return <div>
         <span>{formatMessage({ id: 'Common.StartTime' })} </span>
         <span className={className}>
           {selectedInterval.get('label')}
         </span>
       </div>;
+    }
+    const interval = LeftPanel.getIntervals().find((int) => int.get('type') === selectedType);
+    return interval ? interval.get('label') : null;
   }
 
   getOptions(selectedInterval) {

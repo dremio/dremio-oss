@@ -23,7 +23,7 @@ describe('TimeDot', () => {
   let commonProps;
   let wrapper;
   let instance;
-  let link;
+  let timeDot;
   beforeEach(() => {
     minimalProps = {
       location: {},
@@ -52,7 +52,7 @@ describe('TimeDot', () => {
     };
     wrapper = shallow(<TimeDot {...commonProps}/>);
     instance = wrapper.instance();
-    link = wrapper.find('Link');
+    timeDot = wrapper.find('[data-testid="timeDotWrapper"]');
   });
 
   it('should render with minimal props without exploding', () => {
@@ -60,13 +60,9 @@ describe('TimeDot', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render main Link', () => {
-    expect(link).to.have.length(1);
-  });
-
   it('should not render Link when at current version', () => {
     wrapper.setProps({location: {query: {version: commonProps.historyItem.get('datasetVersion')}}});
-    expect(wrapper.find('Link')).to.have.length(0);
+    expect(wrapper.find('TimeDot')).to.have.length(0);
   });
 
   describe('#getLinkLocation', () => {
@@ -80,17 +76,6 @@ describe('TimeDot', () => {
         version: commonProps.historyItem.get('datasetVersion')
       });
     });
-
-    it('should return null if already at this datasetVersion', () => {
-      wrapper.setProps({location: {
-        ...commonProps.location,
-        query: {
-          version: commonProps.historyItem.get('datasetVersion')
-        }
-      }});
-
-      expect(instance.getLinkLocation()).to.be.null;
-    });
   });
 
   describe('popover show/hide', () => {
@@ -103,15 +88,15 @@ describe('TimeDot', () => {
     const getPopover = () => wrapper.find('Tooltip');
 
     it('should show on mouse enter', () => {
-      link.simulate('mouseenter', mockEvent);
+      timeDot.simulate('mouseenter', mockEvent);
       wrapper.update();
       expect(wrapper.state('open')).to.be.true;
-      link.simulate('mouseleave');
+      timeDot.simulate('mouseleave');
     });
 
     it('should show hide after a delay on mouseleave', (done) => {
-      link.simulate('mouseenter', mockEvent);
-      link.simulate('mouseleave');
+      timeDot.simulate('mouseenter', mockEvent);
+      timeDot.simulate('mouseleave');
       expect(wrapper.state('open')).to.be.true;
       setTimeout(() => {
         wrapper.update();
@@ -121,9 +106,9 @@ describe('TimeDot', () => {
     });
 
     it('should hide popover if cursor is moved to a popover', (done) => {
-      link.simulate('mouseenter', mockEvent);
+      timeDot.simulate('mouseenter', mockEvent);
       const popover = getPopover();
-      link.simulate('mouseleave');
+      timeDot.simulate('mouseleave');
       popover.simulate('mouseenter', mockEvent);
 
       setTimeout(() => {
@@ -134,9 +119,9 @@ describe('TimeDot', () => {
     });
 
     it('should still show popover if mouse moves back to target', (done) => {
-      link.simulate('mouseenter', mockEvent);
-      link.simulate('mouseleave');
-      link.simulate('mouseenter', mockEvent);
+      timeDot.simulate('mouseenter', mockEvent);
+      timeDot.simulate('mouseleave');
+      timeDot.simulate('mouseenter', mockEvent);
 
       setTimeout(() => {
         wrapper.update();

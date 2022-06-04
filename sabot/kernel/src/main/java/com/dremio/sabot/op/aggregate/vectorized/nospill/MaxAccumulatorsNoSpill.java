@@ -19,12 +19,12 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.util.ByteFunctionHelpers;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.MutableVarcharVector;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
-import org.apache.arrow.vector.util.ByteFunctionHelpers;
 
 import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.aggregate.vectorized.DecimalAccumulatorUtils;

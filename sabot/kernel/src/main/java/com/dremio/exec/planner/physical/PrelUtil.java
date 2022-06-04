@@ -53,6 +53,7 @@ import com.dremio.common.expression.PathSegment.ArraySegment;
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.Order.Ordering;
+import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -404,5 +405,44 @@ public class PrelUtil {
       return new RexInputRef(map.get(localRef.getIndex()), localRef.getType());
     }
 
+  }
+
+  // If Prel contains certain call of given name.
+  public static boolean containsCall(Prel prel, String callName) {
+    return prel.accept(new ContainsCallVisitor(callName), null);
+  }
+
+  // Simple visitor to determine if Prel contains certain call of given name.
+  private static final class ContainsCallVisitor extends BasePrelVisitor<Boolean, Void, RuntimeException> {
+    private boolean found = false;
+    private final String callName;
+
+    private ContainsCallVisitor (String callName) {
+      this.callName = callName;
+    }
+
+    private RexShuttle finder = new RexShuttle() {
+      @Override
+      public RexNode visitCall(RexCall call) {
+        if (call.getOperator().getName().equalsIgnoreCase(callName)) {
+          found = true;
+        }
+        return super.visitCall(call);
+      }
+    };
+
+    @Override
+    public Boolean visitPrel(Prel prel, Void notUsed) throws RuntimeException {
+      prel.accept(finder);
+      if (found) {
+        return true;
+      }
+      for(Prel child : prel){
+        if(child.accept(this, null)) {
+          return true;
+        }
+      }
+      return false;
+    }
   }
 }

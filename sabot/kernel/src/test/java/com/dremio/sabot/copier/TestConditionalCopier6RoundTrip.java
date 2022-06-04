@@ -34,15 +34,16 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
 
 import com.dremio.common.expression.CompleteType;
-import com.dremio.sabot.BaseTestWithAllocator;
-import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6;
+import com.dremio.sabot.BaseTestOperator;
+import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6Util;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
+import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 
 import io.netty.util.internal.PlatformDependent;
 
-public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
+public class TestConditionalCopier6RoundTrip extends BaseTestOperator {
   private static final int SV6_SIZE = 6;
 
   private static void copy(List<FieldBufferCopier> copiers, long offsetAddr, int count){
@@ -112,7 +113,7 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       int totalCount = count[0] + count[1];
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -157,7 +158,7 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -202,7 +203,7 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       int totalCount = count[0] + count[1];
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -247,7 +248,7 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -292,7 +293,7 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -355,7 +356,7 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try (
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ) {
@@ -416,7 +417,7 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
 
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try (
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ) {
@@ -479,8 +480,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       int totalCount = countPerBatch * 3;
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
-      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
       try(
         final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
         final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
@@ -543,8 +544,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       int totalCount = countPerBatch * 3;
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
-      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
       try(
         final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
         final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);
@@ -622,8 +623,8 @@ public class TestConditionalCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       int totalCount = countPerBatch * 3;
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
-      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
+      List<FieldBufferCopier> emptyCopiers = ConditionalFieldBufferCopier6Util.getEmptySourceFourByteCopiers(ImmutableList.<FieldVector>of(out));
       try(
         final ArrowBuf sv6_0 = allocator.buffer(SV6_SIZE * countPerBatch);
         final ArrowBuf sv6_1 = allocator.buffer(SV6_SIZE * countPerBatch);

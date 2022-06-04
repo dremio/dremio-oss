@@ -138,7 +138,7 @@ public class PartialJobListingItem {
     this.user = input.getUser();
     int totalAttempts = (int) input.getNumAttempts();
     this.totalAttempts = totalAttempts;
-    this.state = JobsProtoUtil.toStuff(input.getJobState());
+    this.state = JobUtil.computeJobState(JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted());
     this.startTime = input.getStartTime() != 0 ? input.getStartTime() : 0;
     this.endTime = input.getEndTime() != 0 ? input.getEndTime() : 0;
     this.isComplete = JobUtil.isComplete(this.state);

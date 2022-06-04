@@ -149,7 +149,7 @@ public class SingleStreamProvider implements InputStreamProvider {
   public MutableParquetMetadata getFooter() throws IOException {
     if(footer == null) {
       SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
-      footer = new MutableParquetMetadata(footerCache.getFooter(getStream(null), path.toString(), fileLength, fs, maxFooterLen));
+      footer = new MutableParquetMetadata(footerCache.getFooter(getStream(null), path.toString(), fileLength, fs, maxFooterLen), path.getName());
     }
     return footer;
   }

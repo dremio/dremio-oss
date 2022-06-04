@@ -93,6 +93,7 @@ public class TestExportProfiles extends BaseTestServer {
     getCurrentDremioDaemon().init();
     initClient();
     setBinder(createBinder(getCurrentDremioDaemon().getBindingProvider()));
+    BaseTestServer.getPopulator().populateTestUsers();
   }
 
   public static byte[] readAll(InputStream is) throws IOException {
@@ -162,7 +163,7 @@ public class TestExportProfiles extends BaseTestServer {
     expect = String.format("No profiles were found from %s to %s.", fromDate, toDate);
     assertEquals(expect, stats.retrieveStats(fromDate, toDate, true));
 
-    expect = String.format("No profiles were found.");
+    expect = "No profiles were found.";
     assertEquals(expect, stats.retrieveStats(null, null, false));
   }
 

@@ -92,4 +92,9 @@ public class IcebergTableCreationCommitter implements IcebergOpCommitter {
   public Map<Integer, PartitionSpec> getCurrentSpecMap() {
     return icebergCommand.getPartitionSpecMap();
   }
+
+  @Override
+  public boolean isIcebergTableUpdated() {
+    return icebergCommand.getRootPointer() != null;
+  }
 }

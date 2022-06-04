@@ -17,14 +17,11 @@ import { PureComponent, Fragment } from 'react';
 import { connect } from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import classNames from 'classnames';
 import Immutable from 'immutable';
 import DocumentTitle from 'react-document-title';
 import { injectIntl } from 'react-intl';
 
 import CopyButton from '@app/components/Buttons/CopyButton';
-import Button from '@app/components/Buttons/Button';
-import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
 
 import DropdownMenu from '@app/components/Menus/DropdownMenu';
 import EllipsedText from 'components/EllipsedText';
@@ -33,7 +30,7 @@ import { constructFullPath, navigateToExploreDefaultIfNecessary } from 'utils/pa
 import { formatMessage } from 'utils/locale';
 import { needsTransform, isSqlChanged } from 'sagas/utils';
 
-import { PHYSICAL_DATASET_TYPES } from '@app/constants/datasetTypes';
+import { PHYSICAL_DATASET_TYPES, SCRIPT } from '@app/constants/datasetTypes';
 //actions
 import { saveDataset, saveAsDataset } from 'actions/explore/dataset/save';
 import { performTransform, transformHistoryCheck } from 'actions/explore/dataset/transform';
@@ -49,20 +46,19 @@ import { performNextAction, NEXT_ACTIONS } from 'actions/explore/nextAction';
 import ExploreInfoHeaderMixin from 'dyn-load/pages/ExplorePage/components/ExploreInfoHeaderMixin';
 import config from 'dyn-load/utils/config';
 import { getAnalyzeToolsConfig } from '@app/utils/config';
+import exploreUtils from '@app/utils/explore/exploreUtils';
 
 import SaveMenu, { DOWNLOAD_TYPES } from 'components/Menus/ExplorePage/SaveMenu';
-import CombinedActionMenu from '@app/components/Menus/ExplorePage/CombinedActionMenu';
-import BreadCrumbs from 'components/BreadCrumbs';
+import BreadCrumbs, {formatFullPath} from 'components/BreadCrumbs';
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
-import SimpleButton from '@app/components/Buttons/SimpleButton';
 import Art from '@app/components/Art';
-import { Divider } from '@app/components/InfoHeader/Divider';
+import { Button } from 'dremio-ui-lib';
 
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
-import { PALE_NAVY } from 'uiTheme/radium/colors';
 import { getHistory, getTableColumns, getExploreState } from 'selectors/explore';
+import { getActiveScript } from '@app/selectors/scripts';
 
 import './ExploreInfoHeader.less';
 
@@ -90,6 +86,7 @@ export class ExploreInfoHeader extends PureComponent {
     currentSql: PropTypes.string,
     tableColumns: PropTypes.instanceOf(Immutable.List),
     settings: PropTypes.instanceOf(Immutable.Map),
+    activeScript: PropTypes.object,
 
     // actions
     transformHistoryCheck: PropTypes.func.isRequired,
@@ -116,11 +113,14 @@ export class ExploreInfoHeader extends PureComponent {
     return modelUtils.isNamedDataset(dataset) ? fullPath : undefined;
   }
 
-  static getNameForDisplay(dataset) {
-    const defaultName = formatMessage('NewQuery.NewQuery');
-    if (!dataset) {
+  static getNameForDisplay(dataset, activeScript = {}, location) {
+    const defaultName = formatMessage(`NewQuery.${exploreUtils.isSqlEditorTab(location) ? 'UntitledScript' : 'NewQuery' }`);
+    if (!dataset && !activeScript.name) {
       return defaultName;
     }
+
+    if (activeScript.name && !modelUtils.isNamedDataset(dataset)) return activeScript.name;
+
     const displayFullPath = dataset.get('displayFullPath');
     return modelUtils.isNamedDataset(dataset) && displayFullPath ? displayFullPath.get(-1) : defaultName;
   }
@@ -251,6 +251,11 @@ export class ExploreInfoHeader extends PureComponent {
     return history ? history.get('isEdited') : false;
   }
 
+  isEditedScript() {
+    const { activeScript, currentSql } = this.props;
+    return activeScript.id && activeScript.content !== currentSql;
+  }
+
   handleSave = () => {
     const nextAction = this.state.nextAction;
     this.setState({nextAction: undefined});
@@ -302,30 +307,35 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   renderDatasetLabel(dataset) {
-    const nameForDisplay = ExploreInfoHeader.getNameForDisplay(dataset);
+    const { activeScript, location, intl } = this.props;
+    const nameForDisplay = ExploreInfoHeader.getNameForDisplay(dataset, activeScript, location);
     const isEditedDataset = this.isEditedDataset();
-    const nameStyle = isEditedDataset ? { fontStyle: 'italic' } : {};
+    const isUnsavedScript = this.isEditedScript();
     const fullPath = ExploreInfoHeader.getFullPathListForDisplay(dataset);
-    const edited = this.props.intl.formatMessage({ id: 'Dataset.Edited' });
+    const isSqlEditorTab = exploreUtils.isSqlEditorTab(location);
+    const edited = intl.formatMessage({ id: isSqlEditorTab ? 'NewQuery.Unsaved' : 'Dataset.Edited' });
+    const typeIcon = getIconDataTypeFromDatasetType(!isSqlEditorTab ? dataset.get('datasetType') : SCRIPT);
+    const isUntitledScript = isSqlEditorTab && !this.props.activeScript.name;
     return (
       <DatasetItemLabel
         customNode={ // todo: string replace loc
           <div className='flexbox-truncate-text-fix'>
-            <div style={{...style.dbName}} data-qa={nameForDisplay}>
-              <EllipsedText style={nameStyle} text={`${nameForDisplay}${isEditedDataset ? edited : ''}`}>
-                <span>{nameForDisplay}</span>
-                <span data-qa='dataset-edited'>{isEditedDataset ? edited : ''}</span>
+            <div style={{...style.dbName, ...(isSqlEditorTab ? style.scriptHeader : {})}} data-qa={nameForDisplay}>
+              <EllipsedText text={`${nameForDisplay}${isEditedDataset || isUnsavedScript ? edited : ''}`} className='heading'>
+                <span className={`page-title ${isUntitledScript ? '--untitledScript' : ''}`}>{nameForDisplay}</span>
+                <span className='dataset-edited' data-qa='dataset-edited'>{isEditedDataset || isUnsavedScript ? edited : ''}</span>
               </EllipsedText>
               {this.renderCopyToClipBoard(constructFullPath(fullPath))}
             </div>
             {fullPath && <BreadCrumbs
               hideLastItem
+              longCrumbs = {false}
               fullPath={fullPath}
-              pathname={this.props.location.pathname}/>
+              pathname={location.pathname}/>
             }
             {<DocumentTitle title={
               fullPath
-                ? BreadCrumbs.formatFullPath(fullPath).join('.') + (isEditedDataset ? '*' : '')
+                ? formatFullPath(fullPath).join('.') + (isEditedDataset ? '*' : '')
                 : nameForDisplay
             } /> }
           </div>
@@ -333,9 +343,10 @@ export class ExploreInfoHeader extends PureComponent {
         isNewQuery={dataset.get('isNewQuery')}
         showFullPath
         fullPath={fullPath}
-        iconSize='LARGE'
+        {...(!isSqlEditorTab && { iconSize: 'LARGE'})}
         placement='right'
-        typeIcon={getIconDataTypeFromDatasetType(dataset.get('datasetType'))}
+        typeIcon={typeIcon}
+        shouldShowOverlay={false}
       />
     );
   }
@@ -356,38 +367,6 @@ export class ExploreInfoHeader extends PureComponent {
     );
   }
 
-  renderRightPartOfHeader() {
-    return (
-      <div className='right-part'>
-        {/* { this.renderAccelerationButton() } // To Be Removed */}
-        { this.renderAnalyzeButtons() }
-        <Divider/>
-        { this.renderEllipsisButton() }
-        { this.renderSaveButton() }
-        <Divider/>
-        { this.renderRunButton('preview', this.doButtonAction) }
-        { this.renderRunButton('run', this.doButtonAction) }
-      </div>
-    );
-  }
-
-  // renderAccelerationButton = () => {
-  //   if (!this.showAccelerationButton()) {
-  //     return null;
-  //   }
-  //   const fullPath = ExploreInfoHeader.getFullPathListForDisplay(this.props.dataset);
-  //   return (
-  //     <Fragment>
-  //       <DatasetAccelerationButton
-  //         style={{ marginLeft: 20 }}
-  //         fullPath={fullPath}
-  //         isEditedDataset={this.isEditedDataset()}/>
-  //       <Divider/>
-  //     </Fragment>
-  //   );
-  // };
-  // To Be Removed
-
   openTableau = () => {
     this.handleShowBI(NEXT_ACTIONS.openTableau);
   };
@@ -397,10 +376,19 @@ export class ExploreInfoHeader extends PureComponent {
 
   renderAnalyzeButton = (name, icon, onclick, iconSize) => {
     const { dataset } = this.props;
-
-    return (<SimpleButton buttonStyle='secondary' onClick={onclick} data-qa={name} style={style.iconButton} disabled={this.getExtraSaveDisable(dataset)}>
-      <Art src={icon} alt={name} title={name} style={{...style.icon, height: iconSize, width: iconSize}}/>
-    </SimpleButton> );
+    return (
+      <Button
+        variant='outlined'
+        color='primary'
+        size='medium'
+        onClick={onclick}
+        disabled={this.getExtraSaveDisable(dataset)}
+        disableRipple
+        disableMargin>
+        <Art src={icon} alt={name} title={name} style={{ height: iconSize, width: iconSize }}/>
+        { name }
+      </Button>
+    );
   };
   renderAnalyzeButtons = () => {
     const { settings } = this.props;
@@ -411,33 +399,9 @@ export class ExploreInfoHeader extends PureComponent {
     if (!showTableau && !showPowerBI) return null;
     return (
       <Fragment>
-        {showPowerBI && this.renderAnalyzeButton(la('Power BI'), 'PowerBi.svg', this.openPowerBi, 24)}
-        {showTableau && this.renderAnalyzeButton(la('Tableau'), 'Tableau.svg', this.openTableau, 19)}
+        {showTableau && this.renderAnalyzeButton('Tableau', 'Tableau.svg', this.openTableau, 19)}
+        {showPowerBI && this.renderAnalyzeButton('Power BI', 'PBI Logo.svg', this.openPowerBi, 24)}
       </Fragment>
-    );
-  };
-
-  // ellipsis button with settings, download, and analyze options
-  renderEllipsisButton = () => {
-    const { dataset, tableColumns } = this.props;
-    const isSettingsDisabled = !this.shouldEnableSettingsButton();
-    const isActionDisabled = !dataset.get('isNewQuery') && !dataset.get('datasetType'); // not new query nor loaded
-    const datasetColumns = tableColumns && tableColumns.map(column => column.get('type')).toJS() || [];
-    return (
-      <DropdownMenu
-        className='explore-ellipsis-button'
-        iconType='Ellipsis'
-        disabled={isSettingsDisabled && isActionDisabled}
-        style={style.noTextButton}
-        isButton
-        menu={<CombinedActionMenu
-          dataset={dataset}
-          datasetColumns={datasetColumns}
-          downloadAction={this.downloadDataset}
-          action={this.doButtonAction}
-          isSettingsDisabled={isSettingsDisabled}
-        />}
-      />
     );
   };
 
@@ -450,42 +414,11 @@ export class ExploreInfoHeader extends PureComponent {
     return (
       <DropdownMenu
         className='explore-save-button'
-        iconType='Save'
+        text={this.props.intl.formatMessage({ id: 'Common.Save' })}
         disabled={!shouldEnableButtons}
-        style={style.noTextButton}
         isButton
+        hideDivider
         menu={<SaveMenu action={this.doButtonAction} mustSaveAs={mustSaveAs} disableBoth={isExtraDisabled}/>}
-      />
-    );
-  };
-
-  renderRunButton = (type, actionFn)  => {
-    const doAction = () => actionFn(type); //type should be "preview" or "run" for doButtonAction
-
-    const isMac = navigator.platform && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const runKbdShortTxt = (isMac) ? '⌘+Shift+Enter' : 'Ctrl+Shift+Enter';
-    const previewKbdShortTxt = (isMac) ? '⌘+Enter' : 'Ctrl+Enter';
-    const title = (type === 'preview') ?
-      `${la('Preview')} ${previewKbdShortTxt}` : `${la('Run')} ${runKbdShortTxt}`;
-
-    const className = (type === 'preview') ? 'preview-button' : 'run-button';
-    const btnType = (type === 'preview') ? ButtonTypes.SECONDARY : ButtonTypes.PRIMARY;
-    const btnText = (type === 'preview') ? la('Preview') : la('Run');
-    const dataQa = (type === 'preview') ? 'qa-preview' : 'qa-run';
-    const icon = (type === 'preview') ? null : 'NarwhalReversed';
-    const iconStyle = (type === 'preview') ? null : style.narwhal;
-
-    return (
-      <Button
-        type={btnType}
-        data-qa={dataQa}
-        className={className}
-        title={title}
-        onClick={doAction}
-        text={btnText}
-        icon={icon}
-        iconStyle={iconStyle}
-        style={style.actionBtnWrap}
       />
     );
   };
@@ -504,13 +437,10 @@ export class ExploreInfoHeader extends PureComponent {
 
   render() {
     const { dataset } = this.props;
-    const classes = classNames('explore-info-header', { 'move-right': this.props.rightTreeVisible });
-    const isInProgress = this.props.exploreViewState.get('isInProgress');
 
     return (
-      <div className={classes} style={[style.base, isInProgress && style.disabledStyle]}>
+      <div className='explore-info-header'>
         {this.renderLeftPartOfHeader(dataset)}
-        {this.renderRightPartOfHeader()}
       </div>
     );
   }
@@ -524,7 +454,8 @@ function mapStateToProps(state, ownProps) {
     currentSql: explorePageState.view.currentSql,
     queryContext: explorePageState.view.queryContext,
     tableColumns: getTableColumns(state, ownProps.dataset.get('datasetVersion')),
-    settings: state.resources.entities.get('setting')
+    settings: state.resources.entities.get('setting'),
+    activeScript: getActiveScript(state)
   };
 }
 
@@ -544,15 +475,14 @@ export default connect(mapStateToProps, {
 const style = {
   base: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     height: 52,
     padding: 0,
     margin: 0,
     borderBottom: 'none',
     borderTop: 'none',
     borderLeft: 'none',
-    borderRight: 'none',
-    backgroundColor: PALE_NAVY
+    borderRight: 'none'
   },
   disabledStyle: {
     pointerEvents: 'none',
@@ -575,10 +505,9 @@ const style = {
   },
   leftWrap: {
     display: 'flex',
-    maxWidth: 250,
+    width: 326,
     flexWrap: 'wrap',
-    userSelect: 'text',
-    marginRight: 50 // distance between a title and navigation buttons
+    userSelect: 'text'
   },
   leftPart: {
     display: 'flex',
@@ -586,11 +515,15 @@ const style = {
     alignItems: 'center'
   },
   dbName: {
-    maxWidth: 300,
+    maxWidth: 266,
     display: 'flex',
     alignItems: 'center',
     color: '#333',
     fontWeight: 500
+  },
+  scriptHeader: {
+    marginLeft: 6,
+    marginTop: 2
   },
   pullout: {
     backgroundColor: 'transparent',
@@ -600,7 +533,8 @@ const style = {
   },
   noTextButton: {
     minWidth: 50,
-    marginRight: 5
+    paddingRight: 10,
+    paddingLeft: 5
   },
   actionBtnWrap: {
     marginBottom: 0,

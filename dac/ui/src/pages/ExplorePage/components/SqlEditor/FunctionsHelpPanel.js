@@ -14,20 +14,22 @@
  * limitations under the License.
  */
 import { PureComponent } from 'react';
-import Radium from 'radium';
 import PropTypes from 'prop-types';
-import * as sqlEditorStyles from 'uiTheme/radium/sqlEditor';
+import Radium from 'radium';
 import HelpFunctions from './HelpFunctions';
 
-const HEADER_LIST_OF_FUNCS = 30;
+import './FunctionsHelpPanel.less';
 
+
+const HEADER_LIST_OF_FUNCS = 36;
 @Radium
 export default class FunctionsHelpPanel extends PureComponent {
   static propTypes = {
     height: PropTypes.number,
     dragType: PropTypes.string.isRequired,
     isVisible: PropTypes.bool.isRequired,
-    addFuncToSqlEditor: PropTypes.func
+    addFuncToSqlEditor: PropTypes.func,
+    handleSidebarCollapse: PropTypes.func
   };
 
   constructor(props) {
@@ -56,7 +58,7 @@ export default class FunctionsHelpPanel extends PureComponent {
     return (
       <div className='sql-help-panel'
         onClick={e => e.preventDefault()}
-        style={[sqlEditorStyles.panel, isVisible ? sqlEditorStyles.activePanel : {}, {height}]}
+        style={[{height}]}
         ref='sqlHelpPanel'>
         {isVisible &&
         <HelpFunctions

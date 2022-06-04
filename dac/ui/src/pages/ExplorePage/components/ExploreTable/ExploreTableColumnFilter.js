@@ -18,14 +18,15 @@ import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import { injectIntl } from 'react-intl';
 
 import { SearchField } from 'components/Fields';
-import { getTableColumns } from '@app/selectors/explore';
-import exploreUtils from 'utils/explore/exploreUtils';
-import { getColumnFilter } from 'selectors/explore';
+import { getColumnFilter, getTableColumns } from 'selectors/explore';
 import { updateColumnFilter } from 'actions/explore/view';
 
-import { columnFilterWrapper, searchField, columnStats } from './ExploreTableColumnFilter.less';
+import exploreUtils from '@app/utils/explore/exploreUtils';
+import { compose } from 'redux';
+import { columnFilterWrapper, searchField } from './ExploreTableColumnFilter.less';
 
 export class ExploreTableColumnFilter extends PureComponent {
 
@@ -33,10 +34,7 @@ export class ExploreTableColumnFilter extends PureComponent {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     columnFilter: PropTypes.string,
     updateColumnFilter: PropTypes.func,
-    columnCount: PropTypes.number,
-    filteredColumnCount: PropTypes.number,
-    //withRouter props
-    location: PropTypes.object.isRequired
+    intl: PropTypes.any
   };
 
   updateColumnFilter = (columnFilter) => {
@@ -44,7 +42,7 @@ export class ExploreTableColumnFilter extends PureComponent {
   };
 
   render() {
-    const { columnFilter, columnCount, filteredColumnCount } = this.props;
+    const { columnFilter, intl: { formatMessage } } = this.props;
 
     return (
       <div className={columnFilterWrapper} data-qa='columnFilter'>
@@ -52,16 +50,9 @@ export class ExploreTableColumnFilter extends PureComponent {
           value={columnFilter}
           onChange={this.updateColumnFilter}
           className={searchField}
-          placeholder={la('Column filter')}
+          placeholder={formatMessage({ id: 'Explore.SearchFilter'})}
           dataQa='explore-column-filter'
         />
-        <div
-          title={la('shown/all columns')}
-          className={columnStats}
-          data-qa='columnFilterStats'>
-          {columnFilter && <span data-qa='columnFilterCount'>{filteredColumnCount} of </span>}
-          {columnCount} {la('fields')}
-        </div>
       </div>
     );
   }
@@ -81,4 +72,11 @@ function mapStateToProps(state, props) {
   };
 }
 
-export default withRouter(connect(mapStateToProps, {updateColumnFilter})(ExploreTableColumnFilter));
+export default compose(
+  connect(
+    mapStateToProps,
+    {updateColumnFilter}
+  ),
+  injectIntl,
+  withRouter
+)(ExploreTableColumnFilter);

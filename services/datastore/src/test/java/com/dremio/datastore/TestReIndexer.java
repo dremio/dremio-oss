@@ -16,8 +16,8 @@
 package com.dremio.datastore;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.same;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -53,6 +53,13 @@ public class TestReIndexer {
     public void convert(DocumentWriter writer, String key, String record) {
       writer.write(indexKey, key);
     }
+
+    @Override
+    public Integer getVersion() {
+      return 0;
+    }
+
+
   }
 
   private static ReIndexer reIndexer;

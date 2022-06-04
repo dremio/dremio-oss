@@ -19,7 +19,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -39,6 +42,7 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.resource.PowerBIResource;
 import com.dremio.dac.resource.TableauResource;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
@@ -46,7 +50,9 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -66,12 +72,26 @@ public class SettingsResource {
 
   private final ProjectOptionManager projectOptionManager;
 
+  private static final Map<String, SettingValidator> VALIDATORS = ImmutableMap.of(
+    "support.email.addr", (id, setting) -> {
+      //this pattern is for validating multiple emails separated by commas.
+      Pattern pattern = Pattern.compile("^([\\w+-.%]+@[\\w-.]+\\.[A-Za-z]{2,4})(\\s*,\\s*[\\w+-.%]+@[\\w-.]+\\.[A-Za-z]{2,4})*$");
+      Matcher matcher = pattern.matcher(setting.getValue().toString().trim());
+      if(!matcher.find()) {
+        throw new IllegalArgumentException("Emails must be in correct format separated by comma.");
+      }
+    }
+  );
+
   @Inject
   public SettingsResource(ProjectOptionManager projectOptionManager) {
     this.projectOptionManager = projectOptionManager;
     initializeClientTooloptions(ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU,
       PowerBIResource.CLIENT_TOOLS_POWERBI), projectOptionManager);
   }
+
+  @VisibleForTesting
+  public static SettingValidator getSettingValidator(String id) { return VALIDATORS.get(id); }
 
   @POST
   public Response list
@@ -154,6 +174,14 @@ public class SettingsResource {
       return Response.status(Status.NOT_FOUND).build();
     }
 
+    if(VALIDATORS.get(id) != null) {
+      try {
+        VALIDATORS.get(id).validateSetting(id, updatedSetting);
+      } catch (Exception e) {
+        return Response.status(Status.BAD_REQUEST).entity(new GenericErrorMessage(e.getMessage(), null, null)).build();
+      }
+    }
+
     OptionValue optionValue = toOptionValue(updatedSetting);
     projectOptionManager.setOption(optionValue);
     return Response.ok(toSetting(projectOptionManager.getOption(id))).build();
@@ -215,5 +243,10 @@ public class SettingsResource {
         optionManager.setOption(option.getDefault());
       }
     });
+  }
+
+  @VisibleForTesting
+  public interface SettingValidator {
+    void validateSetting(String id, Setting setting) throws Exception;
   }
 }

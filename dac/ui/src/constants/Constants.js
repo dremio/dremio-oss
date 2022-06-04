@@ -43,6 +43,11 @@ export const ENTITY_TYPES = {
   folder: 'folder'
 };
 
+export const PROJECT_TYPE = {
+  queryEngine: 'QUERY_ENGINE',
+  dataPlane: 'DATA_PLANE'
+};
+
 export const CLIENT_TOOL_ID = {
   powerbi: 'client.tools.powerbi',
   tableau: 'client.tools.tableau',
@@ -61,7 +66,7 @@ export const TableColumns = [
   { key: 'st', id: 'st', label: 'Start Time', disableSort: false, width: 152, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '', disabled:true },
   { key: 'dur', id: 'dur', label: 'Duration', disableSort: false, width: 95, isSelected: true, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
   { key: 'sql', id: 'sql', label: 'SQL', disableSort: true, isSelected: true, width: 432, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: '', disabled:false },
-  { key: 'cost', id: 'cost', label: 'Cost', disableSort: true, isSelected: false, width: 120, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
+  { key: 'cost', id: 'cost', label: 'Planner Cost Estimate', disableSort: true, isSelected: false, width: 180, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
   { key: 'planningTime', id: 'planningTime', disableSort: true, isSelected: false, label: 'Planning Time', width: 130, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
   { key: 'rowsScanned', id: 'rowsScanned', disableSort: true, isSelected: false, label: 'Rows Scanned', width: 134, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false },
   { key: 'rowsReturned', id: 'rowsReturned', disableSort: true, isSelected: false, label: 'Rows Returned', width: 137, height: 40, flexGrow: '0', flexShrink: '0', isFixedWidth: false, isDraggable: true, headerClassName: 'jobsContent__tableHeaders', disabled:false }
@@ -92,4 +97,10 @@ export const ReflectionsNotUsed = [
     label: 'Reflection.TransactionAgg',
     subScript: 'lake_source.incoming_data.transactions'
   }
+];
+
+export const EXECUTION_DROPDOWN_OPTIONS = [
+  { option: 'Runtime', label: 'Runtime' },
+  { option: 'Total Memory', label: 'Total Memory' },
+  { option: 'Records', label: 'Records' }
 ];

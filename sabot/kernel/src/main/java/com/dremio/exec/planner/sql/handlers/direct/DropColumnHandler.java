@@ -17,17 +17,21 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.TableMutationOptions;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.planner.sql.handlers.query.DataAdditionCmdHandler;
 import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
-import com.dremio.exec.store.iceberg.IcebergUtils;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -51,13 +55,13 @@ public class DropColumnHandler extends SimpleDirectHandler {
 
     NamespaceKey path = catalog.resolveSingle(sqlDropColumn.getTable());
 
-    Optional<SimpleCommandResult> validate = IcebergUtils.checkTableExistenceAndMutability(catalog, config,
-        path, false);
-    if (validate.isPresent()) {
-      return Collections.singletonList(validate.get());
-    }
-
     DremioTable table = catalog.getTableNoResolve(path);
+
+    SimpleCommandResult validate = SqlHandlerUtil.validateSupportForDDLOperations(catalog, config, path, table);
+
+    if (!validate.ok) {
+      return Collections.singletonList(validate);
+    }
 
     if (table.getSchema().getFields().stream()
         .noneMatch(field -> field.getName().equalsIgnoreCase(sqlDropColumn.getColumnToDrop()))) {
@@ -68,8 +72,18 @@ public class DropColumnHandler extends SimpleDirectHandler {
     if (table.getSchema().getFieldCount() == 1) {
       throw UserException.validationError().message("Cannot drop all columns of a table").buildSilently();
     }
-    catalog.dropColumn(path, sqlDropColumn.getColumnToDrop());
-    DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion = config.getContext().getSession().getSessionVersionForSource(sourceName);
+    ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+    CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext, path.toString());
+    TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
+      .setResolvedVersionContext(resolvedVersionContext)
+      .build();
+    catalog.dropColumn(path, sqlDropColumn.getColumnToDrop(), tableMutationOptions);
+
+    if (!DatasetHelper.isInternalIcebergTableOrJsonTable(table.getDatasetConfig()) && !(CatalogUtil.requestedPluginSupportsVersionedTables(path, catalog))) {
+      DataAdditionCmdHandler.refreshDataset(catalog, path, false);
+    }
     return Collections.singletonList(SimpleCommandResult.successful(String.format("Column [%s] dropped",
         sqlDropColumn.getColumnToDrop())));
   }

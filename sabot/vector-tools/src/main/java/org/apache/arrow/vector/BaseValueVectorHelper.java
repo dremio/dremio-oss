@@ -128,7 +128,7 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
       actualLength);
     ArrowBuf validity = buffer.slice(0, actualLength);
     validity.writerIndex(actualLength);
-    validity.retain(1);
+    validity.getReferenceManager().retain(1);
     validitySetter.accept(validity);
   }
 
@@ -199,7 +199,7 @@ public abstract class BaseValueVectorHelper<T extends FieldVector> implements Va
 
     int index;
     for (index = 0;index < valueCount;index ++) {
-      BitVectorHelper.setValidityBitToOne(validityBuffer(), index);
+      BitVectorHelper.setBit(validityBuffer(), index);
     }
     validityBuffer().writerIndex(actualLength);
   }

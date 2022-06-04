@@ -18,6 +18,8 @@ import { shallow } from 'enzyme';
 
 import FormValidationMessage from '../FormValidationMessage';
 import Label from '../Label';
+import CopyToClipboard from '../CopyToClipboard';
+import ToggleFieldVisibility from '../ToggleFieldVisibility';
 
 import Input from './Input';
 
@@ -25,6 +27,7 @@ const mockOnChange = jest.fn();
 
 const defaultProps = {
   label: 'Sample Label',
+  value: 'Sample text',
   classes: {
     root: 'sample-root-class',
     input: 'sample-input-class',
@@ -32,6 +35,8 @@ const defaultProps = {
   },
   name: 'sample-input-name',
   onChange: mockOnChange,
+  enableCopy: true,
+  toggleField: true,
   form: {
     errors: {},
     touched: {}
@@ -50,6 +55,8 @@ describe('Formik Input', () => {
     expect(wrapper.find(Label).props().value).toEqual(defaultProps.label);
     expect(wrapper.find('input').exists()).toBe(true);
     expect(wrapper.find('input').props().name).toEqual(defaultProps.name);
+    expect(wrapper.find(CopyToClipboard).exists()).toBe(true);
+    expect(wrapper.find(ToggleFieldVisibility).exists()).toBe(true);
   });
 
   it('adds the classes passed as props to respective elements', () => {

@@ -15,7 +15,6 @@
  */
 package com.dremio.plugins.s3.store;
 
-import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
 import static org.apache.hadoop.fs.s3a.Constants.CREATE_FILE_STATUS_CHECK;
 import static org.apache.hadoop.fs.s3a.Constants.FAST_UPLOAD;
@@ -23,7 +22,6 @@ import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
 import static org.apache.hadoop.fs.s3a.Constants.MAX_THREADS;
 import static org.apache.hadoop.fs.s3a.Constants.MAX_TOTAL_TASKS;
 import static org.apache.hadoop.fs.s3a.Constants.MULTIPART_SIZE;
-import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_ALGORITHM;
 import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_KEY;
@@ -46,7 +44,6 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.S3ConnectionConstants;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
@@ -56,6 +53,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.io.file.Path;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
+import com.dremio.plugins.util.awsauth.AWSCredentialsConfigurator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
@@ -67,7 +65,7 @@ import com.google.common.collect.ImmutableSet;
 /**
  * S3 Extension of FileSystemStoragePlugin
  */
-public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
+public class S3StoragePlugin extends FileSystemPlugin<AbstractS3PluginConfig> {
 
   private static final Logger logger = LoggerFactory.getLogger(S3StoragePlugin.class);
 
@@ -84,16 +82,23 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     ".DremioAssumeRoleCredentialsProviderV1";
   public static final String AWS_PROFILE_PROVIDER = "com.dremio.plugins.s3.store.AWSProfileCredentialsProviderV1";
 
-  public S3StoragePlugin(S3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+  private final AWSCredentialsConfigurator awsCredentialsConfigurator;
+  private final boolean isAuthTypeNone;
+
+  public S3StoragePlugin(AbstractS3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider,
+                         AWSCredentialsConfigurator awsCredentialsConfigurator, boolean isAuthTypeNone) {
     super(config, context, name, idProvider);
+    this.awsCredentialsConfigurator = awsCredentialsConfigurator;
+    this.isAuthTypeNone = isAuthTypeNone;
   }
 
   @Override
   protected List<Property> getProperties() {
-    final S3PluginConfig config = getConfig();
+    final AbstractS3PluginConfig config = getConfig();
     final List<Property> finalProperties = new ArrayList<>();
     finalProperties.add(new Property(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///"));
     finalProperties.add(new Property("fs.dremioS3.impl", S3FileSystem.class.getName()));
+    finalProperties.add(new Property("fs.dremioS3.impl.disable.cache","true"));
     finalProperties.add(new Property(MAXIMUM_CONNECTIONS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_CONNECTIONS)));
     finalProperties.add(new Property(FAST_UPLOAD, "true"));
     finalProperties.add(new Property(Constants.FAST_UPLOAD_BUFFER, "disk"));
@@ -106,7 +111,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
       finalProperties.add(new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
     }
 
-    String mainAWSCredProvider = getMainCredentialsProvider(finalProperties);
+    String mainAWSCredProvider = awsCredentialsConfigurator.configureCredentials(finalProperties);
+    logger.debug("For source:{}, mainCredentialsProvider determined is {}", getName(), mainAWSCredProvider);
 
     if (!Strings.isNullOrEmpty(config.assumedRoleARN) && !NONE_PROVIDER.equals(mainAWSCredProvider)) {
       finalProperties.add(new Property(Constants.ASSUMED_ROLE_ARN, config.assumedRoleARN));
@@ -125,7 +131,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     if (config.externalBucketList != null && !config.externalBucketList.isEmpty()) {
       finalProperties.add(new Property(EXTERNAL_BUCKETS, Joiner.on(",").join(config.externalBucketList)));
     } else {
-      if (config.credentialType == AWSAuthenticationType.NONE) {
+      if (isAuthTypeNone) {
         throw UserException.validationError()
           .message("Failure creating S3 connection. You must provide one or more external buckets when you choose no authentication.")
           .build(logger);
@@ -147,37 +153,6 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     logger.debug("getProperties: Create file status check: {}", config.enableFileStatusCheck);
 
     return finalProperties;
-  }
-
-  /**
-   * Populate plugin properties into finalProperties parameter and return the credentials provider.
-   * @param finalProperties
-   * @return
-   */
-  protected String getMainCredentialsProvider(List<Property> finalProperties) {
-    S3PluginConfig config = getConfig();
-    switch (config.credentialType) {
-      case ACCESS_KEY:
-        if (("".equals(config.accessKey)) || ("".equals(config.accessSecret))) {
-          throw UserException.validationError()
-            .message("Failure creating S3 connection. You must provide AWS Access Key and AWS Access Secret.")
-            .build(logger);
-        }
-        finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
-        finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
-        return ACCESS_KEY_PROVIDER;
-      case AWS_PROFILE:
-        if (config.awsProfile != null) {
-          finalProperties.add(new Property("com.dremio.awsProfile", config.awsProfile));
-        }
-        return AWS_PROFILE_PROVIDER;
-      case EC2_METADATA:
-        return EC2_METADATA_PROVIDER;
-      case NONE:
-        return NONE_PROVIDER;
-      default:
-        throw new RuntimeException("Failure creating S3 connection. Invalid credentials type.");
-    }
   }
 
   @Override
@@ -217,15 +192,14 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
 
   @Override
   public CreateTableEntry createNewTable(
-    SchemaConfig config,
-    NamespaceKey key,
+    NamespaceKey tableSchemaPath, SchemaConfig config,
     IcebergTableProps icebergTableProps,
     WriterOptions writerOptions,
     Map<String, Object> storageOptions,
     boolean isResultsTable
   ) {
-    Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
-    final List<String> resolvedPath = resolveTableNameToValidPath(key.getPathComponents()); // strips source name
+    Preconditions.checkArgument(tableSchemaPath.size() >= 2, "key must be at least two parts");
+    final List<String> resolvedPath = resolveTableNameToValidPath(tableSchemaPath.getPathComponents()); // strips source name
     final String containerName = resolvedPath.get(0);
     if (resolvedPath.size() == 1) {
       throw UserException.validationError()
@@ -233,7 +207,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
         .build(logger);
     }
 
-    final CreateTableEntry entry = super.createNewTable(config, key,
+    final CreateTableEntry entry = super.createNewTable(tableSchemaPath, config,
       icebergTableProps, writerOptions, storageOptions, isResultsTable);
 
     final S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);

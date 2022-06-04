@@ -13,25 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, Fragment, createRef } from 'react';
+import { Component, createRef } from 'react';
 import Radium from 'radium';
+import { withRouter } from 'react-router';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { Link } from 'react-router';
+import classNames from 'classnames';
+import { injectIntl } from 'react-intl';
 
 import { Tooltip } from '@app/components/Tooltip';
-import { HISTORY_ITEM_COLOR, ORANGE } from 'uiTheme/radium/colors';
-import { h5White /*, bodySmallWhite*/ } from 'uiTheme/radium/typography';
+import { HISTORY_ITEM_COLOR } from 'uiTheme/radium/colors';
 import { TIME_DOT_DIAMETER } from 'uiTheme/radium/sizes';
+import { Button } from 'dremio-ui-lib';
 import EllipsedText from 'components/EllipsedText';
+import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
+
+import './TimeDot.less';
 @Radium
 export class TimeDot extends Component {
   static propTypes = {
     historyItem: PropTypes.instanceOf(Immutable.Map).isRequired,
     tipVersion: PropTypes.string.isRequired,
     activeVersion: PropTypes.string.isRequired,
+    router: PropTypes.object,
     hideDelay: PropTypes.number,
-    location: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired,
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -50,8 +57,10 @@ export class TimeDot extends Component {
   getLinkLocation() {
     const { tipVersion, historyItem, location } = this.props;
     const query = location && location.query || {};
+    let activeLink = null;
+
     if (query.version === historyItem.get('datasetVersion')) {
-      return null;
+      activeLink = true;
     }
     return {
       pathname: location.pathname,
@@ -59,7 +68,8 @@ export class TimeDot extends Component {
         ...((query.mode ? {mode: query.mode} : {})),
         tipVersion,
         version: historyItem.get('datasetVersion')
-      }
+      },
+      activeLink
     };
   }
 
@@ -82,35 +92,68 @@ export class TimeDot extends Component {
     });
   };
 
+  loadHistory = (newWindow) => {
+    const {
+      location,
+      tipVersion,
+      historyItem,
+      router
+    } = this.props;
+
+    this.handleMouseLeave();
+
+    if (newWindow) {
+      const mode = location.query && location.query.mode;
+      const basePath = `${location.pathname}?${mode ? 'mode=edit&' : ''}`;
+      const historyPath = `${basePath}tipVersion=${tipVersion}&version=${historyItem.get('datasetVersion')}`;
+      window.open(historyPath, '_blank');
+    } else {
+      router.push(this.getLinkLocation());
+
+    }
+  }
+
   renderCompletedContent = (wrap = true) => {
-    const { historyItem } = this.props;
-    const owner = historyItem.get('owner');
-    const node = <div style={[styles.popoverTitle]}>
-      <EllipsedText style={{...h5White, ...styles.textDesc}} text={historyItem.get('transformDescription')}/>
-      <span style={[h5White]}>{owner ? owner : ''}</span>
+    const { historyItem, intl: { formatMessage }  } = this.props;
+    const newWindow = true;
+
+    const node = <div className='timeDot-content'>
+      <EllipsedText style={{...styles.textDesc}} text={historyItem.get('transformDescription')}/>
+
+      <div className='timeDot__buttons'>
+        <Button
+          color='primary'
+          data-qa='qa-run'
+          title={'Load'}
+          onClick={() => this.loadHistory()}
+          disableMargin
+        >
+          {formatMessage({ id: 'Explore.History.Load' })}
+        </Button>
+        <Button
+          color='primary'
+          variant={ButtonTypes.OUTLINED}
+          data-qa='qa-run'
+          title={'Load'}
+          onClick={() => this.loadHistory(newWindow)}
+          disableMargin
+        >
+          {formatMessage({ id: 'Explore.History.LoadInNewTab' })}
+        </Button>
+      </div>
+
     </div>;
     return wrap ? <div>{node}</div> : node;
   };
 
   renderContent() {
-    const { historyItem, activeVersion } = this.props;
-
-    const activeStyle = activeVersion === historyItem.get('datasetVersion')
-      ? styles.activeStyle
-      : {};
-    // Talked to Jeff. It is ok to not show a spinner for loading history items. May be we will return
-    // this functionality later. The issue with this is that we cancel job listener if we navigate to
-    // a new version. If a user alter and preview query to quickly, some history items could stuck
-    // in progress mode
-    const circle = <div style={[styles.circle, activeStyle]}/>;
-    return <div>
-      <div
-        key='dot'
-        data-qa='time-dot-target'
-      >
-        {circle}
-      </div>
-    </div>;
+    return <div
+      key='dot'
+      data-qa='time-dot-target'
+      className='timeDot-container'
+    >
+    </div>
+    ;
   }
 
   render() {
@@ -120,60 +163,39 @@ export class TimeDot extends Component {
       onMouseLeave: this.handleMouseLeave,
       ref: this.targetRef
     };
-    const dotEl = linkLocation ? (
-      <Link
-        className='time-dot'
-        style={styles.base}
-        to={linkLocation}
-        {...commonProps}
-      >
-        {this.renderContent()}
-      </Link>
-    ) : (
-      <span className='time-dot' style={styles.base}
-        {...commonProps}
-      >
-        {this.renderContent()}
-      </span>
-    );
 
-    return <Fragment>
-      {dotEl}
+    return <div data-testid='timeDotWrapper' className='timeDotWrapper' {...commonProps}>
+      <div className={classNames(
+        'timeDot',
+        {'--active': linkLocation.activeLink})}>
+        {this.renderContent()}
+      </div>
       <Tooltip
         container={document.body}
-        placement='left'
+        placement='right'
         target={this.getTooltipTarget}
         tooltipInnerStyle={styles.popover}
         dataQa='time-dot-popover'
+        type='info'
+        tooltipInnerClass='textWithHelp__tooltip --white'
+        tooltipArrowClass='--white'
       >
         {this.renderCompletedContent()}
       </Tooltip>
-    </Fragment>;
+    </div>;
   }
 }
 
-export default TimeDot;
+export default withRouter(injectIntl(TimeDot));
 
 const styles = {
-  base: {
-    flexShrink: 0,
-    width: 30,
-    height: TIME_DOT_DIAMETER,
-    marginTop: 10,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
   textDesc: {
-    width: 170,
+    width: 255,
     textDecoration: 'none',
     flexGrow: 1,
     paddingRight: 10,
-    whiteSpace: 'inherit'
-  },
-  popoverTitle: {
-    display: 'flex',
-    justifyContent: 'space-between'
+    whiteSpace: 'inherit',
+    marginBottom: 15
   },
   pointer: {
     cursor: 'pointer'
@@ -184,13 +206,16 @@ const styles = {
     height: TIME_DOT_DIAMETER,
     borderRadius: TIME_DOT_DIAMETER / 2
   },
-  activeStyle: {
-    backgroundColor: ORANGE
-  },
   popover: {
     minHeight: 46,
     maxHeight: 298, // to cut last visible line in half in case of overflow
     overflow: 'hidden',
-    width: 344
+    width: 280,
+    padding: '12px 15px'
+  },
+  popoverButtons: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: '33px'
   }
 };

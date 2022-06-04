@@ -35,6 +35,7 @@ import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DatasetCatalog;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
@@ -408,7 +409,7 @@ public class Foreman {
           final String queryUserName = session.getCredentials().getUserName();
           final DatasetCatalog datasetCatalog =
               context.getCatalogService().getCatalog(MetadataRequestOptions.of(
-                  SchemaConfig.newBuilder(queryUserName)
+                  SchemaConfig.newBuilder(CatalogUser.from(queryUserName))
                       .build()));
           datasetCatalog.updateDatasetSchema(datasetKey, data.getNewSchema());
 
@@ -435,7 +436,8 @@ public class Foreman {
           NamespaceKey datasetKey = new NamespaceKey(data.getOriginTablePath());
           final DatasetCatalog datasetCatalog =
               context.getCatalogService()
-                  .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(SYSTEM_USERNAME).build()));
+                  .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME))
+                    .build()));
           datasetCatalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
 
           // Update successful, populate return exception.

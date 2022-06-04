@@ -15,11 +15,12 @@
  */
 package com.dremio.exec.catalog;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
 import static junit.framework.TestCase.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -31,11 +32,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -43,8 +43,9 @@ import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.exec.catalog.CatalogImpl.IdentityResolver;
 import com.dremio.exec.catalog.CatalogServiceImpl.SourceModifier;
-import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.store.AuthorizationContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionManager;
@@ -54,9 +55,11 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.service.orphanage.Orphanage;
+import com.dremio.test.UserExceptionAssert;
 
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({"org.apache.commons.*", "org.apache.xerces.*", "org.slf4j.*", "org.xml.*", "javax.xml.*"})
 @PrepareForTest(MetadataObjectsUtils.class)
 public class TestCatalogImpl {
 
@@ -66,16 +69,14 @@ public class TestCatalogImpl {
   private final OptionManager optionManager = mock(OptionManager.class);
   private final NamespaceService systemNamespaceService = mock(NamespaceService.class);
   private final NamespaceService.Factory namespaceFactory = mock(NamespaceService.Factory.class);
+  private final Orphanage orphanage = mock(Orphanage.class);
   private final DatasetListingService datasetListingService = mock(DatasetListingService.class);
   private final ViewCreatorFactory viewCreatorFactory = mock(ViewCreatorFactory.class);
   private final SchemaConfig schemaConfig = mock(SchemaConfig.class);
   private final InformationSchemaCatalogImpl iscDelegate = mock(InformationSchemaCatalogImpl.class);
   private final DatasetManager datasets = mock(DatasetManager.class);
   private final NamespaceService userNamespaceService = mock(NamespaceService.class);
-
-
-  @Rule
-  public final ExpectedException thrownException = ExpectedException.none();
+  private final IdentityResolver identityProvider = mock(IdentityResolver.class);
 
   @Before
   public void setup() throws Exception {
@@ -85,10 +86,13 @@ public class TestCatalogImpl {
       .thenReturn(schemaConfig);
     when(schemaConfig.getUserName())
       .thenReturn(userName);
+
+    AuthorizationContext authorizationContext = new AuthorizationContext(new CatalogUser(userName), false);
+    when (schemaConfig.getAuthContext()).thenReturn(authorizationContext);
     when(namespaceFactory.get(userName))
       .thenReturn(userNamespaceService);
     whenNew(DatasetManager.class)
-      .withArguments(pluginRetriever, userNamespaceService, optionManager, userName)
+      .withArguments(pluginRetriever, userNamespaceService, optionManager, userName, identityProvider)
       .thenReturn(datasets);
     whenNew(InformationSchemaCatalogImpl.class)
       .withArguments(userNamespaceService)
@@ -106,18 +110,19 @@ public class TestCatalogImpl {
       optionManager,
       systemNamespaceService,
       namespaceFactory,
+      orphanage,
       datasetListingService,
-      viewCreatorFactory);
+      viewCreatorFactory,
+      identityProvider);
 
     doThrow(new NamespaceNotFoundException(key, "not found"))
       .when(systemNamespaceService).getDataset(key);
     when(pluginRetriever.getPlugin(key.getRoot(), true))
       .thenReturn(null);
 
-    thrownException.expect(
-      new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-        "Unknown source"));
-    catalog.alterDataset(key, attributes);
+    UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(key, attributes))
+      .hasErrorType(VALIDATION)
+      .hasMessageContaining("Unknown source");
   }
 
   @Test
@@ -142,14 +147,14 @@ public class TestCatalogImpl {
       optionManager,
       systemNamespaceService,
       namespaceFactory,
+      orphanage,
       datasetListingService,
-      viewCreatorFactory);
+      viewCreatorFactory,
+      identityProvider);
 
-    thrownException.expect(
-      new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-        "Failure while retrieving dataset"));
-
-    catalog.alterDataset(key, attributes);
+    UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(key, attributes))
+      .hasErrorType(VALIDATION)
+      .hasMessageContaining("Failure while retrieving dataset");
     verify(plugin).getDatasetHandle(any(), any(), any());
   }
 
@@ -186,13 +191,14 @@ public class TestCatalogImpl {
       optionManager,
       systemNamespaceService,
       namespaceFactory,
+      orphanage,
       datasetListingService,
-      viewCreatorFactory);
+      viewCreatorFactory,
+      identityProvider);
 
-    thrownException.expect(
-      new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
-        "Unable to find requested dataset"));
-    catalog.alterDataset(key, attributes);
+    UserExceptionAssert.assertThatThrownBy(() -> catalog.alterDataset(key, attributes))
+      .hasErrorType(VALIDATION)
+      .hasMessageContaining("Unable to find requested dataset");
     verify(plugin).getDatasetHandle(key, null, datasetRetrievalOptions);
     verify(systemNamespaceService).getDataset(namespaceKey);
   }
@@ -233,8 +239,10 @@ public class TestCatalogImpl {
       optionManager,
       systemNamespaceService,
       namespaceFactory,
+      orphanage,
       datasetListingService,
-      viewCreatorFactory);
+      viewCreatorFactory,
+      identityProvider);
 
     assertTrue(catalog.alterDataset(key, attributes));
     verify(plugin).getDatasetHandle(key, null, datasetRetrievalOptions);
@@ -249,8 +257,10 @@ public class TestCatalogImpl {
       optionManager,
       systemNamespaceService,
       namespaceFactory,
+      orphanage,
       datasetListingService,
-      viewCreatorFactory);
+      viewCreatorFactory,
+      identityProvider);
 
     final DremioTable table = mock(DremioTable.class);
     when(table.getDatasetConfig()).thenReturn(DatasetConfig.getDefaultInstance());

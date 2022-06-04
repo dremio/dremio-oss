@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.llvm;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -33,7 +34,6 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 /**
  * Adapter to gandiva filter.
@@ -64,7 +64,7 @@ public class NativeFilter implements AutoCloseable {
   static public NativeFilter build(LogicalExpression expr, VectorAccessible input,
                                    SelectionVector2 selectionVector, FunctionContext functionContext,
                                    boolean optimize, boolean targetHostCPU) throws GandivaException {
-    Set<ReferencedField> referencedFields = Sets.newHashSet();
+    Set<ReferencedField> referencedFields = new LinkedHashSet<>();
     Condition condition = GandivaExpressionBuilder.serializeExprToCondition(input, expr, referencedFields, functionContext);
     VectorSchemaRoot root = GandivaUtils.getSchemaRoot(input, referencedFields);
     ConfigurationBuilder.ConfigOptions configOptions = (new ConfigurationBuilder.ConfigOptions())

@@ -23,7 +23,7 @@ export const fieldAreaWidth = '240px';
 
 export const areaWrap = {
   width: '100%',
-  overflow: 'hidden'
+  overflow: 'auto'
 };
 
 export const fieldBox = {

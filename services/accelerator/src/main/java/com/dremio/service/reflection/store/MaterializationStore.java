@@ -476,6 +476,13 @@ public class MaterializationStore {
   }
 
   private static final class MaterializationConverter implements DocumentConverter<MaterializationId, Materialization> {
+    private Integer version = 0;
+
+    @Override
+    public Integer getVersion() {
+      return version;
+    }
+
     @Override
     public void convert(DocumentWriter writer, MaterializationId key, Materialization record) {
       writer.write(MATERIALIZATION_ID, key.getId());
@@ -489,6 +496,13 @@ public class MaterializationStore {
   }
 
   private static final class RefreshConverter implements DocumentConverter<RefreshId, Refresh> {
+    private Integer version = 0;
+
+    @Override
+    public Integer getVersion() {
+      return version;
+    }
+
     @Override
     public void convert(DocumentWriter writer, RefreshId key, Refresh record) {
       writer.write(ReflectionIndexKeys.REFRESH_REFLECTION_ID, record.getReflectionId().getId());

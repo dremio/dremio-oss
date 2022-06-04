@@ -1,15 +1,18 @@
 {
   "proxyPatterns": [{
-      "patterns": ["/v0*"], "origin": "atlantisApi", "ws": false
+      "patterns": ["/v1*"], "origin": "atlantisApi", "ws": false
     }, {
       "patterns": ["/ui*"], "origin": "atlantisApp", "ws": false
     }, {
       "patterns": ["/support*"], "origin": "supportApi", "ws": false
     }, {
       "patterns": ["/api*", "/static"], "ws": true
+    }, {
+      "patterns": ["/nessie*"], "origin": "nessieApi", "pathRewrite": { "^/nessie/": "/v0/" }
     }],
   "apiOrigin": "http://automaster.drem.io:9047",
   "atlantisApp": "https://app.dev.dremio.site",
   "atlantisApi": "https://api.dev.dremio.site",
-  "supportApi": "https://support.dev.dremio.site"
+  "supportApi": "https://support.dev.dremio.site",
+  "nessieApi": "https://nessie.dev.dremio.site"
 }

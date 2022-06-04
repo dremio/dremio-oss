@@ -25,7 +25,6 @@ import Menu from '@material-ui/core/Menu';
 import MenuItem from '@material-ui/core/MenuItem';
 import { makeStyles } from '@material-ui/core/styles';
 
-import { ReactComponent as ExpandMoreIcon } from '../../art/ArrowDown.svg';
 import { ReactComponent as XIcon } from '../../art/XLarge.svg';
 
 import Label from '../Label';
@@ -43,11 +42,13 @@ const MultiSelect = (props) => {
     } = {},
     handleChange,
     label,
+    disabled,
     limitTags,
     name,
     options,
     placeholder,
     typeAhead,
+    displayValues,
     value,
     onChange,
     loadNextRecords
@@ -78,9 +79,10 @@ const MultiSelect = (props) => {
       );
   }, [filterText, options]);
 
-  const visibleValues = useMemo(() => (
-    limitTags && !showMenu ? value.slice(0, limitTags) : value
-  ), [value, limitTags, showMenu]);
+  const visibleValues = useMemo(() => {
+    const preferredVisibleValues = displayValues.length ? displayValues : value;
+    return limitTags && !showMenu ? preferredVisibleValues.slice(0, limitTags) : preferredVisibleValues;
+  }, [value, limitTags, showMenu]);
 
   const hasError = get(touched, name) && get(errors, name);
   const rootClass = clsx(
@@ -90,13 +92,19 @@ const MultiSelect = (props) => {
   const valueClass = clsx(
     'multiSelect__value',
     { '--error': hasError },
-    { [classes.value]: classes.value }
+    { [classes.value]: classes.value },
+    { '--disabled': disabled }
   );
 
   const inputClass = clsx(
     'multiSelect__input',
     'margin-top',
     { [classes.input]: classes.input }
+  );
+
+  const inputContainerClass = clsx(
+    'multiSelect__inputContainer',
+    { '--disabled': disabled }
   );
 
   const labelClass = clsx('multiSelect__label', { [classes.label]: classes.label });
@@ -121,7 +129,11 @@ const MultiSelect = (props) => {
   };
 
   const handleDelete = (event, deleteValue) => {
-    removeValue(deleteValue);
+    let delValue = deleteValue;
+    if (displayValues.length) {
+      delValue = deleteValue.value;
+    }
+    removeValue(delValue);
     event.stopPropagation();
   };
 
@@ -200,8 +212,20 @@ const MultiSelect = (props) => {
   };
 
   const getDisplayName = (val) => {
+    if (displayValues.length) {
+      return val.value;
+    }
     const { label: displayName = val } = options.find(({ value: optionValue }) => val === optionValue) || {};
     return displayName;
+  };
+
+  const getChipIcon = (val) => {
+    if (displayValues.length) {
+      const Icon = val.icon;
+      return Icon ? <Icon /> : null;
+    }
+    const { icon: IconComponent } = options.find(({ value: optionValue }) => val === optionValue) || {};
+    return IconComponent ? <IconComponent /> : null;
   };
 
   const renderValue = () => {
@@ -212,16 +236,22 @@ const MultiSelect = (props) => {
         className={valueClass}
         onClick={handleOpen}
       >
-        <div className='multiSelect__inputContainer'>
-          {visibleValues.map((selectedVal) => (
-            <Chip
-              classes={{ root: 'margin-right margin-top' }}
-              key={selectedVal}
+        <div className={inputContainerClass}>
+          {visibleValues.map((selectedVal) => {
+            const KEY = displayValues.length > 0 ? selectedVal.id : selectedVal;
+            return (<Chip
+              icon={getChipIcon(selectedVal)}
+              classes={{
+                root: 'multiSelect__chip',
+                icon: 'icon --md multiSelect__chip__icon'
+              }}
+              key={KEY}
               label={getDisplayName(selectedVal)}
               onClick={handleChipClick}
               onDelete={(ev) => handleDelete(ev, selectedVal)}
-            />
-          ))}
+              deleteIcon={<XIcon />}
+            />);
+          })}
           {
             (visibleValues.length < value.length) && (
               <div className='margin-right margin-top'>
@@ -246,9 +276,6 @@ const MultiSelect = (props) => {
           >
             <XIcon/>
           </span>}
-          <span className='multiSelect__dropdownIcon'>
-            <ExpandMoreIcon />
-          </span>
         </div>
       </div>
     );
@@ -263,7 +290,7 @@ const MultiSelect = (props) => {
       );
     }
 
-    return filteredValues.map(({ label: optionLabel, value: optionValue }, idx) => {
+    return filteredValues.map(({ label: optionLabel, value: optionValue, icon: IconComponent }, idx) => {
       const isSelected = value.indexOf(optionValue) !== -1;
       return (
         <MenuItem
@@ -280,9 +307,16 @@ const MultiSelect = (props) => {
           <Checkbox
             checked={isSelected}
             color='primary'
-            classes={{ root: 'gutter--none gutter-right--half' }}
+            classes={{ root: 'gutter--none gutter-right--half multiSelect__checkbox' }}
           />
-          {optionLabel}
+          <div className='flex --alignCenter'>
+            {IconComponent && (
+              <span className='multiSelect__optionIcon'>
+                <IconComponent />
+              </span>
+            )}
+            {optionLabel}
+          </div>
         </MenuItem>
       );
     });
@@ -341,16 +375,23 @@ MultiSelect.propTypes = {
   typeAhead: PropTypes.bool,
   placeholder: PropTypes.string,
   loadNextRecords: PropTypes.func,
-  onChange: PropTypes.func
+  onChange: PropTypes.func,
+  displayValues: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string,
+    value: PropTypes.string
+  })),
+  disabled: PropTypes.bool
 };
 
 MultiSelect.defaultProps = {
   classes: {},
   value: [],
+  displayValues: [],
   style: {},
   label: null,
   name: '',
-  typeAhead: true
+  typeAhead: true,
+  hasChipIcon: false
 };
 
 export default MultiSelect;

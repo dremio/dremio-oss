@@ -36,7 +36,7 @@ export default class MainHeaderItem extends Component {
   render() {
     const {customStyle} = this.props;
     return (
-      <div className='explore-header-item' style={[styles.exploreHeaderItem, bodyWhite, customStyle || {}]}>
+      <div className='main-header-item' style={[styles.exploreHeaderItem, bodyWhite, customStyle || {}]}>
         {this.props.children}
       </div>
     );

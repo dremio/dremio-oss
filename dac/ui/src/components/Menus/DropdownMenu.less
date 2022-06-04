@@ -20,12 +20,14 @@
     align-items: center;
     display: flex;
     justify-content: center;
+    position: relative;
 
     &__togglerButton {
       align-items: center;
       display: flex;
       cursor: pointer;
       height: 27px;
+      gap: 5px;
       justify-content: space-between;
       position: relative;
     }
@@ -45,24 +47,101 @@
       padding: 0 3px;
     }
 
+    &__icon {
+      filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg) brightness(88%) contrast(87%);
+      height: 16px;
+      width: 18px;
+    }
+
     &__divider {
-      border-left: 1px solid #E5E5E5;
+      border-left: 1px solid @mercury;
       display: block;
       height: 20px;
       margin: 0 4px;
     }
 
     &.--button {
-      background-color: #F2F2F2;
-      border: 1px solid #D9D9D9;
+      background-color: transparent;
+      color: @TROUT;
+      border: 1px solid @IRON;
       border-radius: 4px;
       height: 32px;
       margin-right: 5px;
       min-width: 50px;
+      padding: 0 10px;
+      transition: 300ms ease all;
       
       &:hover {
-        background-color: #F9F9F9;
+        background-color: @SECONDARY_150;
+        border: 1px solid @IRON;
+
+        .dropdownMenu__icon {
+          filter: invert(34%) sepia(21%) saturate(290%) hue-rotate(173deg) brightness(88%) contrast(87%);
+        }
       }
+    }
+
+    &.--solidButton {
+      background-color: @PELOROUS;
+      border: 1px solid transparent;
+      color: @WHITE;
+      border-radius: 4px;
+      height: 32px;
+      margin-right: 5px;
+      min-width: 50px;
+      padding: 0 10px;
+      transition: 300ms ease all;
+      
+      &:hover {
+        background-color: transparent;
+        color: @PELOROUS;
+
+        .dropdownMenu__icon {
+          filter: invert(64%) sepia(28%) saturate(773%) hue-rotate(139deg) brightness(93%) contrast(101%);
+        }
+      }
+    }
+
+    &.--disabled {
+      border-color: @alto;
+      color: @silver-chalice;
+      cursor: default;
+      
+      &:hover {
+        background: inherit;
+        color: @silver-chalice;
+        
+        .dropdownMenu__icon {
+          filter: invert(80%) sepia(15%) saturate(10%) hue-rotate(354deg) brightness(89%) contrast(85%);
+        }
+      }
+
+      .dropdownMenu__icon {
+        filter: invert(80%) sepia(15%) saturate(10%) hue-rotate(354deg) brightness(89%) contrast(85%);
+      }
+
+      .dropdownMenu__togglerButton {
+        cursor: default;
+      }
+    }
+
+    &__groupButton {
+      padding: 0 !important;
+      background: transparent !important;
+      border-bottom: none !important;
+      min-width: fit-content !important;
+
+      &.--disabled {
+        border-color: @alto;
+        color: @silver-chalice;
+        cursor: default;
+      }
+    }
+
+    &__groupDivider {
+      height: 24px !important;
+      margin-left: 10px !important;
+      margin-right: 8px !important;
     }
   }
 }

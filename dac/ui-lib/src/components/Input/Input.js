@@ -20,6 +20,11 @@ import get from 'lodash.get';
 
 import FormValidationMessage from '../FormValidationMessage';
 import Label from '../Label';
+import CopyToClipboard from '../CopyToClipboard';
+import ToggleFieldVisibility from '../ToggleFieldVisibility';
+
+import { ReactComponent as ArrowUpIcon } from '../../art/InputArrowUp.svg';
+import { ReactComponent as ArrowDownIcon } from '../../art/InputArrowDown.svg';
 
 import './input.scss';
 
@@ -30,19 +35,29 @@ const Input = (props) => {
     labelStyle,
     classes = {},
     disabled,
+    enableCopy,
     name,
     onChange,
+    onCopy,
     onFocus,
+    onView,
     onBlur,
     form: {
+      values,
       errors,
-      touched
+      touched,
+      setFieldValue,
+      handleChange: formikHandleChange
     },
     hideError,
     prefix,
+    toggleField,
     type,
     value,
     helpText,
+    step,
+    maxValue,
+    minValue,
     ...otherProps
   } = props;
 
@@ -53,8 +68,11 @@ const Input = (props) => {
   const showError = !hideError && hasError;
 
   const rootClass = clsx('input-root', { [classes.root]: classes.root });
+  const labelClass = clsx('input-root__label', { [classes.label]: classes.label });
+  const labelInnerClass = clsx({ [classes.labelInner]: classes.labelInner });
   const containerClass = clsx(
     'input__container',
+    { [classes.container]: classes.container },
     { '--disabled': disabled },
     { '--error': hasError },
     { '--focused': focused }
@@ -63,6 +81,12 @@ const Input = (props) => {
     '--prefixed': prefix,
     [classes.input]: classes.input
   });
+  const inputNumberButtonsClass = clsx(
+    'input__numberButtons',
+    { '--disabled': disabled },
+    { '--error': hasError },
+    { '--focused': focused }
+  );
 
   const handleFocus = (...args) => {
     setFocused(true);
@@ -73,20 +97,60 @@ const Input = (props) => {
 
   const handleBlur = (...args) => {
     setFocused(false);
+    if (type === 'number') {
+      const commaSeparatedValue = Number(values[name].replaceAll(',', '')).toLocaleString();
+      setFieldValue(name, commaSeparatedValue);
+    }
     if (onBlur && typeof onBlur === 'function') {
       onBlur(...args);
     }
   };
 
+  const handleChange = (event) => {
+    const commaSeparatedValue = Number(event.target.value.replaceAll(/\D/g, '')).toLocaleString();
+    event.target.value = commaSeparatedValue;
+    formikHandleChange && typeof onChange === 'function' && formikHandleChange(event);
+    onChange && typeof onChange === 'function' && onChange(event);
+  };
+
+  const handleIncrement = () => {
+    if (value && setFieldValue && typeof setFieldValue === 'function') {
+      const numericalValue =
+        maxValue !== undefined
+          ? Math.min(maxValue, Number(value.replaceAll(',', '')) + step)
+          : Number(value.replaceAll(',', '')) + step;
+      const commaSeparatedValue = numericalValue.toLocaleString();
+      setFieldValue(name, commaSeparatedValue);
+    }
+  };
+
+  const handleDecrement = () => {
+    if (value && setFieldValue && typeof setFieldValue === 'function') {
+      const numericalValue =
+        minValue !== undefined
+          ? Math.max(minValue, Number(value.replaceAll(',', '')) - step)
+          : Number(value.replaceAll(',', '')) - step;
+      const commaSeparatedValue = numericalValue.toLocaleString();
+      setFieldValue(name, commaSeparatedValue);
+    }
+  };
+
   return (
     <div className={rootClass}>
-      {label && <Label
-        value={label}
-        className={classes.label}
-        style={labelStyle}
-        id={`input-label-${name}`}
-        helpText={helpText}
-      />}
+      {label && (
+        <div className='input-root__labelContainer'>
+          <Label
+            value={label}
+            className={labelClass}
+            labelInnerClass={labelInnerClass}
+            style={labelStyle}
+            id={`input-label-${name}`}
+            helpText={helpText}
+          />
+          {enableCopy && <CopyToClipboard value={value} onCopy={onCopy}/>}
+          {toggleField && <ToggleFieldVisibility onView={onView}/>}
+        </div>
+      )}
       <div className={containerClass}>
         {prefix && <span className='input__prefix'>{prefix}</span>}
         <input
@@ -95,12 +159,18 @@ const Input = (props) => {
           disabled={disabled}
           value={value}
           name={name}
-          onChange={onChange}
+          onChange={type === 'number' ? handleChange : onChange}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          type={type}
+          type={type === 'number' ? 'text' : type}
           {...otherProps}
         />
+        {type === 'number' && (
+          <div className={inputNumberButtonsClass}>
+            <ArrowUpIcon className='icon' onClick={handleIncrement}/>
+            <ArrowDownIcon className='icon' onClick={handleDecrement}/>
+          </div>
+        )}
       </div>
       {showError && (
         <FormValidationMessage className='input__validationError' id={`input-error-${name}`}>
@@ -117,7 +187,8 @@ Input.propTypes = {
   labelStyle: PropTypes.object,
   classes: PropTypes.shape({
     root: PropTypes.string,
-    input: PropTypes.string
+    input: PropTypes.string,
+    container: PropTypes.string
   }),
   name: PropTypes.string,
   onFocus: PropTypes.func,
@@ -128,7 +199,14 @@ Input.propTypes = {
   hideError: PropTypes.bool,
   prefix: PropTypes.string,
   value: PropTypes.any,
-  helpText: PropTypes.string
+  helpText: PropTypes.string,
+  enableCopy: PropTypes.bool,
+  toggleField: PropTypes.bool,
+  onCopy: PropTypes.func,
+  onView: PropTypes.func,
+  step: PropTypes.number,
+  maxValue: PropTypes.number,
+  minValue: PropTypes.number
 };
 
 Input.defaultProps = {
@@ -136,7 +214,8 @@ Input.defaultProps = {
   label: null,
   labelStyle: {},
   classes: {},
-  hideError: false
+  hideError: false,
+  step: 1
 };
 
 export default Input;

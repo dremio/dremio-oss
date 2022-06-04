@@ -50,7 +50,7 @@ public class DremioFlightServerBasicAuthValidator implements BasicServerAuthHand
 
   @Override
   public byte[] getToken(String username, String password) {
-    final String token = DremioFlightAuthUtils.authenticateAndCreateSession(
+    final String token = DremioFlightAuthUtils.authenticateAndCreateToken(
       userServiceProvider,
       tokenManagerProvider,
       dremioFlightSessionsManager,

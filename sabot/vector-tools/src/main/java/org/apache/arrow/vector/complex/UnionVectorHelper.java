@@ -59,7 +59,7 @@ public class UnionVectorHelper implements ValueVectorHelper {
 
     unionVector.typeBuffer = buffer.slice(0, actualLength);
     unionVector.typeBuffer.writerIndex(actualLength);
-    unionVector.typeBuffer .retain(1);
+    unionVector.typeBuffer .getReferenceManager().retain(1);
   }
 
   public void materialize(Field field) {

@@ -37,14 +37,17 @@ const Dialog = (props) => {
     onExiting,
     open,
     size,
+    type,
     title,
-    children
+    children,
+    endChildren
   } = props;
 
   const dialogClasses = {
     ...classes,
     root: clsx(['dremioDialog', { [classes.root]: classes.root }]),
-    container: clsx('dremioDialog__container', { '--centered': isCentered })
+    container: clsx('dremioDialog__container', { '--centered': isCentered }),
+    paper: clsx(['dremioDialog__paper', { [classes.paper]: classes.paper }])
   };
 
   return <MuiDialog
@@ -59,9 +62,11 @@ const Dialog = (props) => {
     open={open}
   >
     <DialogContext.Provider value={{ onClose }}>
-      {title && <DialogTitle onClose={onClose}>
-        {title}
-      </DialogTitle>}
+      {title && (
+        <DialogTitle onClose={onClose} endChildren={endChildren} type={type}>
+          {title}
+        </DialogTitle>
+      )}
 
       { children }
     </DialogContext.Provider>
@@ -84,13 +89,16 @@ Dialog.propTypes = {
     PropTypes.func
   ]),
   title: PropTypes.string,
-  classes: PropTypes.object
+  classes: PropTypes.object,
+  endChildren: PropTypes.node,
+  type: PropTypes.oneOf(['default', 'info', 'warning', 'error'])
 };
 
 Dialog.defaultProps = {
   isCentered: false,
   size: 'sm',
-  classes: {}
+  classes: {},
+  type: 'default'
 };
 
 export default Dialog;

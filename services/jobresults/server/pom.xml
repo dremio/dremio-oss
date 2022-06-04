@@ -23,11 +23,11 @@
   <parent>
     <artifactId>dremio-services-jobresults</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.2.0-202205262146080444-038d6d1b</version>
   </parent>
 
   <artifactId>dremio-services-jobresults-server</artifactId>
-  <version>20.1.0-202202061055110045-36733c65</version>
+  <version>21.2.0-202205262146080444-038d6d1b</version>
   <name>Services - Job Results - Server</name>
 
   <packaging>jar</packaging>

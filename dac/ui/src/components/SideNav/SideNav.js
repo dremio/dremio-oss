@@ -15,12 +15,11 @@
  */
 
 import { connect } from 'react-redux';
-import {useIntl, FormattedMessage} from 'react-intl';
+import {useIntl} from 'react-intl';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { compose } from 'redux';
-import { withRouter, Link } from 'react-router';
-import classNames from 'classnames';
+import { withRouter } from 'react-router';
 
 /****************************************************/
 /*                                                  */
@@ -29,11 +28,8 @@ import classNames from 'classnames';
 /*                                                  */
 /****************************************************/
 
-import logoNarrow from '@app/components/Icon/icons/DremioLogo64x64.svg';
-// import logoWide from '@app/components/Icon/icons/DremioLogo64x224.svg';
 import { getExploreState } from '@app/selectors/explore';
 import { getLocation } from 'selectors/routing';
-// import localStorageUtils from '@inject/utils/storageUtils/localStorageUtils';
 
 import { showConfirmationDialog } from 'actions/confirmation';
 import { resetNewQuery } from 'actions/explore/view';
@@ -42,14 +38,20 @@ import { parseResourceId } from 'utils/pathUtils';
 
 import SideNavAdmin from 'dyn-load/components/SideNav/SideNavAdmin';
 import SideNavExtra from 'dyn-load/components/SideNav/SideNavExtra';
-import SideNavHoverMenu from './SideNavHoverMenu';
-import HelpMenu from './HelpMenu';
-import AccountMenu from './AccountMenu';
 
+import localStorageUtils, { useProjectContext } from '@inject/utils/storageUtils/localStorageUtils';
+import getIconColor from '@app/utils/getIconColor';
+import getUserIconInitials from '@app/utils/userIcon';
+
+
+import SideNavHoverMenu from './SideNavHoverMenu';
+import AccountMenu from './AccountMenu';
 import '@app/components/IconFont/css/DremioIcons-old.css';
 import '@app/components/IconFont/css/DremioIcons.css';
 
-import {DEFAULT_ICON_COLOR, ACTIVE_ICON_COLOR, ICON_BACKGROUND_COLOR, hashCode /*, dropdownMenuStyle*/} from './SideNavConstants';
+import { isActive } from './SideNavUtils';
+import HelpMenu from './HelpMenu';
+import { TopAction } from './components/TopAction';
 import './SideNav.less';
 
 const SideNav = (props) => {
@@ -62,17 +64,15 @@ const SideNav = (props) => {
     narwhalOnly
   } = props;
 
+  const loc = location.pathname;
   const intl = useIntl();
-  // const [wideNarrowState, setWideNarrow] = useState(localStorageUtils.isSideNavWide() ? 'wide' : 'narrow');
+  const ctx = useProjectContext();
+  const isDDPOnly = localStorageUtils ? localStorageUtils.isDataPlaneOnly(ctx) : false;
+  const logoSVG = isDDPOnly ? 'DremioLogoDDP.svg' : 'DremioLogo32x32.svg';
 
-
-  const userColorIndex = Math.abs(hashCode(user.get('userId'))) % ICON_BACKGROUND_COLOR.length;
-  const userColor = ICON_BACKGROUND_COLOR[userColorIndex];
-
+  const { backgroundColor: userBgColor, color: userColor } = getIconColor(user.get('userId'));
   const  userName = user.get('userName');
-  const userNameFirst2 = (user.get('firstName') && user.get('lastName'))
-    ? user.get('firstName').substring(0, 1).toUpperCase() + user.get('lastName').substring(0, 1).toUpperCase()
-    : userName && userName.substring(0, 2).toUpperCase();
+  const userNameFirst2 = getUserIconInitials(user);
 
   const userTooltip = intl.formatMessage({id: 'SideNav.User'}) + userName;
 
@@ -80,7 +80,6 @@ const SideNav = (props) => {
     const resourceId = parseResourceId(location.pathname, user.get('userName'));
     return '/new_query?context=' + encodeURIComponent(resourceId);
   };
-
   const handleClick = (e) => {
     if (e.metaKey || e.ctrlKey) { // DX-10607, DX-11299 pass to default link behaviour, when cmd/ctrl is pressed on click
       return;
@@ -108,140 +107,86 @@ const SideNav = (props) => {
     e.preventDefault();
   };
 
-  const defaultClickHandler = (e) => {
-    e.stopPropagation();
-  };
-
-  const renderTopAction = (name, active, anchorUrl, icon, labelTooltip, dataqa = 'data-qa', anchorOnChange = undefined, iconStyle = '') => {
-    if (!anchorOnChange) {
-      anchorOnChange = defaultClickHandler;
-    }
-    let activeStyle = {color: DEFAULT_ICON_COLOR};
-    if (active !== '') {
-      activeStyle = {color: ACTIVE_ICON_COLOR};
-    }
-
-    return (
-      <div className={'sideNav-item'}>
-        <div className={name + active} title={displayTooltip ? intl.formatMessage({id: labelTooltip}) : ''}>
-          <Link to={anchorUrl} dataqa={dataqa} style={{...activeStyle}}>
-            <div className={'sideNav-items'}>
-              <div className={'sideNav-item__icon'}>
-                <div className={icon + ' sideNav-item__iconType'} style={{...iconStyle}}/>
-              </div>
-              <div className={'sideNav-item__labelNext' + displayLabel}>
-                <FormattedMessage id={labelTooltip}/>
-              </div>
-            </div>
-          </Link>
-        </div>
-      </div>
-    );
-  };
-
-  // const wideNarrowHandler = () => {
-  //   localStorageUtils.setSideNavWide(wideNarrowState === 'narrow');  // flip state
-  //   setWideNarrow(wideNarrowState === 'wide' ? 'narrow' : 'wide');
-  // };
-
-  const loc = location.pathname;
-  const jobsIsActive = loc === '/jobs' ? ' --active' : '';
-  const datasetIsActive = loc === '/' || loc.startsWith('/space') || loc.startsWith('/home') ? ' --active' : '';
-  const newQueryIsActive = loc === '/new_query' ? ' --active' : '';
-  const userIsActive = loc === '/account/info' ? ' --active' : '';
-
-  // const wideNarrowIcon = wideNarrowState === 'narrow' ? 'dremioIcon-Expand' : 'dremioIcon-Collapse';
-  // const wideNarrowTooltip = wideNarrowState === 'narrow' ? intl.formatMessage({id: 'SideNav.OpenNav'}) : intl.formatMessage({id: 'SideNav.CloseNav'});
-  // const wideNarrowWidth = wideNarrowState === 'narrow' ? ' --narrow' : ' --wide';
-  // const helpPopupPosition = wideNarrowState === 'narrow' ? {marginTop: '-123px', marginLeft: '48px'} : {marginTop: '-123px', marginLeft: '192px'};
-  // const userPopupPosition = wideNarrowState === 'narrow' ? {marginTop: '-65px', marginLeft: '48px'} : {marginTop: '-65px', marginLeft: '192px'};
-  // const displayTooltip = wideNarrowState === 'narrow';
-  // const displayLabel = wideNarrowState === 'wide' ? ' --show' : ' --hide';
-  // const helpPopupPosition = {marginTop: '-59px', marginLeft: '48px'};
-  // const userPopupPosition = {marginTop: '-1px', marginLeft: '48px'};
-  const logo =  logoNarrow; //wideNarrowState === 'narrow' ? logoNarrow : logoWide;
-  const wideNarrowWidth = ' --narrow';
-  const displayTooltip = true;
-  const displayLabel = ' --hide';
-
+  const LogoAction = <TopAction
+    url='/'
+    icon={logoSVG}
+    alt='Logo'
+    logo
+    tooltip={false}
+    socketIsOpen={socketIsOpen}
+    tooltipProps={{placement: 'right'}}
+  />;
 
   // display only the company logo
   if (narwhalOnly) {
     return (
-      <div className={'sideNav ' + wideNarrowWidth}>
-        <div className={'sideNav__topSection'}>
-          <div className={'sideNav-item'}>
-            <div className={'sideNav__logo'}>
-              <Link to={'/'}>
-                <div className={classNames('sideNav__imageDiv', wideNarrowWidth)}>
-                  <img
-                    src={logo}
-                    alt={intl.formatMessage({id: 'SideNav.DremioLogoLabel'})}
-                    style={{filter: `saturate(${socketIsOpen ? 1 : 0})`}}
-                  />
-                </div>
-              </Link>
-            </div>
-          </div>
+      <div className='sideNav'>
+        <div className='sideNav__topSection'>
+          {LogoAction}
         </div>
       </div>
     );
   }
 
   return (
-    <div className={'sideNav ' + wideNarrowWidth}>
-      <div className={'sideNav__topSection'}>
-        <div className={'sideNav-item'}>
-          <div className={'sideNav__logo'}>
-            <Link to={'/'}>
-              <div className={classNames('sideNav__imageDiv', wideNarrowWidth)}>
-                <img
-                  src={logo}
-                  alt={intl.formatMessage({id: 'SideNav.DremioLogoLabel'})}
-                  style={{filter: `saturate(${socketIsOpen ? 1 : 0})`}}
-                />
-              </div>
-            </Link>
-          </div>
-        </div>
-        {renderTopAction('sideNav-item__link', datasetIsActive, '/', 'datasetsIcon dremioIcon-SideNavDatasets', 'SideNav.Datasets', 'select-datasets')}
-        {renderTopAction('sideNav-item__link', newQueryIsActive, getNewQueryHref(), 'newQuery dremioIcon-SQL', 'SideNav.NewQuery', 'new-query-button', handleClick, {fontSize: '1.9rem'})}
-        {renderTopAction('sideNav-item__link', jobsIsActive,  '/jobs', 'jobsIcon dremioIcon-SideNavjobs', 'SideNav.Jobs', 'select-jobs')}
+    <div className='sideNav'>
+      <div className='sideNav__topSection'>
+        {LogoAction}
+        <TopAction
+          tooltipProps={{placement: 'right'}}
+          active={isActive({name:'/', dataset: true, loc, isDDPOnly})}
+          url='/'
+          icon='SideNav-table.svg'
+          alt='SideNav.Datasets'
+        />
+        {!isDDPOnly && (
+          <>
+            <TopAction
+              tooltipProps={{placement: 'right'}}
+              active={isActive({name:'/new_query', loc, sql: true})}
+              url={getNewQueryHref()} icon='SideNav-newQuery.svg'
+              alt='SideNav.NewQuery' data-qa='new-query-button'
+              onClick={() => handleClick}
+            />
+            <TopAction
+              tooltipProps={{placement: 'right'}}
+              active={isActive({loc, jobs: true})}
+              url='/jobs'
+              icon='SideNav-activity.svg'
+              alt='SideNav.Jobs'
+              data-qa='select-jobs'
+            />
+          </>
+        )}
       </div>
 
       <div className='sideNav__bottomSection'>
-        <SideNavExtra displayTooltip={displayTooltip} displayLabel={displayLabel} wideNarrowWidth={wideNarrowWidth}/>
-        <SideNavAdmin user={user} wideNarrowWidth={wideNarrowWidth} displayTooltip={displayTooltip} displayLabel={displayLabel}/>
+        <SideNavExtra />
+        <SideNavAdmin user={user} />
         <SideNavHoverMenu
-          wideNarrowWidth={wideNarrowWidth}
           tooltipStringId={'SideNav.Help'}
           menu={<HelpMenu/>}
-          icon={'dremioIcon-SideNavHelp'}
+          icon={'SideNav-help.svg'}
           menuDisplayUp
         />
         <SideNavHoverMenu
-          wideNarrowWidth={wideNarrowWidth}
           tooltipString={userTooltip}
           menu={<AccountMenu/>}
           menuDisplayUp
+          isActive={isActive({name: '/account/info', loc})}
           divBlob = {
-            <>
-              <div className={'sideNav-item__customHoverMenu' + wideNarrowWidth + userIsActive}>
-                <div className={classNames('sideNav-items', wideNarrowWidth)}>
-                  <div className='sideNav__customOuter' title={displayTooltip ? userTooltip : ''}>
-                    <div
-                      className={classNames('sideNav__user sideNav-item__dropdownIcon', wideNarrowWidth)}
-                      style={{backgroundColor: userColor}}
-                    >
-                      <span>{userNameFirst2}</span>
-                    </div>
-                  </div>
-                  <div className={'sideNav-item__labelNext' + displayLabel}>
-                    {userName}
+            <div className={'sideNav-item__customHoverMenu'}>
+              <div className='sideNav-items'>
+                <div className='sideNav__customOuter'>
+                  <div
+                    className='sideNav__user sideNav-item__dropdownIcon'
+                    style={{ backgroundColor: userBgColor, color: userColor }}
+                  >
+                    <span>{userNameFirst2}</span>
                   </div>
                 </div>
               </div>
-            </>
+            </div>
           }
         />
       </div>

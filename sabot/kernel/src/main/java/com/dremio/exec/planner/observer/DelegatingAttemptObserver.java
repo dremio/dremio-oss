@@ -194,6 +194,11 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void recordsOutput(long recordCount) {
+    observer.recordsOutput(recordCount);
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
     observer.planGenerationTime(millisTaken);
   }

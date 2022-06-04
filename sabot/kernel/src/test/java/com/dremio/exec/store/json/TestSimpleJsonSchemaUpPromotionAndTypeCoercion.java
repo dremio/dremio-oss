@@ -15,11 +15,8 @@
  */
 package com.dremio.exec.store.json;
 
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -42,7 +39,7 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
     // Run a query triggering a schema change
     triggerSchemaLearning(jsonDir);
     // Schema should have changed to (CHARACTER VARYING,CHARACTER VARYING) now, irrespective of which file was picked first
-    assertThat(runDescribeQuery(jsonDir), allOf(containsString("heading1|CHARACTER VARYING"), containsString("heading2|CHARACTER VARYING")));
+    assertThat(runDescribeQuery(jsonDir)).contains("heading1|CHARACTER VARYING").contains("heading2|CHARACTER VARYING");
     // Run a query touching all the files and ensure that it returns the correct records
     verifyRecords(jsonDir, "heading1", "red", "12.3", "blue", "12.4");
     verifyRecords(jsonDir, "heading2", "red", "12.3", "blue", "12.4");
@@ -55,7 +52,7 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
     // Run a query triggering a schema change
     triggerSchemaLearning(jsonDir);
     // Schema should have changed to (CHARACTER VARYING,CHARACTER VARYING) now, irrespective of which file was picked first
-    assertThat(runDescribeQuery(jsonDir), allOf(containsString("heading1|CHARACTER VARYING"), containsString("heading2|CHARACTER VARYING")));
+    assertThat(runDescribeQuery(jsonDir)).contains("heading1|CHARACTER VARYING").contains("heading2|CHARACTER VARYING");
     // Run a query touching all the files and ensure that it returns the correct records
     verifyRecords(jsonDir, "heading1", "red", "12", "blue", "13");
     verifyRecords(jsonDir, "heading2", "red", "12", "blue", "13");
@@ -68,7 +65,7 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
     // Run a query triggering a schema change
     triggerSchemaLearning(jsonDir);
     // Schema should have changed to (DOUBLE,DOUBLE) now, irrespective of which file was picked first
-    assertThat(runDescribeQuery(jsonDir), allOf(containsString("heading1|DOUBLE"), containsString("heading2|DOUBLE")));
+    assertThat(runDescribeQuery(jsonDir)).contains("heading1|DOUBLE").contains("heading2|DOUBLE");
     // Run a query touching all the files and ensure that it returns the correct records
     verifyRecords(jsonDir, "heading1", 12.3, 12.0, 12.4, 13.0);
     verifyRecords(jsonDir, "heading2", 12.3, 12.0, 12.4, 13.0);
@@ -81,7 +78,7 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
     // Run a query triggering a schema change
     triggerSchemaLearning(jsonDir);
     // Schema should have changed to (CHARACTER VARYING,CHARACTER VARYING) now, irrespective of which file was picked first
-    assertThat(runDescribeQuery(jsonDir), allOf(containsString("heading1|CHARACTER VARYING"), containsString("heading2|CHARACTER VARYING")));
+    assertThat(runDescribeQuery(jsonDir)).contains("heading1|CHARACTER VARYING").contains("heading2|CHARACTER VARYING");
     // Run a query touching all the files and ensure that it returns the correct records
     verifyRecords(jsonDir, "heading1", "12", "red", "12.3", "12", "12", "12.3");
     verifyRecords(jsonDir, "heading2", "12.3", "12", "12.3", "12.3", "red", "12.3");
@@ -103,35 +100,40 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
   }
 
   @Test
-  public void testInvalidUpPromotionAndTypeCoercionInUnions() throws Exception {
+  public void testUpPromotionAndTypeCoercionInListsOfNull() throws Exception {
+    Path jsonDir = copyFiles("list_of_null");
+    // Run a query touching all the files and ensure that it returns the correct records
+    String query = String.format("SELECT * FROM dfs.\"%s\"", jsonDir);
+    testRunAndReturn(UserBitShared.QueryType.SQL, query);
+    verifyCountStar(jsonDir, 1);
+  }
+
+  @Test
+  public void testInvalidUpPromotionAndTypeCoercionInUnions() {
     Path jsonDir = copyFiles("invalid_mixed_file");
     String query = String.format("SELECT * FROM dfs.\"%s\"", jsonDir);
-    try {
-      testRunAndReturn(UserBitShared.QueryType.SQL, query);
-      fail("Expected Exception");
-    } catch (Exception e) {
-      assertThat(e.getCause(), instanceOf(UserException.class));
-      assertThat(e.getCause().getMessage(), containsString("Unable to coerce from the file's data type \"boolean\" to the column's data type \"int64\" in table"));
-      assertThat(e.getCause().getMessage(), containsString("invalid_mixed_file"));
-      assertThat(e.getCause().getMessage(), containsString(", column \"heading1\" and file"));
-      assertThat(e.getCause().getMessage(), containsString("mixed_file_int_bool.json"));
-    }
+    assertThatExceptionOfType(Exception.class)
+      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+      .havingCause()
+      .isInstanceOf(UserException.class)
+      .withMessageContaining("Unable to coerce from the file's data type \"boolean\" to the column's data type \"int64\" in table")
+      .withMessageContaining("invalid_mixed_file")
+      .withMessageContaining(", column \"heading1\" and file")
+      .withMessageContaining("mixed_file_int_bool.json");
   }
 
   @Test
   public void testInvalidUpPromotionAndTypeCoercionAcrossFiles() throws Exception {
     Path jsonDir = copyFiles("bigint_and_bool");
     String query = String.format("SELECT * FROM dfs.\"%s\"", jsonDir);
-    try {
-      testRunAndReturn(UserBitShared.QueryType.SQL, query);
-      fail("Expected Exception");
-    } catch (Exception e) {
-      assertThat(e.getCause(), instanceOf(UserException.class));
-      assertThat(e.getCause().getMessage(), containsString("Unable to coerce from the file's data type"));
-      assertThat(e.getCause().getMessage(), containsString("in table"));
-      assertThat(e.getCause().getMessage(), containsString("bigint_and_bool"));
-      assertThat(e.getCause().getMessage(), containsString(", column \"heading1\" and file"));
-    }
+    assertThatExceptionOfType(Exception.class)
+      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+      .havingCause()
+      .isInstanceOf(UserException.class)
+      .withMessageContaining("Unable to coerce from the file's data type")
+      .withMessageContaining("in table")
+      .withMessageContaining("bigint_and_bool")
+      .withMessageContaining(", column \"heading1\" and file");
   }
 
   @Test
@@ -140,7 +142,7 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
     // Run a query triggering a schema change
     triggerSchemaLearning(jsonDir);
     // Schema should have changed to (CHARACTER VARYING,CHARACTER VARYING) now, irrespective of which file was picked first
-    assertThat(runDescribeQuery(jsonDir), allOf(containsString("heading1|CHARACTER VARYING"), containsString("heading2|CHARACTER VARYING")));
+    assertThat(runDescribeQuery(jsonDir)).contains("heading1|CHARACTER VARYING").contains("heading2|CHARACTER VARYING");
     // Run a query touching all the files and ensure that it returns the correct records
     verifyRecords(jsonDir, "heading1", "red", "true", "blue", "false");
     verifyRecords(jsonDir, "heading2", "red", "true", "blue", "false");
@@ -153,7 +155,7 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
     // Run a query triggering a schema change
     triggerSchemaLearning(jsonDir);
     // Schema should have changed to (BOOLEAN,BOOLEAN) now, irrespective of which file was picked first
-    assertThat(runDescribeQuery(jsonDir), allOf(containsString("heading1|BOOLEAN"), containsString("heading2|BOOLEAN")));
+    assertThat(runDescribeQuery(jsonDir)).contains("heading1|BOOLEAN").contains("heading2|BOOLEAN");
     // Run a query touching all the files and ensure that it returns the correct records
     verifyRecords(jsonDir, "heading1", true, null);
     verifyRecords(jsonDir, "heading2", true, null);
@@ -190,13 +192,11 @@ public class TestSimpleJsonSchemaUpPromotionAndTypeCoercion extends PlanTestBase
 
   private void triggerSchemaLearning(Path jsonDir) {
     String query = String.format("SELECT * FROM dfs.\"%s\"", jsonDir);
-    try {
-      testRunAndReturn(UserBitShared.QueryType.SQL, query);
-      fail("Expected UserRemoteException");
-    } catch (Exception e) {
-      assertThat(e.getCause(), instanceOf(UserRemoteException.class));
-      assertThat(e.getCause().getMessage(), containsString("New schema found"));
-    }
+    assertThatExceptionOfType(Exception.class)
+      .isThrownBy(() -> testRunAndReturn(UserBitShared.QueryType.SQL, query))
+      .havingCause()
+      .isInstanceOf(UserRemoteException.class)
+      .withMessageContaining("New schema found");
   }
 
   private String runDescribeQuery(Path jsonDir) throws Exception {

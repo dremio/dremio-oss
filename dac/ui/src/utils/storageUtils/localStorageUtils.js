@@ -32,6 +32,10 @@ const emptyApp = {
   SSOLogin: 'SSO'
 };
 
+export function useProjectContext() {
+  return null;
+}
+
 export class LocalStorageUtils {
   constructor() {
     const app = this.getApp();
@@ -238,6 +242,9 @@ export class LocalStorageUtils {
     return localStorage.getItem('isQVJob') && localStorage.getItem('isQVJob') !== 'undefined' && JSON.parse(localStorage.getItem('isQVJob'));
   }
 
+  isDataPlaneOnly() {
+    return false;
+  }
 }
 
 // todo: this shouldn't export `undefined` - it should use an in-memory only store

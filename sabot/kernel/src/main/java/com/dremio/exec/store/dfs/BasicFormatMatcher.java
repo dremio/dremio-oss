@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.IOUtils;
@@ -29,7 +30,6 @@ import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;

@@ -45,14 +45,12 @@ import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
 import com.dremio.plugins.util.ContainerAccessDeniedException;
 import com.dremio.plugins.util.ContainerNotFoundException;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.io.ByteStreams;
 
 /**
@@ -60,9 +58,6 @@ import com.google.common.io.ByteStreams;
  */
 public class TestAzureAsyncContainerProvider {
   private static final String AZURE_ENDPOINT = "dfs.core.windows.net";
-
-  @Rule
-  public final ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testListContainers() throws IOException, ExecutionException, InterruptedException {
@@ -217,9 +212,8 @@ public class TestAzureAsyncContainerProvider {
     AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
       client, AZURE_ENDPOINT, "azurestoragev2hier", authTokenProvider, parentClass, true, new String[] {"tempContainer"}, null);
 
-    thrown.expect(UserException.class);
-    thrown.expectMessage("Failure while validating existence of container tempContainer. Error: rootPath null  in container tempContainer is not found - [404 null]");
-    containerProvider.verfiyContainersExist();
+    UserExceptionAssert.assertThatThrownBy(containerProvider::verfiyContainersExist)
+      .hasMessageContaining("Failure while validating existence of container tempContainer. Error: rootPath null  in container tempContainer is not found - [404 null]");
   }
 
   @Test

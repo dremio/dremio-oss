@@ -33,8 +33,7 @@ import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.iceberg.IcebergFormatConfig;
+import com.dremio.exec.store.iceberg.IcebergManifestWriterPOP;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergUtils;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
@@ -52,8 +51,8 @@ public class SchemaDiscoveryManifestWritesHelper extends ManifestWritesHelper {
     private VarBinaryVector schemaVector;
     private int columnLimit;
 
-  public SchemaDiscoveryManifestWritesHelper(EasyWriter writer, IcebergFormatConfig formatConfig, int columnLimit) {
-        super(writer, formatConfig);
+  public SchemaDiscoveryManifestWritesHelper(IcebergManifestWriterPOP writer, int columnLimit) {
+        super(writer);
         this.columnLimit = columnLimit;
   }
 

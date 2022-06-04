@@ -15,6 +15,8 @@
  */
 package com.dremio.service.grpc;
 
+import static com.dremio.context.SupportContext.deserializeSupportRoles;
+
 import com.dremio.context.RequestContext;
 import com.dremio.context.SupportContext;
 import com.dremio.context.TenantContext;
@@ -43,12 +45,14 @@ public class MultiTenantServerInterceptor implements ServerInterceptor {
         .with(UserContext.CTX_KEY, new UserContext(requestHeaders.get(HeaderKeys.USER_HEADER_KEY)));
 
       if (requestHeaders.containsKey(HeaderKeys.SUPPORT_TICKET_HEADER_KEY)
-        && requestHeaders.containsKey(HeaderKeys.SUPPORT_EMAIL_HEADER_KEY))
+        && requestHeaders.containsKey(HeaderKeys.SUPPORT_EMAIL_HEADER_KEY)
+        && requestHeaders.containsKey(HeaderKeys.SUPPORT_ROLES_HEADER_KEY))
       {
         contextBuilder = contextBuilder.with(SupportContext.CTX_KEY,
           new SupportContext(
             requestHeaders.get(HeaderKeys.SUPPORT_TICKET_HEADER_KEY),
-            requestHeaders.get(HeaderKeys.SUPPORT_EMAIL_HEADER_KEY)));
+            requestHeaders.get(HeaderKeys.SUPPORT_EMAIL_HEADER_KEY),
+            deserializeSupportRoles(requestHeaders.get(HeaderKeys.SUPPORT_ROLES_HEADER_KEY))));
       }
 
       final RequestContext context = contextBuilder;

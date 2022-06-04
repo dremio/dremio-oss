@@ -103,7 +103,7 @@
               {
                 "propName": "config.bucketWhitelist[]",
                 "uiType": "value_list",
-                "emptyLabel": "No whitelisted buckets added",
+                "emptyLabel": "No allowlisted buckets added",
                 "addLabel": "Add bucket",
                 "validate": {
                   "isRequired": false

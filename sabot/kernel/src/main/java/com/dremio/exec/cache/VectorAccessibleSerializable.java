@@ -268,7 +268,7 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
           TypeHelper.load(vector, metaData, buf);
         } finally {
           if (buf != null) {
-            buf.release();
+            buf.close();
           }
         }
         vectorList.add(vector);
@@ -318,7 +318,7 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
       if (svBuf != null) {
         writeBuf(svBuf, output);
         sv2.setBuffer(svBuf);
-        svBuf.release(); // sv2 now owns the buffer
+        svBuf.close(); // sv2 now owns the buffer
         sv2.setRecordCount(svCount);
       }
 

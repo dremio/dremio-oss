@@ -31,4 +31,11 @@ public class ProtostuffDummyObjVersionExtractor implements VersionExtractor<Dumm
   public void setTag(DummyObj value, String tag) {
     value.setTag(tag);
   }
+
+  @Override
+  public AutoCloseable preCommit(DummyObj value) {
+    boolean negate = !value.getFlag();
+    value.setFlag(negate);
+    return () -> value.setFlag(!negate);
+  }
 }

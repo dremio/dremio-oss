@@ -65,8 +65,7 @@ public class MatchBitSet implements AutoCloseable {
    */
   private static int bitsToWords(final int numBits) {
     int numLong = numBits >>> LONG_TO_BITS_SHIFT;
-    if ((numBits & BIT_OFFSET_MASK) != 0)
-    {
+    if ((numBits & BIT_OFFSET_MASK) != 0) {
       numLong++;
     }
     return numLong;
@@ -109,16 +108,14 @@ public class MatchBitSet implements AutoCloseable {
 
     long wordAddr = bufferAddr + (long) wordOffset;
     long word = ~PlatformDependent.getLong(wordAddr) >> bit;
-    if (word != 0)
-    {
+    if (word != 0) {
       return index + Long.numberOfTrailingZeros(word);
     }
 
     final long maxAddr = bufferAddr + (long) numWords * BYTES_PER_WORD;
     for (wordAddr += BYTES_PER_WORD; wordAddr < maxAddr; wordAddr += BYTES_PER_WORD) {
       word = ~PlatformDependent.getLong(wordAddr);
-      if (word != 0)
-      {
+      if (word != 0) {
         return (int)(wordAddr - bufferAddr) * 8 + Long.numberOfTrailingZeros(word);
       }
     }

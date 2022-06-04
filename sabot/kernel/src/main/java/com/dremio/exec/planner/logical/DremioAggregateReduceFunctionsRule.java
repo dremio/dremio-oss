@@ -32,7 +32,7 @@ import com.google.common.collect.ImmutableSet;
 /**
  *
  */
-public final class DremioAggregateReduceFunctionsRule extends AggregateReduceFunctionsRule {
+public class DremioAggregateReduceFunctionsRule extends AggregateReduceFunctionsRule {
 
   public static final Set<SqlKind> DEFAULT_FUNCTIONS_TO_REDUCE_NO_SUM =
     ImmutableSet.<SqlKind>builder()
@@ -59,5 +59,17 @@ public final class DremioAggregateReduceFunctionsRule extends AggregateReduceFun
       return;
     }
     super.onMatch(call);
+  }
+
+  public static class ForGroupingSets extends DremioAggregateReduceFunctionsRule {
+    public ForGroupingSets(Class<? extends Aggregate> aggregateClass, RelBuilderFactory relBuilderFactory, EnumSet<SqlKind> functionsToReduce) {
+      super(aggregateClass, relBuilderFactory, functionsToReduce);
+    }
+
+    @Override
+    public boolean matches(RelOptRuleCall call) {
+      Aggregate agg = call.rel(0);
+      return agg.getGroupSets().size() > 1;
+    }
   }
 }

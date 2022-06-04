@@ -17,6 +17,7 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Immutable  from 'immutable';
 import { CENTER } from 'uiTheme/radium/flexStyle';
+import Art from './Art';
 
 export default class ViewCheckContent extends Component {
   static propTypes = {
@@ -34,7 +35,10 @@ export default class ViewCheckContent extends Component {
   render() {
     const { dataIsNotAvailable, viewState, children, message, customStyle } = this.props;
     return !viewState.get('isInProgress') && dataIsNotAvailable
-      ? <div style={{ ...style, ...customStyle}}> <span>{message || 'Nothing Here'}</span> </div>
+      ? <div style={{ ...style, ...customStyle}}>
+        <span>{message || 'Nothing Here'}</span>
+        <Art src='GnarlyBook.svg' alt='' title='Gnarly' style={{ height: 133, width: 91 }} />
+      </div>
       : children || null;
   }
 }
@@ -43,6 +47,8 @@ const style = {
   backgroundColor: '#fff',
   ...CENTER,
   width: '100%',
-  fontSize: 32,
-  color: '#CBCBCB'
+  fontSize: 20,
+  lineHeight: 32,
+  color: '#333',
+  gap: 20
 };

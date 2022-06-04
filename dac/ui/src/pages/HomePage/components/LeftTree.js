@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Radium from 'radium';
 import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import classNames from 'classnames';
@@ -29,14 +30,13 @@ import SimpleButton from 'components/Buttons/SimpleButton';
 import { EmptyStateContainer } from '@app/pages/HomePage/components/EmptyStateContainer';
 import SpacesSection from '@app/pages/HomePage/components/SpacesSection';
 
-import { isExternalSourceType } from '@app/constants/sourceTypes';
+import { isExternalSourceType, isDataPlaneSourceType } from '@app/constants/sourceTypes';
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import {createSampleSource, isSampleSource} from 'actions/resources/sources';
 import {toggleExternalSourcesExpanded} from 'actions/ui/ui';
-
-import Radium from 'radium';
+import DataPlaneSection from './DataPlaneSection/DataPlaneSection';
 
 import { emptyContainer, shortEmptyContainer } from './LeftTree.less';
 
@@ -129,17 +129,19 @@ export class LeftTree extends PureComponent {
     return this.context.loggedInUser.admin;
   }
 
-  getAddSourceHref(isExternalSource) {
+  getAddSourceHref(isExternalSource, isDataPlaneSource = false) {
     return this.getCanAddSource() ?
-      {...this.context.location, state: {modal: 'AddSourceModal', isExternalSource}} : undefined;
+      {...this.context.location, state: {modal: 'AddSourceModal', isExternalSource, isDataPlaneSource}} : undefined;
   }
 
   render() {
     const { className, sources, sourcesViewState, intl, externalSourcesExpanded, toggleExternalSourcesExpanded: handleToggle } = this.props;
     const classes = classNames('left-tree', className);
     const homeItem = this.getHomeObject();
-    const dataLakeSources = sources.filter(source => !isExternalSourceType(source.get('type')));
-    const externalSources = sources.filter(source => isExternalSourceType([source.get('type')]));
+    const dataLakeSources = sources.filter(source => !isExternalSourceType(source.get('type')) && !isDataPlaneSourceType(source.get('type')));
+    const externalSources = sources.filter(source => isExternalSourceType(source.get('type')) && !isDataPlaneSourceType(source.get('type')));
+    const dataPlaneSources = sources.filter(source => isDataPlaneSourceType(source.get('type')));
+
     const haveOnlySampleSource = dataLakeSources.size && dataLakeSources.toJS().every(isSampleSource);
     // When the user only added in a single source, allow more height to show the "Add own Data Lake" message
     const dataLakeListHeight = haveOnlySampleSource ? '195px' : '155px';
@@ -152,6 +154,12 @@ export class LeftTree extends PureComponent {
           <FinderNavItem item={homeItem} />
         </ul>
         <SpacesSection />
+        <DataPlaneSection
+          dataPlaneSources={dataPlaneSources}
+          sourcesViewState={sourcesViewState}
+          addHref={this.getAddSourceHref(false, true)}
+          height={dataLakeListHeight}
+        />
         <div className='left-tree-wrap' style={{
           height: dataLakeSources.size ? dataLakeListHeight : '175px',
           overflow: 'hidden'

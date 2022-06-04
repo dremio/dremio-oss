@@ -45,7 +45,7 @@ public class BatchPrinter {
         for (String column : columns) {
           System.out.printf("| %-15s", width <= 15 ? column : column.substring(0, 14));
         }
-        System.out.printf("|\n");
+        System.out.print("|\n");
         System.out.println(StringUtils.repeat("-", width*17 + 1));
       }
       for (VectorWrapper<?> vw : batch) {
@@ -60,9 +60,9 @@ public class BatchPrinter {
         }
         System.out.printf("| %-15s",value.length() <= 15 ? value : value.substring(0,14));
       }
-      System.out.printf("|\n");
+      System.out.print("|\n");
     }
-    System.out.printf("|\n");
+    System.out.print("|\n");
   }
 
   public static void printBatch(VectorAccessible batch) {
@@ -97,7 +97,7 @@ public class BatchPrinter {
         for (String column : columns) {
           System.out.printf("| %-50s", width <= 50 ? column : column.substring(0, Math.min(column.length(), 49)));
         }
-        System.out.printf("|\n");
+        System.out.print("|\n");
         System.out.println(StringUtils.repeat("-", width*52 + 1));
       }
       for (ValueVector vv : vectors) {
@@ -113,7 +113,7 @@ public class BatchPrinter {
         }
         System.out.printf("| %-50s",value.length() <= 50 ? value : value.substring(0, 49));
       }
-      System.out.printf("|\n");
+      System.out.print("|\n");
     }
   }
 
@@ -133,7 +133,7 @@ public class BatchPrinter {
         for (String column : columns) {
           System.out.printf("| %-30s", width <= 30 ? column : column.substring(0, 29));
         }
-        System.out.printf("|\n");
+        System.out.print("|\n");
         System.out.println(StringUtils.repeat("-", width*32 + 1));
       }
       int row = sv2.getIndex(i);
@@ -150,7 +150,7 @@ public class BatchPrinter {
         }
         System.out.printf("| %-30s",value.length() <= 30 ? value : value.substring(0, 29));
       }
-      System.out.printf("|\n");
+      System.out.print("|\n");
     }
   }
 }

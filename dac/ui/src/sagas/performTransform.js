@@ -41,7 +41,7 @@ import { needsTransform } from 'sagas/utils';
 import {
   transformThenNavigate, TransformFailedError, TransformCanceledError, TransformCanceledByLocationChangeError
 } from './transformWatcher';
-
+import { getNessieReferences } from './nessie';
 
 export default function* watchPerformTransform() {
   yield all([
@@ -105,6 +105,7 @@ export function* performTransform({
       // Expand the sql box state after executing New Query
       yield put(expandExploreSql());
     }
+
   } catch (e) {
     // do nothing for api errors. view state handles them.
     if (
@@ -124,10 +125,7 @@ export function* handleRunDatasetSql({ isPreview }) {
   const exploreState = yield select(getExploreState);
   const viewId = exploreViewState.get('viewId');
   const currentSql = exploreState.view.currentSql;
-  let queryContext = exploreState.view.queryContext;
-  if (queryContext.size === 0) {
-    queryContext = dataset.get('context');
-  }
+  const queryContext = exploreState.view.queryContext;
 
   if (yield call(proceedWithDataLoad, dataset, queryContext, currentSql)) {
     const performTransformParam = {
@@ -136,6 +134,7 @@ export function* handleRunDatasetSql({ isPreview }) {
       queryContext,
       viewId
     };
+
     if (isPreview) {
       performTransformParam.forceDataLoad = true;
     } else {
@@ -154,17 +153,19 @@ export function* handleRunDatasetSql({ isPreview }) {
 // do we need so many different endpoints? We should refactor our api to reduce the number
 // Returns an action that should be triggered for case of Run/Preview
 // export for tests
-export function* getFetchDatasetMetaAction({
-  dataset,
-  currentSql,
-  queryContext,
-  viewId,
-  nextTable,
-  isRun,
-  transformData,
-  forceDataLoad
-}) {
+export function* getFetchDatasetMetaAction(props) {
+  const {
+    dataset,
+    currentSql,
+    queryContext,
+    viewId,
+    nextTable,
+    isRun,
+    transformData,
+    forceDataLoad
+  } = props;
 
+  const references = yield getNessieReferences();
   const sql = currentSql || dataset.get('sql');
   invariant(!queryContext || queryContext instanceof Immutable.List, 'queryContext must be Immutable.List');
   const finalTransformData = yield call(getTransformData, dataset, sql, queryContext, transformData);
@@ -174,7 +175,7 @@ export function* getFetchDatasetMetaAction({
   if (isRun) {
     if (!dataset.get('datasetVersion')) {
       // dataset is not created. Create with sql and run.
-      apiAction = yield call(newUntitledSqlAndRun, sql, queryContext, viewId);
+      apiAction = yield call(newUntitledSqlAndRun, sql, queryContext, viewId, references);
       navigateOptions = { changePathname: true }; //changePathname to navigate to newUntitled
     } else if (finalTransformData) {
       updateTransformData(finalTransformData);
@@ -205,9 +206,8 @@ export function* getFetchDatasetMetaAction({
     }
     // ----------------------------------------------------------------------------
 
-
     if (!dataset.get('datasetVersion')) {
-      apiAction = yield call(newUntitledSql, sql, queryContext && queryContext.toJS(), viewId);
+      apiAction = yield call(newUntitledSql, sql, queryContext && queryContext.toJS(), viewId, references);
       navigateOptions = { changePathname: true }; //changePathname to navigate to newUntitled
     } else if (finalTransformData) {
       apiAction = yield call(runTableTransform, dataset, finalTransformData, viewId, nextTable);
@@ -243,7 +243,7 @@ export const getTransformData = (dataset, sql, queryContext, transformData) => {
   const savedSql = (dataset && dataset.get('sql')) || '';
   const savedContext = dataset && dataset.get('context') || Immutable.List();
   if ((sql !== null && savedSql !== sql) || !savedContext.equals(queryContext || Immutable.List())) {
-    return { type: 'updateSQL', sql, sqlContextList: queryContext && queryContext.toJS()};
+    return { type: 'updateSQL', sql, sqlContextList: queryContext && queryContext.toJS() };
   }
 };
 

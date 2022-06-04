@@ -18,6 +18,8 @@ package com.dremio.sabot.dictionary;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.nio.charset.Charset;
 import java.util.Map;
@@ -28,8 +30,8 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -64,7 +66,7 @@ public class TestDictionaryLookup extends BaseTestOperator {
          final VectorContainer dict3 = new VectorContainer(getTestAllocator())) {
 
       final Map<String, GlobalDictionaryFieldInfo> dictionaryFieldInfoMap = Maps.newHashMap();
-      final Field field1 = new Field(SchemaPath.getSimplePath("c0").getAsUnescapedPath(), true, new ArrowType.Int(64, true), null);
+      final Field field1 = new Field(SchemaPath.getSimplePath("c0").getAsUnescapedPath(), new FieldType(true, new ArrowType.Int(64, true), null), null);
       final BigIntVector longVector = dict1.addOrGet(field1);
       longVector.allocateNew();
       longVector.setSafe(0, 10L);
@@ -79,7 +81,7 @@ public class TestDictionaryLookup extends BaseTestOperator {
 
       dictionaryFieldInfoMap.put("c0", new GlobalDictionaryFieldInfo(0, "c0", null, field1.getType(), "local"));
 
-      final Field field2 = new Field(SchemaPath.getSimplePath("c1").getAsUnescapedPath(), true, new ArrowType.Binary(), null);
+      final Field field2 = new Field(SchemaPath.getSimplePath("c1").getAsUnescapedPath(), new FieldType(true, new ArrowType.Binary(), null), null);
       final VarBinaryVector binaryVector = dict2.addOrGet(field2);
       binaryVector.allocateNew();
       binaryVector.setSafe(0, "abc".getBytes(UTF8), 0, 3);
@@ -92,7 +94,7 @@ public class TestDictionaryLookup extends BaseTestOperator {
       dict2.buildSchema(BatchSchema.SelectionVectorMode.NONE);
       dictionaryFieldInfoMap.put("c1", new GlobalDictionaryFieldInfo(0, "c1", null, field2.getType(), "local"));
 
-      final Field field3 = new Field(SchemaPath.getSimplePath("c2").getAsUnescapedPath(), true, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null);
+      final Field field3 = new Field(SchemaPath.getSimplePath("c2").getAsUnescapedPath(), new FieldType(true, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null), null);
       final Float8Vector doubleVector = dict3.addOrGet(field3);
       doubleVector.allocateNew();
       doubleVector.setSafe(0, 100.1);
@@ -106,16 +108,17 @@ public class TestDictionaryLookup extends BaseTestOperator {
       dictionaryFieldInfoMap.put("c2", new GlobalDictionaryFieldInfo(0, "c2", null, field3.getType(), "local"));
 
       OperatorCreatorRegistry registry = Mockito.mock(OperatorCreatorRegistry.class);
-      Mockito.when(registry.getSingleInputOperator(Matchers.any(OperatorContext.class), Matchers.any(PhysicalOperator.class)))
+      Mockito.when(registry.getSingleInputOperator(any(OperatorContext.class), any(PhysicalOperator.class)))
         .thenAnswer(new Answer<SingleInputOperator>() {
+          @Override
           public SingleInputOperator answer(InvocationOnMock invocation) throws Exception {
             Object[] args = invocation.getArguments();
             DictionaryLookupOperator dictionaryLookupOperator = Mockito.spy(new DictionaryLookupOperator(
               (OperatorContext)args[0], (DictionaryLookupPOP)args[1]));
 
-            Mockito.doReturn(dict1).when(dictionaryLookupOperator).loadDictionary(Matchers.eq("c0"));
-            Mockito.doReturn(dict2).when(dictionaryLookupOperator).loadDictionary(Matchers.eq("c1"));
-            Mockito.doReturn(dict3).when(dictionaryLookupOperator).loadDictionary(Matchers.eq("c2"));
+            Mockito.doReturn(dict1).when(dictionaryLookupOperator).loadDictionary(eq("c0"));
+            Mockito.doReturn(dict2).when(dictionaryLookupOperator).loadDictionary(eq("c1"));
+            Mockito.doReturn(dict3).when(dictionaryLookupOperator).loadDictionary(eq("c2"));
             return dictionaryLookupOperator;
           }
         });

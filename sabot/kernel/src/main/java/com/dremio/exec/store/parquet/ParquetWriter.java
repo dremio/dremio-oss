@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.io.IOException;
-
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWriter;
 import com.fasterxml.jackson.annotation.JacksonInject;
@@ -49,9 +46,10 @@ public class ParquetWriter extends FileSystemWriter {
       @JsonProperty("location") String location,
       @JsonProperty("options") WriterOptions options,
       @JsonProperty("pluginId") StoragePluginId pluginId,
-      @JacksonInject CatalogService catalogService) throws IOException, ExecutionSetupException {
+      @JacksonInject StoragePluginResolver storagePluginResolver
+  ) {
     super(props, child, options);
-    this.plugin = catalogService.getSource(pluginId);
+    this.plugin = storagePluginResolver.getSource(pluginId);
     this.formatPlugin = (ParquetFormatPlugin) plugin.getFormatPlugin(new ParquetFormatConfig());
     Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
     this.location = location;

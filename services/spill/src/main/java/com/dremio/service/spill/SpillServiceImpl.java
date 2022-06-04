@@ -232,6 +232,19 @@ public class SpillServiceImpl implements SpillService {
     }
   }
 
+  // checks if all spill directories are empty, used for testing.
+  @Override
+  public boolean isEmpty() throws IOException {
+    for (String directory : spillDirs) {
+      final Path monitoredPath = monitoredSpillDirectoryMap.get(directory);
+      FileSystem fileSystem = monitoredPath.getFileSystem(SPILLING_CONFIG);
+      if (fileSystem.listFiles(monitoredPath, true).hasNext()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   @Override
   public SpillDirectory getSpillSubdir(String id) throws UserException {
     ArrayList<String> currentSpillDirs = Lists.newArrayList(spillDirs);

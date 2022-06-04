@@ -18,7 +18,7 @@ package com.dremio.exec.store.metadatarefresh.footerread;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -189,7 +189,7 @@ public class TestFooterReadTableFunction extends BaseTestQuery {
       tableFunction.startRow(1);
       assertEquals(1, tableFunction.processRow(1, 5));
       verifyOutput(outputDatafileVector.get(1), outputSchemaVector.get(1),
-        BatchSchema.of(Field.nullable("EXPR$0", new ArrowType.Decimal(32, 20))),
+        BatchSchema.of(Field.nullable("EXPR$0", new ArrowType.Decimal(32, 20, 128))),
         new IcebergPartitionData(PartitionSpec.unpartitioned().partitionType()), IcebergMetadataInformation.IcebergMetadataFileType.ADD_DATAFILE);
       tableFunction.closeRow();
 

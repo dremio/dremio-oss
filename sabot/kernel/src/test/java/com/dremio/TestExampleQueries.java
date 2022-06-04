@@ -16,7 +16,9 @@
 package com.dremio;
 
 import static com.dremio.TestBuilder.listOf;
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.FUNCTION;
 import static com.dremio.sabot.Fixtures.ts;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -41,12 +43,11 @@ import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.test.TemporarySystemProperties;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 
 public class TestExampleQueries extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
@@ -69,6 +70,38 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void testDifferentOperatorsWithMatchingSplits() throws Exception {
+    test("use dfs_test");
+    final String vwCreate = "create or replace view \"dfs_test\".voter_csv_v as " +
+      "select case when columns[0]='' then cast(null as int) else cast(columns[0] as int) end as voter_id, " +
+      "case when columns[1]='' then cast(null as varchar(30)) else cast(columns[1] as varchar(30)) end as name, " +
+      "case when columns[2]='' then cast(null as integer) else cast(columns[2] as integer) end as age, " +
+      "case when columns[3]='' then cast(null as varchar(20)) else cast(columns[3] as varchar(20)) end as registration, " +
+      "case when columns[4]='' then cast(null as double precision) else cast(columns[4] as double precision) end as contributions, " +
+      "case when columns[5]='' then cast(null as integer) else cast(columns[5] as integer) end as voterzone, " +
+      "case when columns[6]='' then cast(null as timestamp) else cast(columns[6] as timestamp) end as create_time, " +
+      "cast(columns[7] as boolean) isVote from \"cp\".\"json/voters.json\"\nt";
+
+    test(vwCreate);
+    testBuilder()
+      .sqlQuery("SELECT distinct(isVote) FROM dfs_test.voter_csv_v where (registration <> 'independent') ")
+      .unOrdered()
+      .baselineColumns("isVote")
+      .baselineValues(false)
+      .baselineValues(true)
+      .go();
+    // the following query has some splits with exactly same expression as previous splits but the
+    // number of splits vary. See DX-45671.
+    testBuilder()
+      .sqlQuery("SELECT count(*) as cnt FROM dfs_test.voter_csv_v where registration = 'independent'")
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(8L)
+      .go();
+    test("drop view dfs_test.voter_csv_v");
+  }
+
+  @Test
   public void testQueryWithConstant() throws Exception {
     final String sql = "SELECT count(*) as c1 FROM cp.\"complex/complex_fields.parquet\" as \"x\" where (case " +
       "when x.c_array_array[0][0] > 3 " +
@@ -79,6 +112,22 @@ public class TestExampleQueries extends PlanTestBase {
       .unOrdered()
       .baselineColumns("c1")
       .baselineValues(14L)
+      .go();
+  }
+
+  @Test
+  public void testUnionWithDecimalScale() throws Exception {
+    final String sql = "SELECT *\n" +
+      "FROM\n" +
+      "((select 100.0 as c1)\n" +
+      "UNION\n" +
+      "(select 20.55 as c2));";
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("c1")
+      .baselineValues(new BigDecimal("20.55"))
+      .baselineValues(new BigDecimal("100.00"))
       .go();
   }
 
@@ -570,7 +619,6 @@ public class TestExampleQueries extends PlanTestBase {
       "l_discount + 26" +
       "");
   }
-
 
   @Test
   public void unknownListTypeCtas() throws Exception {
@@ -1576,7 +1624,7 @@ public class TestExampleQueries extends PlanTestBase {
         .baselineValues(null)
         .build().run();
     } catch (Exception e) {
-      assertTrue(e.getMessage().contains("From line 1, column 33 to line 1, column 53: Type mismatch in column 1 of UNION"));
+      assertTrue(e.getMessage().contains("Conversion to relational algebra failed to preserve datatypes"));
     }
   }
 
@@ -1602,7 +1650,7 @@ public class TestExampleQueries extends PlanTestBase {
         .baselineValues(100)
         .build().run();
     } catch (Exception e) {
-      assertTrue(e.getMessage().contains("At line 1, column 8: Type mismatch in column 1 of UNION"));
+      assertTrue(e.getMessage().contains("attempting to union two datasets that have different underlying schemas"));
     }
   }
 
@@ -1973,12 +2021,12 @@ public class TestExampleQueries extends PlanTestBase {
 
     String query1 = String.format("explain plan for select * from dfs.\"%s\"", root);
     String query2 = String.format("explain plan for select * from dfs.\"%s\"", toFile);
-    thrownException.expect(UserRemoteException.class);
-    thrownException.expectMessage("DATA_READ ERROR: Selected table has no columns.");
-    test(query1);
-    thrownException.expect(UserRemoteException.class);
-    thrownException.expectMessage("DATA_READ ERROR: Selected table has no columns.");
-    test(query2);
+    assertThatThrownBy(() -> test(query1))
+      .isInstanceOf(UserRemoteException.class)
+      .hasMessageContaining("DATA_READ ERROR: Selected table has no columns.");
+    assertThatThrownBy(() -> test(query2))
+      .isInstanceOf(UserRemoteException.class)
+      .hasMessageContaining("DATA_READ ERROR: Selected table has no columns.");
   }
 
   @Test
@@ -2218,11 +2266,25 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test // DX-27938
-  public void testSpacedBooleanCast2() throws Exception {
+  public void testSpacedBooleanCast2() {
     String query = "select cast(CAST('    tru  e   ' AS VARCHAR) as boolean) as \"true\", Cast(CAST('     fal s e' AS VARCHAR) as boolean) as \"false\"";
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.FUNCTION,
-      "FUNCTION ERROR: Invalid value for boolean: 'tru  e'"));
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasErrorType(FUNCTION)
+      .hasMessageContaining("FUNCTION ERROR: Invalid value for boolean: 'tru  e'");
+  }
+
+  @Test
+  public void testBooleanIntegerEquality() throws Exception {
+    final String query = "SELECT * FROM cp.\"boolTypes.parquet\" t where t.bVal = 1";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("id", "bVal")
+      .baselineValues(1L, true)
+      .baselineValues(2L, true)
+      .build()
+      .run();
   }
 
   @Test // DX-27940

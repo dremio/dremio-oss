@@ -33,12 +33,12 @@ import com.google.common.collect.Lists;
  * Tests decimal truncate and round decimal behavior;
  */
 public class DecimalOutputDerivationTests  {
-  private final ArrowType.Decimal DECIMAL_5_3 = new ArrowType.Decimal(5,3);
-  private final ArrowType.Decimal DECIMAL_4_3 = new ArrowType.Decimal(4,3);
-  private final ArrowType.Decimal DECIMAL_2_0 = new ArrowType.Decimal(2,0);
-  private final ArrowType.Decimal DECIMAL_1_0 = new ArrowType.Decimal(1,0);
-  private final ArrowType.Decimal DECIMAL_9_0 = new ArrowType.Decimal(9,0);
-  private final ArrowType.Decimal DECIMAL_8_0 = new ArrowType.Decimal(8,0);
+  private final ArrowType.Decimal DECIMAL_5_3 = new ArrowType.Decimal(5,3, 128);
+  private final ArrowType.Decimal DECIMAL_4_3 = new ArrowType.Decimal(4,3, 128);
+  private final ArrowType.Decimal DECIMAL_2_0 = new ArrowType.Decimal(2,0, 128);
+  private final ArrowType.Decimal DECIMAL_1_0 = new ArrowType.Decimal(1,0, 128);
+  private final ArrowType.Decimal DECIMAL_9_0 = new ArrowType.Decimal(9,0, 128);
+  private final ArrowType.Decimal DECIMAL_8_0 = new ArrowType.Decimal(8,0, 128);
 
   @Test
   public void testRoundWithoutScaleArg() {

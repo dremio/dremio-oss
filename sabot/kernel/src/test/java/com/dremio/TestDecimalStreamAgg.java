@@ -18,11 +18,9 @@ package com.dremio;
 import java.math.BigDecimal;
 
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.common.exceptions.UserException;
+import com.dremio.test.UserExceptionAssert;
 
 /**
  * Tests streaming aggregates when no group by clause is present.
@@ -45,9 +43,6 @@ import com.dremio.common.exceptions.UserException;
  */
 public class TestDecimalStreamAgg extends DecimalCompleteTest {
 
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
-
   @Test
   public void testDecimalSumAgg_Parquet() throws Exception {
 
@@ -63,15 +58,12 @@ public class TestDecimalStreamAgg extends DecimalCompleteTest {
 
   @Test
   @Ignore("DX-11334")
-  public void testDecimalSumAggOverflow_Parquet() throws Exception {
-
-    exception.expect(UserException.class);
-    exception.expectMessage("Overflow happened for decimal addition. Max precision is 38.");
-
+  public void testDecimalSumAggOverflow_Parquet() {
     final String query = "select sum(val) from cp" +
       ".\"parquet/decimals/overflow.parquet\"";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasMessageContaining("Overflow happened for decimal addition. Max precision is 38.");
   }
 
   @Test
@@ -89,15 +81,13 @@ public class TestDecimalStreamAgg extends DecimalCompleteTest {
 
   @Test
   @Ignore("DX-11334")
-  public void testDecimalSumZeroAggOverflow_Parquet() throws Exception {
-
-    exception.expect(UserException.class);
-    exception.expectMessage("Overflow happened for decimal addition. Max precision is 38.");
+  public void testDecimalSumZeroAggOverflow_Parquet() {
 
     final String query = "select $sum0(val) from cp" +
       ".\"parquet/decimals/overflow.parquet\"";
 
-    test(query);
+    UserExceptionAssert.assertThatThrownBy(() -> test(query))
+      .hasMessageContaining("Overflow happened for decimal addition. Max precision is 38.");
   }
 
   @Test

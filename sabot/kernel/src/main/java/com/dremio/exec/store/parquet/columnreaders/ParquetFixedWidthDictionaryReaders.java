@@ -88,7 +88,8 @@ public class ParquetFixedWidthDictionaryReaders {
         // and we will go into the else condition below. The readField method of the parent class requires the
         // writer index to be set correctly.
         long writerIndex = valueVec.getDataBuffer().writerIndex();
-        valueVec.getDataBuffer().setIndex(0, LargeMemoryUtil.checkedCastToInt(writerIndex + readLength));
+        valueVec.getDataBuffer().readerIndex(0);
+        valueVec.getDataBuffer().writerIndex(LargeMemoryUtil.checkedCastToInt(writerIndex + readLength));
       } else {
         super.readField(recordsToReadInThisPass);
       }
@@ -172,7 +173,8 @@ public class ParquetFixedWidthDictionaryReaders {
         readLengthInBits = recordsReadInThisIteration * dataTypeLengthInBits;
         readLength = (int) Math.ceil(readLengthInBits / 8.0);
         long writerIndex = valueVec.getDataBuffer().writerIndex();
-        valueVec.getDataBuffer().setIndex(0, LargeMemoryUtil.checkedCastToInt(writerIndex + readLength));
+        valueVec.getDataBuffer().readerIndex(0);
+        valueVec.getDataBuffer().writerIndex(LargeMemoryUtil.checkedCastToInt(writerIndex + readLength));
       } else {
         super.readField(recordsToReadInThisPass);
       }

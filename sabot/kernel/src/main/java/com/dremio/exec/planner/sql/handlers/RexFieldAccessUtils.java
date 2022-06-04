@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.RelNode;
@@ -42,15 +43,30 @@ import com.google.common.collect.ImmutableList;
 public final class RexFieldAccessUtils {
   public static final SqlSpecialOperator STRUCTURED_WRAPPER = new SqlSpecialOperator("STRUCTURED_WRAPPER", SqlKind.OTHER);
 
+  public static RelNode wrap(RelNode rel, boolean allowItemWrapping) {
+    return rel.accept(new StatelessRelShuttleImpl() {
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof Project) {
+          return wrapProject((Project) other, ((Project) other).getInput().accept(this), false, allowItemWrapping);
+        }
+        if (other instanceof Filter) {
+          return wrapFilter((Filter) other, ((Filter) other).getInput().accept(this), false, allowItemWrapping);
+        }
+        return super.visit(other);
+      }
+    });
+  }
+
   public static RelNode wrap(RelNode rel) {
     return rel.accept(new StatelessRelShuttleImpl() {
       @Override
       public RelNode visit(RelNode other) {
         if (other instanceof Project) {
-          return wrapProject((Project) other, ((Project) other).getInput().accept(this), false);
+          return wrapProject((Project) other, ((Project) other).getInput().accept(this), false, true);
         }
         if (other instanceof Filter) {
-          return wrapFilter((Filter) other, ((Filter) other).getInput().accept(this), false);
+          return wrapFilter((Filter) other, ((Filter) other).getInput().accept(this), false, true);
         }
         return super.visit(other);
       }
@@ -82,8 +98,9 @@ public final class RexFieldAccessUtils {
     });
   }
 
-  public static Project wrapProject(Project project, RelNode input, boolean crel) {
+  public static Project wrapProject(Project project, RelNode input, boolean crel, boolean allowItemWrapping) {
     final StructuredReferenceWrapper wrapper = new StructuredReferenceWrapper(project.getCluster().getRexBuilder(), true);
+    wrapper.setAllowItemWrapping(allowItemWrapping);
     List<RexNode> wrappedExpr = project.getProjects().stream().map(expr -> expr.accept(wrapper)).collect(Collectors.toList());
     if (crel) {
       return LogicalProject.create(input, ImmutableList.of(), wrappedExpr, project.getRowType());
@@ -100,8 +117,9 @@ public final class RexFieldAccessUtils {
     return ProjectRel.create(project.getCluster(), project.getTraitSet(), input, unwrappedExpr, project.getRowType());
   }
 
-  private static Filter wrapFilter(Filter filter, RelNode input, boolean crel) {
+  private static Filter wrapFilter(Filter filter, RelNode input, boolean crel,  boolean allowItemWrapping) {
     final StructuredReferenceWrapper wrapper = new StructuredReferenceWrapper(filter.getCluster().getRexBuilder(), true);
+    wrapper.setAllowItemWrapping(allowItemWrapping);
     RexNode wrappedCondition = filter.getCondition().accept(wrapper);
     if (crel) {
       return LogicalFilter.create(input, wrappedCondition);
@@ -125,10 +143,15 @@ public final class RexFieldAccessUtils {
 
     private RexBuilder builder;
     private boolean wrap;
+    private boolean allowItemWrapping;
 
     StructuredReferenceWrapper(RexBuilder builder, boolean wrap) {
       this.builder = builder;
       this.wrap = wrap;
+    }
+
+    public void setAllowItemWrapping(boolean allowItemWrapping) {
+      this.allowItemWrapping = allowItemWrapping;
     }
 
     @Override
@@ -145,6 +168,11 @@ public final class RexFieldAccessUtils {
         if(rexCall.getOperator().equals(STRUCTURED_WRAPPER)) {
           return rexCall.getOperands().get(0);
         }
+      }
+      if("item".equals(rexCall.getOperator().getName().toLowerCase(Locale.ROOT))
+       && allowItemWrapping
+      ){
+        return rexCall;
       }
       return super.visitCall(rexCall);
     }

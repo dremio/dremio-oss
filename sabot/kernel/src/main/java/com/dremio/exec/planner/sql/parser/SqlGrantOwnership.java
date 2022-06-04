@@ -46,7 +46,6 @@ public class SqlGrantOwnership extends SqlCall implements SimpleDirectHandler.Cr
 
   public enum GrantType {
     USER,
-    CATALOG,
     VDS,
     PDS,
     PROJECT,
@@ -56,7 +55,10 @@ public class SqlGrantOwnership extends SqlCall implements SimpleDirectHandler.Cr
     ROLE,
     IDENTITY_PROVIDER,
     OAUTH_APPLICATION,
-    EXTERNAL_TOKENS_PROVIDER
+    EXTERNAL_TOKENS_PROVIDER,
+    FOLDER,
+    SOURCE,
+    SPACE
   }
 
   public enum GranteeType{

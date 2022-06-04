@@ -15,12 +15,8 @@
  */
 package com.dremio.jdbc;
 
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Clob;
 import java.sql.PreparedStatement;
@@ -29,7 +25,6 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 
-import org.hamcrest.Matcher;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -39,12 +34,6 @@ import com.dremio.jdbc.test.JdbcAssert;
  * Test that prepared statements works even if not supported on server, to some extent.
  */
 public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
-  /** Fuzzy matcher for parameters-not-supported message assertions.  (Based on
-   *  current "Prepared-statement dynamic parameters are not supported.") */
-  private static final Matcher<String> PARAMETERS_NOT_SUPPORTED_MSG_MATCHER =
-      allOf( containsString( "arameter" ),   // allows "Parameter"
-             containsString( "not" ),        // (could have false matches)
-             containsString( "support" ) );  // allows "supported"
 
   @BeforeClass
   public static void setUpConnection() throws SQLException {
@@ -52,7 +41,7 @@ public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
     properties.setProperty("server.preparedstatement.disabled", "true");
 
     setupConnection(properties);
-    assertTrue(((DremioConnection) getConnection()).getConfig().isServerPreparedStatementDisabled());
+    assertThat(((DremioConnection) getConnection()).getConfig().isServerPreparedStatementDisabled()).isTrue();
   }
 
   //////////
@@ -63,12 +52,10 @@ public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
   public void testExecuteQueryBasicCaseWorks() throws SQLException {
     try (PreparedStatement stmt = getConnection().prepareStatement( "VALUES 11" )) {
       try(ResultSet rs = stmt.executeQuery()) {
-        assertThat("Unexpected column count",
-            rs.getMetaData().getColumnCount(), equalTo(1)
-        );
-        assertTrue("No expected first row", rs.next());
-        assertThat(rs.getInt(1), equalTo(11));
-        assertFalse("Unexpected second row", rs.next());
+        assertThat(rs.getMetaData().getColumnCount()).isEqualTo(1);
+        assertThat(rs.next()).isTrue();
+        assertThat(rs.getInt(1)).isEqualTo(11);
+        assertThat(rs.next()).isFalse();
       }
     }
   }
@@ -78,36 +65,27 @@ public class LegacyPreparedStatementTest extends JdbcWithServerTestBase {
 
   /** Tests that "not supported" has priority over possible "no parameters"
    *  check. */
-  @Test( expected = SQLFeatureNotSupportedException.class )
+  @Test
   public void testParamSettingWhenNoParametersIndexSaysUnsupported() throws SQLException {
-    try(PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
-      try {
-        prepStmt.setBytes(4, null);
-      } catch (final SQLFeatureNotSupportedException e) {
-        assertThat(
-            "Check whether params.-unsupported wording changed or checks changed.",
-            e.toString(), PARAMETERS_NOT_SUPPORTED_MSG_MATCHER
-        );
-        throw e;
-      }
+    try (PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
+      assertThatThrownBy(() -> prepStmt.setBytes(4, null))
+        .isInstanceOf(SQLFeatureNotSupportedException.class)
+        .hasMessageContaining("arameter")
+        .hasMessageContaining("not")
+        .hasMessageContaining("support");
     }
   }
 
   /** Tests that "not supported" has priority over possible "type not supported"
    *  check. */
-  @Test( expected = SQLFeatureNotSupportedException.class )
+  @Test
   public void testParamSettingWhenUnsupportedTypeSaysUnsupported() throws SQLException {
-    try(PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
-      try {
-        prepStmt.setClob(2, (Clob) null);
-      } catch (final SQLFeatureNotSupportedException e) {
-        assertThat(
-            "Check whether params.-unsupported wording changed or checks changed.",
-            e.toString(), PARAMETERS_NOT_SUPPORTED_MSG_MATCHER
-        );
-        throw e;
-      }
+    try (PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
+      assertThatThrownBy(() -> prepStmt.setClob(2, (Clob) null))
+        .isInstanceOf(SQLFeatureNotSupportedException.class)
+        .hasMessageContaining("arameter")
+        .hasMessageContaining("not")
+        .hasMessageContaining("support");
     }
   }
-
 }

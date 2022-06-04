@@ -20,7 +20,7 @@ import PropTypes from 'prop-types';
 
 import SelectConnectionButton from 'components/SelectConnectionButton';
 import { sourceTypesIncludeS3 } from 'utils/sourceUtils';
-import { isExternalSourceType, isDatalakeTableSourceType } from '@app/constants/sourceTypes.js';
+import { isExternalSourceType, isDatalakeTableSourceType, isDataPlaneSourceType } from '@app/constants/sourceTypes.js';
 
 import 'pages/HomePage/components/modals/AddSourceModal/SelectSourceType.less';
 
@@ -30,7 +30,8 @@ export default class SelectSourceType extends Component {
     onSelectSource: PropTypes.func,
     sourceTypes: PropTypes.array,
     intl: PropTypes.object.isRequired,
-    isExternalSource: PropTypes.bool
+    isExternalSource: PropTypes.bool,
+    isDataPlaneSource: PropTypes.bool
   };
 
   getEnabledSourceTypes(allTypes) {
@@ -91,9 +92,29 @@ export default class SelectSourceType extends Component {
     );
   }
 
+  renderDataPlanSources() {
+    const { sourceTypes } = this.props;
+    const dataPlaneSources = sourceTypes.filter(source => isDataPlaneSourceType(source.sourceType));
+    return (
+      <div className='SelectSourceType'>
+        <div className='main'>
+          <div className='source-type-section'>
+            { this.renderSourceTypes(this.getEnabledSourceTypes(dataPlaneSources)) }
+          </div>
+          <div className='source-type-section'>
+            { this.renderSourceTypes(this.getDisabledSourceTypes(dataPlaneSources)) }
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   renderDataLakeSources() {
     const { sourceTypes, intl } = this.props;
-    const fileStoreSources = sourceTypes.filter(source => !isExternalSourceType(source.sourceType) && !isDatalakeTableSourceType(source.sourceType));
+    const fileStoreSources = sourceTypes.filter(source => (
+      !isExternalSourceType(source.sourceType) && !isDatalakeTableSourceType(source.sourceType) &&
+      !isDataPlaneSourceType(source.sourceType)
+    ));
     const tableStoreSources = sourceTypes.filter(source => isDatalakeTableSourceType(source.sourceType));
     return (
       <div className='SelectSourceType'>
@@ -119,7 +140,9 @@ export default class SelectSourceType extends Component {
   }
 
   render() {
-    const { isExternalSource } = this.props;
-    return isExternalSource ? this.renderExternalSources() : this.renderDataLakeSources();
+    const { isExternalSource, isDataPlaneSource} = this.props;
+    /*eslint no-nested-ternary: "off"*/
+    return isExternalSource ? this.renderExternalSources() :
+      isDataPlaneSource ? this.renderDataPlanSources() : this.renderDataLakeSources();
   }
 }

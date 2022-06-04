@@ -20,6 +20,7 @@ import java.util.List;
 
 import javax.inject.Provider;
 
+import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
@@ -28,7 +29,7 @@ import com.google.common.base.Optional;
 /**
  * HDFS Storage plugin
  */
-public class HDFSStoragePlugin extends FileSystemPlugin<HDFSConf> {
+public class HDFSStoragePlugin extends FileSystemPlugin<HDFSConf> implements SupportsImpersonation {
   /**
    * HDFS options to enable and use HDFS short-circuit reads. Once MapR profile Hadoop dependency version is upgraded
    * to 2.8.x, use below constants defined in hadoop code:
@@ -72,5 +73,10 @@ public class HDFSStoragePlugin extends FileSystemPlugin<HDFSConf> {
     }
 
     return result;
+  }
+
+  @Override
+  public boolean isImpersonationEnabled() {
+    return getConfig().isImpersonationEnabled();
   }
 }

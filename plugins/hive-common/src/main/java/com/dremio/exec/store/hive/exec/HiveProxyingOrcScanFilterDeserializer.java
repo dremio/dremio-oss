@@ -17,8 +17,10 @@ package com.dremio.exec.store.hive.exec;
 
 import java.io.IOException;
 
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
+import com.dremio.exec.store.hive.HiveCommonUtilities;
 import com.dremio.exec.store.hive.StoragePluginCreator;
 import com.dremio.exec.store.hive.proxy.HiveProxiedOrcScanFilter;
 import com.fasterxml.jackson.core.JsonParser;
@@ -36,6 +38,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
  * that is in a separate classloader.
  */
 public class HiveProxyingOrcScanFilterDeserializer extends StdDeserializer<HiveProxyingOrcScanFilter> {
+
   public HiveProxyingOrcScanFilterDeserializer() {
     this(null);
   }
@@ -49,11 +52,13 @@ public class HiveProxyingOrcScanFilterDeserializer extends StdDeserializer<HiveP
     // TODO: Optimize performance as described in https://dremio.atlassian.net/browse/DX-17732
     final JsonNode node = jsonParser.getCodec().readTree(jsonParser);
 
-    final String pluginName = node.get(HiveProxyingOrcScanFilter.JSON_PROP_PLUGINNAME).asText();
-    final CatalogService catalogService = (CatalogService) deserializationContext
-      .findInjectableValue(CatalogService.class.getName(), null, null);
+    final StoragePluginId pluginId = HiveCommonUtilities.deserialize(jsonParser, deserializationContext,
+      node.get(HiveProxyingOrcScanFilter.JSON_PROP_PLUGINID), StoragePluginId.class);
 
-    final SupportsPF4JStoragePlugin pf4JStoragePlugin = catalogService.getSource(pluginName);
+    // get subscan class type from plugin.
+    final StoragePluginResolver storagePluginResolver = (StoragePluginResolver) deserializationContext
+      .findInjectableValue(StoragePluginResolver.class.getName(), null, null);
+    final SupportsPF4JStoragePlugin pf4JStoragePlugin = storagePluginResolver.getSource(pluginId);
     final StoragePluginCreator.PF4JStoragePlugin plugin = pf4JStoragePlugin.getPF4JStoragePlugin();
     final Class<? extends HiveProxiedOrcScanFilter> scanClazz = plugin.getOrcScanFilterClass();
 
@@ -74,6 +79,6 @@ public class HiveProxyingOrcScanFilterDeserializer extends StdDeserializer<HiveP
     }
 
     final HiveProxiedOrcScanFilter orcScanFilter = (HiveProxiedOrcScanFilter) orcScanFilterDeserializer.deserialize(movedParser, deserializationContext);
-    return new HiveProxyingOrcScanFilter(pluginName, orcScanFilter);
+    return new HiveProxyingOrcScanFilter(pluginId, orcScanFilter);
   }
 }

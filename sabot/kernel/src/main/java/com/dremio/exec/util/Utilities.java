@@ -161,4 +161,12 @@ public class Utilities {
         return "Other";
     }
   }
+
+  public static boolean isAccelerationType(final WorkloadType queryType) {
+    return isAccelerationType(getHumanReadableWorkloadType(queryType));
+  }
+
+  public static boolean isAccelerationType(final String queryType) {
+    return queryType != null && queryType.equals(getHumanReadableWorkloadType(WorkloadType.ACCELERATOR));
+  }
 }

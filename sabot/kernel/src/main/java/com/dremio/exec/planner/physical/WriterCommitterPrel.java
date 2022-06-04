@@ -26,6 +26,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
@@ -48,22 +49,26 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
   private final String finalLocation;
   private final FileSystemPlugin<?> plugin;
   private final String userName;
-  private FileSystemCreateTableEntry fileSystemCreateTableEntry;
+  private final FileSystemCreateTableEntry fileSystemCreateTableEntry;
   private final Optional<DatasetConfig> datasetConfig;
   private final boolean isPartialRefresh;
   private final boolean readSignatureEnabled;
+  private final StoragePluginId sourceTablePluginId;
 
-  public WriterCommitterPrel(RelOptCluster cluster,
-                             RelTraitSet traits,
-                             RelNode child,
-                             FileSystemPlugin<?> plugin,
-                             String tempLocation,
-                             String finalLocation,
-                             String userName,
-                             FileSystemCreateTableEntry fileSystemCreateTableEntry,
-                             Optional<DatasetConfig> datasetConfig,
-                             boolean partialRefresh,
-                             boolean readSignatureEnabled) {
+  public WriterCommitterPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      FileSystemPlugin<?> plugin,
+      String tempLocation,
+      String finalLocation,
+      String userName,
+      FileSystemCreateTableEntry fileSystemCreateTableEntry,
+      Optional<DatasetConfig> datasetConfig,
+      boolean partialRefresh,
+      boolean readSignatureEnabled,
+      StoragePluginId sourceTablePluginId
+  ) {
     super(cluster, traits, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
@@ -73,12 +78,30 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
     this.datasetConfig = datasetConfig;
     this.isPartialRefresh = partialRefresh;
     this.readSignatureEnabled = readSignatureEnabled;
+    this.sourceTablePluginId = sourceTablePluginId;
+  }
+
+  public WriterCommitterPrel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      FileSystemPlugin<?> plugin,
+      String tempLocation,
+      String finalLocation,
+      String userName,
+      FileSystemCreateTableEntry fileSystemCreateTableEntry,
+      Optional<DatasetConfig> datasetConfig,
+      boolean partialRefresh,
+      boolean readSignatureEnabled
+  ) {
+    this(cluster, traits, child, plugin, tempLocation, finalLocation, userName, fileSystemCreateTableEntry,
+        datasetConfig, partialRefresh, readSignatureEnabled, null);
   }
 
   @Override
   public WriterCommitterPrel copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new WriterCommitterPrel(getCluster(), traitSet, sole(inputs), plugin, tempLocation, finalLocation, userName,
-      fileSystemCreateTableEntry, datasetConfig, isPartialRefresh, readSignatureEnabled);
+        fileSystemCreateTableEntry, datasetConfig, isPartialRefresh, readSignatureEnabled, sourceTablePluginId);
   }
 
   @Override
@@ -93,17 +116,18 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
     Prel child = (Prel) this.getInput();
     PhysicalOperator childPop = child.getPhysicalOperator(creator);
     return new WriterCommitterPOP(
-      creator.props(this, userName, RecordWriter.SCHEMA, RESERVE, LIMIT),
-      tempLocation,
-      finalLocation,
-      fileSystemCreateTableEntry.getIcebergTableProps(),
-      fileSystemCreateTableEntry.getDatasetPath(),
-      datasetConfig,
-      childPop,
-      (FileSystemPlugin<?>) plugin,
-      null,
-      isPartialRefresh,
-      readSignatureEnabled);
+        creator.props(this, userName, RecordWriter.SCHEMA, RESERVE, LIMIT),
+        tempLocation,
+        finalLocation,
+        fileSystemCreateTableEntry.getIcebergTableProps(),
+        fileSystemCreateTableEntry.getDatasetPath(),
+        datasetConfig,
+        childPop,
+        plugin,
+        null,
+        isPartialRefresh,
+        readSignatureEnabled,
+        sourceTablePluginId);
   }
 
   @Override

@@ -181,7 +181,7 @@ public interface OutputDerivation {
     if (finalPrecision == 0) {
       finalPrecision = 1;
     }
-    return new ArrowType.Decimal(finalPrecision, finalScale);
+    return new ArrowType.Decimal(finalPrecision, finalScale, 128);
   }
 
   static ArrowType.Decimal getDecimalOutputTypeForRound(int arg1Precision, int arg1Scale,
@@ -200,7 +200,7 @@ public interface OutputDerivation {
       finalPrecision++;
     }
 
-    return new ArrowType.Decimal(finalPrecision, finalScale);
+    return new ArrowType.Decimal(finalPrecision, finalScale, 128);
   }
 
   /*

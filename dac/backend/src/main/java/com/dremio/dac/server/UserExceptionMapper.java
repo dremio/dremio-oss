@@ -81,7 +81,7 @@ public class UserExceptionMapper implements ExceptionMapper<UserException> {
             @JsonProperty("errorMessage") String errorMessage,
             @JsonProperty("context") String[] context,
             @JsonProperty("stackTrace") String[] stackTrace) {
-      super(errorMessage, GenericErrorMessage.CHECK_LOG_FILE, stackTrace);
+      super(errorMessage, stackTrace);
       this.context = context;
     }
 

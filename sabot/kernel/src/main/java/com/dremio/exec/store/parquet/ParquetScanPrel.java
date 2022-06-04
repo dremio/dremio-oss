@@ -58,8 +58,8 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
   public ParquetScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
                          TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                         ParquetScanFilter filter, boolean arrowCachingEnabled) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
+                         ParquetScanFilter filter, boolean arrowCachingEnabled, List<Info> runtimeFilters) {
+    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
     this.filter = filter;
     this.globalDictionaryEncodedColumns = null;
     this.cachedRelDataType = null;
@@ -71,8 +71,8 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
                           TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
                           ParquetScanFilter filter,
                           List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                          RelDataType relDataType, boolean arrowCachingEnabled) {
-    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
+                          RelDataType relDataType, boolean arrowCachingEnabled, List<Info> runtimeFilters) {
+    super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, runtimeFilters);
     this.filter = filter;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = relDataType;
@@ -86,8 +86,8 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
   private ParquetScanPrel(ParquetScanPrel that,
                           double observedRowcountAdjustment,
                           List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                          RelDataType relDataType) {
-    super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), observedRowcountAdjustment);
+                          RelDataType relDataType, List<Info> runtimeFilters) {
+    super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), observedRowcountAdjustment, runtimeFilters);
     this.filter = that.getFilter();
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = relDataType;
@@ -130,13 +130,13 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
   @Override
   public ParquetScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, filter != null ? filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()) : filter, arrowCachingEnabled);
+    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, filter != null ? filter.applyProjection(projection, rowType, getCluster(), getBatchSchema()) : filter, arrowCachingEnabled, getRuntimeFilters());
   }
 
   @Override
   public ParquetScanPrel applyDatasetPointer(TableMetadata newDatasetPointer) {
     return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, getProjectedColumns(),
-        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType, arrowCachingEnabled);
+        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType, arrowCachingEnabled, getRuntimeFilters());
   }
 
   @Override
@@ -177,11 +177,11 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType, arrowCachingEnabled);
+        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType, arrowCachingEnabled, getRuntimeFilters());
   }
 
   public ParquetScanPrel cloneWithGlobalDictionaryColumns(List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns, RelDataType relDataType) {
-    return new ParquetScanPrel(this, observedRowcountAdjustment, globalDictionaryEncodedColumns, relDataType);
+    return new ParquetScanPrel(this, observedRowcountAdjustment, globalDictionaryEncodedColumns, relDataType, getRuntimeFilters());
   }
 
   public boolean isArrowCachingEnabled() {

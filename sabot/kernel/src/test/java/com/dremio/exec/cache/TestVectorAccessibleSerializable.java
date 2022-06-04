@@ -20,7 +20,7 @@ import static com.dremio.TestBuilder.mapOf;
 import static com.dremio.exec.cache.VectorAccessibleSerializable.readIntoArrowBuf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -284,9 +284,9 @@ public class TestVectorAccessibleSerializable extends ExecTest {
       when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenAnswer(new Answer() {
         @Override
         public Integer answer(InvocationOnMock invocation) throws Throwable {
-          byte[] byteBuf = invocation.getArgumentAt(0, byte[].class);
-          int start = invocation.getArgumentAt(1, int.class);
-          int length = invocation.getArgumentAt(2, int.class);
+          byte[] byteBuf = invocation.getArgument(0, byte[].class);
+          int start = invocation.getArgument(1, Integer.class);
+          int length = invocation.getArgument(2, Integer.class);
           for(int i = start; i < Math.min(length, byteBuf.length); i++) {
             byteBuf[i] = (byte)i;
           }
@@ -305,9 +305,9 @@ public class TestVectorAccessibleSerializable extends ExecTest {
       when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenAnswer(new Answer() {
         @Override
         public Integer answer(InvocationOnMock invocation) throws Throwable {
-          byte[] byteBuf = invocation.getArgumentAt(0, byte[].class);
-          int start = invocation.getArgumentAt(1, int.class);
-          int length = invocation.getArgumentAt(2, int.class);
+          byte[] byteBuf = invocation.getArgument(0, byte[].class);
+          int start = invocation.getArgument(1, Integer.class);
+          int length = invocation.getArgument(2, Integer.class);
           int i=start;
           int toFill = Math.min(byteBuf.length, 20);
           toFill = Math.min(toFill, length);

@@ -30,11 +30,8 @@ import javax.ws.rs.core.Response;
 
 import org.glassfish.jersey.client.ChunkedInput;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.server.ContextService;
 import com.dremio.options.OptionValue;
@@ -43,13 +40,12 @@ import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.users.SystemUser;
+import com.dremio.test.UserExceptionAssert;
 
 /**
  * Tests for JobsResource
  */
 public class TestJobResource extends BaseTestServer {
-  @Rule
-  public final ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void init() throws Exception {
@@ -93,9 +89,8 @@ public class TestJobResource extends BaseTestServer {
     assertEquals("The default value of the limit of download records should be 1_000_000",
       1_000_000L, l(ContextService.class).get().getOptionManager().getOption(DOWNLOAD_RECORDS_LIMIT));
 
-    thrown.expect(UserException.class);
-    thrown.expectMessage("Option dac.download.records_limit must be between 0 and 1000000.");
-    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createLong(SYSTEM, DOWNLOAD_RECORDS_LIMIT.getOptionName(), -1));
+    UserExceptionAssert.assertThatThrownBy(() -> l(ContextService.class).get().getOptionManager().setOption(OptionValue.createLong(SYSTEM, DOWNLOAD_RECORDS_LIMIT.getOptionName(), -1)))
+      .hasMessageContaining("Option dac.download.records_limit must be between 0 and 1000000.");
   }
 
   @Test

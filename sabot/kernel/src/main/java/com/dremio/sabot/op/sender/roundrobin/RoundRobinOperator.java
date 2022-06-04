@@ -163,7 +163,7 @@ public class RoundRobinOperator extends BaseSender {
           long writerIndex = buf.writerIndex();
           ArrowBuf newBuf = buf.getReferenceManager().transferOwnership(buf, allocator).getTransferredBuffer();
           newBuf.writerIndex(writerIndex);
-          buf.release();
+          buf.close();
           return newBuf;
         }
       }).toList();
@@ -185,7 +185,7 @@ public class RoundRobinOperator extends BaseSender {
       currentMinorFragmentsIndex = 0;
     }
     for (ArrowBuf buf : buffers) {
-      buf.release();
+      buf.close();
     }
   }
 

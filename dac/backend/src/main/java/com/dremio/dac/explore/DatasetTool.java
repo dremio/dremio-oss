@@ -22,9 +22,11 @@ import java.security.AccessControlException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -48,6 +50,7 @@ import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
 import com.dremio.dac.explore.model.TransformBase;
+import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataFragmentWrapper;
@@ -92,6 +95,7 @@ import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsVersionContext;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.proto.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
@@ -142,10 +146,11 @@ public class DatasetTool {
       VirtualDatasetUI newDataset,
       DatasetVersionResourcePath tipVersion,
       Integer limit,
-      String engineName
+      String engineName,
+      String sessionId
       ) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
 
-    SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName);
+    SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId);
     JobData jobData = executor.runQueryWithListener(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion(), JobStatusListener.NO_OP);
 
     return createPreviewResponse(newDataset, jobData, tipVersion, allocator, limit, true);
@@ -474,10 +479,13 @@ public class DatasetTool {
     DatasetSummary parentSummary,
     boolean prepare,
     Integer limit,
-    String engineName)
+    String engineName,
+    String sessionId,
+    Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    return newUntitled(allocator, from, version, context, parentSummary, prepare, limit, false, engineName);
+    return newUntitled(allocator, from, version, context, parentSummary, prepare, limit, false, engineName, sessionId, references);
   }
+
   /**
    * Create a new untitled dataset, and load preview data.
    *
@@ -499,11 +507,14 @@ public class DatasetTool {
       boolean prepare,
       Integer limit,
       boolean runInSameThread,
-      String engineName)
+      String engineName,
+      String sessionId,
+      Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
     final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context);
-    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName);
+    final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
+    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
 
     try {
       final MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
@@ -549,7 +560,7 @@ public class DatasetTool {
     Integer limit,
     boolean runInSameThread)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    return newUntitled(allocator, from, version, context, parentSummary, prepare, limit, runInSameThread, null);
+    return newUntitled(allocator, from, version, context, parentSummary, prepare, limit, runInSameThread, null, null, null);
   }
 
     VirtualDatasetUI createNewUntitledMetadataOnly(FromBase from,
@@ -564,11 +575,14 @@ public class DatasetTool {
   InitialRunResponse newUntitledAndRun(FromBase from,
                                        DatasetVersion version,
                                        List<String> context,
-                                       String engineName)
+                                       String engineName,
+                                       String sessionId,
+                                       Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, NamespaceException, DatasetVersionNotFoundException, InterruptedException {
 
     final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context);
-    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName);
+    final Map<String, JobsVersionContext> sourceVersionMapping = createSourceVersionMapping(references);
+    final SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username(), engineName, sessionId, sourceVersionMapping);
 
     newDataset.setLastTransform(new Transform(TransformType.createFromParent).setTransformCreateFromParent(new TransformCreateFromParent(from.wrap())));
     MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
@@ -601,11 +615,29 @@ public class DatasetTool {
     }
   }
 
+  protected Map<String, JobsVersionContext> createSourceVersionMapping(Map<String, VersionContextReq> references) {
+    final Map<String, JobsVersionContext> sourceVersionMapping = new HashMap<>();
+
+    if (references != null) {
+      references.forEach((source, ref) -> {
+        if (ref.getType() == VersionContextReq.VersionContextType.BRANCH) {
+          sourceVersionMapping.put(source, new JobsVersionContext(JobsVersionContext.VersionContextType.BRANCH, ref.getValue()));
+        } else if (ref.getType() == VersionContextReq.VersionContextType.TAG) {
+          sourceVersionMapping.put(source, new JobsVersionContext(JobsVersionContext.VersionContextType.TAG, ref.getValue()));
+        } else if (ref.getType() == VersionContextReq.VersionContextType.COMMIT) {
+          sourceVersionMapping.put(source, new JobsVersionContext(JobsVersionContext.VersionContextType.BARE_COMMIT, ref.getValue()));
+        }
+      });
+    }
+
+    return sourceVersionMapping;
+  }
+
   InitialRunResponse newUntitledAndRun(FromBase from,
                                        DatasetVersion version,
                                        List<String> context)
     throws DatasetNotFoundException, NamespaceException, DatasetVersionNotFoundException, InterruptedException {
-    return newUntitledAndRun(from, version, context, null);
+    return newUntitledAndRun(from, version, context, null, null, null);
   }
 
   private void applyQueryMetaToDatasetAndSave(JobInfo jobInfo, QueryMetadata queryMetadata,

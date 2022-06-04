@@ -17,10 +17,11 @@ package com.dremio.sabot.rpc.user;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
+import java.util.Map;
 
 import org.apache.calcite.avatica.util.Quoting;
 
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.VersionContext;
@@ -36,6 +37,7 @@ import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
@@ -56,6 +58,8 @@ public class UserSession {
   public static final String ROUTING_ENGINE = PropertySetter.ROUTING_ENGINE.toPropertyName();
   public static final String TRACING_ENABLED = PropertySetter.TRACING_ENABLED.toPropertyName();
 
+  public static final BooleanValidator ENABLE_SESSION_IDS =
+    new BooleanValidator("user.session.enable_session_id", false);
   public static final RangeLongValidator MAX_METADATA_COUNT =
       new RangeLongValidator("client.max_metadata_count", 0, Integer.MAX_VALUE, 0);
 
@@ -189,13 +193,17 @@ public class UserSession {
   private boolean tracingEnabled = false;
   private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
   private int maxMetadataCount = 0;
-  private Optional<VersionContext> versionContext = Optional.empty();
+  private final Map<String, VersionContext> sourceVersionMapping = CaseInsensitiveMap.newConcurrentMap();
 
   public static class Builder {
     UserSession userSession;
 
     public static Builder newBuilder() {
       return new Builder();
+    }
+
+    public static Builder newBuilder(UserSession session) {
+      return new Builder(session);
     }
 
     public Builder withSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
@@ -210,6 +218,14 @@ public class UserSession {
 
     public Builder withCredentials(UserCredentials credentials) {
       userSession.credentials = credentials;
+      return this;
+    }
+
+    public Builder withSourceVersionMapping(Map<String, VersionContext> sourceVersionMapping) {
+      if (sourceVersionMapping != null) {
+        userSession.sourceVersionMapping.clear();
+        userSession.sourceVersionMapping.putAll(sourceVersionMapping);
+      }
       return this;
     }
 
@@ -300,9 +316,13 @@ public class UserSession {
     Builder() {
       userSession = new UserSession();
     }
+
+    Builder(UserSession session) {
+      userSession = session;
+    }
   }
 
-  private UserSession() {
+  protected UserSession() {
   }
 
   public boolean isSupportComplexTypes() {
@@ -311,6 +331,15 @@ public class UserSession {
 
   public OptionManager getOptions() {
     return optionManager;
+  }
+
+  public void setSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
+    this.sessionOptionManager = sessionOptionManager;
+    this.optionManager = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(fallback)
+      .withOptionManager(sessionOptionManager)
+      .build();
+    this.maxMetadataCount = (int) this.optionManager.getOption(MAX_METADATA_COUNT);
   }
 
   public SessionOptionManager getSessionOptionManager() {
@@ -452,11 +481,18 @@ public class UserSession {
 
   public void setLastQueryId(QueryId id) { lastQueryId = id; }
 
-  public Optional<VersionContext> getVersionContext() {
-    return versionContext;
+  public VersionContext getSessionVersionForSource(String sourceName) {
+    if (sourceName == null) {
+      return VersionContext.NOT_SPECIFIED;
+    }
+    return sourceVersionMapping.getOrDefault(sourceName, VersionContext.NOT_SPECIFIED);
   }
 
-  public void setVersionContext(Optional<VersionContext> versionContext) {
-    this.versionContext = versionContext;
+  public Map<String, VersionContext> getSourceVersionMapping() {
+    return CaseInsensitiveMap.newImmutableMap(sourceVersionMapping);
+  }
+
+  public void setSessionVersionForSource(String sourceName, VersionContext versionContext) {
+    sourceVersionMapping.put(sourceName, versionContext);
   }
 }

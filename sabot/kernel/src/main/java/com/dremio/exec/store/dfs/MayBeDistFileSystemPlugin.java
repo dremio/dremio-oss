@@ -51,6 +51,10 @@ public class MayBeDistFileSystemPlugin<C extends MayBeDistFileSystemConf<C, ?>> 
     }
     props.add(new Property(FSConstants.MAXIMUM_CONNECTIONS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_CONNECTIONS)));
     props.add(new Property(FSConstants.MAX_THREADS, String.valueOf(S3ConnectionConstants.DEFAULT_MAX_THREADS)));
+    props.add(new Property("fs.dremioS3.impl.disable.cache","true"));
+    props.add(new Property("fs.dremiogcs.impl.disable.cache","true"));
+    props.add(new Property("fs.dremioAzureStorage.impl.disable.cache", "true"));
+    props.add(new Property("fs.dremioAdl.impl.disable.cache", "true"));
     return props;
   }
 

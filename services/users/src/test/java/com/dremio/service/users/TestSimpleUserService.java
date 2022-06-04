@@ -15,6 +15,7 @@
  */
 package com.dremio.service.users;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -27,9 +28,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchQueryUtils;
@@ -51,8 +50,6 @@ import com.google.common.collect.Iterables;
  * user/admin/group management tests.
  */
 public class TestSimpleUserService {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   public void good(String passwd) throws Exception {
     SimpleUserService.validatePassword(passwd);
@@ -430,8 +427,8 @@ public class TestSimpleUserService {
       userGroupStore.put(uid, new UserInfo().setConfig(userConfig));
 
       // cleanup
-      thrown.expect(ConcurrentModificationException.class);
-      userGroupService.deleteUser(uid, userConfig.getTag() + UUID.randomUUID());
+      assertThatThrownBy(() -> userGroupService.deleteUser(uid, userConfig.getTag() + UUID.randomUUID()))
+        .isInstanceOf(ConcurrentModificationException.class);
     }
   }
 }

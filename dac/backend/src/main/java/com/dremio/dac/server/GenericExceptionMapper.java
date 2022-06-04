@@ -48,6 +48,7 @@ import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.telemetry.api.metrics.Counter;
 import com.dremio.telemetry.api.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -68,6 +69,12 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
 
   public GenericExceptionMapper(boolean sendStackTraceToClient) {
     this.sendStackTraceToClient = sendStackTraceToClient;
+  }
+
+  @VisibleForTesting
+  protected GenericExceptionMapper(UriInfo uriInfo, Request request) {
+    this.uriInfo = uriInfo;
+    this.request = request;
   }
 
   @Context

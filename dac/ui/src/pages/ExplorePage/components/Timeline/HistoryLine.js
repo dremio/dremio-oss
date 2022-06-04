@@ -16,58 +16,73 @@
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Immutable  from 'immutable';
-import Radium from 'radium';
+import Art from '@app/components/Art';
 
-import { HISTORY_PANEL_SIZE } from 'uiTheme/radium/sizes';
-import { GREY } from 'uiTheme/radium/colors';
+import { PageTypes, pageTypesProp } from '../../pageTypes';
 
 import TimeDot from './TimeDot';
+
 import './HistoryLine.less';
 
-@Radium
 export default class HistoryLine extends PureComponent {
 
   static propTypes = {
     historyItems: PropTypes.instanceOf(Immutable.List),
     tipVersion: PropTypes.string,
     activeVersion: PropTypes.string,
-    location: PropTypes.object
+    location: PropTypes.object,
+    pageType: pageTypesProp
   };
 
   constructor(props) {
     super(props);
   }
 
+  renderContent() {
+    const { historyItems, tipVersion, activeVersion, location, pageType } = this.props;
+    switch (pageType) {
+    case PageTypes.graph:
+    case PageTypes.details:
+    case PageTypes.reflections:
+    case PageTypes.wiki:
+      return <></>;
+    case PageTypes.default:
+      return <div className='historyLine'>
+        <Art
+          src='DateTime.svg'
+          alt=''
+          style={{
+            height: 20,
+            width: 20,
+            marginTop: 10,
+            marginBottom: 10,
+            filter: 'invert(54%) sepia(9%) saturate(412%) hue-rotate(165deg) brightness(97%) contrast(97%)'
+          }}
+        />
+
+        <hr/>
+
+        <div className='timeDotContainer'>
+          { historyItems.map((item, index, arr) =>
+            <TimeDot
+              location={location}
+              historyItem={item}
+              key={item.get('datasetVersion')}
+              isLast={index === arr.size - 1}
+              tipVersion={tipVersion}
+              activeVersion={activeVersion}
+            />
+          )}
+        </div>
+      </div>;
+    default:
+      throw new Error(`not supported page type; '${pageType}'`);
+    }
+  }
+
   render() {
-    const { historyItems, tipVersion, activeVersion, location } = this.props;
     return (
-      <div className='history-line' style={[styles.base]}>
-        { historyItems.map((item, index, arr) =>
-          <TimeDot
-            location={location}
-            historyItem={item}
-            key={item.get('datasetVersion')}
-            isLast={index === arr.size - 1}
-            tipVersion={tipVersion}
-            activeVersion={activeVersion}
-          />
-        )
-        }
-      </div>
+      this.renderContent()
     );
   }
 }
-
-const styles = {
-  base: {
-    overflowX: 'hidden',
-    overflowY: 'auto',
-    width: HISTORY_PANEL_SIZE,
-    minWidth: HISTORY_PANEL_SIZE,
-    position: 'relative',
-    backgroundColor: GREY,
-    display: 'flex',
-    alignItems: 'center',
-    flexDirection: 'column'
-  }
-};

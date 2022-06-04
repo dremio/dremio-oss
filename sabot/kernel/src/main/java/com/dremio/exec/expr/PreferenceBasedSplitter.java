@@ -123,7 +123,8 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     for (LogicalExpression arg : holder.args) {
       // Traverse down the tree to see if the expression changes.
       // When there is a split, the expression changes as the operator is replaced by the newly created split
-      SplitDependencyTracker argTracker = new SplitDependencyTracker(executionEngine, myTracker.getIfExprBranches());
+      SplitDependencyTracker argTracker = new SplitDependencyTracker(executionEngine, myTracker.getIfExprBranches(),
+        myTracker.getCaseBlocks());
       CodeGenContext newArg = visitCodeGenContext((CodeGenContext)arg, argTracker);
       boolean mustSplitAtArg = true;
       if (holder.argConstantOnly(i++)) {
@@ -224,7 +225,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     // and use this later in (splitAndGenerateVectorReadExpression) to modify the split as above
 
     List<IfExprBranch> myPath = myTracker.getIfExprBranches();
-    SplitDependencyTracker condTracker = new SplitDependencyTracker(ifEvalType, myPath);
+    SplitDependencyTracker condTracker = new SplitDependencyTracker(ifEvalType, myPath, myTracker.getCaseBlocks());
     CodeGenContext condExprContext = visitCodeGenContext((CodeGenContext)ifExpr.ifCondition.condition, condTracker);
 
     // Split the condition and remember the ValueVectorReadExpression for the condition
@@ -233,13 +234,13 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     CodeGenContext conditionValueVec = condSplit.getReadExpressionContext();
 
     // visit the then expression
-    SplitDependencyTracker thenTracker = new SplitDependencyTracker(ifEvalType, myPath);
+    SplitDependencyTracker thenTracker = new SplitDependencyTracker(ifEvalType, myPath, myTracker.getCaseBlocks());
     thenTracker.addIfBranch(condSplit, true);
     logger.trace("Visiting then expr of if {}", ifExpr.ifCondition.expression);
     LogicalExpression thenExpr = visitCodeGenContext((CodeGenContext)ifExpr.ifCondition.expression, thenTracker);
 
     // visit the else expression
-    SplitDependencyTracker elseTracker = new SplitDependencyTracker(ifEvalType, myPath);
+    SplitDependencyTracker elseTracker = new SplitDependencyTracker(ifEvalType, myPath, myTracker.getCaseBlocks());
     elseTracker.addIfBranch(condSplit, false);
     logger.trace("Visiting else expr of if {}", ifExpr.elseExpression);
     LogicalExpression elseExpr = visitCodeGenContext((CodeGenContext)ifExpr.elseExpression, elseTracker);
@@ -342,7 +343,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
         .setElse(nullExprContext)
         .setOutputType(ifExpr.getCompleteType())
         .build();
-      SplitDependencyTracker splitTracker = new SplitDependencyTracker(ifEvalType, myPath);
+      SplitDependencyTracker splitTracker = new SplitDependencyTracker(ifEvalType, myPath, myTracker.getCaseBlocks());
       // 2nd split depends ont he condition and everything that then expression depends on
       // add these dependencies
       splitTracker.addAllDependencies(thenTracker);
@@ -384,7 +385,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
         .build();
       CodeGenContext evalElseContext = CodeGenContext.buildWithNoDefaultSupport(evalElse);
 
-      SplitDependencyTracker splitTracker = new SplitDependencyTracker(ifEvalType, myPath);
+      SplitDependencyTracker splitTracker = new SplitDependencyTracker(ifEvalType, myPath, myTracker.getCaseBlocks());
       // 2nd split depends ont he condition and everything that else expression depends on
       // add these dependencies
       splitTracker.addAllDependencies(elseTracker);

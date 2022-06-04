@@ -18,14 +18,11 @@ package com.dremio.datastore;
 import static com.dremio.datastore.RocksDBStore.FILTER_SIZE_IN_BYTES;
 import static com.dremio.datastore.RocksDBStore.META_MARKER;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.hamcrest.CoreMatchers.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeThat;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,7 +41,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -180,8 +176,8 @@ public class TestRocksDBStore {
         }
       }
 
-      assertTrue(sstCounter >= 1);
-      assertTrue(logCounter <= 1);
+      assertThat(sstCounter).isGreaterThanOrEqualTo(1);
+      assertThat(logCounter).isLessThanOrEqualTo(1);
       assertEquals(0L, logFile.length());
     } finally {
       // Reset the RocksDBStore for other tests.
@@ -212,8 +208,8 @@ public class TestRocksDBStore {
     });
 
     String stats = store.getAdmin().getStats();
-    assertThat(stats, CoreMatchers.containsString("Estimated Blob Count: 1"));
-    assertThat(stats, CoreMatchers.containsString("Estimated Blob Bytes: 1050"));
+    assertThat(stats).contains("Estimated Blob Count: 1");
+    assertThat(stats).contains("Estimated Blob Bytes: 1050");
 
     // fail the put and check we don't corrupt.
     store.validateAndPut(randomKey, randomValue2, new VersionOption.TagInfo(true, false, "999"));
@@ -269,7 +265,7 @@ public class TestRocksDBStore {
       // Join on the calls
       executor.shutdown();
       boolean terminated = executor.awaitTermination(60, TimeUnit.SECONDS);
-      assertTrue("All the tasks didn't complete in time", terminated);
+      assertThat(terminated).as("All the tasks didn't complete in time").isTrue();
       for(Future<?> future: futures) {
         future.get(); // Checking that the execution didn't fail
       }
@@ -277,8 +273,10 @@ public class TestRocksDBStore {
       // Try to force gc by pressuring memory. There should be no reference left to rocksdb iterators
       long[] dummy = new long[0];
       try {
-        for(int i = 1; i<32; i++) {
-          dummy = new long[1 << i];
+        for (int j = 0; j < 10; j++) {
+          for (int i = 1; i < 28; i++) {
+            dummy = new long[1 << i];
+          }
         }
       } catch(OutOfMemoryError e) {
         // ignore
@@ -286,10 +284,10 @@ public class TestRocksDBStore {
       assertNotNull(dummy);
       System.gc(); System.gc();
       store.cleanReferences();
-      assumeThat(store.openedIterators(), equalTo(256L));
-      assumeThat(store.closedIterators(), equalTo(256L));
-      assumeThat(store.gcIterators(), equalTo(256L));
-      assumeThat(store.currentlyOpenIterators(), equalTo(0));
+      assertThat(store.openedIterators()).isLessThanOrEqualTo(256L);
+      assertThat(store.closedIterators()).isLessThanOrEqualTo(256L);
+      assertThat(store.gcIterators()).isLessThanOrEqualTo(256L);
+      assertThat(store.currentlyOpenIterators()).isGreaterThanOrEqualTo(0);
     } finally {
       executor.shutdownNow();
     }
@@ -320,15 +318,15 @@ public class TestRocksDBStore {
       executor.shutdown();
       boolean terminated = executor.awaitTermination(60, TimeUnit.SECONDS);
       store.close();
-      assertTrue("All the tasks didn't complete in time", terminated);
+      assertThat(terminated).as("All the tasks didn't complete in time").isTrue();
       for(Future<?> future: futures) {
         future.get(); // Checking that the execution didn't fail
       }
 
-      assertThat(store.openedIterators(), equalTo(256L));
-      assertThat(store.closedIterators(), equalTo(256L));
+      assertThat(store.openedIterators()).isEqualTo(256L);
+      assertThat(store.closedIterators()).isEqualTo(256L);
       logger.info("GCed iterators: " + store.gcIterators());
-      assertThat(store.currentlyOpenIterators(), equalTo(0));
+      assertThat(store.currentlyOpenIterators()).isEqualTo(0);
     } finally {
       executor.shutdownNow();
     }

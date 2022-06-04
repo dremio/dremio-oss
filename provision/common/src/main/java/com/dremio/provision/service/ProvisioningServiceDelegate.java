@@ -75,6 +75,10 @@ public interface ProvisioningServiceDelegate extends Service {
   default void syncCluster(Cluster cluster) {
   }
 
+
+  default void restartPreviewEngine() {
+  }
+
   /**
    * Health check of the cluster state
    * @param cluster

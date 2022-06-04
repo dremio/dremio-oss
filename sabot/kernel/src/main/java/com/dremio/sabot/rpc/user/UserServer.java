@@ -149,4 +149,20 @@ public class UserServer implements Service {
     return allocator;
   }
 
+  protected DremioConfig getConfig() {
+    return config;
+  }
+
+  protected Provider<ExecutorService> getExecutorService() {
+    return executorService;
+  }
+
+  protected Tracer getTracer() {
+    return tracer;
+  }
+
+  protected Provider<OptionValidatorListing> getOptionValidatorProvider() {
+    return optionValidatorProvider;
+  }
+
 }

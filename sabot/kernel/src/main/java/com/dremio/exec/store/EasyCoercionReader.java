@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,13 +25,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.dremio.service.namespace.dataset.proto.UserDefinedSchemaSettings;
 
 /**
  * FilteringCoercionReader for excel, json and mongo sources
@@ -38,11 +39,26 @@ import com.dremio.sabot.op.scan.OutputMutator;
 public class EasyCoercionReader extends FilteringFileCoercionReader {
   private static final Logger logger = LoggerFactory.getLogger(EasyCoercionReader.class);
   private final List<String> tableSchemaPath;
+  private final boolean isSchemaLearningDisabledByUser;
+  private List<Field> droppedColumns = Collections.emptyList();
+  private List<Field> updatedColumns = Collections.emptyList();
+
+  public EasyCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
+                            BatchSchema targetSchema, List<String> tableSchemaPath, UserDefinedSchemaSettings userDefinedSchemaSettings) {
+    super(context, columns, inner, targetSchema, toTypeCoercion(targetSchema));
+    this.tableSchemaPath = tableSchemaPath;
+    if (userDefinedSchemaSettings != null && userDefinedSchemaSettings.getDroppedColumns() != null) {
+      droppedColumns = BatchSchema.deserialize(userDefinedSchemaSettings.getDroppedColumns()).getFields();
+    }
+    if (userDefinedSchemaSettings != null && userDefinedSchemaSettings.getModifiedColumns() != null) {
+      updatedColumns = BatchSchema.deserialize(userDefinedSchemaSettings.getModifiedColumns()).getFields();
+    }
+    this.isSchemaLearningDisabledByUser = userDefinedSchemaSettings != null && !userDefinedSchemaSettings.getSchemaLearningEnabled();
+  }
 
   public EasyCoercionReader(OperatorContext context, List<SchemaPath> columns, RecordReader inner,
                             BatchSchema targetSchema, List<String> tableSchemaPath) {
-    super(context, columns, inner, targetSchema, toTypeCoercion(targetSchema));
-    this.tableSchemaPath = tableSchemaPath;
+    this(context, columns, inner, targetSchema, tableSchemaPath, null);
   }
 
   @Override
@@ -78,7 +94,7 @@ public class EasyCoercionReader extends FilteringFileCoercionReader {
       incoming.buildSchema();
       // reset the schema change callback
       mutator.getAndResetSchemaChanged();
-      BatchSchema outgoingSchema = outgoing.getSchema();
+      BatchSchema outgoingSchema = outgoing.getSchema().removeNullFields();
       BatchSchema finalSchema = getFinalSchema(incoming.getSchema(), outgoingSchema);
       if (!finalSchema.equalsTypesWithoutPositions(outgoingSchema)) {
         notifySchemaChange(finalSchema, tableSchemaPath);
@@ -105,17 +121,9 @@ public class EasyCoercionReader extends FilteringFileCoercionReader {
     return recordCount;
   }
 
-  private BatchSchema getFinalSchema(BatchSchema newSchema, BatchSchema outingSchema) {
-    BatchSchema finalSchema;
-    try {
-      finalSchema = outingSchema.mergeWithUpPromotion(newSchema);
-      finalSchema = finalSchema.removeNullFields();
-    } catch (NoSupportedUpPromotionOrCoercionException e) {
-      e.addFilePath(this.inner.getFilePath());
-      e.addDatasetPath(tableSchemaPath);
-      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
-    }
-    return finalSchema;
+  private BatchSchema getFinalSchema(BatchSchema newSchema, BatchSchema outgoingSchema) {
+    boolean isUserDefinedSchemaEnabled = context.getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA);
+    return outgoingSchema.applyUserDefinedSchemaAfterSchemaLearning(newSchema, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser, isUserDefinedSchemaEnabled, this.inner.getFilePath(), tableSchemaPath);
   }
 
   private static FileTypeCoercion toTypeCoercion(BatchSchema targetSchema) {

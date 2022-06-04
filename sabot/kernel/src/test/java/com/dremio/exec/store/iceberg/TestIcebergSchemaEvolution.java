@@ -19,9 +19,7 @@ import java.io.File;
 import java.math.BigDecimal;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -32,9 +30,6 @@ import com.dremio.exec.store.iceberg.model.IcebergModel;
 public class TestIcebergSchemaEvolution extends BaseTestQuery {
 
   private ParserConfig parserConfig = new ParserConfig(ParserConfig.QUOTING, 100, PlannerSettings.FULL_NESTED_SCHEMA_SUPPORT.getDefault().getBoolVal());
-
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
 
   private void changeColumn(String table, String existingColumn, String newColumn, String type) throws Exception{
     String alterTableCmd = "alter table " + table + " change " + existingColumn + " " + newColumn + " " + type;

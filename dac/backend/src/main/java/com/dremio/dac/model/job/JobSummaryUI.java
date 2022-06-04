@@ -19,6 +19,7 @@ import static com.dremio.dac.obfuscate.ObfuscationUtils.obfuscateSql;
 
 import java.util.List;
 
+import com.dremio.dac.util.JobUtil;
 import com.dremio.dac.util.TruncateString200Converter;
 import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.service.job.proto.JobState;
@@ -103,7 +104,7 @@ public class JobSummaryUI {
     final ParentDatasetInfo datasetInfo = JobsUI.getDatasetToDisplay(input, service);
     return new JobSummaryUI(
       input.getJobId().getId(),
-      JobsProtoUtil.toStuff(input.getJobState()),
+      JobUtil.computeJobState(JobsProtoUtil.toStuff(input.getJobState()), input.getJobCompleted()),
       JobDetailsUI.toJobFailureInfo(
         Strings.isNullOrEmpty(input.getFailureInfo()) ? null : input.getFailureInfo(),
         JobsProtoUtil.toStuff(input.getDetailedJobFailureInfo())),

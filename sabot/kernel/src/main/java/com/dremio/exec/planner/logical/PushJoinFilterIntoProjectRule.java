@@ -128,8 +128,8 @@ public class PushJoinFilterIntoProjectRule extends RelOptRule {
     final RexBuilder rexBuilder = left.getCluster().getRexBuilder();
     final RexNode one = rexBuilder.makeBigintLiteral(BigDecimal.ONE);
 
-    final List<RexNode> leftProjects = new ArrayList<>(MoreRelOptUtil.identityProjects(left.getRowType(), null));
-    final List<RexNode> rightProjects = new ArrayList<>(MoreRelOptUtil.identityProjects(right.getRowType(), null));
+    final List<RexNode> leftProjects = new ArrayList<>(MoreRelOptUtil.identityProjects(left.getRowType()));
+    final List<RexNode> rightProjects = new ArrayList<>(MoreRelOptUtil.identityProjects(right.getRowType()));
 
     final List<Integer> newLeftKeys = new ArrayList<>(leftKeys);
     final List<Integer> newRightKeys = new ArrayList<>(rightKeys);
@@ -158,7 +158,7 @@ public class PushJoinFilterIntoProjectRule extends RelOptRule {
     RexNode newEquiCondition = RelOptUtil.createEquiJoinCondition(newLeft, newLeftKeys, newRight, newRightKeys, left.getCluster().getRexBuilder());
 
     int finalCnt = cnt;
-    List<RexNode> topProjects = MoreRelOptUtil.identityProjects(origJoin.getRowType(), null)
+    List<RexNode> topProjects = MoreRelOptUtil.identityProjects(origJoin.getRowType())
       .stream().map(p -> RexUtil.shift(p, left.getRowType().getFieldCount(), finalCnt)).collect(Collectors.toList());
 
     return relBuilder

@@ -58,8 +58,10 @@ const finalCreateStore = composeEnhancers(...[
   applyMiddleware(...middleWares)
 ].filter(Boolean))(createStore);
 
+export let store;
+
 export default function configureStore(initialState) {
-  const store = finalCreateStore(rootReducer, initialState);
+  store = finalCreateStore(rootReducer, initialState);
   runSaga(sagaMiddleware);
 
   if (isDev && module.hot) {

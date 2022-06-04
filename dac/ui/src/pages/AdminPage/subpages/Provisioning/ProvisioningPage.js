@@ -86,6 +86,25 @@ export class ProvisioningPage extends Component {
   componentDidMount() {
     this.startPollingProvisionData(true);
     this.loadData();
+    // if engineId is present in search params then load details for that engine
+    const {
+      location,
+      router
+    } = this.props;
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams && searchParams.get('engineId')) {
+      const {
+        state: locationState
+      } = location || {};
+      router.push({
+        ...location,
+        state: {
+          ...locationState,
+          selectedEngineId: searchParams.get('engineId'),
+          fromEngineListPage: true
+        }
+      });
+    }
   }
 
   componentWillUnmount() {
@@ -121,7 +140,7 @@ export class ProvisioningPage extends Component {
   handleRemoveProvision = (entity) => {
     const { intl: { formatMessage } } = this.props;
     const textId = getRemoveConfirmationMsgId(entity);
-    const text = formatMessage({ id: textId });
+    const text = entity && entity.get('name') ? formatMessage({ id: textId }).replace('{engName}', entity.get('name')) : formatMessage({ id: textId }).replace('{engName}', 'this engine');
     const title = formatMessage({id: 'Admin.Engine.Delete.Title'});
     const confirmText = formatMessage({id: 'Common.Delete'});
     this.props.showConfirmationDialog({

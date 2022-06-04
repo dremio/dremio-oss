@@ -15,14 +15,12 @@
  */
 package com.dremio.telemetry.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.Test;
 
 import com.dremio.telemetry.api.config.MetricsConfigurator;
@@ -49,15 +47,14 @@ public class TestMetricConfig extends DremioTest {
       // ensure that reporter was called as expected.
       TestReportConfigurator trc = (TestReportConfigurator) parent.iterator().next().getConfigurator();
       Thread.sleep(120);
-      assertTrue(trc.getCount() > 5);
+      assertThat(trc.getCount()).isGreaterThan(5);
     }
-
     // make sure that parent 2 is added without changing parent1a.
     Metrics.onChange(Arrays.asList(parent1a, parent2));
-    assertThat("swapped item is correct", Arrays.asList(parent1a, parent2), IsIterableContainingInAnyOrder.containsInAnyOrder(Metrics.getConfigurators().toArray()));
+    assertThat(Arrays.asList(parent1a, parent2)).containsExactlyInAnyOrderElementsOf(Metrics.getConfigurators());
 
     // make sure that parent1a is swapped with parent 1b.
     Metrics.onChange(Arrays.asList(parent1b, parent2));
-    assertThat("swapped item is correct", Arrays.asList(parent1b, parent2), IsIterableContainingInAnyOrder.containsInAnyOrder(Metrics.getConfigurators().toArray()));
+    assertThat(Arrays.asList(parent1b, parent2)).containsExactlyInAnyOrderElementsOf(Metrics.getConfigurators());
   }
 }

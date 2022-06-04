@@ -19,9 +19,6 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 
 import FontIcon from 'components/Icon/FontIcon';
-
-import { PALE_NAVY } from 'uiTheme/radium/colors';
-
 @Radium
 class RawHeader extends PureComponent {
   static propTypes = {
@@ -81,8 +78,7 @@ const style = {
   'base': {
     'display': 'flex',
     'height': 38,
-    'justifyContent': 'space-between',
-    backgroundColor: PALE_NAVY
+    'justifyContent': 'space-between'
   },
   'content': {
     'display': 'flex',

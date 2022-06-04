@@ -16,6 +16,7 @@
 package com.dremio.sabot.exec;
 
 import java.util.Collection;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -28,7 +29,6 @@ import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.SchedulingGroup;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 
 /**
  * Manages the workload level allocator, and eventually the workload scheduling group
@@ -42,7 +42,7 @@ import com.google.common.collect.Maps;
  * the {@link WorkloadTicketDepot} no longer stores a permanent reference to the WorkloadTicket.
  */
 public class WorkloadTicket extends TicketWithChildren {
-  protected final ConcurrentMap<QueryId, QueryTicket> queryTickets = Maps.newConcurrentMap();
+  protected final ConcurrentMap<QueryId, QueryTicket> queryTickets = new ConcurrentHashMap<>();
 
   private SchedulingGroup<AsyncTaskWrapper> schedulingGroup;
 
@@ -69,19 +69,17 @@ public class WorkloadTicket extends TicketWithChildren {
                                  final CoordinationProtos.NodeEndpoint foreman,
                                  final CoordinationProtos.NodeEndpoint assignment,
                                  final QueryStarter queryStarter) {
-    QueryTicket queryTicket = queryTickets.get(queryId);
-    if (queryTicket == null) {
-      final BufferAllocator queryAllocator = makeQueryAllocator(getAllocator(), queryId, maxAllocation);
-      queryTicket = new QueryTicket(this, queryId, queryAllocator, foreman, assignment, 0L);
-      QueryTicket insertedTicket = queryTickets.putIfAbsent(queryId, queryTicket);
-      if (insertedTicket == null) {
+    QueryTicket queryTicket = queryTickets.compute(queryId, (k, v) -> {
+      if (v == null) {
+        final BufferAllocator queryAllocator = makeQueryAllocator(getAllocator(), queryId, maxAllocation);
+        final QueryTicket qTicket = new QueryTicket(this, queryId, queryAllocator, foreman, assignment, 0L,
+          false, queryStarter.getApproximateQuerySize());
         this.reserve();
+        return qTicket;
       } else {
-        // Race condition: another user managed to insert a query ticket. Let's close ours and use theirs
-        AutoCloseables.closeNoChecked(queryTicket);  // NB: closing the ticket will close the query allocator
-        queryTicket = insertedTicket;
+        return v;
       }
-    }
+    });
     queryTicket.reserve();
     queryStarter.buildAndStartQuery(queryTicket);
   }
@@ -89,8 +87,8 @@ public class WorkloadTicket extends TicketWithChildren {
   /**
    * Returns the query ticket corresponding to the queryId. Returns null if not found.
    *
-   * @param queryId
-   * @return
+   * @param queryId Query id
+   * @return query ticket or null
    */
   public QueryTicket getQueryTicket(QueryId queryId) {
     return queryTickets.get(queryId);

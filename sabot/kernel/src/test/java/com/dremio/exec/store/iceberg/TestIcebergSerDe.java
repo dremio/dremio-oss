@@ -137,7 +137,7 @@ public class TestIcebergSerDe extends BaseTestQuery {
       "wasbs://testdir@azurev1databricks2.blob.core.windows.net/Automation/regression/iceberg/alltypes/metadata/snap-6325739561998439041-1-bb5ecd1c-80fb-494f-9716-d2baa8f69eff.avro",
     5000, 0, ManifestContent.DATA, 0, 0, null, 2,
       5000, 0, 0,
-      0, 0, null);
+      0, 0, null, null);
 
     return genericManifestFile;
   }

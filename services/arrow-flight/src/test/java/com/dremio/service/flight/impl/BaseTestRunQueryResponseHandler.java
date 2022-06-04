@@ -21,8 +21,8 @@ import static com.dremio.exec.proto.UserBitShared.QueryResult.QueryState.FAILED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -36,9 +36,7 @@ import org.apache.arrow.flight.FlightProducer;
 import org.apache.arrow.flight.FlightRuntimeException;
 import org.apache.arrow.flight.FlightStatusCode;
 import org.apache.arrow.memory.BufferAllocator;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.invocation.InvocationOnMock;
 
 import com.dremio.common.exceptions.UserException;
@@ -81,9 +79,6 @@ public abstract class BaseTestRunQueryResponseHandler {
     when(userWorker.getSystemOptions()).thenReturn(optionManager);
     when(optionManager.getOption(DremioFlightServiceOptions.CLIENT_READINESS_TIMEOUT_MILLIS)).thenReturn(5000L);
   }
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   public static UserBitShared.ExternalId getExternalId() {
     return externalId;

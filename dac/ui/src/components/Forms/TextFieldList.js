@@ -15,6 +15,7 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
+import classnames from 'classnames';
 import { FieldWithError, TextField } from 'components/Fields';
 import { get } from 'lodash';
 import { FormValidationMessage } from 'dremio-ui-lib';
@@ -22,8 +23,9 @@ import { FormValidationMessage } from 'dremio-ui-lib';
 import { label } from 'uiTheme/radium/forms';
 import FieldList, { RemoveButton, AddButton } from 'components/Fields/FieldList';
 
+import './TextFieldList.less';
+
 PropertyItem.propTypes = {
-  style: PropTypes.object,
   item: PropTypes.object,
   onRemove: PropTypes.func,
   fieldKey: PropTypes.string,
@@ -32,7 +34,6 @@ PropertyItem.propTypes = {
 };
 
 function PropertyItem({
-  style,
   item,
   onRemove,
   fieldKey,
@@ -43,8 +44,11 @@ function PropertyItem({
   const inputContainer = classess && classess.inputContainer;
   const inputBox = classess && classess.inputBox;
   const removeIcon = classess && classess.removeIcon;
+  const className = classnames('property-item', 'propertyField');
+  const removeBtnClass = classnames('propertyField__removeButton', removeIcon);
+
   return (
-    <div className='property-item' style={{display: 'flex', marginBottom: 10}}>
+    <div className={className}>
       <FieldWithError
         errorPlacement='top'
         {...field}
@@ -52,7 +56,7 @@ function PropertyItem({
       >
         <TextField {...field} disabled={disabled} className={inputBox}/>
       </FieldWithError>
-      {!disabled && onRemove && <RemoveButton onClick={onRemove} className={removeIcon} /> }
+      {!disabled && onRemove && <RemoveButton onClick={onRemove} className={removeBtnClass} /> }
     </div>
   );
 }
@@ -113,14 +117,9 @@ export default class TextFieldList extends Component {
             {errorMessage}
           </FormValidationMessage>
         )}
-        { !disabled && <AddButton addItem={this.addItem} style={styles.addButton}>{addButtonText}</AddButton>}
+        { !disabled && <AddButton addItem={this.addItem} className='gutter--none'>{addButtonText}</AddButton>}
       </div>
     );
   }
 }
 
-const styles = {
-  addButton: {
-    padding: 0
-  }
-};

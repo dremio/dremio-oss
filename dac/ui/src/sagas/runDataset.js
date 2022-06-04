@@ -24,6 +24,10 @@ import { getExplorePageLocationChangePredicate } from '@app/sagas/utils';
 import { getTableDataRaw, getCurrentRouteParams } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
 import { LOGOUT_USER_SUCCESS } from '@app/actions/account';
+import { loadJobDetails } from '@app/actions/jobs/jobs';
+import { intl } from '@app/utils/intl';
+import { addNotification } from '@app/actions/notification';
+import { JOB_DETAILS_VIEW_ID } from '@app/actions/joblist/jobList';
 
 const getJobDoneActionFilter = (jobId) => (action) =>
   (action.type === WS_MESSAGE_JOB_PROGRESS || action.type === WS_MESSAGE_QV_JOB_PROGRESS) && action.payload.id.id === jobId && action.payload.update.isComplete;
@@ -130,6 +134,7 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
       console.warn(`=+=+= socket returned payload for job id ${jobId}`);
       yield put(updateHistoryWithJobState(datasetVersion, jobDone.payload.update.state));
       yield put(updateExploreJobProgress(jobDone.payload.update));
+      yield call(genLoadJobDetails, jobId);
     }
   } finally {
     yield call([socket, socket.stopListenToJobProgress], jobId);
@@ -204,6 +209,31 @@ export function* watchUpdateJobRecords(jobId) {
   yield takeEvery(getJobRecordsActionFilter(jobId), updateJobProgressWithRecordCount);
 }
 
-
-
-
+export function* genLoadJobDetails(jobId) {
+  const jobDetails = yield put(loadJobDetails(jobId, JOB_DETAILS_VIEW_ID));
+  const jobDetailsResponse = yield jobDetails;
+  const responseStats =
+    jobDetailsResponse &&
+    jobDetailsResponse.payload &&
+    !jobDetailsResponse.error
+      ? jobDetailsResponse.payload.getIn([
+        'entities',
+        'jobDetails',
+        jobDetailsResponse.meta.jobId,
+        'stats'
+      ])
+      : '';
+  // isOutputLimited will be true if the results were truncated
+  if (responseStats && responseStats.get('isOutputLimited')) {
+    yield put(
+      addNotification(
+        intl.formatMessage(
+          { id: 'Explore.Run.Warning' },
+          { rows: responseStats.get('outputRecords').toLocaleString() }
+        ),
+        'success',
+        10
+      )
+    );
+  }
+}

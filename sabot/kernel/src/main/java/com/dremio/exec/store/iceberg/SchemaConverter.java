@@ -184,7 +184,7 @@ public class SchemaConverter {
         return new CompleteType(new FixedSizeBinary(((FixedType)type).length()));
       case DECIMAL:
         DecimalType decimalType = (DecimalType)type;
-        return new CompleteType(new Decimal(decimalType.precision(), decimalType.scale()));
+        return new CompleteType(new Decimal(decimalType.precision(), decimalType.scale(), 128));
       default:
         throw new UnsupportedOperationException("Unsupported iceberg type : " + type);
     }
@@ -249,7 +249,7 @@ public class SchemaConverter {
     }
   }
 
-  private Type toIcebergType(CompleteType completeType, String fullName, FieldIdBroker fieldIdBroker) {
+  public Type toIcebergType(CompleteType completeType, String fullName, FieldIdBroker fieldIdBroker) {
     ArrowType arrowType = completeType.getType();
     return arrowType.accept(new ArrowTypeVisitor<Type>() {
       @Override

@@ -59,15 +59,7 @@ public class SelectedExecutorsResourceInformation implements GroupResourceInform
 
   @Override
   public long getAverageExecutorCores(OptionResolver optionManager) {
-    long configuredMaxWidthPerNode = optionManager.getOption(MAX_WIDTH_PER_NODE_KEY);
-    if (configuredMaxWidthPerNode == 0) {
-      /* user has not overridden the default, use the default MAX_WIDTH_PER_NODE which is average
-       * number of cores as computed by ClusterResourceInformation.
-       */
-      return Math.round(averageExecutorCores * 0.7);
-    } else {
-      return configuredMaxWidthPerNode;
-    }
+    return GroupResourceInformation.computeCoresAvailableForExecutor(averageExecutorCores, optionManager);
   }
 
   @Override

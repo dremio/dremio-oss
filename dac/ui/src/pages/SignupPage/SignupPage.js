@@ -37,7 +37,7 @@ export default class SignupPage extends PureComponent {
   renderSignupForm() {
     return (
       <div id='signup-page' className='page' style={styles.base}>
-        <div className='explore-header' style={styles.header} />
+        <div className='main-header' style={styles.header} />
         <div style={styles.form}>
           <SignupForm location={this.props.location}/>
         </div>

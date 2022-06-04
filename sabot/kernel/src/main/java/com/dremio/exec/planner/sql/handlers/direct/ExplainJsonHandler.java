@@ -30,6 +30,7 @@ import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
@@ -39,6 +40,7 @@ import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
 import com.dremio.exec.planner.sql.parser.SqlExplainJson;
+import com.dremio.options.OptionManager;
 
 /**
  * Handler for EXPLAIN JSON commands.
@@ -90,7 +92,12 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
   }
 
   private List<Explain> toResultInner(String phase, List<TransformedNode> nodes) {
-    final RelSerializerFactory factory = RelSerializerFactory.getPlanningFactory(config.getContext().getConfig(), config.getContext().getScanResult());
+    final OptionManager options = config.getContext().getOptions();
+    final boolean isLegacy = options != null && options.getOption(PlannerSettings.LEGACY_SERIALIZER_ENABLED);
+    final RelSerializerFactory factory =
+      isLegacy ?
+        RelSerializerFactory.getLegacyPlanningFactory(config.getContext().getConfig(), config.getContext().getScanResult()) :
+        RelSerializerFactory.getPlanningFactory(config.getContext().getConfig(), config.getContext().getScanResult());
     final LogicalPlanSerializer serializer = factory.getSerializer(config.getConverter().getCluster(), config.getContext().getFunctionRegistry());
 
     for (TransformedNode n : nodes) {

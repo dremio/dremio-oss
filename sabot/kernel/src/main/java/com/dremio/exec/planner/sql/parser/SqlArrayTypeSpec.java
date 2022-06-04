@@ -38,4 +38,8 @@ public final class SqlArrayTypeSpec extends SqlTypeNameSpec {
     RelDataType type = spec.deriveType(typeFactory);
     return typeFactory.createArrayType(type, -1);
   }
+
+  public SqlComplexDataTypeSpec getSpec() {
+    return spec;
+  }
 }

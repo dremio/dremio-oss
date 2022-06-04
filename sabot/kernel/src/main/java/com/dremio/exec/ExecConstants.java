@@ -79,8 +79,8 @@ public interface ExecConstants {
   // Splits are enabled when this is set to true and QUERY_EXEC_OPTION is set to Gandiva
   BooleanValidator SPLIT_ENABLED = new BooleanValidator("exec.expression.split.enabled", true);
 
-  String LAZYEXPEVAL_ENABLED_KEY = "exec.expression.lazyEval.enabled";
-  BooleanValidator LAZYEXPEVAL_ENABLED = new BooleanValidator(LAZYEXPEVAL_ENABLED_KEY, true);
+  String EXPRESSION_CODE_CACHE_KEY = "exec.expression.byte_code_cache.enabled";
+  BooleanValidator EXPRESSION_CODE_CACHE_ENABLED = new BooleanValidator(EXPRESSION_CODE_CACHE_KEY, true);
   String SPLIT_CACHING_ENABLED_KEY = "exec.expression.splits_cache.enabled";
   BooleanValidator SPLIT_CACHING_ENABLED = new BooleanValidator(SPLIT_CACHING_ENABLED_KEY, true);
 
@@ -161,6 +161,7 @@ public interface ExecConstants {
   BooleanValidator ENABLE_VECTORIZED_HASHJOIN_SPECIFIC = new BooleanValidator("exec.operator.join.vectorize.specific", false);
   BooleanValidator ENABLE_VECTORIZED_COPIER = new BooleanValidator("exec.operator.copier.vectorize", true);
   BooleanValidator ENABLE_VECTORIZED_COMPLEX_COPIER = new BooleanValidator("exec.operator.copier.complex.vectorize", true);
+  BooleanValidator ENABLE_NATIVE_HASHTABLE_FOR_JOIN = new BooleanValidator("exec.join.hashtable.native", false);
   BooleanValidator ENABLE_VECTORIZED_PARTITIONER = new BooleanValidator("exec.operator.partitioner.vectorize", true);
   BooleanValidator DEBUG_HASHJOIN_INSERTION = new BooleanValidator("exec.operator.join.debug-insertion", false);
 
@@ -295,15 +296,6 @@ public interface ExecConstants {
   PositiveLongValidator MAX_HASH_TABLE_SIZE = new PositiveLongValidator(MAX_HASH_TABLE_SIZE_KEY, HashTable.MAXIMUM_CAPACITY, HashTable.MAXIMUM_CAPACITY);
 
   /**
-   * Limits the maximum level of parallelization to this factor time the number of Nodes.
-   * The default value is internally computed based on number of cores per executor. The default value
-   * mentioned here is meaningless and is only used to ascertain if user has explicitly set the value
-   * or not.
-   */
-  String MAX_WIDTH_PER_NODE_KEY = "planner.width.max_per_node";
-  PositiveLongValidator MAX_WIDTH_PER_NODE = new PositiveLongValidator(MAX_WIDTH_PER_NODE_KEY, Integer.MAX_VALUE, 0);
-
-  /**
    * Load reduction will only be triggered if the cluster load exceeds the cutoff value
    */
   DoubleValidator LOAD_CUT_OFF = new RangeDoubleValidator("load.cut_off", 0, Integer.MAX_VALUE, 3);
@@ -403,6 +395,7 @@ public interface ExecConstants {
    */
   BooleanValidator SHOULD_IGNORE_LEAF_AFFINITY = new BooleanValidator("planner.assignment.ignore_leaf_affinity", false);
 
+  BooleanValidator SHOULD_ASSIGN_FRAGMENT_PRIORITY = new BooleanValidator("planner.assign_priority", false);
   /**
    * This factor determines how much larger the load for a given slice can be than the expected size in order to maintain locality
    * A smaller value will favor even distribution of load, while a larger value will favor locality, even if that means uneven load
@@ -498,11 +491,13 @@ public interface ExecConstants {
   AdminBooleanValidator ENABLE_RECONCILE_QUERIES = new AdminBooleanValidator("coordinator.reconcile.queries.enable", true);
   RangeLongValidator RECONCILE_QUERIES_FREQUENCY_SECS = new RangeLongValidator("coordinator.reconcile.queries.frequency.secs", 1, 1800, 300);
 
-  BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
+  BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", true);
+  BooleanValidator ENABLE_ICEBERG_DML = new BooleanValidator("dremio.iceberg.dml.enabled", false);
   BooleanValidator ENABLE_ICEBERG_MIN_MAX = new BooleanValidator("dremio.iceberg.min_max.enabled", true);
   BooleanValidator CTAS_CAN_USE_ICEBERG = new BooleanValidator("dremio.iceberg.ctas.enabled", false);
-  BooleanValidator ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION = new BooleanValidator("dremio.iceberg.spec_evol_and_transformation.enabled", false);
+  BooleanValidator ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION = new BooleanValidator("dremio.iceberg.spec_evol_and_transformation.enabled", true);
   BooleanValidator ENABLE_PARTITION_STATS_USAGE = new BooleanValidator("dremio.use_partition_stats_enabled", true);
+  BooleanValidator ENABLE_ICEBERG_TIME_TRAVEL = new BooleanValidator("dremio.iceberg.time_travel.enabled", false);
 
   BooleanValidator ENABLE_USE_VERSION_SYNTAX = new TypeValidators.BooleanValidator("dremio.sql.use_version.enabled", false);
 
@@ -588,7 +583,7 @@ public interface ExecConstants {
   BooleanValidator S3_NATIVE_ASYNC_CLIENT = new BooleanValidator("dremio.s3.use_native_async_client", false);
 
   // option used to enable/disable internal schema
-  BooleanValidator ENABLE_INTERNAL_SCHEMA = new BooleanValidator("dremio.enable_user_managed_schema", false);
+  BooleanValidator ENABLE_INTERNAL_SCHEMA = new BooleanValidator("dremio.enable_user_managed_schema", true);
 
   // option used to enable/disable arrow caching for parquet dataset
   BooleanValidator ENABLE_PARQUET_ARROW_CACHING = new BooleanValidator("dremio.enable_parquet_arrow_caching", false);
@@ -599,9 +594,21 @@ public interface ExecConstants {
   // option used to enable rle and packed stats using ReaderTimer
   BooleanValidator ENABLE_PARQUET_PERF_MONITORING = new BooleanValidator("dremio.exec.parquet_enable_perf_monitoring", false);
 
+  PositiveLongValidator FRAGMENT_STARTER_TIMEOUT = new PositiveLongValidator("exec.startfragment.min.rpc.timeout.millis", Integer.MAX_VALUE, 30000);
+
+  StringValidator CATALOG_SERVICE_LOCAL_TASK_LEADER_NAME = new StringValidator("catalog.service.local.task.leader.name", "catalogserviceV3");
+
   // option used to set the dremio parquet page size estimate.
   RangeLongValidator PAGE_SIZE_IN_BYTES = new RangeLongValidator("dremio.parquet.page_size_estimate", 1*1024, 500*1024, 100*1024);
 
   // option used to set the total java heap object in memory based on parquet footer.
   RangeLongValidator TOTAL_HEAP_OBJ_SIZE = new RangeLongValidator("dremio.parquet.num_footer_heap_objects", 0, 100000, 50000);
+
+  BooleanValidator ENABLE_IN_PROCESS_TUNNEL = new BooleanValidator("dremio.exec.inprocess.tunnel.enabled", true);
+
+  PositiveLongValidator ORPHANAGE_ENTRY_CLEAN_PERIOD_MINUTES  = new PositiveLongValidator("dremio.orphanage.entry_cleanup_period_minutes",  Long.MAX_VALUE, 5);
+  RangeLongValidator ORPHANAGE_PROCESSING_THREAD_COUNT = new RangeLongValidator("dremio.orphanage.processing_thread_count", 1, 100000, 3);
+
+  // perform join analysis after query completes
+  BooleanValidator ENABLE_JOIN_ANALYSIS_POPULATOR = new BooleanValidator("jobs.join.analysis.populator", true);
 }

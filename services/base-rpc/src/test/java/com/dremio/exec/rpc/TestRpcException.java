@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.rpc;
 
-import org.junit.Rule;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -27,9 +27,6 @@ import com.dremio.common.exceptions.UserRemoteException;
  */
 public class TestRpcException {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestRpcException.class);
-
-  @Rule
-  public final ExpectedException exception = ExpectedException.none();
 
   @Test
   public void testNullException() throws Exception {
@@ -56,24 +53,24 @@ public class TestRpcException {
   }
 
   @Test
-  public void testRemoteTestException() throws Exception {
+  public void testRemoteTestException() {
     UserRemoteException ure = UserRemoteException.create(UserException
         .unsupportedError(new UserRpcException(null, "user rpc exception", new TestException("test message")))
         .build(logger).getOrCreatePBError(false));
 
-    exception.expect(TestException.class);
-    exception.expectMessage("test message");
-    RpcException.propagateIfPossible(new RpcException(ure), TestException.class);
+    assertThatThrownBy(() -> RpcException.propagateIfPossible(new RpcException(ure), TestException.class))
+      .isInstanceOf(TestException.class)
+      .hasMessageContaining("test message");
   }
 
   @Test
-  public void testRemoteRuntimeException() throws Exception {
+  public void testRemoteRuntimeException() {
     UserRemoteException ure = UserRemoteException.create(UserException
         .unsupportedError(new UserRpcException(null, "user rpc exception", new RuntimeException("test message")))
         .build(logger).getOrCreatePBError(false));
 
-    exception.expect(RuntimeException.class);
-    exception.expectMessage("test message");
-    RpcException.propagateIfPossible(new RpcException(ure), TestException.class);
+    assertThatThrownBy(() -> RpcException.propagateIfPossible(new RpcException(ure), TestException.class))
+      .isInstanceOf(RuntimeException.class)
+      .hasMessageContaining("test message");
   }
 }

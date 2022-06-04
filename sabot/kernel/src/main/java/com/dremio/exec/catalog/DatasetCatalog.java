@@ -54,7 +54,7 @@ public interface DatasetCatalog {
 
   void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions);
 
-  void dropTable(NamespaceKey key);
+  void dropTable(NamespaceKey key, TableMutationOptions tableMutationOptions);
 
   void forgetTable(NamespaceKey key);
 
@@ -95,18 +95,20 @@ public interface DatasetCatalog {
    */
   void updateDatasetField(NamespaceKey datasetKey, String originField, CompleteType fieldSchema);
 
-  void truncateTable(NamespaceKey path);
+  void truncateTable(NamespaceKey path, TableMutationOptions tableMutationOptions);
 
-  void addColumns(NamespaceKey table, List<Field> colsToAdd);
+  void addColumns(NamespaceKey table, List<Field> colsToAdd, TableMutationOptions tableMutationOptions);
 
-  void dropColumn(NamespaceKey table, String columnToDrop);
+  void dropColumn(NamespaceKey table, String columnToDrop, TableMutationOptions tableMutationOptions);
 
-  void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration);
+  void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration, TableMutationOptions tableMutationOptions);
 
   boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes);
 
   boolean alterColumnOption(final NamespaceKey key, String columnToChange,
                             final String attributeName, final AttributeValue attributeValue);
+
+  boolean toggleSchemaLearning(NamespaceKey path, boolean enableSchemaLearning);
 
   /**
    * Retrieve a table

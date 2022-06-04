@@ -121,7 +121,6 @@ export class SaveAsDatasetForm extends Component {
             <label style={label}>Location</label>
             <ResourceTreeController
               isDatasetsDisabled
-              hideSources
               onChange={this.handleChangeSelectedNode}
               preselectedNodeId={location.initialValue}
               showFolders/>

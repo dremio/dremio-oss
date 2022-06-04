@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 public class ReflectionExplanationsAndQueryDistance implements Comparable<ReflectionExplanationsAndQueryDistance> {
   final String reflectionId;
   final double queryDistance;
+  boolean hintHidden = false;
   List<ReflectionExplanation> displayHintMessageList;
 
   public ReflectionExplanationsAndQueryDistance(String reflectionId, double queryDistance) {
@@ -47,6 +48,10 @@ public class ReflectionExplanationsAndQueryDistance implements Comparable<Reflec
 
   public List<ReflectionExplanation> getDisplayHintMessageList() {
     return displayHintMessageList;
+  }
+
+  public boolean isHintHidden() {
+    return hintHidden;
   }
 
   @Override

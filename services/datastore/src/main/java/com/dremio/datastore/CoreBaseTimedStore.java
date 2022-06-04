@@ -146,6 +146,11 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
     public int reindex() {
       return kvStore.reindex();
     }
+
+    @Override
+    public Integer version() {
+      return kvStore.version();
+    }
   }
 
   @Override

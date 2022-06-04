@@ -21,4 +21,7 @@
     <Class name="com.dremio.service.flight.TicketContent$PreparedStatementTicket$Builder"/>
     <Bug pattern="UCF_USELESS_CONTROL_FLOW"/>
   </Match>
+  <Match>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,MS_EXPOSE_REP"/>
+  </Match>
 </FindBugsFilter>

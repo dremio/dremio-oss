@@ -538,12 +538,14 @@ public class MinAccumulators {
   public static class VarLenMinAccumulator extends BaseVarBinaryAccumulator {
     NullableVarCharHolder holder = new NullableVarCharHolder();
 
-    public VarLenMinAccumulator(FieldVector input, FieldVector output, FieldVector transferVector,
-                                int maxValuesPerBatch, BufferAllocator computationVectorAllocator,
-                                int varLenAccumulatorCapacity, int maxVarWidthVecUsagePercent,
-                                BaseVariableWidthVector tempAccumulatorHolder) {
+    public VarLenMinAccumulator(FieldVector input, FieldVector transferVector, int maxValuesPerBatch,
+                                BufferAllocator computationVectorAllocator, int estimatedVariableWidthKeySize,
+                                int maxVariableWidthKeySize, int maxVarWidthVecUsagePercent,
+                                int accumIndex, BaseVariableWidthVector tempAccumulator,
+                                VectorizedHashAggOperator.VarLenVectorResizer varLenVectorResizer) {
       super(input, transferVector, AccumulatorBuilder.AccumulatorType.MIN, maxValuesPerBatch,
-        computationVectorAllocator, varLenAccumulatorCapacity, maxVarWidthVecUsagePercent, tempAccumulatorHolder);
+        computationVectorAllocator, estimatedVariableWidthKeySize, maxVariableWidthKeySize,
+        maxVarWidthVecUsagePercent, accumIndex, tempAccumulator, varLenVectorResizer);
     }
 
     public void accumulate(final long memoryAddr, final int count,
@@ -569,6 +571,8 @@ public class MinAccumulators {
         //get the offset of incoming record
         final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
         final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
+
+        this.updateRunTimeVarLenColumnSize(endOffset - startOffset);
 
         // get the hash table batch index
         final int chunkIndex = tableIndex >>> bitsInChunk;

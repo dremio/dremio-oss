@@ -49,9 +49,12 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
 
   @Before
   public void loadTable() throws Exception {
+    // Cleanup and data load will make sure no data from old test is present.
+    removeSource();
+    setupElastic();
     ColumnData[] data = getBusinessData();
     load(schema, table, data);
-  }
+    }
 
   // DX-6681
   @Test

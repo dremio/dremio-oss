@@ -18,6 +18,7 @@ package com.dremio.exec.planner.common;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.AND;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.OR;
+import static org.apache.calcite.sql.type.SqlTypeName.FLOAT;
 import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
 
 import java.util.List;
@@ -34,6 +35,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -44,6 +46,7 @@ import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.options.OptionResolver;
 import com.dremio.test.specs.OptionResolverSpec;
 import com.dremio.test.specs.OptionResolverSpecBuilder;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Test for {@link MoreRelOptUtil}.
@@ -52,6 +55,8 @@ public class TestMoreRelOptUtil {
   private static final RelDataTypeFactory typeFactory = SqlTypeFactoryImpl.INSTANCE;
   private static final RelDataType intColumnType = typeFactory.createTypeWithNullability(
     typeFactory.createSqlType(INTEGER), true);
+  private static final RelDataType floatColumnType = typeFactory.createTypeWithNullability(
+    typeFactory.createSqlType(FLOAT), true);
   private static final RexBuilder rexBuilder = new DremioRexBuilder(typeFactory);
   private static final RelBuilder relBuilder = makeRelBuilder();
 
@@ -72,6 +77,30 @@ public class TestMoreRelOptUtil {
     typeFactory.createSqlType(INTEGER), false);
   private static final RexNode intLit40 = rexBuilder.makeLiteral(40,
     typeFactory.createSqlType(INTEGER), false);
+
+  @Test
+  public void testIdentityProjects(){
+    RelDataType rowType = typeFactory.createStructType(
+      ImmutableList.of(intColumnType, floatColumnType),
+      ImmutableList.of("c1", "c2")
+    );
+    Assert.assertEquals(
+      ImmutableList.of(
+        rexBuilder.makeInputRef(intColumnType, 0),
+        rexBuilder.makeInputRef(floatColumnType, 1)),
+      MoreRelOptUtil.identityProjects(rowType));
+    Assert.assertEquals(
+      ImmutableList.of(
+        rexBuilder.makeInputRef(intColumnType, 0),
+        rexBuilder.makeInputRef(floatColumnType, 1)),
+      MoreRelOptUtil.identityProjects(rowType, ImmutableBitSet.of(0, 1)));
+    Assert.assertEquals(
+      ImmutableList.of(rexBuilder.makeInputRef(intColumnType, 0)),
+      MoreRelOptUtil.identityProjects(rowType, ImmutableBitSet.of(0)));
+    Assert.assertEquals(
+      ImmutableList.of(rexBuilder.makeInputRef(floatColumnType, 1)),
+      MoreRelOptUtil.identityProjects(rowType, ImmutableBitSet.of(1)));
+  }
 
   @Test
   public void testShiftFilter() {

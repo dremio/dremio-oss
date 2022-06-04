@@ -29,7 +29,7 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.DatasetCatalog;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
@@ -40,8 +40,8 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
   public static final SqlSpecialOperator CREATE_EMPTY_TABLE_OPERATOR = new SqlSpecialOperator("CREATE_EMPTY_TABLE", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 8, "SqlCreateEmptyTable.createCall() " +
-        "has to get 8 operands!");
+      Preconditions.checkArgument(operands.length == 9, "SqlCreateEmptyTable.createCall() " +
+        "has to get 9 operands!");
 
       if (((SqlNodeList) operands[1]).getList().size() == 0) {
         throw UserException.parseError().message("Columns/Fields not specified for table.").buildSilently();
@@ -60,9 +60,10 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
         ((SqlLiteral) operands[2]).symbolValue(PartitionDistributionStrategy.class),
         (SqlNodeList) operands[3],
         (SqlNodeList) operands[4],
-        (SqlLiteral) operands[5],
-        (SqlNodeList) operands[6],
-        (SqlNodeList) operands[7]);
+        (SqlNode) operands[5],
+        (SqlLiteral) operands[6],
+        (SqlNodeList) operands[7],
+        (SqlNodeList) operands[8]);
     }
   };
 
@@ -73,6 +74,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
   protected final SqlNodeList sortColumns;
   protected final SqlNodeList distributionColumns;
   protected final SqlNodeList formatOptions;
+  protected final SqlNode location;
   protected final SqlLiteral singleWriter;
 
   public SqlCreateEmptyTable(
@@ -82,6 +84,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     PartitionDistributionStrategy partitionDistributionStrategy,
     SqlNodeList partitionColumns,
     SqlNodeList formatOptions,
+    SqlNode location,
     SqlLiteral singleWriter,
     SqlNodeList sortFieldList,
     SqlNodeList distributionColumns) {
@@ -91,6 +94,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     this.partitionDistributionStrategy = partitionDistributionStrategy;
     this.partitionColumns = partitionColumns;
     this.formatOptions = formatOptions;
+    this.location = location;
     this.singleWriter = singleWriter;
     this.sortColumns = sortFieldList;
     this.distributionColumns = distributionColumns;
@@ -109,6 +113,7 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     ops.add(SqlLiteral.createSymbol(partitionDistributionStrategy, SqlParserPos.ZERO));
     ops.add(partitionColumns);
     ops.add(formatOptions);
+    ops.add(location);
     ops.add(singleWriter);
     ops.add(sortColumns);
     ops.add(distributionColumns);
@@ -156,6 +161,10 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
       writer.keyword("AS");
       SqlHandlerUtil.unparseSqlNodeList(writer, leftPrec, rightPrec, formatOptions);
     }
+    if (location != null) {
+      writer.keyword("LOCATION");
+      location.unparse(writer, leftPrec, rightPrec);
+    }
     if (singleWriter.booleanValue()) {
       writer.keyword("WITH");
       writer.keyword("SINGLE");
@@ -196,7 +205,9 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     return columnNames;
   }
 
-  public List<String> getPartitionColumns(DatasetCatalog datasetCatalog, NamespaceKey key) {
+
+  @Override
+  public List<String> getPartitionColumns(DremioTable dremioTable /* param is unused in this implementation*/) {
     List<String> columnNames = Lists.newArrayList();
     for(SqlNode node : partitionColumns.getList()) {
       columnNames.add(node.toString());
@@ -204,12 +215,16 @@ public class SqlCreateEmptyTable extends SqlCall implements DataAdditionCmdCall 
     return columnNames;
   }
 
-  public SqlNodeList getFieldList() {
+    public SqlNodeList getFieldList() {
     return fieldList;
   }
 
   public SqlNodeList getFormatOptions() {
     return formatOptions;
+  }
+
+  public SqlNode getLocation() {
+    return location;
   }
 
   public boolean isSingleWriter() {

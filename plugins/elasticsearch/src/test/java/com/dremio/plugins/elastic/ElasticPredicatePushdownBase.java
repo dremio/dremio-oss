@@ -42,6 +42,7 @@ import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos;
+import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.plugins.elastic.planning.ElasticsearchGroupScan;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -207,7 +208,7 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
       .withSessionOptionManager(new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
         getSabotContext().getOptionManager())
       .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
       .setSupportComplexTypes(true)
       .build();
   }

@@ -208,7 +208,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         if(batchWrapper.state != BatchState.SPILLED) {
           batch = batchWrapper.get();
           if (batch.getBody() != null) {
-            batch.getBody().release();
+            batch.getBody().close();
           }
         }
       }
@@ -391,7 +391,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
           state = BatchState.SPILLED;
           batch = null;
           if (buf != null) {
-            buf.release();
+            buf.close();
           }
         }
       }
@@ -462,7 +462,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
           if (tryAgain) {
             // we had a premature exit, release batch memory so we don't leak it.
             if (batch != null) {
-              batch.getBody().release();
+              batch.close();
             }
           }
         }

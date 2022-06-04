@@ -53,7 +53,7 @@ const {
  * a context that provides a following api:
  * func(nextLocation): {@see ChangesCheckResult}
  */
-const performChangesCheckForLocationContext = createContext();
+export const performChangesCheckForLocationContext = createContext();
 
 export class HookProviderView extends Component {
   static propTypes = {

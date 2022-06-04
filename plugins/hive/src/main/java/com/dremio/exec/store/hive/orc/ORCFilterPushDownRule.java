@@ -134,7 +134,7 @@ public class ORCFilterPushDownRule extends RelOptRule {
       final SearchArgument sarg = sargGenerator.get();
 
       final HiveProxiedOrcScanFilter proxiedOrcScanFilter = new ORCScanFilter(sarg, pluginId, filterFinder.getColumn(), filterThatCanBePushed);
-      final HiveProxyingOrcScanFilter proxyingOrcScanFilter = new HiveProxyingOrcScanFilter(pluginId.getName(), proxiedOrcScanFilter);
+      final HiveProxyingOrcScanFilter proxyingOrcScanFilter = new HiveProxyingOrcScanFilter(pluginId, proxiedOrcScanFilter);
 
       final RelNode newScan = scan.applyFilter(proxyingOrcScanFilter);
 

@@ -20,11 +20,12 @@ export const LOAD_RESOURCE_TREE_START = 'LOAD_RESOURCE_TREE_START';
 export const LOAD_RESOURCE_TREE_SUCCESS = 'LOAD_RESOURCE_TREE_SUCCESS';
 export const LOAD_RESOURCE_TREE_FAILURE = 'LOAD_RESOURCE_TREE_FAILURE';
 
-const fetchResourceTree = (fullPath, { showDatasets, showSpaces, showSources, showHomes, isExpand }) => {
+const fetchResourceTree = (fullPath, { showDatasets, showSpaces, showSources, showHomes, isExpand, params }) => {
   const meta = { viewId: 'ResourceTree', path: fullPath, isExpand};
 
   const apiCall = new APIV2Call()
     .path('resourcetree')
+    .params(params || {})
     .paths(fullPath);
 
   if (isExpand) {

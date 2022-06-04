@@ -1185,17 +1185,17 @@ public class HiveTestDataGenerator {
         " rownum int, string_field string" +
         ") ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' COLLECTION ITEMS TERMINATED BY ','");
     executeQuery(hiveDriver,
-      String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default." + table + "_int_input", testIntDataFile));
+      String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default.%s_int_input", testIntDataFile, table));
     executeQuery(hiveDriver,
-      String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default." + table + "_double_input", testDoubleDataFile));
+      String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default.%s_double_input", testDoubleDataFile, table));
     executeQuery(hiveDriver,
-      String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default." + table + "_string_input", testStringDataFile));
+      String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default.%s_string_input", testStringDataFile, table));
     executeQuery(hiveDriver,
-      String.format("INSERT INTO TABLE " + table + " SELECT rownum, CREATE_UNION(0, int_field, 0.0, \"\") FROM " + table + "_int_input"));
+      "INSERT INTO TABLE " + table + " SELECT rownum, CREATE_UNION(0, int_field, 0.0, \"\") FROM " + table + "_int_input");
     executeQuery(hiveDriver,
-      String.format("INSERT INTO TABLE " + table + " SELECT rownum, CREATE_UNION(1, 0, double_field, \"\") FROM " + table + "_double_input"));
+      "INSERT INTO TABLE " + table + " SELECT rownum, CREATE_UNION(1, 0, double_field, \"\") FROM " + table + "_double_input");
     executeQuery(hiveDriver,
-      String.format("INSERT INTO TABLE " + table + " SELECT rownum, CREATE_UNION(2, 0, 0.0, string_field) FROM " + table + "_string_input"));
+      "INSERT INTO TABLE " + table + " SELECT rownum, CREATE_UNION(2, 0, 0.0, string_field) FROM " + table + "_string_input");
   }
 
   private void createUnionTypesTable(final Driver hiveDriver, final String format, final String table) throws Exception {

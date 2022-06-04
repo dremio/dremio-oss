@@ -42,7 +42,8 @@ export default class AllSourcesView extends PureComponent {
     sources: PropTypes.object,
     intl: PropTypes.object.isRequired,
     title: PropTypes.string.isRequired,
-    isExternalSource: PropTypes.bool
+    isExternalSource: PropTypes.bool,
+    isDataPlaneSource: PropTypes.bool
   }
 
   static contextTypes = {
@@ -114,13 +115,18 @@ export default class AllSourcesView extends PureComponent {
   }
 
   renderAddButton() {
-    const { isExternalSource } = this.props;
+    const { isExternalSource, isDataPlaneSource } = this.props;
+
+    /*eslint no-nested-ternary: "off"*/
+    const headerId = isExternalSource ? 'Source.AddExternalSource' :
+      isDataPlaneSource ? 'Source.AddDataPlane' : 'Source.AddDataLake';
+
     return (
       this.context.loggedInUser.admin && <LinkButton
         buttonStyle='primary'
-        to={{ ...this.context.location, state: { modal: 'AddSourceModal', isExternalSource }}}
+        to={{ ...this.context.location, state: { modal: 'AddSourceModal', isExternalSource, isDataPlaneSource }}}
         style={allSpacesAndAllSources.addButton}>
-        {this.props.intl.formatMessage({ id: isExternalSource ? 'Source.AddExternalSource' : 'Source.AddDataLake' })}
+        {this.props.intl.formatMessage({ id: headerId })}
       </LinkButton>
     );
   }

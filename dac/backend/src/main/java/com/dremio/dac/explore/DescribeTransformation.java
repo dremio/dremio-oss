@@ -204,7 +204,7 @@ class DescribeTransformation implements TransformBase.TransformVisitor<String> {
 
   @Override
   public String visit(TransformFilter filter) throws Exception {
-    return format("filter rows*");
+    return "filter rows*";
   }
 
   @Override

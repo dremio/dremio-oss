@@ -98,7 +98,7 @@
     <#if mode == "primitive">
       ${output} = left.value < right.value ? -1 : (left.value == right.value ? 0 : 1);
     <#elseif mode == "varString">
-      ${output} = org.apache.arrow.vector.util.ByteFunctionHelpers.compare(
+      ${output} = org.apache.arrow.memory.util.ByteFunctionHelpers.compare(
           left.buffer, left.start, left.end, right.buffer, right.start, right.end );
     <#elseif mode == "intervalNameThis">
       <@intervalCompareBlock leftType=leftType rightType=rightType
@@ -138,7 +138,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionGenerationHelper;
-import org.apache.arrow.vector.util.ByteFunctionHelpers;
+import org.apache.arrow.memory.util.ByteFunctionHelpers;
 import org.apache.arrow.vector.holders.*;
 import javax.inject.Inject;
 import org.apache.arrow.memory.ArrowBuf;
@@ -371,7 +371,7 @@ public class GCompare${leftTypeBase}Vs${rightTypeBase} {
         <#if typeGroup.mode == "primitive">
           out.value = left.value == right.value ? 1 : 0;
         <#elseif typeGroup.mode == "varString" >
-          out.value = org.apache.arrow.vector.util.ByteFunctionHelpers.equal(
+          out.value = org.apache.arrow.memory.util.ByteFunctionHelpers.equal(
               left.buffer, left.start, left.end, right.buffer, right.start, right.end);
         <#elseif typeGroup.mode == "intervalNameThis" || typeGroup.mode == "intervalDay" >
           int cmp;

@@ -196,6 +196,20 @@ public class CaseSplit {
     }
   }
 
+  public void addEngineToContextMixed(CodeGenContext splitWhenExpr, CodeGenContext splitContext) {
+    if (this.splitType.equals(CaseSplitType.MIXED)) {
+      final SupportedEngines.Engine p = (flipped) ? SupportedEngines.Engine.JAVA : SupportedEngines.Engine.GANDIVA;
+      final SupportedEngines.Engine np = (flipped) ? SupportedEngines.Engine.GANDIVA : SupportedEngines.Engine.JAVA;
+      if (splitWhenExpr.isExpressionExecutableInEngine(p)) {
+        splitContext.addSupportedExecutionEngineForSubExpression(p);
+        splitContext.addSupportedExecutionEngineForExpression(p);
+      } else if (splitWhenExpr.isExpressionExecutableInEngine(np)) {
+        splitContext.addSupportedExecutionEngineForSubExpression(np);
+        splitContext.addSupportedExecutionEngineForExpression(np);
+      }
+    }
+  }
+
   private CodeGenContext getWhenExpressionWrapperFunction(CodeGenContext whenExpr, ExpressionSplit prevSplit) {
     assert !zeroSplit;
     final LogicalExpression leftExpr = prevSplit.getReadExpressionContext();

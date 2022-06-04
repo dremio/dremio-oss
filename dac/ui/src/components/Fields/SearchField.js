@@ -33,8 +33,16 @@ export default class SearchField extends Component {
     showCloseIcon: PropTypes.bool,
     inputClassName: PropTypes.string,
     dataQa: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    onClick: PropTypes.func,
+    showIcon: PropTypes.bool,
+    disabled: PropTypes.bool
   };
+
+  static defaultProps = {
+    showIcon: false,
+    inputStyle: {}
+  }
 
   constructor(props) {
     super(props);
@@ -67,23 +75,30 @@ export default class SearchField extends Component {
   }
 
   render() {
+    const { disabled } = this.props;
+    const val = this.props.value != null ? this.props.value : this.state.value;
     const showCloseIcon = this.props.showCloseIcon && this.state.value;
     return (
-      <div className={classNames(['field', base, this.props.className])} style={[this.props.style]}>
-        <FontIcon
+      <div className={classNames(['field', base, this.props.className], { disabled })} style={[this.props.style]}>
+        {this.props.showIcon && <FontIcon
           type='Search'
           theme={this.props.searchIconTheme || styles.searchIcon}
-        />
+        />}
         <input
+          disabled={disabled}
           data-qa={this.props.dataQa}
           className={classNames([(this.props.inputClassName || ''), searchInput])}
           type='text'
           ref='input'
           placeholder={this.props.placeholder}
-          style={this.props.inputStyle}
-          value={this.state.value}
+          style={{
+            ...this.props.inputStyle,
+            ...(this.props.showIcon && { paddingLeft: 27 })
+          }}
+          value={val}
           onChange={(e) => this.onChange(e.target.value)}
           onKeyDown={this.handleKeyDown}
+          onClick={this.props.onClick}
         />
         {showCloseIcon && <FontIcon
           type='XBig'

@@ -22,6 +22,7 @@ import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.sql.DremioSqlToRelConverter;
 import com.dremio.exec.planner.sql.SqlConverter;
@@ -48,9 +49,9 @@ public class ExternalMaterializationDescriptor extends MaterializationDescriptor
     String queryPath = PathUtils.constructFullPath(virtualDatasetPath);
     String targetPath = PathUtils.constructFullPath(getPath());
 
-    final RelNode queryRel = DremioSqlToRelConverter.expandView(null, SystemUser.SYSTEM_USERNAME,
+    final RelNode queryRel = DremioSqlToRelConverter.expandView(null, new CatalogUser(SystemUser.SYSTEM_USERNAME),
         String.format("select * from %s", queryPath), null, converter, null).rel;
-    RelNode tableRel = DremioSqlToRelConverter.expandView(null, SystemUser.SYSTEM_USERNAME,
+    RelNode tableRel = DremioSqlToRelConverter.expandView(null, new CatalogUser(SystemUser.SYSTEM_USERNAME),
         String.format("select * from %s", targetPath), null, converter, null).rel;
 
     if (!MoreRelOptUtil.areRowTypesEqual(queryRel.getRowType(), tableRel.getRowType(), true, false)) {

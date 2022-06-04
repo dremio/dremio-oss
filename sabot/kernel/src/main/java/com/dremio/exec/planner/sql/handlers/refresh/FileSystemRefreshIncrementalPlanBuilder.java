@@ -105,7 +105,7 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
 
     return new DirListingInvocationPrel(cluster, cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL),
       table, storagePluginId, refreshExecTableMetadata,
-      1.0d, metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh, metadataProvider, paths, x -> getRowCountEstimates("DirList"));
+      1.0d, metaStoragePlugin, metadataProvider.getTableUUId(), isPartialRefresh, metadataProvider, paths, x -> getRowCountEstimates("DirList"), ImmutableList.of());
   }
 
   public Prel getDirListToFooterReadExchange(Prel child) {
@@ -174,5 +174,4 @@ public class FileSystemRefreshIncrementalPlanBuilder extends FileSystemFullRefre
   public boolean updateDatasetConfigWithIcebergMetadataIfNecessary() {
     return repairAndSaveDatasetConfigIfNecessary();
   }
-
 }

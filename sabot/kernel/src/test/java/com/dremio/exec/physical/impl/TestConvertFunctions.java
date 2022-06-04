@@ -206,25 +206,19 @@ public class TestConvertFunctions extends BaseTestQuery {
   @Test
   public void test_castConvertToEmptyListErrorDrill1416Part1() throws Exception {
     final String query = prepareConvertTestQuery("cp.\"/store/json/input2.json\"", "rl[1]", "list_col", "input2_json");
+    String query2 = "SELECT CAST(list_col AS VARCHAR(100)) FROM dfs_test.input2_json";
 
-    errorMsgTestHelper("SELECT CAST(list_col AS VARCHAR(100)) FROM dfs_test.input2_json",
-      "Cast function cannot convert value of type VARBINARY(65536) to type VARCHAR(100)");
+    testBuilder()
+      .sqlQuery(query2)
+      .ordered()
+      .baselineColumns("EXPR$0")
+      .baselineValues("[ 4, 6 ]")
+      .baselineValues(new Object[] { null })
+      .baselineValues("[ 4, 6 ]")
+      .baselineValues("[ 4, 6 ]")
+      .build()
+      .run();
 
-    setEnableReAttempts(true);
-    try {
-      Object listVal = listOf(4L, 6L);
-      testBuilder()
-        .sqlQuery(query)
-        .unOrdered()
-        .baselineColumns("list_col")
-        .baselineValues(listVal)
-        .baselineValues((JsonStringArrayList<Object>) null)
-        .baselineValues(listVal)
-        .baselineValues(listVal)
-        .go();
-    } finally {
-      setEnableReAttempts(false);
-    }
   }
 
   @Test
@@ -251,8 +245,30 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testConvertToComplexJSON() throws Exception {
-    errorMsgTestHelper("select cast(convert_to(rl[1], 'EXTENDEDJSON') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"",
-        "Cast function cannot convert value of type VARBINARY(65536) to type VARCHAR(100)");
+    String query2 = "select cast(convert_to(rl[1], 'EXTENDEDJSON') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"";
+
+    testBuilder()
+      .sqlQuery(query2)
+      .ordered()
+      .baselineColumns("json_str")
+      .baselineValues("[ {\n" +
+        "  \"$numberLong\" : 4\n" +
+        "}, {\n" +
+        "  \"$numberLong\" : 6\n" +
+        "} ]")
+      .baselineValues(null)
+      .baselineValues("[ {\n" +
+        "  \"$numberLong\" : 4\n" +
+        "}, {\n" +
+        "  \"$numberLong\" : 6\n" +
+        "} ]")
+      .baselineValues("[ {\n" +
+        "  \"$numberLong\" : 4\n" +
+        "}, {\n" +
+        "  \"$numberLong\" : 6\n" +
+        "} ]")
+      .build()
+      .run();
 
     String result1 =
         "[ {\n" +
@@ -351,7 +367,7 @@ public class TestConvertFunctions extends BaseTestQuery {
     HadoopWritables.writeVInt(context, buffer, _0, _9, Integer.MIN_VALUE);
     intVal = HadoopWritables.readVInt(context, buffer, _0, _9);
     assertEquals(intVal, Integer.MIN_VALUE);
-    buffer.release();
+    buffer.close();
   }
 
   @Test // DRILL-4862

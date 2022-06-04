@@ -72,8 +72,9 @@ public class DedicatedTaskPool implements TaskPool {
    */
   private static class DummySchedulingGroup implements SchedulingGroup<AsyncTaskWrapper> {
     @Override
-    public SchedulingGroup<AsyncTaskWrapper> addGroup(long weight) {
-      throw new IllegalStateException("Shouldn't be called with DedicatedTaskPool");
+    public SchedulingGroup<AsyncTaskWrapper> addGroup(long weight, boolean weightBasedScheduler) {
+      // treat it as a noop rather than an exception
+      return this;
     }
 
     @Override

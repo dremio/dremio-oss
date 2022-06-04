@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import Immutable  from 'immutable';
 import classNames from 'classnames';
+import { Tooltip } from 'dremio-ui-lib';
 
 import './FinderNav.less';
 
@@ -37,7 +38,8 @@ export default class FinderNav extends Component {
     onToggle: PropTypes.func,
     addHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     listHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-    children: PropTypes.node
+    children: PropTypes.node,
+    renderExtra: PropTypes.func
   };
 
   state = {
@@ -76,8 +78,11 @@ export default class FinderNav extends Component {
             <Link
               className='pull-right'
               data-qa={`add-${title.toLowerCase()}`}
-              to={addHref}>
-              <i className='fa fa-plus-circle finder-nav-title__add' title={addTooltip} />
+              to={addHref}
+            >
+              <Tooltip title={addTooltip}>
+                <i className='fa fa-plus-circle finder-nav-title__add' />
+              </Tooltip>
             </Link>
           )}
         </h4>
@@ -89,6 +94,7 @@ export default class FinderNav extends Component {
               maxItemsCount={MAX_TO_SHOW}
               title={title}
               listHref={listHref}
+              renderExtra={this.props.renderExtra}
             />
           }
           {!isInProgress && children}

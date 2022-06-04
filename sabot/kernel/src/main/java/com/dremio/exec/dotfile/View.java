@@ -155,14 +155,14 @@ public class View {
     private Field getField(String name, RelDataType dataType) {
       if (dataType.isStruct()) {
         BatchSchema schema = CalciteArrowHelper.fromCalciteRowType(dataType);
-        return new Field(name, true, new ArrowType.Struct(), schema.getFields());
+        return new Field(name, new org.apache.arrow.vector.types.pojo.FieldType(true, new ArrowType.Struct(), null), schema.getFields());
       } else if(dataType.getSqlTypeName().equals(SqlTypeName.ARRAY)) {
         RelDataType componentType = dataType.getComponentType();
         if (componentType.isStruct() || componentType.getSqlTypeName() == SqlTypeName.ARRAY) {
-          return new Field(name, true, new ArrowType.List(), Collections.singletonList(getField("$data$", componentType)));
+          return new Field(name, new org.apache.arrow.vector.types.pojo.FieldType(true, new ArrowType.List(), null), Collections.singletonList(getField("$data$", componentType)));
         } else {
           ArrowType type = MajorTypeHelper.getArrowTypeForMajorType(Types.optional(TypeInferenceUtils.getMinorTypeFromCalciteType(componentType)));
-          return new Field(name, true, new ArrowType.List(), Collections.singletonList(new Field("$data$", componentType.isNullable(), type, null)));
+          return new Field(name, new org.apache.arrow.vector.types.pojo.FieldType(true, new ArrowType.List(), null), Collections.singletonList(new Field("$data$", new org.apache.arrow.vector.types.pojo.FieldType(componentType.isNullable(), type, null), null)));
         }
       }
       return null;

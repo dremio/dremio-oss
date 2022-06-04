@@ -27,7 +27,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TestName;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
@@ -91,13 +90,6 @@ public class DremioTest {
 
   @Rule
   public final TestRule REPEAT_RULE = TestTools.getRepeatRule(false);
-
-  /**
-   * Rule for tests that verify {@link com.dremio.common.exceptions.UserException} type and message. See
-   * {@link UserExceptionMatcher} and e.g. {@link com.dremio.exec.server.TestOptions#checkValidationException}.
-   * Tests that do not use this rule are not affected.
-   */
-  @Rule public final ExpectedException thrownException = ExpectedException.none();
 
   @Rule public TestName TEST_NAME = new TestName();
 

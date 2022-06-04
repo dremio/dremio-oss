@@ -113,8 +113,8 @@ public class CachingCatalog extends DelegatingCatalog {
   }
 
   @Override
-  public Catalog resolveCatalog(String username) {
-    return new CachingCatalog(delegate.resolveCatalog(username), tablesByNamespaceKey);
+  public Catalog resolveCatalog(CatalogIdentity subject) {
+    return new CachingCatalog(delegate.resolveCatalog(subject), tablesByNamespaceKey);
   }
 
   @Override
@@ -123,13 +123,13 @@ public class CachingCatalog extends DelegatingCatalog {
   }
 
   @Override
-  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema) {
-    return new CachingCatalog(delegate.resolveCatalog(username, newDefaultSchema), tablesByNamespaceKey);
+  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema) {
+    return new CachingCatalog(delegate.resolveCatalog(subject, newDefaultSchema), tablesByNamespaceKey);
   }
 
   @Override
-  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity) {
-    return new CachingCatalog(delegate.resolveCatalog(username, newDefaultSchema, checkValidity), tablesByNamespaceKey);
+  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    return new CachingCatalog(delegate.resolveCatalog(subject, newDefaultSchema, checkValidity), tablesByNamespaceKey);
   }
 
   @Override

@@ -64,7 +64,11 @@ public class DACJacksonJaxbJsonFeature implements Feature {
         javax.ws.rs.core.MultivaluedMap<String,String> httpHeaders,
         InputStream entityStream) throws IOException {
       Object o = super.readFrom(type, genericType, annotations, mediaType, httpHeaders, entityStream);
-      validation.validate(o);
+      // Some POST requests does not accept body and we need to enhance the requests to accept body and also to make it backwards compatible
+      // For e.g: new_untitled API
+      if (o != null) {
+        validation.validate(o);
+      }
       return o;
     }
 

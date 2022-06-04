@@ -51,23 +51,23 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
   T resolveCatalog(boolean checkValidity);
 
   /**
-   * Return a new Catalog contextualized to the provided username and default schema
+   * Return a new Catalog contextualized to the provided subject and default schema
    *
-   * @param username
+   * @param subject
    * @param newDefaultSchema
    * @return
    */
-  T resolveCatalog(String username, NamespaceKey newDefaultSchema);
+  T resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema);
 
   /**
-   * Return a new Catalog contextualized to the provided username, default schema, and validity check flag
+   * Return a new Catalog contextualized to the provided subject, default schema, and validity check flag
    *
-   * @param username
+   * @param subject
    * @param newDefaultSchema
    * @param checkValidity
    * @return
    */
-  T resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity);
+  T resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity);
 
   /**
    * Return a new Catalog contextualized to the provided default schema

@@ -18,47 +18,51 @@ package com.dremio.exec.store.iceberg.nessie;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
-import org.projectnessie.client.api.NessieApiV1;
 
-import com.dremio.exec.catalog.VersionContext;
-import com.dremio.exec.store.VersionedDatasetAccessOptions;
+import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.model.IcebergBaseModel;
 import com.dremio.exec.store.iceberg.model.IcebergCommand;
 import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
-import com.dremio.exec.store.metadatarefresh.committer.DatasetCatalogGrpcClient;
-import com.dremio.io.file.FileSystem;
+import com.dremio.plugins.NessieClient;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
 
-
 public class IcebergNessieVersionedModel extends IcebergBaseModel {
-  private final NessieApiV1 nessieClient;
-  private final VersionContext versionContext;
-  private final String nessieKey;
+  private final List<String> tableKey;
+  private final NessieClient nessieClient;
+  private final ResolvedVersionContext version;
+  private final  MutablePlugin plugin;
 
-  public IcebergNessieVersionedModel(String namespace, Configuration configuration,
-                                     final NessieApiV1 nessieClient, FileSystem fs,
-                                     OperatorContext context, List<String> dataset,
-                                     DatasetCatalogGrpcClient datasetCatalogGrpcClient,
-                                     VersionedDatasetAccessOptions versionedDatasetAccessOptions) {
-    super(namespace, configuration, fs, context, dataset, datasetCatalogGrpcClient);
+  public IcebergNessieVersionedModel(List<String> tableKey,
+                                     Configuration fsConf,
+                                     final NessieClient nessieClient,
+                                     OperatorContext context, // Used to create DremioInputFile (valid only for insert/ctas)
+                                     ResolvedVersionContext version,
+                                     MutablePlugin plugin) {
+    super(null, fsConf, null, context, null, plugin);
 
+    this.tableKey = tableKey;
     this.nessieClient = nessieClient;
-    Preconditions.checkState(versionedDatasetAccessOptions != null);
-    Preconditions.checkState(versionedDatasetAccessOptions.isVersionContextSpecified());
-    this.versionContext = versionedDatasetAccessOptions.getVersionContext().get();
 
-    this.nessieKey = versionedDatasetAccessOptions.getVersionedTableKey();
+    Preconditions.checkNotNull(version);
+    this.version = version;
+    this.plugin = plugin;
   }
 
   protected IcebergCommand getIcebergCommand(IcebergTableIdentifier tableIdentifier) {
-    return new IcebergNessieVersionedCommand(tableIdentifier, this.configuration,
-      this.nessieClient, fs, context, dataset);
+    IcebergNessieVersionedTableOperations tableOperations = new IcebergNessieVersionedTableOperations(
+      context == null ? null : context.getStats(),
+      new DremioFileIO(fs, context, null, null, null, configuration, plugin),
+      nessieClient,
+      ((IcebergNessieVersionedTableIdentifier) tableIdentifier));
+
+    return new IcebergNessieVersionedCommand(tableIdentifier, configuration,  fs, tableOperations);
   }
 
   @Override
   public IcebergTableIdentifier getTableIdentifier(String rootFolder) {
-    return new IcebergNessieVersionedTableIdentifier(namespace, rootFolder, versionContext, nessieKey);
+    return new IcebergNessieVersionedTableIdentifier(tableKey, rootFolder, version);
   }
-
 }

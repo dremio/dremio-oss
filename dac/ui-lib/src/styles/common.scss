@@ -38,7 +38,16 @@ $directions: "left", "right", "top", "bottom";
         }
       }
     }
-  } 
+  }
+}
+
+.font-weight {
+  font-weight: map-get($map: $font-weights, $key: regular) !important;
+  @each $name, $size in $font-weights {
+    &--#{$name} {
+      font-weight: $size !important;
+    }
+  }
 }
 
 .margin {
@@ -62,8 +71,12 @@ $directions: "left", "right", "top", "bottom";
 }
 
 .text {
+  font-size: $font !important;
   &-small {
     font-size: $font-s !important;
+  }
+  &-medium {
+    font-size: $font-xm !important;
   }
   &-tiny {
     font-size: $font-xs !important;
@@ -103,6 +116,12 @@ $directions: "left", "right", "top", "bottom";
 
 .flex {
   display: flex;
+  &.--alignCenter {
+    align-items: center;
+  }
+  &.--spaceBetween {
+    justify-content: space-between;
+  }
 }
 
 .modal {
@@ -125,3 +144,15 @@ $directions: "left", "right", "top", "bottom";
 .not-allowed {
   cursor: not-allowed !important;
 }
+
+.-noMinWidth {
+  min-width: inherit !important;
+}
+
+.icon {
+  &.--md {
+    height: 24px;
+    width: 24px;
+  }
+}
+

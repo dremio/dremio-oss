@@ -21,6 +21,7 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.OpProps;
@@ -202,11 +203,21 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
                                                       List<EasyScanOperatorCreator.SplitAndExtended> workList) {
     return null;
   }
+
   @Override
-  public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystem fs,
-      FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, FileUpdateKey updateKey,
-      int maxLeafColumns) {
-    return new EasyFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, this, previousInfo, maxLeafColumns);
+  public FileDatasetHandle getDatasetAccessor(
+      DatasetType type,
+      PreviousDatasetInfo previousInfo,
+      FileSystem fs,
+      FileSelection fileSelection,
+      FileSystemPlugin<?> fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      int maxLeafColumns,
+      TimeTravelOption.TimeTravelRequest timeTravelRequest
+  ) {
+    return new EasyFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey,
+        this, previousInfo, maxLeafColumns);
   }
 
   protected ScanStats getScanStats(final EasyGroupScanUtils scan) {

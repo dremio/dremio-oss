@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import static com.dremio.exec.ExecConstants.ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET;
 import static com.dremio.exec.planner.sql.handlers.RelTransformer.NO_OP_TRANSFORMER;
 
 import java.io.IOException;
@@ -98,8 +99,11 @@ import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
+import com.dremio.exec.planner.physical.visitor.CSEIdentifier;
 import com.dremio.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
+import com.dremio.exec.planner.physical.visitor.EmptyPrelPropagator;
 import com.dremio.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
 import com.dremio.exec.planner.physical.visitor.FinalColumnReorderer;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryVisitor;
@@ -107,13 +111,14 @@ import com.dremio.exec.planner.physical.visitor.InsertHashProjectVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertLocalExchangeVisitor;
 import com.dremio.exec.planner.physical.visitor.JoinPrelRenameVisitor;
 import com.dremio.exec.planner.physical.visitor.RelUniqifier;
-import com.dremio.exec.planner.physical.visitor.RuntimeFilterVisitor;
+import com.dremio.exec.planner.physical.visitor.RuntimeFilterDecorator;
 import com.dremio.exec.planner.physical.visitor.SelectionVectorPrelVisitor;
 import com.dremio.exec.planner.physical.visitor.SimpleLimitExchangeRemover;
 import com.dremio.exec.planner.physical.visitor.SplitCountChecker;
 import com.dremio.exec.planner.physical.visitor.SplitUpComplexExpressions;
 import com.dremio.exec.planner.physical.visitor.StarColumnConverter;
 import com.dremio.exec.planner.physical.visitor.SwapHashJoinVisitor;
+import com.dremio.exec.planner.physical.visitor.UnionAllExpander;
 import com.dremio.exec.planner.physical.visitor.WriterUpdater;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlConverter;
@@ -241,8 +246,9 @@ public class PrelTransformer {
       final RelNode logical = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLogTransitive, preLogTransitive.getTraitSet().plus(Rel.LOGICAL), true);
       final RelNode rowCountAdjusted = getRowCountAdjusted(logical, plannerSettings);
       final RelNode postLogical = getPostLogical(config, rowCountAdjusted, plannerSettings);
+      final RelNode nestedProjectPushdown = getNestedProjectPushdown(config, postLogical, plannerSettings);
       // Do Join Planning.
-      final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, postLogical, postLogical.getTraitSet(), true);
+      final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, nestedProjectPushdown, postLogical.getTraitSet(), true);
       final RelNode convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_OPTIMIZATION, preConvertedRelNode, preConvertedRelNode.getTraitSet(), true);
       final RelNode postJoinOptimizationRelNode = transform(config, PlannerType.HEP_AC, PlannerPhase.POST_JOIN_OPTIMIZATION, convertedRelNode, convertedRelNode.getTraitSet(), true);
       final RelNode flattendPushed = getFlattenedPushed(config, postJoinOptimizationRelNode);
@@ -314,6 +320,23 @@ public class PrelTransformer {
     } else {
       return rowCountAdjusted;
     }
+  }
+
+  public static RelNode getNestedProjectPushdown(SqlHandlerConfig config, RelNode relNode, PlannerSettings plannerSettings){
+    NestedFieldFinder nestedFieldFinder = new NestedFieldFinder();
+    if(!plannerSettings.isNestedSchemaProjectPushdownEnabled()
+    || !nestedFieldFinder.run(relNode)
+    ){
+      return relNode;
+    }
+    final RelNode wrapped = RexFieldAccessUtils.wrap(relNode, false);
+    RelNode transformed = transform(config, PlannerType.HEP_AC, PlannerPhase.NESTED_SCHEMA_PROJECT_PUSHDOWN,
+    wrapped, wrapped.getTraitSet(), true);
+    RelNode unwrapped = RexFieldAccessUtils.unwrap(transformed);
+    RelNode projectPushedDown = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.FILESYSTEM_PROJECT_PUSHDOWN,
+      unwrapped, unwrapped.getTraitSet(), true);
+
+    return projectPushedDown;
   }
 
   private static RelNode getFlattenedPushed(SqlHandlerConfig config, RelNode convertedRelNode) {
@@ -746,8 +769,9 @@ public class PrelTransformer {
      * separating them
      */
     /* DX-2353  should be fixed since it removes necessary exchanges and returns incorrect results. */
-    long targetSliceSize = plannerSettings.getSliceTarget();
-    phyRelNode = ExcessiveExchangeIdentifier.removeExcessiveEchanges(phyRelNode, targetSliceSize);
+    phyRelNode = ExcessiveExchangeIdentifier.removeExcessiveExchanges(
+      phyRelNode,
+      plannerSettings.getSliceTarget());
 
     /* 4.)
      * Add ProducerConsumer after each scan if the option is set
@@ -797,12 +821,28 @@ public class PrelTransformer {
     phyRelNode = Limit0Converter.eliminateEmptyTrees(config, phyRelNode);
 
     /*
-     * 7.6.)
+     * 7.6.) Expand UnionAlls with multiple inputs
+     */
+    if (plannerSettings.isUnionAllDistributeEnabled()) {
+      phyRelNode = UnionAllExpander.expandUnionAlls(
+        phyRelNode,
+        config,
+        plannerSettings.getSliceTarget());
+    }
+
+    /*
+     * 7.7.)
      * Encode columns using dictionary encoding during scans and insert lookup before consuming dictionary ids.
      */
     if (plannerSettings.isGlobalDictionariesEnabled()) {
       phyRelNode = GlobalDictionaryVisitor.useGlobalDictionaries(phyRelNode);
     }
+
+    /* 7.8)
+     * If a node is replaced by an EmptyPrel, certain operators coming after that node will be
+     * empty like project or joins. Propagate the EmptyPrel and prune them here.
+     */
+    phyRelNode = EmptyPrelPropagator.propagateEmptyPrel(config, phyRelNode);
 
     /* 8.)
      * Next, we add any required selection vector removers given the supported encodings of each
@@ -818,12 +858,22 @@ public class PrelTransformer {
      */
     phyRelNode = RelUniqifier.uniqifyGraph(phyRelNode);
 
+    /* 9.1)
+     * Remove common sub expressions.
+     */
+    if (plannerSettings.isCSEEnabled()) {
+      phyRelNode = CSEIdentifier.embellishAfterCommonSubExprElimination(config.getContext(), phyRelNode);
+    }
+
     /*
-     * 9.1)
+     * 9.2)
      * add runtime filter information if applicable
      */
     if (plannerSettings.isRuntimeFilterEnabled()) {
-      phyRelNode = RuntimeFilterVisitor.addRuntimeFilterToHashJoin(phyRelNode);
+      phyRelNode = RuntimeFilterDecorator
+        .addRuntimeFilterToHashJoin(
+          phyRelNode,
+          plannerSettings.getOptions().getOption(ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET));
     }
 
     final String textPlan;
@@ -843,6 +893,13 @@ public class PrelTransformer {
   public static PhysicalOperator convertToPop(SqlHandlerConfig config, Prel prel) throws IOException {
     PhysicalPlanCreator creator = new PhysicalPlanCreator(config.getContext(), PrelSequencer.getIdMap(prel));
     PhysicalOperator op = prel.getPhysicalOperator(creator);
+    /*
+     * Catch unresolvable "is_member()" function in plan and set the flag in query context
+     * indicating that groups info needs to be available on executor.
+     */
+    if (PrelUtil.containsCall(prel, "IS_MEMBER")) {
+      config.getContext().setQueryRequiresGroupsInfo(true);
+    }
     return op;
   }
 

@@ -18,6 +18,7 @@ package com.dremio.dac.server;
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
@@ -68,6 +69,7 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.CatalogService;
@@ -97,7 +99,6 @@ import com.dremio.service.namespace.file.proto.XlsFileConfig;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
-import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -420,7 +421,7 @@ public class TestHomeFiles extends BaseTestServer {
     DatasetConfig datasetConfig = DatasetsUtil.toDatasetConfig(fileFormat.asFileConfig(),
         DatasetType.PHYSICAL_DATASET_HOME_FILE, null, new EntityId(UUID.randomUUID().toString()));
     newCatalogService().getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME)
+        SchemaConfig.newBuilder(CatalogUser.from(SYSTEM_USERNAME))
             .build()))
         .createOrUpdateDataset(newNamespaceService(), new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME),
             filePath.toNamespaceKey(), datasetConfig);

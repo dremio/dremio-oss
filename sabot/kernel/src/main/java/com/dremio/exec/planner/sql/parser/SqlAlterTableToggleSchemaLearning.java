@@ -79,4 +79,8 @@ public class SqlAlterTableToggleSchemaLearning extends SqlAlterTable {
     return Lists.newArrayList(tblName, enableSchemaLearning);
   }
 
+  public boolean getEnableSchemaLearning() {
+    return enableSchemaLearning.booleanValue();
+  }
+
 }

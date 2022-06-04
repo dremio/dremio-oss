@@ -17,10 +17,15 @@ package com.dremio.exec.store.iceberg;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Supplier;
+
+import org.apache.iceberg.Table;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.EmptyRecordReader;
@@ -39,7 +44,8 @@ import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasySubScan;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
-import com.dremio.exec.store.iceberg.manifestwriter.ManifestFileRecordWriter;
+import com.dremio.exec.store.iceberg.model.IcebergModel;
+import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.io.file.FileAttributes;
@@ -50,6 +56,7 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.google.common.base.Suppliers;
 
 public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IcebergFormatPlugin.class);
@@ -157,13 +164,7 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
     List<SchemaPath> columns,
     FragmentExecutionContext fec,
     EasySubScan config) throws ExecutionSetupException {
-
-    if (!context.getOptions().getOption(ExecConstants.ENABLE_ICEBERG)) {
-      throw new UnsupportedOperationException("Please contact customer support for steps to enable " +
-        "the iceberg tables feature.");
-    }
-
-    return new IcebergManifestListRecordReader(context, dfs, splitAttributes, fsPlugin, config);
+    throw new UnsupportedOperationException("Deprecated path");
   }
 
   @Override
@@ -182,21 +183,39 @@ public class IcebergFormatPlugin extends EasyFormatPlugin<IcebergFormatConfig> {
   }
 
   @Override
-  public FileDatasetHandle getDatasetAccessor(DatasetType type,
-                                              PreviousDatasetInfo previousInfo,
-                                              FileSystem fs,
-                                              FileSelection fileSelection,
-                                              FileSystemPlugin fsPlugin,
-                                              NamespaceKey tableSchemaPath,
-                                              FileUpdateKey updateKey,
-                                              int maxLeafColumns) {
-    return new IcebergExecutionDatasetAccessor(type, fs,
-      this, fileSelection, fsPlugin, tableSchemaPath);
+  public FileDatasetHandle getDatasetAccessor(
+      DatasetType type,
+      PreviousDatasetInfo previousInfo,
+      FileSystem fs,
+      FileSelection fileSelection,
+      FileSystemPlugin<?> fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      int maxLeafColumns,
+      TimeTravelOption.TimeTravelRequest travelRequest
+  ) {
+    if (!context.getOptionManager().getOption(ExecConstants.ENABLE_ICEBERG)) {
+      throw new UnsupportedOperationException("Please contact customer support for steps to enable " +
+          "the iceberg tables feature.");
+    }
+
+    final Supplier<Table> tableSupplier = Suppliers.memoize(
+        () -> {
+          final IcebergModel icebergModel = fsPlugin.getIcebergModel();
+          final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(
+              icebergModel.getTableIdentifier(fileSelection.getSelectionRoot()));
+          return icebergTableLoader.getIcebergTable();
+        }
+    );
+
+    final TableSnapshotProvider tableSnapshotProvider =
+        TimeTravelProcessors.getTableSnapshotProvider(tableSchemaPath.getPathComponents(), travelRequest);
+    return new IcebergExecutionDatasetAccessor(MetadataObjectsUtils.toEntityPath(tableSchemaPath),
+        tableSupplier, fsPlugin.getFsConfCopy(), this, fs, tableSnapshotProvider, fsPlugin);
   }
 
   @Override
   public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer) throws IOException {
-    RecordWriter recordWriter = new ManifestFileRecordWriter(context, writer,  getConfig());
-    return recordWriter;
+    throw new UnsupportedOperationException("Deprecated path");
   }
 }

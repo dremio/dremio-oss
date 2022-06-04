@@ -35,10 +35,12 @@ import com.dremio.sabot.op.join.nlje.NLJEOperator;
 import com.dremio.sabot.op.join.vhash.HashJoinStats;
 import com.dremio.sabot.op.metrics.MongoStats;
 import com.dremio.sabot.op.project.ProjectorStats;
+import com.dremio.sabot.op.receiver.BridgeFileReaderReceiverOperator;
 import com.dremio.sabot.op.receiver.merging.MergingReceiverOperator;
 import com.dremio.sabot.op.receiver.unordered.UnorderedReceiverOperator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.screen.ScreenOperator;
+import com.dremio.sabot.op.sender.BridgeFileWriterSenderOperator;
 import com.dremio.sabot.op.sender.broadcast.BroadcastOperator;
 import com.dremio.sabot.op.sender.partition.PartitionSenderOperator;
 import com.dremio.sabot.op.sender.roundrobin.RoundRobinOperator;
@@ -85,6 +87,8 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.MANIFEST_WRITER_VALUE, ParquetRecordWriter.Metric.class);
     register(builder, CoreOperatorType.WRITER_COMMITTER_VALUE, WriterCommitterOperator.Metric.class);
     register(builder, CoreOperatorType.JSON_SUB_SCAN_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.BRIDGE_FILE_WRITER_SENDER_VALUE, BridgeFileWriterSenderOperator.Metric.class);
+    register(builder, CoreOperatorType.BRIDGE_FILE_READER_RECEIVER_VALUE, BridgeFileReaderReceiverOperator.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

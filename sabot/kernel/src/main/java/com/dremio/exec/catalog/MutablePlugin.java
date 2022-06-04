@@ -18,8 +18,10 @@ package com.dremio.exec.catalog;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.fs.FileSystem;
 
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.OpProps;
@@ -32,35 +34,77 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.users.SystemUser;
 
 public interface MutablePlugin extends StoragePlugin {
 
-  void createEmptyTable(final SchemaConfig schemaConfig, NamespaceKey key, BatchSchema batchSchema,
+  void createEmptyTable(NamespaceKey tableSchemaPath,
+                        final SchemaConfig schemaConfig,
+                        BatchSchema batchSchema,
                         final WriterOptions writerOptions);
 
-  CreateTableEntry createNewTable(
-    final SchemaConfig schemaConfig,
-    final NamespaceKey key,
-    final IcebergTableProps icebergTableProps,
-    final WriterOptions writerOptions,
-    final Map<String, Object> storageOptions,
-    final boolean isResultsTable);
+  CreateTableEntry createNewTable(final NamespaceKey tableSchemaPath,
+                                  final SchemaConfig schemaConfig,
+                                  final IcebergTableProps icebergTableProps,
+                                  final WriterOptions writerOptions,
+                                  final Map<String, Object> storageOptions,
+                                  final boolean isResultsTable);
+
+  void dropTable(NamespaceKey tableSchemaPath,
+                 SchemaConfig schemaConfig,
+                 TableMutationOptions tableMutationOptions);
+
+  void truncateTable(NamespaceKey tableSchemaPath,
+                     SchemaConfig schemaConfig, TableMutationOptions tableMutationOptions);
+
+  boolean createOrUpdateView(NamespaceKey tableSchemaPath,
+                             SchemaConfig schemaConfig,
+                             View view) throws IOException;
+
+  void dropView(NamespaceKey tableSchemaPath,
+                SchemaConfig schemaConfig) throws IOException;
+
+  void addColumns(NamespaceKey tableSchemaPath,
+                  SchemaConfig schemaConfig,
+                  List<Field> columnsToAdd,
+                  TableMutationOptions tableMutationOptions);
+
+  void dropColumn(NamespaceKey tableSchemaPath,
+                  SchemaConfig schemaConfig,
+                  String columnToDrop,
+                  TableMutationOptions tableMutationOptions);
+
+  void changeColumn(NamespaceKey tableSchemaPath,
+                    SchemaConfig schemaConfig,
+                    String columnToChange,
+                    Field fieldFromSqlColDeclaration,
+                    TableMutationOptions tableMutationOptions);
 
   StoragePluginId getId();
 
-  Writer getWriter(PhysicalOperator child, String location, WriterOptions options, OpProps props) throws IOException;
+  Writer getWriter(PhysicalOperator child,
+                   String location,
+                   WriterOptions options,
+                   OpProps props) throws IOException;
 
-  void dropTable(List<String> tableSchemaPath, boolean isLayered, SchemaConfig schemaConfig);
+  boolean toggleSchemaLearning(NamespaceKey table, SchemaConfig schemaConfig, boolean enableSchemaLearning);
 
-  void truncateTable(NamespaceKey tableSchemaPath, SchemaConfig schemaConfig);
+  /**
+   *
+   * @param path Path for which hadoop file system is being created
+   * @param conf Configuration for creating hadoop file system
+   * @return Supplier of hadoopFs
+   */
+  default Supplier<org.apache.hadoop.fs.FileSystem> getHadoopFsSupplier(String path,  Iterable<Map.Entry<String, String>> conf) {
+    return getHadoopFsSupplier(path, conf, SystemUser.SYSTEM_USERNAME);
+  }
 
-  boolean createOrUpdateView(NamespaceKey key, View view, SchemaConfig schemaConfig) throws IOException;
-
-  void dropView(SchemaConfig schemaConfig, List<String> tableSchemaPath) throws IOException;
-
-  void addColumns(NamespaceKey key, List<Field> columnsToAdd, SchemaConfig schemaConfig);
-
-  void dropColumn(NamespaceKey table, String columnToDrop, SchemaConfig schemaConfig);
-
-  void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration, SchemaConfig schemaConfig);
+  /**
+   *
+   * @param path Path for which hadoop file system is being created
+   * @param conf Configuration for creating hadoop file system
+   * @param queryUser query user using which file System will be created
+   * @return Supplier of hadoopFs
+   */
+  Supplier<FileSystem> getHadoopFsSupplier(String path, Iterable<Map.Entry<String, String>> conf, String queryUser);
 }

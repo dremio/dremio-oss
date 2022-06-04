@@ -105,7 +105,7 @@ public class TestDeltaMetadataFetchJobProducer {
 
     job = producer2.next();
     //starting from 0 then even the first job should be commit read
-    assertEquals(job.tryCheckpointRead, false);
+    assertEquals(job.tryCheckpointRead, true);
 
     job = producer2.next();
     assertEquals(job.tryCheckpointRead, false);

@@ -31,14 +31,17 @@ describe('DateInput', () => {
 
   describe('#mergeDateWithTime', () => {
     it('should merge date with time correctly', () => {
+      moment.now.returns(Date.parse('Feb 1, 2017 12:51:56 AM')); // tests actually found bug on this day/time
+
       const dateTest = '2010-12-30';
       const timeTest = '12-13-23.123';
       const result = '2010-12-30 12:13:23';
       const dateMoment = moment(dateTest, dateTypeToFormat[DATE]);
       const timeMoment = moment(timeTest, dateTypeToFormat[TIME]);
+      expect(DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME)).to.be.eql(result);
+
       const dateMomentPre = dateMoment.toString();
       const timeMomentPre = timeMoment.toString();
-      expect(DateInput.mergeDateWithTime(dateMoment, timeMoment, DATETIME)).to.be.equal(result);
 
       // don't mutate
       expect(dateMoment.toString()).to.equal(dateMomentPre);

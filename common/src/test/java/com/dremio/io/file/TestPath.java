@@ -15,16 +15,13 @@
  */
 package com.dremio.io.file;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 import java.net.URI;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ErrorCollector;
 
 import com.dremio.test.DremioTest;
 
@@ -32,8 +29,6 @@ import com.dremio.test.DremioTest;
  * Test cases for {@code Path}
  */
 public class TestPath extends DremioTest {
-  @Rule
-  public final ErrorCollector collector = new ErrorCollector();
 
   /*
    * Check that Path.of(URI.create(value)).toURI() == URI.create(value)
@@ -53,7 +48,7 @@ public class TestPath extends DremioTest {
 
   private void checkPathOfURI(String value) {
     final URI uri = URI.create(value);
-    collector.checkThat(Path.of(uri).toURI(), is(equalTo(uri)));
+    assertThat(Path.of(uri).toURI()).isEqualTo(uri);
   }
 
   /*
@@ -78,10 +73,15 @@ public class TestPath extends DremioTest {
     checkPathOfString("/foo/bar/../..", "/");
     checkPathOfString("/foo/../bar/..", "/");
     checkPathOfString("hdfs://hostname/foo//bar", "hdfs://hostname/foo/bar");
+    checkPathOfString("dremioS3://bucket/foo/bar", "dremioS3://bucket/foo/bar");
+    checkPathOfString("dremioS3://bucket/foo:space/bar", "dremioS3://bucket/foo:space/bar");
+    checkPathOfString("dremioS3://bucket/foo:space/bar:space.parquet", "dremioS3://bucket/foo:space/bar:space.parquet");
+    checkPathOfString("scheme:dir/sub:dir", "scheme:dir/sub:dir");
+    checkPathOfString("/dir/sub:dir/dir", "/dir/sub:dir/dir");
   }
 
   private void checkPathOfString(String value, String expected) {
-    collector.checkThat(Path.of(value).toString(), is(equalTo(expected)));
+    assertThat(Path.of(value).toString()).isEqualTo(expected);
   }
 
   /*
@@ -93,19 +93,13 @@ public class TestPath extends DremioTest {
     checkInvalidPathOfString("hdfs:");
     checkInvalidPathOfString(null);
     checkInvalidPathOfString("");
-    checkInvalidPathOfString("foo:bar");
   }
 
   private void checkInvalidPathOfString(String value) {
-    collector.checkSucceeds(() -> {
-      try {
-        Path.of(value);
-        fail();
-      } catch (NullPointerException | IllegalArgumentException e) {
-        // Nothing
-      }
-      return null;
-    });
+    assertThatThrownBy(() -> Path.of(value))
+      .satisfiesAnyOf(
+        t -> assertThat(t).isInstanceOf(NullPointerException.class),
+        t -> assertThat(t).isInstanceOf(IllegalArgumentException.class));
   }
 
   /*
@@ -121,7 +115,7 @@ public class TestPath extends DremioTest {
   }
 
   private void checkParent(Path value, Path expected) {
-    collector.checkThat(value.getParent(), is(equalTo(expected)));
+    assertThat(value.getParent()).isEqualTo(expected);
   }
 
   /*
@@ -139,7 +133,7 @@ public class TestPath extends DremioTest {
   }
 
   private void checkResolveOfPath(Path base, Path value, Path expected) {
-    collector.checkThat(base.resolve(value), is(equalTo(expected)));
+    assertThat(base.resolve(value)).isEqualTo(expected);
   }
 
   /*
@@ -158,7 +152,7 @@ public class TestPath extends DremioTest {
   }
 
   private void checkResolveOfString(Path base, String value, Path expected) {
-    collector.checkThat(base.resolve(value), is(equalTo(expected)));
+    assertThat(base.resolve(value)).isEqualTo(expected);
   }
 
   /*
@@ -176,7 +170,7 @@ public class TestPath extends DremioTest {
   }
 
   private void checkMergePaths(Path base, Path value, Path expected) {
-    collector.checkThat(Path.mergePaths(base, value), is(equalTo(expected)));
+    assertThat(Path.mergePaths(base, value)).isEqualTo(expected);
   }
 
   /**
@@ -195,7 +189,7 @@ public class TestPath extends DremioTest {
   }
 
   private void checkGetName(Path value, String expected) {
-    collector.checkThat(value.getName(), is(equalTo(expected)));
+    assertThat(value.getName()).isEqualTo(expected);
   }
 
   /**
@@ -213,7 +207,7 @@ public class TestPath extends DremioTest {
   }
 
   private void checkIsAbsolute(Path value, boolean expected) {
-    collector.checkThat(value.isAbsolute(), is(equalTo(expected)));
+    assertThat(value.isAbsolute()).isEqualTo(expected);
   }
   /**
    * Check that value.depth() == expected
@@ -227,7 +221,7 @@ public class TestPath extends DremioTest {
   }
 
   private void checkDepth(Path value, int expected) {
-    collector.checkThat(value.depth(), is(equalTo(expected)));
+    assertThat(value.depth()).isEqualTo(expected);
   }
 
   @Test

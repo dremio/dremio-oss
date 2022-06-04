@@ -70,7 +70,7 @@ export class MainHeader extends PureComponent {
     const { user, socketIsOpen } = this.props;
 
     return (
-      <div className='explore-header'>
+      <header className='main-header'>
         <Link
           className='dremio'
           to='/'
@@ -150,7 +150,7 @@ export class MainHeader extends PureComponent {
             </MainHeaderItem>
           </div>
         </div>
-      </div>
+      </header>
     );
   }
 }

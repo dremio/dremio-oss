@@ -36,11 +36,19 @@
     justify-content: space-between;
     font-weight: 600;
     font-size: 14px;
+    overflow: hidden;
     &__pipe {
       padding-left: 10px;
       cursor: col-resize;
       color: @lite-grey;
     }
+  }
+  .draggableHeaderInnerText {
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .maxZIndex {
+    z-index: 999;
   }
   .ReactVirtualized__Table__sortableHeaderIcon{
     height: 20px !important;

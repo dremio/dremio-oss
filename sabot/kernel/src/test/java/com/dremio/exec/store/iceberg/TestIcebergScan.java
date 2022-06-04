@@ -19,6 +19,8 @@ import static com.dremio.exec.ExecConstants.ENABLE_ICEBERG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -117,6 +119,27 @@ public class TestIcebergScan extends BaseTestQuery {
     testRootPath = "/tmp/iceberg";
     copyFromJar("iceberg/nation", testRootPath);
     runQueryExpectingRecordCount("select count(*) c from dfs_hadoop.tmp.iceberg where 1 = 1", 25L);
+  }
+
+  @Test
+  public void testExceptionOnDeleteFile() throws Exception {
+    testRootPath = "/tmp/iceberg";
+    copyFromJar("iceberg/table_with_delete", testRootPath);
+
+    Exception exception = assertThrows(Exception.class, () -> {
+      testBuilder()
+        .sqlQuery("select * from dfs_hadoop.tmp.iceberg")
+        .unOrdered()
+        .baselineColumns("category")
+        .baselineValues(0)
+        .build()
+        .run();
+    });
+
+    String expectedMessage = "Iceberg V2 tables with delete files are not supported";
+    String actualMessage = exception.getMessage();
+
+    assertTrue(actualMessage.contains(expectedMessage));
   }
 
   @Test

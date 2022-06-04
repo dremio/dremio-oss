@@ -15,10 +15,7 @@
  */
 package com.dremio.plugins.elastic;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Random;
 
@@ -41,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.plugins.elastic.ElasticActions.Search;
 import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
-import com.google.common.io.ByteStreams;
 
 /**
  * Tests for the shard-aware search client.
@@ -74,17 +70,17 @@ public class ITTestClient extends ElasticBaseTestQuery {
     long totalHitsReceived = 0;
 
     elastic.populate(1, 0, schema, table, docs, ElasticsearchCluster.PRIMITIVE_TYPES);
-    assertThat(elastic.search(schema, table).count, equalTo((long) docs));
+    assertThat(elastic.search(schema, table).count).isEqualTo((long) docs);
 
     ClusterState state = state(schema);
     IndexRoutingTable irt = routing(state, schema);
     ShardsIterator iter = irt.randomAllActiveShardsIt();
     DiscoveryNodes nodes = state.nodes();
 
-    assertThat(iter.size(), equalTo(1));
+    assertThat(iter.size()).isEqualTo(1);
     ShardRouting routing = iter.nextOrNull();
-    assertNotNull(routing);
-    assertNull(iter.nextOrNull());
+    assertThat(routing).isNotNull();
+    assertThat(iter.nextOrNull()).isNull();
 
     DiscoveryNode dn = nodes.get(routing.currentNodeId());
     logger.info("--> executing search on: [{}] batch size: [{}]", routing, batchSize);
@@ -97,27 +93,27 @@ public class ITTestClient extends ElasticBaseTestQuery {
 
     byte[] result = connection.execute(search, false);
     totalHitsReceived = ElasticsearchCluster.asJsonObject(result).get(ElasticsearchConstants.HITS).getAsJsonObject().get(ElasticsearchConstants.TOTAL_HITS).getAsInt();
-    assertThat(totalHitsReceived, equalTo((long) docs));
+    assertThat(totalHitsReceived).isEqualTo(docs);
   }
 
   @Test
   public void testMultipleShardSearch() throws Exception {
 
     Random random = new Random();
-    int docs = 3 + random.nextInt(10001 - 3);;
+    int docs = 3 + random.nextInt(10001 - 3);
     int batchSize = 1 + random.nextInt(5000 - 1);
     int shards = 1 + random.nextInt(5 - 1);
     long totalHitsReceived = 0;
 
     elastic.populate(shards, 0, schema, table, docs, ElasticsearchCluster.PRIMITIVE_TYPES);
-    assertThat(elastic.search(schema, table).count, equalTo((long) docs));
+    assertThat(elastic.search(schema, table).count).isEqualTo(docs);
 
     ClusterState state = state(schema);
     IndexRoutingTable irt = routing(state, schema);
     ShardsIterator iter = irt.randomAllActiveShardsIt();
     DiscoveryNodes nodes = state.nodes();
 
-    assertThat(iter.size(), equalTo(shards));
+    assertThat(iter.size()).isEqualTo(shards);
 
     ShardRouting routing;
     while ((routing = iter.nextOrNull()) != null) {
@@ -137,7 +133,7 @@ public class ITTestClient extends ElasticBaseTestQuery {
     }
 
     logger.info("--> total hits received across [{}] shards: [{}]", iter.size(), totalHitsReceived);
-    assertThat(totalHitsReceived, equalTo((long) docs));
+    assertThat(totalHitsReceived).isEqualTo(docs);
   }
 
   private ClusterState state(final String index) {

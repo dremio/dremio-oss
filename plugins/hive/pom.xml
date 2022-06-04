@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.2.0-202205262146080444-038d6d1b</version>
   </parent>
 
   <artifactId>dremio-hive-plugin</artifactId>
@@ -72,6 +72,11 @@
           <artifactId>hive-exec</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.iceberg</groupId>
+      <artifactId>iceberg-bundled-guava</artifactId>
+      <version>${iceberg.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hive</groupId>
@@ -406,6 +411,11 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -504,6 +514,24 @@
             </goals>
             <configuration>
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-compile</id>
+            <configuration>
+              <annotationProcessorPaths combine.children="append">
+                <path>
+                  <groupId>org.pf4j</groupId>
+                  <artifactId>pf4j</artifactId>
+                  <version>${pf4j.version}</version>
+                </path>
+              </annotationProcessorPaths>
             </configuration>
           </execution>
         </executions>

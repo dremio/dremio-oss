@@ -37,7 +37,7 @@ import io.protostuff.Tag;
 /**
  * Connection Configuration for AWSGLUE.
  */
-@SourceType(value = "AWSGLUE", label = "Amazon Glue Catalog", uiConfig = "awsglue-layout.json")
+@SourceType(value = "AWSGLUE", label = "AWS Glue Data Catalog", uiConfig = "awsglue-layout.json")
 public class AWSGluePluginConfig extends ConnectionConf<AWSGluePluginConfig, AWSGlueStoragePlugin> {
 
   @Tag(1)

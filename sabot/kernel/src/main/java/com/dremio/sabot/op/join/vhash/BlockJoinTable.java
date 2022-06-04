@@ -15,37 +15,35 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-import static com.dremio.sabot.op.join.vhash.VectorizedProbe.SKIP;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.SimpleBigIntVector;
 
+import com.dremio.common.config.SabotConfig;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.ValueListFilter;
-import com.dremio.sabot.op.common.ht2.BlockChunk;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
-import com.dremio.sabot.op.common.ht2.HashComputation;
-import com.dremio.sabot.op.common.ht2.LBlockHashTable;
+import com.dremio.sabot.op.common.ht2.HashTable;
+import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.Pivots;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.google.common.base.Stopwatch;
 import com.koloboke.collect.hash.HashConfig;
 
-import io.netty.util.internal.PlatformDependent;
-
 public class BlockJoinTable implements JoinTable {
 
   private static final int MAX_VALUES_PER_BATCH = 4096;
-  private LBlockHashTable table;
-  private PivotDef buildPivot;
-  private PivotDef probePivot;
-  private BufferAllocator allocator;
-  private NullComparator nullMask;
+  private final HashTable table;
+  private final PivotDef buildPivot;
+  private final PivotDef probePivot;
+  private final BufferAllocator allocator;
   private final Stopwatch probePivotWatch = Stopwatch.createUnstarted();
   private final Stopwatch probeFindWatch = Stopwatch.createUnstarted();
   private final Stopwatch pivotBuildWatch = Stopwatch.createUnstarted();
@@ -53,18 +51,19 @@ public class BlockJoinTable implements JoinTable {
   private boolean tableTracing;
   private final Stopwatch buildHashComputationWatch = Stopwatch.createUnstarted();
   private final Stopwatch probeHashComputationWatch = Stopwatch.createUnstarted();
-  private boolean fixedOnly;
 
-  public BlockJoinTable(PivotDef buildPivot, PivotDef probePivot, BufferAllocator allocator, NullComparator nullMask, int minSize, int varFieldAverageSize) {
+  public BlockJoinTable(PivotDef buildPivot, PivotDef probePivot, BufferAllocator allocator, NullComparator nullMask,
+                        int minSize, int varFieldAverageSize, SabotConfig sabotConfig, OptionManager optionManager) {
     super();
-    this.table = new LBlockHashTable(HashConfig.getDefault(), buildPivot, allocator, minSize,
-      varFieldAverageSize, false, MAX_VALUES_PER_BATCH);
+    Preconditions.checkArgument(buildPivot.getBlockWidth() == probePivot.getBlockWidth());
+    this.table = HashTable.getInstance(sabotConfig,
+      optionManager.getOption(ExecConstants.ENABLE_NATIVE_HASHTABLE_FOR_JOIN),
+      new HashTable.HashTableCreateArgs(HashConfig.getDefault(), buildPivot, allocator, minSize,
+        varFieldAverageSize, false, MAX_VALUES_PER_BATCH, nullMask));
     this.buildPivot = buildPivot;
     this.probePivot = probePivot;
     this.allocator = allocator;
-    this.nullMask = nullMask;
     this.tableTracing = false;
-    this.fixedOnly = buildPivot.getVariableCount() == 0;
   }
 
   /* Copy the keys of the records specified in keyOffsetAddr to destination memory
@@ -73,13 +72,13 @@ public class BlockJoinTable implements JoinTable {
    * keyFixedAddr is the destination memory for fiexed keys
    * keyVarAddr is the destination memory for variable keys
    */
-  public void copyKeyToBuffer(final long keyOffsetAddr, final int count, final long keyFixedAddr, final long keyVarAddr) {
-    table.copyKeyToBuffer(keyOffsetAddr, count, keyFixedAddr, keyVarAddr);
+  public void copyKeysToBuffer(final long keyOffsetAddr, final int count, final long keyFixedAddr, final long keyVarAddr) {
+    table.copyKeysToBuffer(keyOffsetAddr, count, keyFixedAddr, keyVarAddr);
   }
 
-  // Get the length of the variable keys of the record specified by ordinal in hash table.
-  public int getVarKeyLength(int ordinal) {
-    return table.getVarKeyLength(ordinal);
+  // Get the total length of the variable keys for all the ordinals in offsetVectorAddr, from hash table
+  public int getCumulativeVarKeyLength(long offsetVectorAddr, int numRecords) {
+    return table.getCumulativeVarKeyLength(offsetVectorAddr, numRecords);
   }
 
   @Override
@@ -130,7 +129,7 @@ public class BlockJoinTable implements JoinTable {
   }
 
   @Override
-  public void insert(long findAddr, int records) {
+  public void insert(long outAddr, int records) {
     try(FixedBlockVector fbv = new FixedBlockVector(allocator, buildPivot.getBlockWidth());
         VariableBlockVector var = new VariableBlockVector(allocator, buildPivot.getVariableCount());
         ){
@@ -138,34 +137,33 @@ public class BlockJoinTable implements JoinTable {
       pivotBuildWatch.start();
       Pivots.pivot(buildPivot, records, fbv, var);
       pivotBuildWatch.stop();
-      final long keyFixedVectorAddr = fbv.getMemoryAddress();
-      final long keyVarVectorAddr = var.getMemoryAddress();
-      final boolean fixedOnly = this.fixedOnly;
 
       if (tableTracing) {
         table.traceInsertStart(records);
       }
 
-      try(SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)){
-        // STEP 2: then we do the hash computation on entire batch
+      try (SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
         hashValues.allocateNew(records);
-        final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
-          buildPivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
+
+        final long keyFixedVectorAddr = fbv.getMemoryAddress();
+        final long keyVarVectorAddr = var.getMemoryAddress();
+        final long hashVectorAddr8B = hashValues.getBufferAddress();
+
+        // STEP 2: then we do the hash computation on entire batch
         buildHashComputationWatch.start();
-        HashComputation.computeHash(blockChunk);
+        table.computeHash(records, keyFixedVectorAddr, keyVarVectorAddr,
+          0, hashVectorAddr8B);
         buildHashComputationWatch.stop();
 
         // STEP 3: then we insert build side into hash table
         insertWatch.start();
-        for(int keyIndex = 0 ; keyIndex < records; keyIndex++, findAddr += 4) {
-          final int keyHash = (int)hashValues.get(keyIndex);
-          PlatformDependent.putInt(findAddr, table.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
-        }
+        table.add(records, keyFixedVectorAddr, keyVarVectorAddr,
+          hashVectorAddr8B, outAddr);
         insertWatch.stop();
       }
 
       if (tableTracing) {
-        table.traceOrdinals(findAddr, records);
+        table.traceOrdinals(outAddr, records);
         table.traceInsertEnd();
       }
     }
@@ -177,96 +175,36 @@ public class BlockJoinTable implements JoinTable {
   }
 
   @Override
-  public void find(long offsetAddr, final int records) {
-    final LBlockHashTable table = this.table;
-    final int blockWidth = probePivot.getBlockWidth();
+  public void find(long outAddr, final int records) {
+    final HashTable table = this.table;
+
     try(FixedBlockVector fbv = new FixedBlockVector(allocator, probePivot.getBlockWidth());
         VariableBlockVector var = new VariableBlockVector(allocator, probePivot.getVariableCount());
-        SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)){
+        SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
       // STEP 1: first we pivot.
       probePivotWatch.start();
       Pivots.pivot(probePivot, records, fbv, var);
       probePivotWatch.stop();
-      final long keyFixedVectorAddr = fbv.getMemoryAddress();
-      final long keyVarVectorAddr = var.getMemoryAddress();
-      final boolean fixedOnly = this.fixedOnly;
 
       // STEP 2: then we do the hash computation on entire batch
       hashValues.allocateNew(records);
+
+      final long keyFixedVectorAddr = fbv.getMemoryAddress();
+      final long keyVarVectorAddr = var.getMemoryAddress();
+      final long hashVectorAddr8B = hashValues.getBufferAddress();
+
       probeHashComputationWatch.start();
-      final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
-        buildPivot.getBlockWidth(), records, hashValues.getBufferAddress(), 0);
-      HashComputation.computeHash(blockChunk);
+      table.computeHash(records, keyFixedVectorAddr, keyVarVectorAddr,
+        0, hashVectorAddr8B);
       probeHashComputationWatch.stop();
 
       // STEP 3: then we probe hash table.
       probeFindWatch.start();
-      final NullComparator compare = nullMask;
-      switch(compare.getMode()){
-      case NONE:
-        for(int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += 4) {
-          final int keyHash = (int)hashValues.get(keyIndex);
-          PlatformDependent.putInt(offsetAddr, table.find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
-        }
-        break;
-
-      // 32 bits to consider.
-      case FOUR: {
-        long bitsAddr = keyFixedVectorAddr;
-        final int nullMask = compare.getFour();
-        for(int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += 4, bitsAddr += blockWidth){
-          if((PlatformDependent.getInt(bitsAddr) & nullMask) == nullMask){
-            // the nulls are not comparable. as such, this doesn't match.
-            final int keyHash = (int)hashValues.get(keyIndex);
-            PlatformDependent.putInt(offsetAddr, table.find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
-          } else {
-            PlatformDependent.putInt(offsetAddr, SKIP);
-          }
-        }
-        break;
-      }
-
-      // 64 bits to consider.
-      case EIGHT: {
-        long bitsAddr = keyFixedVectorAddr;
-        final long nullMask = compare.getEight();
-        for(int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += 4, bitsAddr += blockWidth){
-          if((PlatformDependent.getLong(bitsAddr) & nullMask) == nullMask){
-            final int keyHash = (int)hashValues.get(keyIndex);
-            PlatformDependent.putInt(offsetAddr, table.find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
-          } else {
-            // the nulls are not comparable. as such, this doesn't match.
-            PlatformDependent.putInt(offsetAddr, SKIP);
-          }
-        }
-        break;
-      }
-
-      // more than 64 bits to consider.
-      case BIG: {
-        long bitsAddr = keyFixedVectorAddr;
-        for(int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += 4, bitsAddr += blockWidth){
-          if(compare.isComparableBigBits(bitsAddr)){
-            final int keyHash = (int)hashValues.get(keyIndex);
-            PlatformDependent.putInt(offsetAddr, table.find(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash));
-          } else {
-            // the nulls are not comparable. as such, this doesn't match.
-            PlatformDependent.putInt(offsetAddr, SKIP);
-          }
-        }
-        break;
-      }
-
-
-      default:
-        throw new IllegalStateException();
-      }
-
-
+      table.find(records, keyFixedVectorAddr, keyVarVectorAddr,
+        hashVectorAddr8B, outAddr);
+      probeFindWatch.stop();
     }
-    probeFindWatch.stop();
   }
-
 
   @Override
   public int capacity() {

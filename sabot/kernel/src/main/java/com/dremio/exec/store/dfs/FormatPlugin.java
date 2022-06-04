@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -69,7 +70,8 @@ public interface FormatPlugin {
       FileSystemPlugin<?> fsPlugin,
       NamespaceKey tableSchemaPath,
       FileUpdateKey updateKey,
-      int maxLeafColumns
+      int maxLeafColumns,
+      TimeTravelOption.TimeTravelRequest timeTravelRequest
   );
 
   /**

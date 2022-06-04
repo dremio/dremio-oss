@@ -106,6 +106,7 @@ public class SchemaConverter {
                 .stream()
                 .map(PartitionField::sourceId)
                 .map(table.schema()::findColumnName) // column name from schema
+                .distinct()
                 .collect(Collectors.toList());
     }
 
@@ -183,7 +184,7 @@ public class SchemaConverter {
                 return new CompleteType(new FixedSizeBinary(((FixedType)type).length()));
             case DECIMAL:
                 DecimalType decimalType = (DecimalType)type;
-                return new CompleteType(new Decimal(decimalType.precision(), decimalType.scale()));
+                return new CompleteType(new Decimal(decimalType.precision(), decimalType.scale(), 128));
             default:
                 throw new UnsupportedOperationException("Unsupported iceberg type : " + type);
         }

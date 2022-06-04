@@ -32,7 +32,7 @@ import com.google.common.collect.Maps;
  * Captures parallelization parameters for a given operator/fragments. It consists of min and max width of
  * parallelization and affinity to node endpoints.
  */
-public class ParallelizationInfo {
+public final class ParallelizationInfo {
   /**
    * Constraints on the width of parallelization.
    * Constraints listed in strictly decreasing order -- the further the constraint is, the more restrictive it is
@@ -101,7 +101,7 @@ public class ParallelizationInfo {
    * - the width constraints are instantiated (may be based on the affinity map, above), then applied to the
    *   numeric width limits
    */
-  public static class ParallelizationInfoCollector {
+  public static final class ParallelizationInfoCollector {
     private int minWidth = 1;
     private int maxWidth = Integer.MAX_VALUE;
     private WidthConstraint widthConstraint = WidthConstraint.UNLIMITED;
@@ -176,6 +176,7 @@ public class ParallelizationInfo {
           epAffAgg.setAssignmentRequired();
         }
         epAffAgg.setMaxWidth(epAff.getMaxWidth());
+        epAffAgg.setMinWidth(epAff.getMinWidth());
       } else {
         affinityMap.put(epAff.getEndpoint(), epAff);
       }
@@ -208,8 +209,10 @@ public class ParallelizationInfo {
         break;
       case AFFINITY_LIMITED:
         if (affinitiesMaterialized) {
-          addMaxWidth(affinityMap.size());
-          addMinWidth(affinityMap.size());
+          int maxWidth = affinityMap.values().stream().mapToInt(EndpointAffinity::getMaxWidth).sum();
+          int minWidth = affinityMap.values().stream().mapToInt(EndpointAffinity::getMinWidth).sum();
+          addMaxWidth(maxWidth);
+          addMinWidth(minWidth);
         }
         break;
       case SINGLE:

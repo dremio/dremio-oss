@@ -62,7 +62,7 @@ public class TopNPrel extends SinglePrel {
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
     return new TopN(
-        creator.props(this, null, childPOP.getProps().getSchema(), RESERVE, LIMIT),
+        creator.props(this, null, childPOP.getProps().getSchema().clone(SelectionVectorMode.NONE), RESERVE, LIMIT),
         childPOP,
         limit,
         PrelUtil.getOrdering(this.collation, getInput().getRowType()),

@@ -154,7 +154,7 @@ public abstract class FileFormat {
         }
         stringBuilder.append(format("extractHeader => %s, ", excelFileConfig.getExtractHeader().toString()));
         stringBuilder.append(format("hasMergedCells => %s, ", excelFileConfig.getHasMergedCells().toString()));
-        stringBuilder.append(format("xls => false "));
+        stringBuilder.append("xls => false ");
         return stringBuilder.toString();
       }
       case XLS: {
@@ -165,7 +165,7 @@ public abstract class FileFormat {
         }
         stringBuilder.append(format("extractHeader => %s, ", xlsFileConfig.getExtractHeader().toString()));
         stringBuilder.append(format("hasMergedCells => %s, ", xlsFileConfig.getHasMergedCells().toString()));
-        stringBuilder.append(format("xls => true "));
+        stringBuilder.append("xls => true ");
         return stringBuilder.toString();
       }
 

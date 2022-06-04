@@ -23,24 +23,31 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.protostuff.ByteString;
 
 public class IcebergExtendedProp implements Serializable {
-    private ByteString partitionSpecs;
-    private byte[] icebergExpression;
+
+    private final ByteString partitionSpecs;
+    private final byte[] icebergExpression;
+    private final long snapshotId;
 
     @JsonCreator
-    public IcebergExtendedProp(@JsonProperty("partitionSpecs") ByteString partitionSpecs,@JsonProperty("icebergExpression") byte[] icebergExpression) {
+    public IcebergExtendedProp(
+        @JsonProperty("partitionSpecs") ByteString partitionSpecs,
+        @JsonProperty("icebergExpression") byte[] icebergExpression,
+        @JsonProperty(value = "snapshotId", defaultValue = "-1") long snapshotId
+    ) {
         this.partitionSpecs = partitionSpecs;
         this.icebergExpression = icebergExpression;
+        this.snapshotId = snapshotId;
     }
 
     public ByteString getPartitionSpecs() {
         return partitionSpecs;
     }
 
-    public void setPartitionSpecs(ByteString partitionSpecs) {
-        this.partitionSpecs = partitionSpecs;
-    }
-
     public byte[] getIcebergExpression() {
         return icebergExpression;
+    }
+
+    public long getSnapshotId() {
+        return snapshotId;
     }
 }

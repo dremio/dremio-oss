@@ -15,7 +15,7 @@
  */
 package com.dremio.sabot.sender.broadcast;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -24,6 +24,7 @@ import java.util.Arrays;
 
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -90,10 +91,10 @@ public class TestBroadcastSender extends BaseTestOperator {
 
   public BatchSchema getSchema() {
     SchemaBuilder builder = BatchSchema.newBuilder()
-      .addField(new Field("n_nationKey", true, MinorType.BIGINT.getType(), null))
-      .addField(new Field("n_name", true, MinorType.VARCHAR.getType(), null))
-      .addField(new Field("n_regionKey", true, MinorType.BIGINT.getType(), null))
-      .addField(new Field("n_comment", true, MinorType.VARCHAR.getType(), null));
+      .addField(new Field("n_nationKey", new FieldType(true, MinorType.BIGINT.getType(), null), null))
+      .addField(new Field("n_name", new FieldType(true, MinorType.VARCHAR.getType(), null), null))
+      .addField(new Field("n_regionKey", new FieldType(true, MinorType.BIGINT.getType(), null), null))
+      .addField(new Field("n_comment", new FieldType(true, MinorType.VARCHAR.getType(), null), null));
     return builder.build();
   }
 }

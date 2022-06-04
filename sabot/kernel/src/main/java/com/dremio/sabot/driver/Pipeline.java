@@ -23,6 +23,7 @@ import com.dremio.sabot.exec.context.SharedResourcesContext;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.dremio.sabot.task.Task.State;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -74,6 +75,8 @@ public class Pipeline implements AutoCloseable {
 
   public void workOnOOB(OutOfBandMessage message) {
     Wrapped<?> wrapped = operatorMap.get(message.getOperatorId());
+    Preconditions.checkNotNull(wrapped, "invalid operatorId " + message.getOperatorId() + " in OOB msg");
+
     switch(wrapped.getState().getMasterState()) {
     case BLOCKED:
     case CAN_CONSUME:

@@ -30,11 +30,8 @@ import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static com.dremio.common.types.SchemaUpPromotionRules.getResultantType;
 import static org.apache.arrow.vector.types.pojo.ArrowType.Decimal.createDecimal;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -55,73 +52,72 @@ public class TestSchemaUpPromotionRules {
 
   @Test
   public void testGetResultantTypeApi() {
-    assertThat(getType(BIGINT, INT), is(BIGINT));
-    assertThat(getType(FLOAT, INT), is(DOUBLE));
-    assertThat(getType(FLOAT, BIGINT), is(DOUBLE));
-    assertThat(getType(DOUBLE, INT), is(DOUBLE));
-    assertThat(getType(DOUBLE, BIGINT), is(DOUBLE));
-    assertThat(getType(DOUBLE, FLOAT), is(DOUBLE));
-    assertThat(getType(DOUBLE, DECIMAL), is(DOUBLE));
-    assertThat(getType(VARCHAR, BIT), is(VARCHAR));
-    assertThat(getType(VARCHAR, INT), is(VARCHAR));
-    assertThat(getType(VARCHAR, BIGINT), is(VARCHAR));
-    assertThat(getType(VARCHAR, FLOAT), is(VARCHAR));
-    assertThat(getType(VARCHAR, DOUBLE), is(VARCHAR));
-    assertThat(getType(VARCHAR, DECIMAL), is(VARCHAR));
-    assertThat(getType(VARCHAR, DEC_10_5), is(VARCHAR));
-    assertThat(getType(VARCHAR, DEC_18_18), is(VARCHAR));
-    assertThat(getType(VARCHAR, DEC_38_0), is(VARCHAR));
-    assertThat(getType(VARCHAR, DATE), is(VARCHAR));
-    assertThat(getType(VARCHAR, TIME), is(VARCHAR));
-    assertThat(getType(VARCHAR, TIMESTAMP), is(VARCHAR));
-    assertThat(getType(DECIMAL, INT), is(DECIMAL));
-    assertThat(getType(DECIMAL, BIGINT), is(DECIMAL));
-    assertThat(getType(DECIMAL, FLOAT), is(DECIMAL));
-    assertThat(getType(INT, NULL), is(INT));
-    assertThat(getType(BIGINT, NULL), is(BIGINT));
-    assertThat(getType(FLOAT, NULL), is(FLOAT));
-    assertThat(getType(DOUBLE, NULL), is(DOUBLE));
-    assertThat(getType(VARCHAR, NULL), is(VARCHAR));
-    assertThat(getType(DECIMAL, NULL), is(DECIMAL));
-    assertThat(getType(TIMESTAMP, NULL), is(TIMESTAMP));
-    assertThat(getType(TIME, NULL), is(TIME));
-    assertThat(getType(DATE, NULL), is(DATE));
-    assertThat(getType(BIT, NULL), is(BIT));
-
+    assertThat(getType(BIGINT, INT)).isEqualTo(BIGINT);
+    assertThat(getType(FLOAT, INT)).isEqualTo(DOUBLE);
+    assertThat(getType(FLOAT, BIGINT)).isEqualTo(DOUBLE);
+    assertThat(getType(DOUBLE, INT)).isEqualTo(DOUBLE);
+    assertThat(getType(DOUBLE, BIGINT)).isEqualTo(DOUBLE);
+    assertThat(getType(DOUBLE, FLOAT)).isEqualTo(DOUBLE);
+    assertThat(getType(DOUBLE, DECIMAL)).isEqualTo(DOUBLE);
+    assertThat(getType(VARCHAR, BIT)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, INT)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, BIGINT)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, FLOAT)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, DOUBLE)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, DECIMAL)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, DEC_10_5)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, DEC_18_18)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, DEC_38_0)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, DATE)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, TIME)).isEqualTo(VARCHAR);
+    assertThat(getType(VARCHAR, TIMESTAMP)).isEqualTo(VARCHAR);
+    assertThat(getType(DECIMAL, INT)).isEqualTo(DECIMAL);
+    assertThat(getType(DECIMAL, BIGINT)).isEqualTo(DECIMAL);
+    assertThat(getType(DECIMAL, FLOAT)).isEqualTo(DECIMAL);
+    assertThat(getType(INT, NULL)).isEqualTo(INT);
+    assertThat(getType(BIGINT, NULL)).isEqualTo(BIGINT);
+    assertThat(getType(FLOAT, NULL)).isEqualTo(FLOAT);
+    assertThat(getType(DOUBLE, NULL)).isEqualTo(DOUBLE);
+    assertThat(getType(VARCHAR, NULL)).isEqualTo(VARCHAR);
+    assertThat(getType(DECIMAL, NULL)).isEqualTo(DECIMAL);
+    assertThat(getType(TIMESTAMP, NULL)).isEqualTo(TIMESTAMP);
+    assertThat(getType(TIME, NULL)).isEqualTo(TIME);
+    assertThat(getType(DATE, NULL)).isEqualTo(DATE);
+    assertThat(getType(BIT, NULL)).isEqualTo(BIT);
   }
 
   @Test
   public void testConversionFromDecimal() {
-    assertThat(getType(DOUBLE, DEC_10_5), is(DOUBLE));
-    assertThat(getType(DOUBLE, DEC_18_18), is(DOUBLE));
-    assertThat(getType(DOUBLE, DEC_38_0), is(DOUBLE));
+    assertThat(getType(DOUBLE, DEC_10_5)).isEqualTo(DOUBLE);
+    assertThat(getType(DOUBLE, DEC_18_18)).isEqualTo(DOUBLE);
+    assertThat(getType(DOUBLE, DEC_38_0)).isEqualTo(DOUBLE);
 
-    assertThat(getType(DEC_10_5, INT), is(DEC_10_5));
-    assertThat(getType(DEC_18_18, INT), is(DEC_18_18));
-    assertThat(getType(DEC_38_0, INT), is(DEC_38_0));
+    assertThat(getType(DEC_10_5, INT)).isEqualTo(DEC_10_5);
+    assertThat(getType(DEC_18_18, INT)).isEqualTo(DEC_18_18);
+    assertThat(getType(DEC_38_0, INT)).isEqualTo(DEC_38_0);
 
-    assertThat(getType(DEC_10_5, BIGINT), is(DEC_10_5));
-    assertThat(getType(DEC_18_18, BIGINT), is(DEC_18_18));
-    assertThat(getType(DEC_38_0, BIGINT), is(DEC_38_0));
+    assertThat(getType(DEC_10_5, BIGINT)).isEqualTo(DEC_10_5);
+    assertThat(getType(DEC_18_18, BIGINT)).isEqualTo(DEC_18_18);
+    assertThat(getType(DEC_38_0, BIGINT)).isEqualTo(DEC_38_0);
 
-    assertThat(getType(DEC_10_5, FLOAT), is(DEC_10_5));
-    assertThat(getType(DEC_18_18, FLOAT), is(DEC_18_18));
-    assertThat(getType(DEC_38_0, FLOAT), is(DEC_38_0));
+    assertThat(getType(DEC_10_5, FLOAT)).isEqualTo(DEC_10_5);
+    assertThat(getType(DEC_18_18, FLOAT)).isEqualTo(DEC_18_18);
+    assertThat(getType(DEC_38_0, FLOAT)).isEqualTo(DEC_38_0);
   }
 
   @Test
   public void testConversionBetweenDecimalsWithoutPrecisionOverflow() {
-    assertThat(getType(DEC_10_5, DEC_18_18), is(DEC_23_18));
-    assertThat(getType(DECIMAL, DEC_18_18), is(DECIMAL));
-    assertThat(getType(DEC_18_18, DECIMAL), is(DECIMAL));
-    assertThat(getType(DEC_18_18, DEC_10_5), is(DEC_23_18));
+    assertThat(getType(DEC_10_5, DEC_18_18)).isEqualTo(DEC_23_18);
+    assertThat(getType(DECIMAL, DEC_18_18)).isEqualTo(DECIMAL);
+    assertThat(getType(DEC_18_18, DECIMAL)).isEqualTo(DECIMAL);
+    assertThat(getType(DEC_18_18, DEC_10_5)).isEqualTo(DEC_23_18);
   }
 
   @Test
   public void testConversionBetweenDecimalsWithPrecisionOverflow() {
-    assertThat(getType(DECIMAL, DEC_10_5), is(DEC_38_33));
-    assertThat(getType(DEC_38_35, DEC_38_1), is(DEC_38_1));
-    assertThat(getType(DEC_18_18, DEC_38_0), is(DEC_38_0));
+    assertThat(getType(DECIMAL, DEC_10_5)).isEqualTo(DEC_38_33);
+    assertThat(getType(DEC_38_35, DEC_38_1)).isEqualTo(DEC_38_1);
+    assertThat(getType(DEC_18_18, DEC_38_0)).isEqualTo(DEC_38_0);
   }
 
   @Test
@@ -133,12 +129,12 @@ public class TestSchemaUpPromotionRules {
 
   @Test
   public void testSomeUnsupportedTypes() {
-    assertThat(getResultantType(LIST, STRUCT), is(Optional.empty()));
-    assertThat(getResultantType(STRUCT, LIST), is(Optional.empty()));
-    assertThat(getResultantType(STRUCT, INT), is(Optional.empty()));
-    assertThat(getResultantType(INT, STRUCT), is(Optional.empty()));
-    assertThat(getResultantType(LIST, INT), is(Optional.empty()));
-    assertThat(getResultantType(INT, LIST), is(Optional.empty()));
+    assertThat(getResultantType(LIST, STRUCT)).isEqualTo(Optional.empty());
+    assertThat(getResultantType(STRUCT, LIST)).isEqualTo(Optional.empty());
+    assertThat(getResultantType(STRUCT, INT)).isEqualTo(Optional.empty());
+    assertThat(getResultantType(INT, STRUCT)).isEqualTo(Optional.empty());
+    assertThat(getResultantType(LIST, INT)).isEqualTo(Optional.empty());
+    assertThat(getResultantType(INT, LIST)).isEqualTo(Optional.empty());
   }
 
   private CompleteType getType(CompleteType fileType, CompleteType tableType) {
@@ -146,12 +142,8 @@ public class TestSchemaUpPromotionRules {
   }
 
   private void expectException(Supplier<Optional<CompleteType>> supplier) {
-    try {
-      supplier.get();
-      fail("Expected exception");
-    } catch (Exception e) {
-      assertThat(e, instanceOf(IllegalArgumentException.class));
-      assertThat(e.getMessage(), containsString("Max supported precision is 38"));
-    }
+    assertThatThrownBy(supplier::get)
+      .isInstanceOf(IllegalArgumentException.class)
+      .hasMessageContaining("Max supported precision is 38");
   }
 }

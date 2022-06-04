@@ -67,6 +67,7 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
   protected List<Property> getProperties() {
     List<Property> properties = new ArrayList<>();
     properties.add(new Property(String.format("fs.%s.impl", DREMIO_GCS_SCHEME),GoogleBucketFileSystem.class.getName()));
+    properties.add(new Property(String.format("fs.%s.impl.disable.cache", DREMIO_GCS_SCHEME),"true"));
     properties.add(new Property(GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.getKey(),
             GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE_DEFAULT));
 
@@ -117,22 +118,21 @@ public class GoogleStoragePlugin extends FileSystemPlugin<GCSConf> {
 
   @Override
   public CreateTableEntry createNewTable(
-          SchemaConfig config,
-          NamespaceKey key,
-          IcebergTableProps icebergProps,
-          WriterOptions writerOptions,
-          Map<String, Object> storageOptions,
-          boolean isResultsTable
+    NamespaceKey tableSchemaPath, SchemaConfig config,
+    IcebergTableProps icebergProps,
+    WriterOptions writerOptions,
+    Map<String, Object> storageOptions,
+    boolean isResultsTable
   ) {
-    Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
-    final String containerName = key.getPathComponents().get(1);
-    if (key.size() == 2) {
+    Preconditions.checkArgument(tableSchemaPath.size() >= 2, "key must be at least two parts");
+    final String containerName = tableSchemaPath.getPathComponents().get(1);
+    if (tableSchemaPath.size() == 2) {
       throw UserException.validationError()
           .message("Creating buckets is not supported.", containerName)
           .build(logger);
     }
 
-    final CreateTableEntry entry = super.createNewTable(config, key, icebergProps, writerOptions, storageOptions, isResultsTable);
+    final CreateTableEntry entry = super.createNewTable(tableSchemaPath, config, icebergProps, writerOptions, storageOptions, isResultsTable);
 
     final GoogleBucketFileSystem fs = getSystemUserFS().unwrap(GoogleBucketFileSystem.class);
 

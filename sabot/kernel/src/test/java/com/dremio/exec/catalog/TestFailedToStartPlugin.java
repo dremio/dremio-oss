@@ -18,8 +18,8 @@ package com.dremio.exec.catalog;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -80,6 +80,7 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.namespace.source.proto.UpdateMode;
+import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
@@ -104,6 +105,7 @@ public class TestFailedToStartPlugin extends DremioTest {
   private SystemOptionManager som;
   private OptionManager optionManager;
   private NamespaceService mockNamespaceService;
+  private Orphanage mockOrphanage;
   private DatasetListingService mockDatasetListingService;
   private SourceConfig mockUpConfig;
   private final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
@@ -115,6 +117,7 @@ public class TestFailedToStartPlugin extends DremioTest {
     storeProvider = LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
     storeProvider.start();
     mockNamespaceService = mock(NamespaceService.class);
+    mockOrphanage = mock(Orphanage.class);
     mockDatasetListingService = mock(DatasetListingService.class);
 
     mockUpPlugin = new MockUpPlugin();
@@ -207,7 +210,7 @@ public class TestFailedToStartPlugin extends DremioTest {
     PositiveLongValidator option = ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES;
     modifiableSchedulerService = new ModifiableSchedulerService(){
       ModifiableSchedulerService delegate = new ModifiableLocalSchedulerService(
-        3, "modifiable-scheduler-", option, optionManager);
+        3, "modifiable-scheduler-", option, () -> optionManager);
       @Override
       public void close() throws Exception {
         delegate.close();
@@ -296,7 +299,7 @@ public class TestFailedToStartPlugin extends DremioTest {
     };
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
 
-    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockOrphanage, mockDatasetListingService, optionManager, DremioConfig.create(),
       sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null, modifiableSchedulerService)){
 
@@ -339,7 +342,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
 
-    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockOrphanage, mockDatasetListingService, optionManager, DremioConfig.create(),
       sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null, modifiableSchedulerService)) {
 
@@ -385,7 +388,7 @@ public class TestFailedToStartPlugin extends DremioTest {
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
 
 
-    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockOrphanage, mockDatasetListingService, optionManager, DremioConfig.create(),
       sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null, modifiableSchedulerService)) {
 
@@ -440,7 +443,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
 
-    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockOrphanage, mockDatasetListingService, optionManager, DremioConfig.create(),
       sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null, modifiableSchedulerService)) {
 

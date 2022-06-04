@@ -15,8 +15,7 @@
  */
 package com.dremio.common;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
 import java.util.List;
@@ -64,12 +63,12 @@ public class TestVM {
 
   @Test
   public void checkMaxDirectMemory() {
-    assertThat(VM.maxDirectMemory(arguments), is(maxDirectMemory));
+    assertThat(VM.maxDirectMemory(arguments)).isEqualTo(maxDirectMemory);
   }
 
   @Test
   public void checkDebugEnabled() {
-    assertThat(VM.isDebugEnabled(arguments), is(debugEnabled));
+    assertThat(VM.isDebugEnabled(arguments)).isEqualTo(debugEnabled);
   }
 
 }

@@ -96,7 +96,7 @@
         <#if mode == "primitive">
         out.value = left.value == right.value ? ${equalResult} : ${notEqualResult};
         <#elseif mode == "varString">
-        out.value = org.apache.arrow.vector.util.ByteFunctionHelpers.compare(
+        out.value = org.apache.arrow.memory.util.ByteFunctionHelpers.compare(
             left.buffer, left.start, left.end, right.buffer, right.start, right.end) == 0 ? ${equalResult} : ${notEqualResult};
         <#elseif mode == "decimal">
         out.value = org.apache.arrow.vector.util.DecimalUtility.compareSparseBytes(

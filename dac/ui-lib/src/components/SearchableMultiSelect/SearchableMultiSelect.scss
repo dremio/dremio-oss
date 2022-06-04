@@ -15,20 +15,24 @@
  */
 @import '../../styles/constants/index.scss';
 .SearchableMultiSelect {
-  padding: 4px 0px;
-  &.--disabled{
-    pointer-events: none;
-  }
+  width: 540px;
   &__value {
     @include input-size();
     height: unset !important;
     min-height: 32px;
     justify-content: space-between;
-    padding-top: 4px !important;
-    padding-bottom: 4px !important;
-
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
     &.--error {
       border-color: $error-color !important;
+    }
+    &.--disabled {
+      pointer-events: none;
+      background-color: $disabled-color !important;
+      border-color: $FIGMA_NEUTRAL_200;
+      input::placeholder {
+        color: $FIGMA_TEXT_DISABLED !important;
+      }
     }
   }
 
@@ -48,9 +52,10 @@
   }
 
   &__input {
+    font-size: 14px;
     flex-grow: 2;
     min-width: 100px;
-    height: 32px;
+    height: 24px;
     background-color: inherit;
     border: none;
     &:focus-visible {
@@ -66,19 +71,10 @@
     display: flex;
     align-items: center;
     align-self: flex-end;
-    padding-bottom: 4px;
   }
-
   &__clearIcon {
     display: flex;
     cursor: pointer;
     padding-right: 4px;
-  }
-
-  &__dropdownIcon {
-    display: flex;
-    border-left: 1px solid $border-color;
-    padding-left: 4px;
-    cursor: pointer;
   }
 }

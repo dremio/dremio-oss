@@ -20,8 +20,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
@@ -192,7 +192,7 @@ public class TestRemoteNodeFileSystem extends ExecTest {
       doAnswer(new Answer<Void>() {
         @Override
         public Void answer(final InvocationOnMock invocation) throws Throwable {
-          final RpcOutcomeListener<MessageLite> listener = invocation.getArgumentAt(0, RpcOutcomeListener.class);
+          final RpcOutcomeListener<MessageLite> listener = invocation.getArgument(0, RpcOutcomeListener.class);
           listener.success(response, buffer);
 
           return null;
@@ -210,7 +210,7 @@ public class TestRemoteNodeFileSystem extends ExecTest {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(final InvocationOnMock invocation) throws Throwable {
-        final RpcCommand<?, ProxyConnection> rpcCommand = invocation.getArgumentAt(0, RpcCommand.class);
+        final RpcCommand<?, ProxyConnection> rpcCommand = invocation.getArgument(0, RpcCommand.class);
         rpcCommand.connectionSucceeded(proxyConnection);
         return null;
       }
@@ -232,7 +232,7 @@ public class TestRemoteNodeFileSystem extends ExecTest {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(final InvocationOnMock invocation) throws Throwable {
-        final RpcOutcomeListener<MessageLite> listener = invocation.getArgumentAt(0, RpcOutcomeListener.class);
+        final RpcOutcomeListener<MessageLite> listener = invocation.getArgument(0, RpcOutcomeListener.class);
         listener.failed(e);
 
         return null;
@@ -249,7 +249,7 @@ public class TestRemoteNodeFileSystem extends ExecTest {
     doAnswer(new Answer<Void>() {
       @Override
       public Void answer(final InvocationOnMock invocation) throws Throwable {
-        final RpcCommand<?, ProxyConnection> rpcCommand = invocation.getArgumentAt(0, RpcCommand.class);
+        final RpcCommand<?, ProxyConnection> rpcCommand = invocation.getArgument(0, RpcCommand.class);
         rpcCommand.connectionSucceeded(proxyConnection);
         return null;
       }

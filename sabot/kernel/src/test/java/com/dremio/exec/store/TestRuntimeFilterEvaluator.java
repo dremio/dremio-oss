@@ -200,7 +200,8 @@ public class TestRuntimeFilterEvaluator {
       byte[] partitionValue = DecimalUtils.convertBigDecimalToArrowByteArray(bigDecimal);
       keyBuf.setByte(0, 1);
       keyBuf.setBytes(1, partitionValue);
-      TwosComplementValuePair pair = new TwosComplementValuePair(testAllocator, Field.nullable(partitionColumn, new ArrowType.Decimal(38, 2)), bigDecimal.unscaledValue().toByteArray());
+      TwosComplementValuePair pair = new TwosComplementValuePair(testAllocator, Field.nullable(partitionColumn,
+        new ArrowType.Decimal(38, 2, 128)), bigDecimal.unscaledValue().toByteArray());
       testRuntimeFilter(keyBuf, 17, partitionColumn, pair);
       pair.getBuf().close();
 

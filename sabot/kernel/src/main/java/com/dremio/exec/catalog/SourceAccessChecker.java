@@ -34,7 +34,10 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ColumnExtendedProperty;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.NoDefaultBranchException;
 import com.dremio.exec.store.PartitionNotFoundException;
+import com.dremio.exec.store.ReferenceConflictException;
+import com.dremio.exec.store.ReferenceNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.service.catalog.Schema;
@@ -204,10 +207,10 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public void dropTable(NamespaceKey key) {
+  public void dropTable(NamespaceKey key, TableMutationOptions tableMutationOptions) {
     throwIfInvisible(key);
 
-    delegate.dropTable(key);
+    delegate.dropTable(key, tableMutationOptions);
   }
 
   @Override
@@ -217,27 +220,27 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
-  public void truncateTable(NamespaceKey key) {
+  public void truncateTable(NamespaceKey key, TableMutationOptions tableMutationOptions) {
     throwIfInvisible(key);
-    delegate.truncateTable(key);
+    delegate.truncateTable(key, tableMutationOptions);
   }
 
   @Override
-  public void addColumns(NamespaceKey table, List<Field> colsToAdd) {
+  public void addColumns(NamespaceKey table, List<Field> colsToAdd, TableMutationOptions tableMutationOptions) {
     throwIfInvisible(table);
-    delegate.addColumns(table, colsToAdd);
+    delegate.addColumns(table, colsToAdd, tableMutationOptions);
   }
 
   @Override
-  public void dropColumn(NamespaceKey table, String columnToDrop) {
+  public void dropColumn(NamespaceKey table, String columnToDrop, TableMutationOptions tableMutationOptions) {
     throwIfInvisible(table);
-    delegate.dropColumn(table, columnToDrop);
+    delegate.dropColumn(table, columnToDrop, tableMutationOptions);
   }
 
   @Override
-  public void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration) {
+  public void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration, TableMutationOptions tableMutationOptions) {
     throwIfInvisible(table);
-    delegate.changeColumn(table, columnToChange, fieldFromSqlColDeclaration);
+    delegate.changeColumn(table, columnToChange, fieldFromSqlColDeclaration, tableMutationOptions);
   }
 
   @Override
@@ -339,7 +342,7 @@ class SourceAccessChecker implements Catalog {
 
   @Override
   public Collection<org.apache.calcite.schema.Function> getFunctions(NamespaceKey path) {
-    return (Collection<org.apache.calcite.schema.Function>) checkAndGetList(path, () -> delegate.getFunctions(path));
+    return delegate.getFunctions(path);
   }
 
   @Override
@@ -349,31 +352,32 @@ class SourceAccessChecker implements Catalog {
 
   @Override
   public Catalog resolveCatalog(boolean checkValidity) {
-    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getUserName(), options.getSchemaConfig().getDefaultSchema(), checkValidity),
-      delegate.resolveCatalog(checkValidity));
+    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getAuthContext().getSubject(),
+      options.getSchemaConfig().getDefaultSchema(), checkValidity), delegate.resolveCatalog(checkValidity));
   }
 
   @Override
-  public Catalog resolveCatalog(String username) {
-    return secureIfNeeded(options.cloneWith(username, options.getSchemaConfig().getDefaultSchema(), options.checkValidity()),
-        delegate.resolveCatalog(username));
+  public Catalog resolveCatalog(CatalogIdentity subject) {
+    return secureIfNeeded(options.cloneWith(subject, options.getSchemaConfig().getDefaultSchema(), options.checkValidity()),
+      delegate.resolveCatalog(subject));
   }
 
   @Override
-  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema) {
-    return secureIfNeeded(options.cloneWith(username, newDefaultSchema, options.checkValidity()),
-        delegate.resolveCatalog(username, newDefaultSchema));
+  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema) {
+    return secureIfNeeded(options.cloneWith(subject, newDefaultSchema, options.checkValidity()),
+      delegate.resolveCatalog(subject, newDefaultSchema));
   }
 
   @Override
-  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity) {
-    return secureIfNeeded(options.cloneWith(username, newDefaultSchema, checkValidity),
-      delegate.resolveCatalog(username, newDefaultSchema, checkValidity));
+  public Catalog resolveCatalog(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    return secureIfNeeded(options.cloneWith(subject, newDefaultSchema, checkValidity),
+      delegate.resolveCatalog(subject, newDefaultSchema, checkValidity));
   }
 
   @Override
   public Catalog resolveCatalog(NamespaceKey newDefaultSchema) {
-    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getUserName(), newDefaultSchema, options.checkValidity()), delegate.resolveCatalog(newDefaultSchema));
+    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getAuthContext().getSubject(), newDefaultSchema,
+      options.checkValidity()), delegate.resolveCatalog(newDefaultSchema));
   }
 
   /**
@@ -400,6 +404,12 @@ class SourceAccessChecker implements Catalog {
                             final String attributeName, final AttributeValue attributeValue) {
     throwIfInvisible(key);
     return delegate.alterColumnOption(key, columnToChange, attributeName, attributeValue);
+  }
+
+  @Override
+  public boolean toggleSchemaLearning(NamespaceKey table, boolean enableSchemaLearning) {
+    throwIfInvisible(table);
+    return delegate.toggleSchemaLearning(table, enableSchemaLearning);
   }
 
   @Override
@@ -436,5 +446,10 @@ class SourceAccessChecker implements Catalog {
   public Catalog visit(java.util.function.Function<Catalog, Catalog> catalogRewrite) {
     Catalog newDelegate = delegate.visit(catalogRewrite);
     return catalogRewrite.apply(new SourceAccessChecker(options, newDelegate));
+  }
+
+  @Override
+  public ResolvedVersionContext resolveVersionContext(String sourceName, VersionContext versionContext) throws ReferenceNotFoundException, NoDefaultBranchException, ReferenceConflictException {
+    return delegate.resolveVersionContext(sourceName, versionContext);
   }
 }

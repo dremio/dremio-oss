@@ -26,8 +26,8 @@ import static com.dremio.common.expression.CompleteType.TIMESTAMP;
 import static com.dremio.common.expression.CompleteType.VARBINARY;
 import static com.dremio.common.expression.CompleteType.VARCHAR;
 import static org.apache.iceberg.types.Types.NestedField.optional;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
@@ -61,11 +61,10 @@ import org.apache.iceberg.types.Types.StringType;
 import org.apache.iceberg.types.Types.StructType;
 import org.apache.iceberg.types.Types.TimeType;
 import org.apache.iceberg.types.Types.TimestampType;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.map.CaseInsensitiveImmutableBiMap;
@@ -81,9 +80,6 @@ import com.dremio.test.DremioTest;
 public class TestSchemaConverter extends DremioTest {
 
   private final SchemaConverter schemaConverter = new SchemaConverter();
-
-  @Rule
-  public ExpectedException expectedEx = ExpectedException.none();
 
 
   @Test
@@ -109,7 +105,7 @@ public class TestSchemaConverter extends DremioTest {
       .addField(BIGINT.toField("long"))
       .addField(FLOAT.toField("float"))
       .addField(DOUBLE.toField("double"))
-      .addField(new CompleteType(new Decimal(38, 16)).toField("decimal_38_16"))
+      .addField(new CompleteType(new Decimal(38, 16, 128)).toField("decimal_38_16"))
       .addField(VARCHAR.toField("string"))
       .addField(VARBINARY.toField("binary"))
       .addField(DATE.toField("date"))
@@ -134,7 +130,7 @@ public class TestSchemaConverter extends DremioTest {
       .addField(TIMESTAMP.toField("time"))
       .addField(VARCHAR.toField("string"))
       .addField(VARBINARY.toField("binary"))
-      .addField(new CompleteType(new Decimal(38, 16)).toField("decimal_38_16"))
+      .addField(new CompleteType(new Decimal(38, 16, 128)).toField("decimal_38_16"))
       .build();
 
     Schema icebergSchema =  schemaConverter.toIcebergSchema(schema);
@@ -251,8 +247,8 @@ public class TestSchemaConverter extends DremioTest {
     String rootPath = folder.getRoot().toString();
     Configuration conf = new Configuration();
 
-    FileSystemPlugin fileSystemPlugin = mock(FileSystemPlugin.class);
-    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration());
+    FileSystemPlugin fileSystemPlugin = BaseTestQuery.getMockedFileSystemPlugin();
+    IcebergHadoopModel icebergHadoopModel = new IcebergHadoopModel(new Configuration(), fileSystemPlugin);
     when(fileSystemPlugin.getIcebergModel()).thenReturn(icebergHadoopModel);
 
     IcebergOpCommitter createTableCommitter = icebergHadoopModel.getCreateTableCommitter("testTableName",
@@ -287,10 +283,9 @@ public class TestSchemaConverter extends DremioTest {
         BIGINT.toField("bigint_field")
       ).toField("union_field"))
       .build();
-
-    expectedEx.expect(UserException.class);
-    expectedEx.expectMessage("Type conversion error for column union_field");
-     schemaConverter.toIcebergSchema(inputSchema);
+    assertThatThrownBy(() -> schemaConverter.toIcebergSchema(inputSchema))
+      .isInstanceOf(UserException.class)
+      .hasMessageContaining("Type conversion error for column union_field");
   }
 
   @Test
@@ -417,7 +412,7 @@ public class TestSchemaConverter extends DremioTest {
       .addField(BIGINT.toField("long"))
       .addField(FLOAT.toField("float"))
       .addField(DOUBLE.toField("double"))
-      .addField(new CompleteType(new Decimal(38, 16)).toField("decimal_38_16"))
+      .addField(new CompleteType(new Decimal(38, 16, 128)).toField("decimal_38_16"))
       .addField(VARCHAR.toField("string"))
       .addField(VARBINARY.toField("binary"))
       .addField(DATE.toField("date"))

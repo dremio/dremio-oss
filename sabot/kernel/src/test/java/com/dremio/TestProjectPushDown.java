@@ -101,6 +101,8 @@ public class TestProjectPushDown extends PlanTestBase {
 
   private final String[] MORE_TABLES = new String[] { "project/pushdown/fields.json"};
 
+  private final String[] PARQUET_TABLES = new String[] { "project/pushdown/dx-40232.parquet"};
+
   @Test
   public void testProjectPushDown() throws Exception {
     final String pushDownSqlPattern = "select %s from cp.\"%s\" t";
@@ -135,6 +137,18 @@ public class TestProjectPushDown extends PlanTestBase {
       testPushDown(new PushDownTestInstance(pushDownSqlPattern, expected, projection, table, filter));
     }
   }
+
+  @Test
+  public void testProjectPastFilterPushDownForParquetData() throws Exception {
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t where %s";
+    final String projection = "t.id, t.address.area, t.name";
+    final String filter = "t.name LIKE 'basu3'  and t.address['country'] = 'IN2'";
+    final String expected = "columns=[`id`, `name`, `address`.`area`, `address`.`country`]";
+    for (String table: PARQUET_TABLES) {
+      testPushDown(new PushDownTestInstance(pushDownSqlPattern, expected, projection, table, filter));
+    }
+  }
+
 
   @Test
   public void testProjectPastFilterPushDown2() throws Exception {
@@ -177,6 +191,7 @@ public class TestProjectPushDown extends PlanTestBase {
           projection, table, table, filter));
     }
   }
+
 
   @Ignore("DX-11163")
   @Test
@@ -243,6 +258,22 @@ public class TestProjectPushDown extends PlanTestBase {
         .run();
   }
 
+
+  @Test
+  public void testProjectPastJoinPushDownForParquetData() throws Exception {
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t0, cp.\"%s\" t1 where %s";
+    final String projection = "t0.name, t0.address.area, t0.address.comments, t1.address.pincode";
+    final String filter = "t0.name = t1.name and t0.address.state LIKE ('TS2') and t1.address.state LIKE ('TS3')";
+    final String firstExpected = "columns=[`name`, `address`.`State`, `address`.`area`, `address`.`comments`]";
+    final String secondExpected = "columns=[`name`, `address`.`State`, `address`.`pincode`]";
+
+    for (String table: PARQUET_TABLES) {
+      testPushDown(new PushDownTestInstance(pushDownSqlPattern, new String[]{firstExpected, secondExpected},
+        projection, table, table, filter));
+    }
+  }
+
+
   @Test
   public void testEmptyColProjectInJsonScan() throws Exception {
     final String sql = "SELECT count(*) cnt from cp.\"employee.json\"";
@@ -297,6 +328,23 @@ public class TestProjectPushDown extends PlanTestBase {
         " where t0.a=t1.b and t1.c=t2.d and t0.fcolumns[0] + t1.a = 100";
     for (String table: MORE_TABLES) {
     testPushDown(new PushDownTestInstance(sql,
+        new String[]{firstExpected, secondExpected, thirdExpected}, table,table,table));
+    }
+  }
+
+
+  @Test
+  public void testSimpleProjectPastJoinPastFilterPastJoinPushDownForParquetDataSet() throws Exception {
+
+    final String firstExpected = "columns=[`id`, `name`, `address`.`State`]";
+    final String secondExpected = "columns=[`name`]";
+    final String thirdExpected = "columns=[`id`, `address`.`pincode`]";
+
+    String sql = "select t0.name, t1.address.state, t2.address.pincode " +
+      " from cp.\"%s\" t0, cp.\"%s\" t1, cp.\"%s\" t2 " +
+      " where t0.name=t1.name and t1.id  + t2.id = 5";
+    for (String table: PARQUET_TABLES) {
+      testPushDown(new PushDownTestInstance(sql,
         new String[]{firstExpected, secondExpected, thirdExpected}, table,table,table));
     }
   }

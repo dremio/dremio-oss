@@ -22,7 +22,11 @@
   # List of import statements.
   imports: [
     "com.dremio.exec.planner.sql.parser.*",
+    "org.apache.calcite.sql.SqlBasicCall",
     "org.apache.calcite.util.*",
+    "com.dremio.exec.catalog.TableVersionType",
+    "com.dremio.exec.catalog.TableVersionOperator",
+    "com.dremio.exec.tablefunctions.TableMacroNames",
     "com.dremio.exec.util.*",
     "com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType",
     "java.util.*"
@@ -107,13 +111,19 @@
     "UNSET",
     "LEARNING",
     "BRANCH",
+    "BRANCHES",
     "TAG",
+    "TAGS",
+    "LOGS",
     "APPLICATION",
     "OAUTH",
     "PROVIDER",
     "TOKENS",
-    "STRUCT",
-    "LIST"
+    "CONFIGURE",
+    "ASSIGN",
+    "SNAPSHOT",
+    "REFERENCE",
+    "LOCATION"
   ]
 
   nonReservedKeywords: [
@@ -126,6 +136,7 @@
     "ADMIN"
     "AFTER"
     "AGGREGATE"
+    "ALTER"
     "ALWAYS"
     "APPLICATION",
     "APPLY"
@@ -133,6 +144,7 @@
     "APPROXIMATE"
     "ARROW"
     "ASC"
+    "ASSIGN"
     "ASSERTION"
     "ASSIGNMENT"
     "ATTRIBUTE"
@@ -142,6 +154,7 @@
     "BEFORE"
     "BERNOULLI"
     "BRANCH"
+    "BRANCHES"
     "BREADTH"
     "C"
     "CACHE"
@@ -169,8 +182,10 @@
     "COLUMN_NAME"
     "COMMAND_FUNCTION"
     "COMMAND_FUNCTION_CODE"
+    "COMMIT"
     "COMMITTED"
     "CONDITION_NUMBER"
+    "CONFIGURE"
     "CONNECTION"
     "CONNECTION_NAME"
     "CONSOLIDATED"
@@ -245,6 +260,7 @@
     "INPUT"
     "INSTANCE"
     "INSTANTIABLE"
+    "INTO"
     "INVOKER"
     "ISOLATION"
     "JAVA"
@@ -262,9 +278,10 @@
     "LENGTH"
     "LEVEL"
     "LIBRARY"
-    "LIST"
     "LOCALSORT"
+    "LOCATION"
     "LOCATOR"
+    "LOGS"
     "M"
     "MAINTAIN"
     "MANAGE"
@@ -273,6 +290,7 @@
     "MATERIALIZATION"
     "MAXVALUE"
     "MEASURES"
+    "MERGE"
     "MESSAGE_LENGTH"
     "MESSAGE_OCTET_LENGTH"
     "MESSAGE_TEXT"
@@ -334,6 +352,7 @@
     "QUEUE"
     "RAW"
     "READ"
+    "REFERENCE"
     "REFLECTION"
     "REFLECTIONS"
     "RELATIVE"
@@ -371,6 +390,7 @@
     "SIMPLE"
     "SINGLE"
     "SIZE"
+    "SNAPSHOT"
     "SOURCE"
     "SPACE"
     "SPECIFIC_NAME"
@@ -429,13 +449,13 @@
     "STATUS"
     "STORE"
     "STRIPED"
-    "STRUCT"
     "STRUCTURE"
     "STYLE"
     "SUBCLASS_ORIGIN"
     "SUBSTITUTE"
     "TABLE_NAME"
     "TAG"
+    "TAGS"
     "TEMPORARY"
     "TIES"
     "TIMESTAMPADD"
@@ -477,16 +497,21 @@
   statementParserMethods: [
     "SqlShowTables()",
     "SqlShowSchemas()",
+    "SqlShowBranches()",
+    "SqlShowTags()",
+    "SqlShowLogs()",
     "SqlDescribeTable()",
-    "SqlUseBranch()",
-    "SqlUseTag()",
-    "SqlUseCommit()",
+    "SqlUseVersion()",
     "SqlUseSchema()",
     "SqlCreateOrReplaceView()",
     "SqlDropView()",
     "SqlShowFiles()",
+    "SqlCreateBranch()",
     "SqlCreateTable()",
+    "SqlCreateTag()",
     "SqlInsertTable()",
+    "SqlDropBranch()",
+    "SqlDropTag()",
     "SqlDropTable()",
     "SqlTruncateTable()",
     "SqlAccel()",
@@ -504,7 +529,9 @@
     "SqlDropUser()",
     "SqlDropRole()",
     "SqlAnalyzeTableStatistics()",
-    "SqlRefreshDataset()"
+    "SqlRefreshDataset()",
+    "SqlAlterBranch()",
+    "SqlAssignTag()"
   ]
 
   # List of methods for parsing custom literals.
@@ -536,6 +563,11 @@
   dropStatementParserMethods: [
   ]
 
+  # Method for parsing a table version extension to the TableRef2 production.
+  # This method must accept a single argument "(SqlNode tableRef)".
+  # Return type of method implementation should be 'SqlNode'.
+  tableVersionContextParserMethod: "TableWithVersionContext"
+
   # List of files in @includes directory that have parser method
   # implementations for custom SQL statements, literals or types
   # given as part of "statementParserMethods", "literalParserMethods" or
@@ -548,7 +580,7 @@
     "grant.ftl",
     "role.ftl",
     "user.ftl",
-    "useVersion.ftl"
+    "versionSupport.ftl"
   ]
 
   includeCompoundIdentifier: false,

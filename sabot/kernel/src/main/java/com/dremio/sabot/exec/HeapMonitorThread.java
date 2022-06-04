@@ -139,12 +139,15 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
       long thresholdExceededCount = pool.getCollectionUsageThresholdCount();
       if (monitoredPools.get(pool.getName()) < thresholdExceededCount) {
         monitoredPools.put(pool.getName(), thresholdExceededCount);
-        exceeded = true;
 
-        logger.info("heap usage " + pool.getUsage().getUsed() +
+        // Check actual usage
+        if (pool.getUsage().getUsed() >= pool.getCollectionUsageThreshold()) {
+          exceeded = true;
+          logger.info("heap usage " + pool.getUsage().getUsed() +
             " in pool " + pool.getName() +
             " exceeded threshold " + pool.getCollectionUsageThreshold() +
             " threshold_cnt " + pool.getCollectionUsageThresholdCount());
+        }
       }
     }
     if (exceeded) {

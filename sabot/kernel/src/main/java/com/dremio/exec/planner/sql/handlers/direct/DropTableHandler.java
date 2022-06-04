@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers.direct;
 
 import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.VALIDATION;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -27,8 +28,13 @@ import org.apache.calcite.tools.ValidationException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUtil;
+import com.dremio.exec.catalog.ResolvedVersionContext;
+import com.dremio.exec.catalog.TableMutationOptions;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.planner.sql.parser.SqlDropTable;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.NamespaceKey;
 
 // Direct Handler for dropping a table.
@@ -37,9 +43,11 @@ public class DropTableHandler extends SimpleDirectHandler {
   private static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DropTableHandler.class);
 
   private final Catalog catalog;
+  private final UserSession userSession;
 
-  public DropTableHandler(Catalog catalog) {
+  public DropTableHandler(Catalog catalog, UserSession userSession) {
     this.catalog = catalog;
+    this.userSession = userSession;
   }
 
   /**
@@ -56,11 +64,19 @@ public class DropTableHandler extends SimpleDirectHandler {
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws ValidationException, ForemanSetupException,
   RelConversionException, IOException {
+    checkNotNull(userSession);
     final SqlDropTable dropTableNode = SqlNodeUtil.unwrap(sqlNode, SqlDropTable.class);
     final NamespaceKey path = catalog.resolveSingle(dropTableNode.getPath());
+    final String sourceName = path.getRoot();
+    final VersionContext sessionVersion = userSession.getSessionVersionForSource(sourceName);
 
     try {
-      catalog.dropTable(path);
+      ResolvedVersionContext resolvedVersionContext = CatalogUtil.resolveVersionContext(catalog, sourceName, sessionVersion);
+      CatalogUtil.validateResolvedVersionIsBranch(resolvedVersionContext, path.toString());
+      TableMutationOptions tableMutationOptions = TableMutationOptions.newBuilder()
+        .setResolvedVersionContext(resolvedVersionContext)
+        .build();
+      catalog.dropTable(path, tableMutationOptions);
     } catch (UserException e) {
       if (e.getErrorType() == VALIDATION && dropTableNode.checkTableExistence()) {
         return Collections.singletonList(new SimpleCommandResult(true, String.format("Table [%s] not found.", path)));

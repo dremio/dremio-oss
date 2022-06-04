@@ -124,7 +124,7 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
       RawFragmentBatch batch = bufferQueue.poll();
       assertAckSent(batch);
       if (batch.getBody() != null) {
-        batch.getBody().release();
+        batch.getBody().close();
       }
     }
   }

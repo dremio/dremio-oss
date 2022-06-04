@@ -1,0 +1,38 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package com.dremio.service.userpreferences.proto;
+
+option java_package = "com.dremio.service.userpreferences.proto";
+option optimize_for = SPEED;
+option java_outer_classname = "UserPreferenceProto";
+
+enum PreferenceType {
+  STARRED = 0;
+}
+
+message Preference {
+  PreferenceType type = 1;
+  repeated string entity_ids = 2;
+}
+
+message UserPreference {
+  reserved 1; // incase if we want to add unique id for preference later
+  string user_id = 2; // reference to userId
+  repeated Preference preferences = 3; // list of various preferences
+}

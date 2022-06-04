@@ -21,8 +21,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,7 +33,6 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.Lists;
 
@@ -45,7 +44,7 @@ public class TestPermissionCheckCache {
     final StoragePlugin plugin = mock(StoragePlugin.class);
     final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(0l), 1000);
-    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
+    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
         .thenReturn(true);
     assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
     assertNull(checks.getPermissionsCache()
@@ -59,7 +58,7 @@ public class TestPermissionCheckCache {
     final StoragePlugin plugin = mock(StoragePlugin.class);
     final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(10_000L), 1000);
-    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
+    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
         .thenReturn(true, false);
     assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
     assertNotNull(checks.getPermissionsCache()
@@ -74,7 +73,7 @@ public class TestPermissionCheckCache {
     final StoragePlugin plugin = mock(StoragePlugin.class);
     final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(500l), 1000);
-    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
+    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
         .thenReturn(true, false);
     assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
     assertNotNull(checks.getPermissionsCache()
@@ -90,7 +89,7 @@ public class TestPermissionCheckCache {
     final StoragePlugin plugin = mock(StoragePlugin.class);
     final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(1000L), 1000);
-    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
+    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
         .thenThrow(new RuntimeException("you shall not pass"));
     try {
       checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig);
@@ -107,13 +106,13 @@ public class TestPermissionCheckCache {
     final StoragePlugin plugin = mock(StoragePlugin.class);
     final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(10_000L), 1000);
-    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
+    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
       .thenReturn(false, false);
     assertFalse(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
 
     assertEquals(0, checks.getPermissionsCache().size());
 
-    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
+    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
       .thenReturn(true, false);
     assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
 
@@ -127,7 +126,7 @@ public class TestPermissionCheckCache {
 
     // can't use mocks here since mockito will lose annotations
     StoragePlugin plugin = mock(StoragePlugin.class);
-    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
+    when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any()))
       .thenReturn(true, false);
 
     SourceConfig sourceConfig = new SourceConfig();

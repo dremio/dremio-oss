@@ -25,8 +25,8 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
@@ -51,6 +51,7 @@ public class WriterCommitterPOP extends AbstractSingle {
   private final NamespaceKey datasetPath;
   private final Optional<DatasetConfig> datasetConfig;
   private final boolean readSignatureEnabled;
+  private final StoragePluginId sourceTablePluginId;
   private final StoragePlugin sourceTablePlugin;
 
   @JsonCreator
@@ -65,17 +66,20 @@ public class WriterCommitterPOP extends AbstractSingle {
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("isPartialRefresh") boolean isPartialRefresh,
       @JsonProperty("isReadSignatureEnabled") boolean isReadSignatureEnabled,
-      @JacksonInject CatalogService catalogService) {
+      @JsonProperty("sourceTablePluginId") StoragePluginId sourceTablePluginId,
+      @JacksonInject StoragePluginResolver storagePluginResolver
+  ) {
     super(props, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
     this.icebergTableProps = icebergTableProps;
     this.partialRefresh = isPartialRefresh;
-    this.plugin = Preconditions.checkNotNull(catalogService.<FileSystemPlugin<?>>getSource(pluginId));
+    this.plugin = Preconditions.checkNotNull(storagePluginResolver.<FileSystemPlugin<?>>getSource(pluginId));
     this.datasetPath = datasetPath;
     this.datasetConfig = Optional.ofNullable(datasetConfig);
     this.readSignatureEnabled = isReadSignatureEnabled;
-    this.sourceTablePlugin = catalogService.getSource(datasetPath.getRoot());
+    this.sourceTablePluginId = sourceTablePluginId;
+    this.sourceTablePlugin = sourceTablePluginId != null ? storagePluginResolver.getSource(sourceTablePluginId) : null;
   }
 
   public WriterCommitterPOP(
@@ -89,7 +93,9 @@ public class WriterCommitterPOP extends AbstractSingle {
       FileSystemPlugin<?> plugin,
       StoragePlugin sourceTablePlugin,
       boolean isPartialRefresh,
-      boolean isReadSignatureEnabled) {
+      boolean isReadSignatureEnabled,
+      StoragePluginId sourceTablePluginId
+  ) {
     super(props, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
@@ -100,6 +106,7 @@ public class WriterCommitterPOP extends AbstractSingle {
     this.sourceTablePlugin = sourceTablePlugin;
     this.partialRefresh = isPartialRefresh;
     this.readSignatureEnabled = isReadSignatureEnabled;
+    this.sourceTablePluginId = sourceTablePluginId;
   }
 
   @Override
@@ -110,7 +117,7 @@ public class WriterCommitterPOP extends AbstractSingle {
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
     return new WriterCommitterPOP(props, tempLocation, finalLocation, icebergTableProps, datasetPath, datasetConfig,
-      child, plugin, sourceTablePlugin, partialRefresh, readSignatureEnabled);
+        child, plugin, sourceTablePlugin, partialRefresh, readSignatureEnabled, sourceTablePluginId);
   }
 
   public String getTempLocation() {
@@ -125,8 +132,12 @@ public class WriterCommitterPOP extends AbstractSingle {
     return plugin.getId();
   }
 
+  public StoragePluginId getSourceTablePluginId() {
+    return sourceTablePluginId;
+  }
+
   @JsonIgnore
-  public FileSystemPlugin<?> getPlugin(){
+  public FileSystemPlugin<?> getPlugin() {
     return plugin;
   }
 

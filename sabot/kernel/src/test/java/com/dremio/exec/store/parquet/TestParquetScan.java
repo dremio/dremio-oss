@@ -23,7 +23,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.PlanTestBase;
 import com.dremio.exec.ExecConstants;
 import com.google.common.io.Resources;
 
@@ -241,9 +240,13 @@ public class TestParquetScan extends BaseTestQuery {
   @Test
   public void testEmptyParquetFile() throws Exception {
     final String sql = "select * from dfs.\"${WORKING_PATH}/src/test/resources/zero-rows.parquet\"";
-
-    PlanTestBase.testPhysicalPlan(sql, "Empty");
-    PlanTestBase.testPlanMatchingPatterns(sql, new String[]{"Empty"}, "ParquetGroupScan");
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("ad_id", "creative_id", "url_tags", "load_date")
+      .expectsEmptyResultSet()
+      .build()
+      .run();
   }
 
   @Test

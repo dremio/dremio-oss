@@ -480,33 +480,37 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public void submitLocalQuery(
-            ExternalId externalId,
-            QueryObserver observer,
-            Object query,
-            boolean prepare,
-            LocalExecutionConfig config,
-            boolean runInSameThread) {
+      ExternalId externalId,
+      QueryObserver observer,
+      Object query,
+      boolean prepare,
+      LocalExecutionConfig config,
+      boolean runInSameThread,
+      UserSession userSession) {
       try{
         // make sure we keep a local observer out of band.
         final QueryObserver oobJobObserver = new OutOfBandQueryObserver(observer, executor);
 
-        final UserSession session = UserSession.Builder.newBuilder()
-          .withSessionOptionManager(new SessionOptionManagerImpl(options.getOptionValidatorListing()), options)
-          .setSupportComplexTypes(true)
-          .withCredentials(UserCredentials
-            .newBuilder()
-            .setUserName(config.getUsername())
-            .build())
-          .exposeInternalSources(config.isExposingInternalSources())
-          .withDefaultSchema(config.getSqlContext())
-          .withSubstitutionSettings(config.getSubstitutionSettings())
-          .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
-          .withEngineName(config.getEngineName())
-          .build();
+        if (userSession == null) {
+          userSession = UserSession.Builder.newBuilder()
+            .withSessionOptionManager(new SessionOptionManagerImpl(options.getOptionValidatorListing()), options)
+            .setSupportComplexTypes(true)
+            .withCredentials(UserCredentials
+              .newBuilder()
+              .setUserName(config.getUsername())
+              .build())
+            .exposeInternalSources(config.isExposingInternalSources())
+            .withDefaultSchema(config.getSqlContext())
+            .withSubstitutionSettings(config.getSubstitutionSettings())
+            .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
+            .withEngineName(config.getEngineName())
+            .withSourceVersionMapping(config.getSourceVersionMapping())
+            .build();
+        }
 
         final ReAttemptHandler attemptHandler = newInternalAttemptHandler(options, config.isFailIfNonEmptySent());
         final UserRequest userRequest = new UserRequest(prepare ? RpcType.CREATE_PREPARED_STATEMENT : RpcType.RUN_QUERY, query, runInSameThread);
-        submit(externalId, oobJobObserver, session, userRequest, TerminationListenerRegistry.NOOP, config, attemptHandler);
+        submit(externalId, oobJobObserver, userSession, userRequest, TerminationListenerRegistry.NOOP, config, attemptHandler);
       } catch(Exception ex){
         throw Throwables.propagate(ex);
       }

@@ -19,10 +19,6 @@ package com.dremio.service.jobAnalysis.proto;
 option java_package = "com.dremio.service.jobAnalysis.proto";
 option optimize_for = SPEED;
 
-message OperatorDataList{
-  repeated OperatorData operatorData = 1;
-}
-
 message SuccessorNodes {
   repeated string successorId = 1;
 }
@@ -34,6 +30,9 @@ message BaseMetrics {
   required int64 setupTime = 4;
   required int64 recordsProcessed = 5;
   required int64 numThreads = 6;
+  required int64 bytesProcessed = 7;
+  required int64 runTime = 8;
+  required int64 totalMemory = 9;
 }
 
 message ThreadData {
@@ -68,7 +67,9 @@ message PhaseData {
   required int64 peakMemory = 3;
   required int64 recordsProcessed = 4;
   required int64 numThreads = 5;
-  required OperatorDataList operatorDataList = 6;
+  repeated OperatorData operatorData = 6;
+  required int64 runTime = 7;
+  required int64 totalMemory = 8;
 }
 
 message GraphNodeDetails {
@@ -85,4 +86,12 @@ message PhaseNode {
   required BaseMetrics baseMetrics = 5;
   required string mergeNodeName = 6;
   required SuccessorNodes successorId = 12;
+}
+
+message OperatorSpecificDetails {
+  required string FilePath = 1;
+  required int64 IoTime_ns = 2;
+  required int64 IoSize = 3;
+  required int64 offset = 4;
+  required string OperationType = 5;
 }

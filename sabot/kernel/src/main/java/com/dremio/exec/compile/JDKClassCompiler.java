@@ -19,6 +19,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -77,10 +78,32 @@ class JDKClassCompiler extends AbstractClassCompiler {
     }
 
     ImmutableList.Builder<String> compilerOptionsBuilder = ImmutableList.builder();
+
     if (aboveJava8) {
-      compilerOptionsBuilder.add("-source", "8");
-      compilerOptionsBuilder.add("-target", "8");
+      compilerOptionsBuilder.add("--release", "8");
     }
+
+    // Disable annotations processing.
+    //
+    // Background: some gandiva related regression tests
+    // (like resources.Functional.large_expressions.mixed_gandiva_and_non_gandiva.q2)
+    // fail with some rather weird "(org.codehaus.commons.compiler.CompileException) File '',
+    // Line -1, Column -1: error: java.nio.file.AccessDeniedException: /extensions.idx
+    // (compiler.err.proc.messager)" exception.
+    // The only code that tries to read 'extensions.idx' is `org.pf4j.processor.LegacyExtensionStorage`
+    // during annotations processing. The stack trace of the failed regression tests contain the
+    // stack trace:
+    //    com.dremio.exec.compile.DremioDiagnosticListener.report():41
+    //    com.sun.tools.javac.api.ClientCodeWrapper$WrappedDiagnosticListener.report():736
+    //    com.sun.tools.javac.util.Log.writeDiagnostic():734
+    //    com.sun.tools.javac.util.Log$DefaultDiagnosticHandler.report():718
+    //    com.sun.tools.javac.util.Log$DeferredDiagnosticHandler.reportDeferredDiagnostics():169
+    //    com.sun.tools.javac.processing.JavacProcessingEnvironment$Round.showDiagnostics():1249
+    //    com.sun.tools.javac.processing.JavacProcessingEnvironment.doProcessing():1347
+    //    com.sun.tools.javac.main.JavaCompiler.processAnnotations():1258
+    //    com.sun.tools.javac.main.JavaCompiler.compile():936
+    compilerOptionsBuilder.add("-proc:none");
+
     // Provides the application classpath to the compiler
     //
     // Javac cannot use the classloader directly so we need to convert it back
@@ -104,11 +127,15 @@ class JDKClassCompiler extends AbstractClassCompiler {
         compilerOptionsBuilder.add("-classpath", Joiner.on(File.pathSeparator).join(files));
       }
     } else if (classLoader != null) {
+      String classpathArg = ManagementFactory.getRuntimeMXBean().getClassPath();
+      compilerOptionsBuilder.add("-classpath", classpathArg);
       // the class loader cannot be converted back to a list of urls
       // let's fall back to the default behavior of the compiler to rely on
       // standard system properties with the classpath being set.
       logger.warn(
-          "Provided classLoader for compilation is not a URLClassLoader (was: {}). You might have compilation issues.",
+          "Provided classLoader for compilation is not a URLClassLoader (was: {}). "
+            + "Using the class path from ManagementFactory.getRuntimeMXBean().getClassPath(). "
+            + "You might have compilation issues.",
           classLoader.getClass().getName());
     }
 

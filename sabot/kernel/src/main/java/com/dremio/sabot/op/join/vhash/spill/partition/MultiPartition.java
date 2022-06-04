@@ -28,8 +28,7 @@ import org.apache.arrow.memory.ArrowBuf;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.record.selection.SelectionVector2;
-import com.dremio.sabot.op.common.ht2.BlockChunk;
-import com.dremio.sabot.op.common.ht2.HashComputation;
+import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.join.hash.HashJoinOperator;
 import com.dremio.sabot.op.join.vhash.spill.JoinSetupParams;
 import com.dremio.sabot.op.join.vhash.spill.SV2UnsignedUtil;
@@ -65,7 +64,7 @@ public class MultiPartition implements Partition {
   private final Stopwatch buildHashComputationWatch = Stopwatch.createUnstarted();
   private final Stopwatch probeHashComputationWatch = Stopwatch.createUnstarted();
 
-  public MultiPartition(JoinSetupParams setupParams) {
+  public MultiPartition(JoinSetupParams setupParams, CopierFactory copierFactory) {
     this.setupParams = setupParams;
 
     numPartitions = (int)setupParams.getOptions().getOption(HashJoinOperator.NUM_PARTITIONS);
@@ -81,7 +80,7 @@ public class MultiPartition implements Partition {
     for (int i = 0; i < numPartitions; ++i) {
       try (RollbackCloseable rc = new RollbackCloseable()) {
         ArrowBuf sv2Input = rc.add(allocBufFromPool(maxBatchSize * SelectionVector2.RECORD_SIZE));
-        Partition partition = rc.add(new MemoryPartition(setupParams, i, sv2Input.memoryAddress(), tableHashValues4B.memoryAddress()));
+        Partition partition = rc.add(new MemoryPartition(setupParams, copierFactory, i, sv2Input.memoryAddress(), tableHashValues4B.memoryAddress()));
         rc.commit();
 
         childWrappers[i] = new PartitionWrapper(partition, sv2Input, maxBatchSize);
@@ -120,15 +119,16 @@ public class MultiPartition implements Partition {
   }
 
   @Override
+  public void hashPivoted(int records, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashoutAddr8B) {
+    Preconditions.checkArgument(numPartitions > 0);
+    childWrappers[0].getPartition().hashPivoted(records, keyFixedVectorAddr, keyVarVectorAddr, seed, hashoutAddr8B);
+  }
+
+  @Override
   public void buildPivoted(int records) throws Exception {
     // Do hash computation on entire batch, and split into per partition inputs.
     buildHashComputationWatch.start();
-    final BlockChunk blockChunk = new BlockChunk(
-      setupParams.getPivotedFixedBlock().getMemoryAddress(), setupParams.getPivotedVariableBlock().getMemoryAddress(),
-      setupParams.getBuildKeyPivot().getVariableCount() == 0, setupParams.getBuildKeyPivot().getBlockWidth(),
-      records, fullHashValues8B.memoryAddress(), hashGenerationSeed);
-
-    computeHashAndSplitToChildPartitions(blockChunk, records);
+    computeHashAndSplitToChildPartitions(records);
     buildHashComputationWatch.stop();
 
     // pass along to the child partitions.
@@ -141,8 +141,18 @@ public class MultiPartition implements Partition {
     }
   }
 
-  private void computeHashAndSplitToChildPartitions(BlockChunk blockChunk, int records) {
-    HashComputation.computeHash(blockChunk);
+  private void computeHashAndSplitToChildPartitions(int records) {
+    /*
+     * HashTable is used to compute the hash'es however it is build with BuildPivot. So make sure
+     * Build and Probe pviots width is same.
+     */
+    Preconditions.checkArgument(setupParams.getProbeKeyPivot().getBlockWidth() ==
+      setupParams.getBuildKeyPivot().getBlockWidth());
+    Preconditions.checkArgument(setupParams.getProbeKeyPivot().getVariableCount() ==
+      setupParams.getBuildKeyPivot().getVariableCount());
+
+    hashPivoted(records, setupParams.getPivotedFixedBlock().getMemoryAddress(),
+      setupParams.getPivotedVariableBlock().getMemoryAddress(), hashGenerationSeed, fullHashValues8B.memoryAddress());
 
     // split batch ordinals into per-partition buffers based on the highest 3-bits in the hash.
     resetAllPartitionInputs();
@@ -186,11 +196,7 @@ public class MultiPartition implements Partition {
     if (currentPartition == numPartitions) {
       // First time we have seen this batch. Do hash computation on entire batch
       probeHashComputationWatch.start();
-      final BlockChunk blockChunk = new BlockChunk(
-        setupParams.getPivotedFixedBlock().getMemoryAddress(), setupParams.getPivotedVariableBlock().getMemoryAddress(),
-        setupParams.getProbeKeyPivot().getVariableCount() == 0, setupParams.getProbeKeyPivot().getBlockWidth(),
-        records, fullHashValues8B.memoryAddress(), hashGenerationSeed);
-      computeHashAndSplitToChildPartitions(blockChunk, records);
+      computeHashAndSplitToChildPartitions(records);
       probeHashComputationWatch.stop();
       currentPartition = 0;
     }

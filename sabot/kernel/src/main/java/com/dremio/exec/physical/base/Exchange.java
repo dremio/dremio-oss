@@ -39,6 +39,7 @@ public interface Exchange extends PhysicalOperator {
   enum ParallelizationDependency {
     SENDER_DEPENDS_ON_RECEIVER, // Sending fragment depends on receiving fragment for parallelization
     RECEIVER_DEPENDS_ON_SENDER, // Receiving fragment depends on sending fragment for parallelization (default value).
+    RECEIVER_MUST_MATCH_SENDER, // Receiving fragment must have the exact same parallelization as sender.
   }
 
   /**

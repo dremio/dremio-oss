@@ -41,19 +41,8 @@ describe('Art-spec', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render with <img> by default', () => {
-    const wrapper = shallow(<Art {...commonProps} />);
-    expect(wrapper.find('img')).to.have.length(1);
-    expect(wrapper.find('img').props().title).to.equal('tooltip');
-  });
-
   it('should render with <SVG> as needed', () => {
     const wrapper = shallow(<Art {...commonProps} src='NarwhalLogo.svg' />);
     expect(wrapper.find('SVG')).to.have.length(1);
-  });
-
-  it('should render title=true with the alt', () => {
-    const wrapper = shallow(<Art {...commonProps} title/>);
-    expect(wrapper.find('img').props().title).to.equal('some text');
   });
 });

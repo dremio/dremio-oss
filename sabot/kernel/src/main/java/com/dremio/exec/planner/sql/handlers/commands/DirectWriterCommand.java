@@ -32,6 +32,7 @@ import org.apache.commons.lang3.text.StrTokenizer;
 
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.Writer;
@@ -203,7 +204,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     final Map<String, Object> storageOptions = ImmutableMap.<String, Object> of("type", ArrowFormatPlugin.ARROW_DEFAULT_NAME);
 
     final CreateTableEntry createTableEntry = context.getCatalog()
-        .resolveCatalog(SystemUser.SYSTEM_USERNAME)
+        .resolveCatalog(CatalogUser.from(SystemUser.SYSTEM_USERNAME))
         .createNewTable(new NamespaceKey(storeTable), null, WriterOptions.DEFAULT, storageOptions, true);
     return createTableEntry.getWriter(new OpProps(0, SystemUser.SYSTEM_USERNAME, 0, Long.MAX_VALUE, 0, 0, false, 4095, RecordWriter.SCHEMA, false, 0.0d, false), null);
   }

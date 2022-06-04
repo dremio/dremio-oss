@@ -17,6 +17,8 @@ package com.dremio.exec.store.hive.pf4j;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.List;
 
 import org.pf4j.CompoundPluginRepository;
 import org.pf4j.DefaultPluginManager;
@@ -41,10 +43,10 @@ public class NativeLibPluginManager extends DefaultPluginManager {
   }
 
   @Override
-  protected Path createPluginsRoot() {
+  protected List<Path> createPluginsRoot() {
     final Path pluginsPath = this.isDevelopment() ? Paths.get(PLUGINS_PATH_DEV_MODE) :
       DremioConfig.getPluginsRootPath().resolve("connectors");
-    return pluginsPath;
+    return Collections.singletonList(pluginsPath);
   }
 
   @Override

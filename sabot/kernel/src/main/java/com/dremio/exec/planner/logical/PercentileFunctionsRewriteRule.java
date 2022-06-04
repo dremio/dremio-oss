@@ -27,12 +27,14 @@ import java.util.Set;
 import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
@@ -229,7 +231,7 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
     final Map<Integer, Integer> percentileToCumCntMap = new HashMap<>();
 
     RelNode peek = relBuilder.peek();
-    List<RexNode> projNodes = MoreRelOptUtil.identityProjects(peek.getRowType(), null);
+    List<RexNode> projNodes = MoreRelOptUtil.identityProjects(peek.getRowType());
 
     projNodes.addAll(
       getCountWindowNodes(percentileAggs, groupByFields, origInput, peek,
@@ -237,7 +239,7 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
     relBuilder.project(projNodes);
 
     peek = relBuilder.peek();
-    projNodes = MoreRelOptUtil.identityProjects(peek.getRowType(), null);
+    projNodes = MoreRelOptUtil.identityProjects(peek.getRowType());
     List<String> fieldNames = new ArrayList<>(peek.getRowType().getFieldNames());
     List<List<RexNode>> caseExprs = getCaseExprs(percentileAggs, peek, rexBuilder, orderByCollationIndices, percentileToCumCntMap);
     for (int i = 0, discSuffix = 0, contSuffix = 0; i < percentileAggs.size(); i++) {
@@ -305,7 +307,9 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
                                RexBuilder rexBuilder,
                                Aggregate aggregate,
                                Set<String> groupByFields) {
-    RelNode peek = relBuilder.peek();
+    Preconditions.checkArgument(relBuilder.peek() instanceof LogicalAggregate,
+      "The RelNode must be an instance of LogicalAggregate");
+    LogicalAggregate peek = (LogicalAggregate) relBuilder.peek();
 
     final List<RexNode> projNodes = MoreRelOptUtil.identityProjects(peek.getRowType(), aggregate.getGroupSet());
     final List<String> fieldNames = new ArrayList<>(groupByFields);
@@ -314,7 +318,7 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
     int discSuffix = 0, contSuffix = 0;
     for (AggregateCall aggCall : aggregate.getAggCallList()) {
       final SqlKind kind = aggCall.getAggregation().getKind();
-      switch (kind) {
+      OUTER: switch (kind) {
         case PERCENTILE_CONT: {
           final Pair<Integer, RelDataTypeField> sumFloorValuePair = findFieldWithIndex(peek, SUM_PREFIX + FLOOR_VALUE + contSuffix, true);
           final Pair<Integer, RelDataTypeField> sumCeilValuePair = findFieldWithIndex(peek, SUM_PREFIX + CEIL_VALUE + contSuffix, true);
@@ -342,10 +346,20 @@ public class PercentileFunctionsRewriteRule extends RelOptRule {
           break;
         }
         default:
-          final Pair<Integer, RelDataTypeField> pair = findFieldWithIndex(peek, aggCall.getName(), true);
-          projNodes.add(rexBuilder.makeInputRef(peek, pair.left));
-          fieldNames.add(aggCall.getName());
-          break;
+          // Find this agg function in the newly created agg.
+          for (int i = 0; i < peek.getAggCallList().size(); i++) {
+            if (aggCall.equals(peek.getAggCallList().get(i))) {
+              int aggCallIndex = peek.getGroupCount() + i;
+              String fieldName = aggCall.getName() == null ? "EXPR$" + i : aggCall.getName();
+              projNodes.add(rexBuilder.makeInputRef(peek, aggCallIndex));
+              fieldNames.add(fieldName);
+              break OUTER;
+            }
+          }
+          throw new RuntimeException(String.format(
+            "Unable to find agg function %s in the RelNode:\n%s",
+            aggCall,
+            RelOptUtil.toString(peek)));
       }
     }
     relBuilder.project(projNodes, fieldNames);

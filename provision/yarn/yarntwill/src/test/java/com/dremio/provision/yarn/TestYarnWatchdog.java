@@ -15,19 +15,20 @@
  */
 package com.dremio.provision.yarn;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Formatter;
@@ -77,9 +78,9 @@ public class TestYarnWatchdog {
       boolean result = (currentTick >= pollResponses.length) || (pollResponses[currentTick] == 1);
       logger.info("Tick: {}, Result: {}, killTick: {}", currentTick, result, killTick);
       if (result) {
-        assertTrue(killTick == -1 || currentTick < killTick);
+        assertThat(killTick == -1 || currentTick < killTick).isTrue();
       } else {
-        assertTrue(killTick == -1 || currentTick <= killTick);  // NB: we might be testing missing signals
+        assertThat(killTick == -1 || currentTick <= killTick).isTrue();  // NB: we might be testing missing signals
       }
       ++currentTick;
       return result;
@@ -88,14 +89,14 @@ public class TestYarnWatchdog {
     @Override
     public void doKill() {
       logger.info("Kill. Tick: {}, killTick: {}", currentTick, killTick);
-      assertNotEquals(-1, killTick);
+      assertThat(killTick).isNotEqualTo(-1);
       assertEquals(killTick + 1, currentTick);
       killed = true;
     }
 
     @Override
     public void close() {
-      assertTrue(killTick == -1 || currentTick == killTick);
+      assertThat(killTick == -1 || currentTick == killTick).isTrue();
     }
 
     boolean isDone() {
@@ -130,7 +131,7 @@ public class TestYarnWatchdog {
     while (!action.isDone()) {
       Thread.sleep(1);
       ++count;
-      assertTrue(count < tooLong);
+      assertThat(count < tooLong).isTrue();
     }
     pollingLoop.stopWatching();
     t.join();
@@ -170,15 +171,15 @@ public class TestYarnWatchdog {
     t.start();
 
     t.join(1);
-    assertTrue(t.isAlive());
+    assertThat(t.isAlive()).isTrue();
 
     pOut.write(15);
     t.join(1);
-    assertTrue(t.isAlive());
+    assertThat(t.isAlive()).isTrue();
 
     pOut.close();
     t.join();
-    assertFalse(t.isAlive());
+    assertThat(t.isAlive()).isFalse();
   }
 
   // "process" tests: test the integration of the two watchdog threads: the watchdog loop and the parent watcher
@@ -202,15 +203,22 @@ public class TestYarnWatchdog {
    */
   @SuppressForbidden
   long getPid(Process p) throws Exception {
-    long pid = -1;
-
-    if (p.getClass().getName().equals("java.lang.UNIXProcess")) {
-      Field f = p.getClass().getDeclaredField("pid");
-      f.setAccessible(true);
-      pid = f.getLong(p);
-      f.setAccessible(false);
+    try {
+      Method pidMethod = Process.class.getDeclaredMethod("pid");
+      return (long) pidMethod.invoke(p);
+    } catch (NoSuchMethodException e) {
+      if (p.getClass().getName().equals("java.lang.UNIXProcess")) {
+        Field f = p.getClass().getDeclaredField("pid");
+        f.setAccessible(true);
+        try {
+          return f.getLong(p);
+        } finally {
+          f.setAccessible(false);
+        }
+      }
     }
-    return pid;
+
+    return -1L;
   }
 
   enum ProcessTestMode {
@@ -294,29 +302,37 @@ public class TestYarnWatchdog {
 
     switch (processTestMode) {
       case HEALTHY:
-        assertTrue(pollingLoop.isRunning());
-        assertTrue(parentWatcher.isRunning());
+        assertThat(pollingLoop.isRunning()).isTrue();
+        assertThat(parentWatcher.isRunning()).isTrue();
         embeddedServer.stop();
         break;
       case FAIL_HEALTH:
         embeddedServer.stop();
         waitForEndWithTimeout(parentWatcher);
-        assertFalse(parentWatcher.isRunning());
+        assertThat(parentWatcher.isRunning()).isFalse();
         waitForEndWithTimeout(pollingLoop);
-        assertFalse(pollingLoop.isRunning());
+        assertThat(pollingLoop.isRunning()).isFalse();
         break;
       case FAIL_PROCESS:
         sideProcess.destroy();
         waitForEndWithTimeout(parentWatcher);
-        assertFalse(parentWatcher.isRunning());
-        assertTrue(pollingLoop.isRunning());
+        assertThat(parentWatcher.isRunning()).isFalse();
+        assertThat(pollingLoop.isRunning()).isTrue();
         pollingLoop.stopWatching();
         break;
       default:
         throw new IllegalStateException("Invalid process test mode " + processTestMode);
     }
-    parentWatcherThread.join();
-    pollingLoopThread.join();
+    parentWatcherThread.join(TimeUnit.SECONDS.toMillis(60));
+    pollingLoopThread.join(TimeUnit.SECONDS.toMillis(60));
+
+    assertThat(parentWatcherThread.isAlive() || pollingLoopThread.isAlive())
+      .describedAs("At least one thread did not exit cleanly: "
+        + "parent-watcher-thread alive: %s"
+        + " polling-loop-thread alive: %s",
+        parentWatcherThread.isAlive(),
+        pollingLoopThread.isAlive())
+      .isFalse();
   }
 
   // Test parent process health check succeed
@@ -358,6 +374,8 @@ public class TestYarnWatchdog {
 
     String result = task.get(60, TimeUnit.SECONDS);  // make sure to have some timeout
     // Make sure TZ is set to UTC...
-    assertThat(result, is(equalTo("1970-01-01 00:00:00,000 [test-log-thread] INFO    com.dremio.provision.yarn.TestYarnWatchdog - test message arg1 arg2 arg3 arg4 \n")));
+    String timestamp = LocalDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault()).format(
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss,SSS", Locale.ENGLISH));
+    assertThat(result).isEqualTo(timestamp +" [test-log-thread] INFO    com.dremio.provision.yarn.TestYarnWatchdog - test message arg1 arg2 arg3 arg4 \n");
   }
 }

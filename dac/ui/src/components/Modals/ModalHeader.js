@@ -28,7 +28,9 @@ export default class ModalHeader extends PureComponent {
     hideCloseButton: PropTypes.bool,
     hide: PropTypes.func,
     className: PropTypes.string,
-    endChildren: PropTypes.node
+    endChildren: PropTypes.node,
+    type: PropTypes.string,
+    headerIcon: PropTypes.node
   };
 
   static defaultProps = {
@@ -41,13 +43,14 @@ export default class ModalHeader extends PureComponent {
   }
 
   render() {
-    const { title, hide, hideCloseButton, className, endChildren } = this.props;
+    const { title, hide, hideCloseButton, className, endChildren, type = 'XBig', headerIcon } = this.props;
     return (
       <div className={`modal-header ${className}`} style={styles.base}>
+        {headerIcon && headerIcon}
         <EllipsedText style={styles.title} text={title} />
         {endChildren && endChildren}
         {!hideCloseButton && <FontIcon
-          type='XBigWhite'
+          type={type}
           onClick={hide}
           theme={styles.cancelIcon}
           style={styles.cancel} />}
@@ -60,14 +63,16 @@ export default class ModalHeader extends PureComponent {
 const styles = {
   base: {
     ...modalPadding,
-    height: 44,
+    height: 55,
     display: 'flex',
     justifyContent: 'space-between',
     flexShrink: 0,
     alignItems: 'center'
   },
   title: {
-    ...h2White
+    ...h2White,
+    fontWeight: 600,
+    color: 'black'
   },
   cancel: { // todo: this likely should be a button with :hover/:focus/:active styles
     display: 'flex',

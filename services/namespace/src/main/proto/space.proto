@@ -32,6 +32,10 @@ message SpaceConfig {
   optional ExtendedConfig extendedConfig = 7;
   optional int64 version = 8 [deprecated = true];
   optional string tag = 9;
+
+  // job queue for this dataset
+  optional string queue_id = 10;
+  optional string engine_name = 11;
 }
 
 message FolderConfig {
@@ -42,6 +46,10 @@ message FolderConfig {
   optional ExtendedConfig extendedConfig = 5;
   optional int64 version = 6 [deprecated = true];
   optional string tag = 7;
+
+  // job queue for this dataset
+  optional string queue_id = 8;
+  optional string engine_name = 9;
 }
 
 message Spaces {

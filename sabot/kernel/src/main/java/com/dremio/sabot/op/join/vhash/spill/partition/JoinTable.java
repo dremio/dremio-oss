@@ -26,6 +26,17 @@ import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 
 public interface JoinTable extends AutoCloseable {
   /**
+   * Compute hash for given records
+   *
+   * @param records number of records
+   * @param keyFixedVectorAddr start addr of fixed vector addr
+   * @param keyVarVectorAddr start addr of variable vector addr
+   * @param seed seed to use when computing the hash
+   * @param hashoutAddr8B start addr of hash vector for computed hash values
+   */
+  void hashPivoted(int records, long keyFixedVectorAddr, long keyVarVectorAddr, long seed, long hashoutAddr8B);
+
+  /**
    * Insert pivoted keys into the hash-table.
    *
    * @param sv2Addr ordinals of the records to insert
@@ -66,14 +77,15 @@ public interface JoinTable extends AutoCloseable {
    * @param keyFixedAddr
    * @param keyVarAddr
    */
-  public void copyKeyToBuffer(final long keyOffsetAddr, final int count, final long keyFixedAddr, final long keyVarAddr);
+  public void copyKeysToBuffer(final long keyOffsetAddr, final int count, final long keyFixedAddr, final long keyVarAddr);
 
   /**
-   * Provides the var key length for a particular ordinal
-   * @param ordinal
+   * Provides the total var key length for the referenced keys
+   * @param keyOffsetAddr
+   * @param count
    * @return
    */
-  public int getVarKeyLength(int ordinal);
+  public int getCumulativeVarKeyLength(final long keyOffsetAddr, final int count);
 
   // Debugging methods
 

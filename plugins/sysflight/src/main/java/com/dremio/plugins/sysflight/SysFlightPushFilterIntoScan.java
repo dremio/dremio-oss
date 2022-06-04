@@ -91,7 +91,7 @@ public abstract class SysFlightPushFilterIntoScan extends RelOptRule {
       return; //no filter pushdown ==> No transformation.
     }
 
-    RelNode input = new SysFlightScanPrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(), scan.getTableMetadata(), result.getQuery(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment(), scan.getPlugin());
+    RelNode input = new SysFlightScanPrel(scan.getCluster(), scan.getTraitSet(), scan.getTable(), scan.getTableMetadata(), result.getQuery(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment(), scan.getPlugin(), scan.getRuntimeFilters());
 
     if (project != null) {
       input = project.copy(project.getTraitSet(), input, project.getProjects(), filter.getRowType());

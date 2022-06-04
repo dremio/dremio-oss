@@ -20,6 +20,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -36,7 +38,7 @@ public class TestArrowRecordBatchLoader extends DremioTest {
 
   @Test
   public void list() throws InterruptedException {
-    try (BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-record-batch-loader", 0, Long.MAX_VALUE); ListVector inVector = new ListVector("input", allocator, null)) {
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-record-batch-loader", 0, Long.MAX_VALUE); ListVector inVector = new ListVector("input", allocator, FieldType.nullable(ArrowType.List.INSTANCE), null)) {
       UnionListWriter writer = inVector.getWriter();
       writer.allocate();
       writer.setPosition(0);
@@ -67,14 +69,14 @@ public class TestArrowRecordBatchLoader extends DremioTest {
 
       ArrowRecordBatchLoader loader = new ArrowRecordBatchLoader(container);
       RawFragmentBatch rawFragmentBatch = new RawFragmentBatch(fragmentWritableBatch.getHeader(), buffer, null);
-      buffer.release();
+      buffer.close();
       loader.load(rawFragmentBatch);
 
 
       container.close();
       loader.close();
       System.out.println();
-      buffer.release();
+      buffer.close();
     }
   }
 

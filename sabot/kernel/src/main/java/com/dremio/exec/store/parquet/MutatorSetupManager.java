@@ -29,10 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.arrow.DremioArrowSchema;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.exception.NoSupportedUpPromotionOrCoercionException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -62,7 +61,7 @@ public class MutatorSetupManager {
     this.columnResolver = columnResolver;
   }
 
-  public void setupMutator(OutputMutator outputMutator, Collection<SchemaPath> resolvedColumns) {
+  public void setupMutator(OutputMutator outputMutator, Collection<SchemaPath> resolvedColumns, List<Field> droppedColumns, List<Field> updatedColumns, boolean isSchemaLearningDisabledByUser) {
     Map<String, Type> parquetTypeMap = new HashMap<>();
     for (Type field : footer.getFileMetaData().getSchema().getFields()) {
       parquetTypeMap.putIfAbsent(field.getName().toLowerCase(), field);
@@ -96,18 +95,31 @@ public class MutatorSetupManager {
       if (!fieldFromParquet.isPresent()) {
         continue;
       }
+      BatchSchema schemaFromParquetField = BatchSchema.of(fieldFromParquet.get());
 
       String schemaName = columnResolver.getBatchSchemaColumnName(name);
       Optional<Field> fieldFromBatchSchema = tableSchema.findFieldIgnoreCase(schemaName);
+
       if (!fieldFromBatchSchema.isPresent()) {
-        outputMutator.addField(fieldFromParquet.get(), CompleteType.fromField(fieldFromParquet.get()).getValueVectorClass());
+        if (context.getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA)) {
+          if (!isSchemaLearningDisabledByUser) {
+            for (Field droppedColumn : droppedColumns) {
+              schemaFromParquetField = schemaFromParquetField.dropField(droppedColumn);
+            }
+            schemaFromParquetField = schemaFromParquetField.removeNullFields();
+            if (!schemaFromParquetField.getFields().isEmpty()) {
+              outputMutator.addField(fieldFromParquet.get(), CompleteType.fromField(fieldFromParquet.get()).getValueVectorClass());
+            }
+          }
+        } else {
+          outputMutator.addField(fieldFromParquet.get(), CompleteType.fromField(fieldFromParquet.get()).getValueVectorClass());
+        }
         continue;
       }
 
       BatchSchema schemaFromBatchField = BatchSchema.of(fieldFromBatchSchema.get());
-      BatchSchema schemaFromParquetField = BatchSchema.of(fieldFromParquet.get());
 
-      BatchSchema finalSchema = getFinalSchema(schemaFromBatchField, schemaFromParquetField);
+      BatchSchema finalSchema = getFinalSchema(schemaFromBatchField, schemaFromParquetField, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser);
       if (!finalSchema.equalsTypesWithoutPositions(schemaFromBatchField)) {
         // schema of field after merge is not same as original schema, remove old schema and add new one
         outputMutator.removeField(fieldFromBatchSchema.get());
@@ -121,15 +133,9 @@ public class MutatorSetupManager {
     }
   }
 
-  private BatchSchema getFinalSchema(BatchSchema schemaFromBatchField, BatchSchema schemaFromParquetField) {
-    BatchSchema finalSchema;
-    try {
-      finalSchema = schemaFromBatchField.mergeWithUpPromotion(schemaFromParquetField);
-    } catch (NoSupportedUpPromotionOrCoercionException e) {
-      e.addFilePath(filePath);
-      e.addDatasetPath(tableSchemaPath);
-      throw UserException.unsupportedError().message(e.getMessage()).build(logger);
-    }
-    return finalSchema;
+  private BatchSchema getFinalSchema(BatchSchema schemaFromBatchField, BatchSchema schemaFromParquetField, List<Field> droppedColumns, List<Field> updatedColumns, boolean isSchemaLearningDisabledByUser) {
+    boolean isUserDefinedSchemaEnabled = context.getOptions().getOption(ExecConstants.ENABLE_INTERNAL_SCHEMA);
+    return schemaFromBatchField.applyUserDefinedSchemaAfterSchemaLearning(schemaFromParquetField, droppedColumns, updatedColumns, isSchemaLearningDisabledByUser, isUserDefinedSchemaEnabled, filePath, tableSchemaPath);
   }
+
 }

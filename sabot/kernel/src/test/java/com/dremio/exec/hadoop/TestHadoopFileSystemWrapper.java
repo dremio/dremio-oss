@@ -17,11 +17,8 @@ package com.dremio.exec.hadoop;
 
 import static com.dremio.io.file.PathFilters.ALL_FILES;
 import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,7 +39,6 @@ import java.util.stream.StreamSupport;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -119,7 +115,7 @@ public class TestHadoopFileSystemWrapper {
 
     @Test
     public void test() {
-      assertThat(HadoopFileSystem.toFsPermission(test), is(equalTo(expected)));
+      assertThat(HadoopFileSystem.toFsPermission(test)).isEqualTo(expected);
     }
   }
 
@@ -173,7 +169,7 @@ public class TestHadoopFileSystemWrapper {
 
     @Test
     public void test() {
-      assertThat(HadoopFileSystem.toFsAction(test), is(equalTo(expected)));
+      assertThat(HadoopFileSystem.toFsAction(test)).isEqualTo(expected);
     }
   }
 
@@ -229,7 +225,7 @@ public class TestHadoopFileSystemWrapper {
     }
 
     OperatorProfile operatorProfile = stats.getProfile(true);
-    assertTrue("Expected wait time is non-zero, but got zero wait time", operatorProfile.getWaitNanos() > 0);
+    assertThat(operatorProfile.getWaitNanos()).as("Expected wait time is non-zero, but got zero wait time").isGreaterThan(0);
     OperatorStats.IOStats ioStats = stats.getReadIOStats();
     long minIOReadTime = ioStats.minIOTime.longValue();
     long maxIOReadTime = ioStats.maxIOTime.longValue();
@@ -242,28 +238,28 @@ public class TestHadoopFileSystemWrapper {
     long avgMetadataIOReadTime = ioMetadataStats.totalIOTime.longValue() / ioMetadataStats.numIO.get();
     long numMetadataIORead = ioMetadataStats.totalIOTime.get();
 
-    assertTrue(minIOReadTime > 0);
-    assertTrue(maxIOReadTime > 0);
-    assertTrue(avgIOReadTime > 0);
-    assertTrue(numIORead > 0);
-    assertTrue(avgIOReadTime >= minIOReadTime && avgIOReadTime <= maxIOReadTime);
+    assertThat(minIOReadTime).isGreaterThan(0);
+    assertThat(maxIOReadTime).isGreaterThan(0);
+    assertThat(avgIOReadTime).isGreaterThan(0);
+    assertThat(numIORead).isGreaterThan(0);
+    assertThat(avgIOReadTime).isGreaterThanOrEqualTo(minIOReadTime).isLessThanOrEqualTo(maxIOReadTime);
 
-    assertTrue(ioStats.slowIOInfoList.size() > 0);
+    assertThat(ioStats.slowIOInfoList.size()).isGreaterThan(0);
     UserBitShared.SlowIOInfo slowIOInfo = ioStats.slowIOInfoList.get(0);
-    assertTrue(slowIOInfo.getFilePath().equals(tempFilePath));
-    assertTrue(slowIOInfo.getIoTime() >= minIOReadTime && slowIOInfo.getIoTime() <= maxIOReadTime);
-    assertTrue(slowIOInfo.getIoSize() > 0);
+    assertThat(slowIOInfo.getFilePath()).isEqualTo(tempFilePath);
+    assertThat(slowIOInfo.getIoTime()).isGreaterThanOrEqualTo(minIOReadTime).isLessThanOrEqualTo(maxIOReadTime);
+    assertThat(slowIOInfo.getIoSize()).isGreaterThan(0);
 
-    assertTrue(minMetadataIOReadTime > 0);
-    assertTrue(maxMetadataIOReadTime > 0);
-    assertTrue(avgMetadataIOReadTime > 0);
-    assertTrue(numMetadataIORead > 0);
-    assertTrue(avgMetadataIOReadTime >= minMetadataIOReadTime &&  avgMetadataIOReadTime <= maxMetadataIOReadTime);
+    assertThat(minMetadataIOReadTime).isGreaterThan(0);
+    assertThat(maxMetadataIOReadTime).isGreaterThan(0);
+    assertThat(avgMetadataIOReadTime).isGreaterThan(0);
+    assertThat(numMetadataIORead).isGreaterThan(0);
+    assertThat(avgMetadataIOReadTime).isGreaterThanOrEqualTo(minMetadataIOReadTime).isLessThanOrEqualTo(maxMetadataIOReadTime);
 
-    assertTrue(ioMetadataStats.slowIOInfoList.size() > 0);
+    assertThat(ioMetadataStats.slowIOInfoList.size()).isGreaterThan(0);
     UserBitShared.SlowIOInfo slowMetadataIOInfo = ioMetadataStats.slowIOInfoList.get(0);
-    assertTrue(slowMetadataIOInfo.getFilePath().equals(tempFilePath));
-    assertTrue(slowMetadataIOInfo.getIoTime() >=  minMetadataIOReadTime && slowMetadataIOInfo.getIoTime() <= maxMetadataIOReadTime);
+    assertThat(slowMetadataIOInfo.getFilePath()).isEqualTo(tempFilePath);
+    assertThat(slowMetadataIOInfo.getIoTime()).isGreaterThanOrEqualTo(minMetadataIOReadTime).isLessThanOrEqualTo(maxMetadataIOReadTime);
   }
 
   @Test
@@ -298,24 +294,24 @@ public class TestHadoopFileSystemWrapper {
     }
 
     OperatorProfile operatorProfile = stats.getProfile(true);
-    assertTrue("Expected wait time is non-zero, but got zero wait time", operatorProfile.getWaitNanos() > 0);
+    assertThat(operatorProfile.getWaitNanos()).as("Expected wait time is non-zero, but got zero wait time").isGreaterThan(0);
     OperatorStats.IOStats ioStats = stats.getWriteIOStats();
     long minIOWriteTime = ioStats.minIOTime.longValue();
     long maxIOWriteTime = ioStats.maxIOTime.longValue();
     long avgIOWriteTime = ioStats.totalIOTime.longValue() / ioStats.numIO.get();
     long numIOWrite = ioStats.totalIOTime.get();
 
-    Assert.assertTrue(minIOWriteTime > 0);
-    Assert.assertTrue(maxIOWriteTime > 0);
-    Assert.assertTrue(avgIOWriteTime > 0);
-    Assert.assertTrue(avgIOWriteTime >= minIOWriteTime && avgIOWriteTime <= maxIOWriteTime);
-    Assert.assertTrue(numIOWrite > 0);
+    assertThat(minIOWriteTime).isGreaterThan(0);
+    assertThat(maxIOWriteTime).isGreaterThan(0);
+    assertThat(avgIOWriteTime).isGreaterThan(0);
+    assertThat(avgIOWriteTime).isGreaterThanOrEqualTo(minIOWriteTime).isLessThanOrEqualTo(maxIOWriteTime);
+    assertThat(numIOWrite).isGreaterThan(0);
 
-    assertTrue(ioStats.slowIOInfoList.size() > 0);
+    assertThat(ioStats.slowIOInfoList.size()).isGreaterThan(0);
     UserBitShared.SlowIOInfo slowIOInfo = ioStats.slowIOInfoList.get(0);
-    Assert.assertTrue(slowIOInfo.getIoSize() > 0);
-    Assert.assertTrue(slowIOInfo.getIoTime() >= minIOWriteTime && slowIOInfo.getIoTime() <= maxIOWriteTime);
-    Assert.assertTrue(slowIOInfo.getFilePath().contains("dremioFSWriteTest.txt"));
+    assertThat(slowIOInfo.getIoSize()).isGreaterThan(0);
+    assertThat(slowIOInfo.getIoTime()).isGreaterThanOrEqualTo(minIOWriteTime).isLessThanOrEqualTo(maxIOWriteTime);
+    assertThat(slowIOInfo.getFilePath()).contains("dremioFSWriteTest.txt");
   }
 
   @Test
@@ -351,8 +347,7 @@ public class TestHadoopFileSystemWrapper {
       }
     }
 
-    OperatorProfile operatorProfile = stats.getProfile();
-    assertTrue("Expected wait time is zero, but got non-zero wait time", operatorProfile.getWaitNanos() == 0);
+    assertThat(stats.getProfile().getWaitNanos()).as("Expected wait time is zero, but got non-zero wait time").isEqualTo(0);
   }
 
   @Test
@@ -405,9 +400,9 @@ public class TestHadoopFileSystemWrapper {
 
       try(DirectoryStream<FileAttributes> directoryStream = FileSystemUtils.listRecursive(dfs, foo, ALL_FILES)) {
         List<FileAttributes> files = Lists.newArrayList(directoryStream);
-        assertThat(files.size(), is(equalTo(1)));
+        assertThat(files).hasSize(1);
         final FileAttributes attributes = files.get(0);
-        assertThat(attributes.getPath().toURI().getPath(), is(equalTo(foo.toURI().getPath())));
+        assertThat(attributes.getPath().toURI().getPath()).isEqualTo(foo.toURI().getPath());
       }
     }
   }

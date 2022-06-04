@@ -18,6 +18,9 @@ package com.dremio.sabot.exec;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +90,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   private final long evictionDelayMillis;
   private final MaestroProxy maestroProxy;
   private final int warnMaxTime;
+  private boolean useWeightBasedScheduling = false;
 
   public FragmentExecutors(
     final MaestroProxy maestroProxy,
@@ -98,6 +102,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     this.pool = pool;
     this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
       options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
+    this.useWeightBasedScheduling = options.getOption(ExecConstants.SHOULD_ASSIGN_FRAGMENT_PRIORITY);
 
     this.handlers = new LoadingCacheWithExpiry<>("fragment-handler",
       new CacheLoader<FragmentHandle, FragmentHandler>() {
@@ -342,7 +347,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     final NodeEndpoint identity;
     final SchedulingInfo schedulingInfo;
     final CachedFragmentReader fragmentReader;
-    List<PlanFragmentFull> fullFragments;
+    final List<PlanFragmentFull> fullFragments;
 
     QueryStarterImpl(final InitializeFragments initializeFragments, final FragmentExecutorBuilder builder,
                      final StreamObserver<Empty> sender, final NodeEndpoint identity, final SchedulingInfo schedulingInfo) {
@@ -354,7 +359,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       this.fragmentReader = new CachedFragmentReader(builder.getPlanReader(),
         new PlanFragmentsIndex(initializeFragments.getFragmentSet().getEndpointsIndexList(),
           initializeFragments.getFragmentSet().getAttrList()));
-      this.fullFragments = new ArrayList<>();
+      final List<PlanFragmentFull> fragmentFulls = new ArrayList<>();
 
       // Create a map of the major fragments.
       PlanFragmentSet set = initializeFragments.getFragmentSet();
@@ -368,12 +373,23 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
           Preconditions.checkNotNull(major,
             "Missing major fragment for major id" + minor.getMajorFragmentId());
 
-          fullFragments.add(new PlanFragmentFull(major, minor));
+          fragmentFulls.add(new PlanFragmentFull(major, minor));
         });
+      this.fullFragments = Collections.unmodifiableList(fragmentFulls);
     }
 
     public PlanFragmentFull getFirstFragment() {
       return fullFragments.get(0);
+    }
+
+    @Override
+    public boolean useWeightBasedScheduling() {
+      return useWeightBasedScheduling;
+    }
+
+    @Override
+    public int getApproximateQuerySize() {
+      return fullFragments.size();
     }
 
     @Override
@@ -398,8 +414,11 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
             throw new IllegalStateException("query already cancelled");
           }
         }
+
+        Map<Integer, Integer> priorityToWeightMap = buildPriorityToWeightMap();
+
         for (PlanFragmentFull fragment : fullFragments) {
-          FragmentExecutor fe = buildFragment(queryTicket, fragment, schedulingInfo);
+          FragmentExecutor fe = buildFragment(queryTicket, fragment, priorityToWeightMap.getOrDefault(fragment.getMajor().getFragmentExecWeight(), 1), schedulingInfo);
           fragmentHandlesForQuery.add(fe.getHandle());
           fragmentExecutors.add(fe);
         }
@@ -411,6 +430,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
         if (fragmentHandlesForQuery.size() > 0) {
           maestroProxy.initFragmentHandlesForQuery(queryId, fragmentHandlesForQuery);
         }
+        // highest weight first with leaf fragments first bottom up
+        fragmentExecutors.sort(weightBasedComparator());
         for (FragmentExecutor fe : fragmentExecutors) {
           startFragment(fe);
         }
@@ -440,14 +461,52 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       }
     }
 
-    private FragmentExecutor buildFragment(final QueryTicket queryTicket, final PlanFragmentFull fragment,
-      final SchedulingInfo schedulingInfo) throws UserRpcException {
+    // TODO: DX-42847 will reduce the number of distinct weights used
+    private Map<Integer, Integer> buildPriorityToWeightMap() {
+      Map<Integer, Integer> priorityToWeightMap = new HashMap<>();
+      if (fullFragments.get(0).getMajor().getFragmentExecWeight() <= 0) {
+        return priorityToWeightMap;
+      }
 
-      logger.info("Received remote fragment start instruction for {}", QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
+      for(PlanFragmentFull fragment : fullFragments) {
+        int fragmentWeight = fragment.getMajor().getFragmentExecWeight();
+        priorityToWeightMap.put(fragmentWeight, Math.min(fragmentWeight, QueryTicket.MAX_EXPECTED_SIZE));
+      }
+      return priorityToWeightMap;
+    }
+
+    private Comparator<FragmentExecutor> weightBasedComparator() {
+      return (e1, e2) -> {
+        if (e2.getFragmentWeight() < e1.getFragmentWeight()) {
+          // higher priority first
+          return -1;
+        }
+        if (e2.getFragmentWeight() == e1.getFragmentWeight()) {
+          // when priorities are equal, order the fragments based on leaf first and then descending order
+          // of major fragment number. This ensures fragments are started in order of dependency
+          if (e2.isLeafFragment() == e1.isLeafFragment()) {
+            return Integer.compare(e2.getHandle().getMajorFragmentId(), e1.getHandle().getMajorFragmentId());
+          } else {
+            return e1.isLeafFragment() ? -1 : 1;
+          }
+        }
+        return 1;
+      };
+    }
+
+    private FragmentExecutor buildFragment(final QueryTicket queryTicket, final PlanFragmentFull fragment,
+      final int schedulingWeight, final SchedulingInfo schedulingInfo) throws UserRpcException {
+
+      if (fragment.getMajor().getFragmentExecWeight() <= 0) {
+        logger.info("Received remote fragment start instruction for {}", QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
+      } else {
+        logger.info("Received remote fragment start instruction for {} with assigned weight {} and scheduling weight {}",
+          QueryIdHelper.getQueryIdentifier(fragment.getHandle()), fragment.getMajor().getFragmentExecWeight(), schedulingWeight);
+      }
 
       try {
         final EventProvider eventProvider = getEventProvider(fragment.getHandle());
-        return builder.build(queryTicket, fragment, eventProvider, schedulingInfo, fragmentReader);
+        return builder.build(queryTicket, fragment, schedulingWeight, eventProvider, schedulingInfo, fragmentReader);
       } catch (final Exception e) {
         throw new UserRpcException(identity, "Failure while trying to start remote fragment", e);
       } catch (final OutOfMemoryError t) {
@@ -466,7 +525,9 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
 
       // Create the task wrapper before adding the fragment to the list
       // of running fragments
+      logger.debug("Starting fragment; Task weight W = {} H = {}", executor.getFragmentWeight(), executor.getHandle());
       final AsyncTaskWrapper task = new AsyncTaskWrapper(
+        executor.getSchedulingWeight(),
         executor.getSchedulingGroup(),
         executor.asAsyncTask(),
         new AutoCloseable() {

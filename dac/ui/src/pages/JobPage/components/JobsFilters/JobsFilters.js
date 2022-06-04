@@ -19,6 +19,7 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
 import { noop, debounce } from 'lodash';
+import { CellMeasurerCache } from 'react-virtualized';
 import FilterSelectMenu, { getDataQaForFilterItem } from 'components/Fields/FilterSelectMenu';
 import Select from '@app/components/Fields/Select';
 import FontIcon from 'components/Icon/FontIcon';
@@ -48,6 +49,10 @@ const itemsForQueryTypeFilter = [ // todo: `la` loc not building correctly here
   { id: 'DOWNLOAD', label: ('Downloads'), default: false }
 ];
 
+const cellCache = new CellMeasurerCache({
+  fixedWidth: true,
+  defaultHeight: 32
+});
 
 const sortItems = getSortItems().map(item => ({ ...item, dataQa: getDataQaForFilterItem(item.id) }));
 
@@ -62,6 +67,7 @@ export default class JobsFilters extends Component {
   static propTypes = {
     queryState: PropTypes.instanceOf(Immutable.Map),
     style: PropTypes.object,
+    dataFromUserFilter: PropTypes.any,
     dataWithItemsForFilters: PropTypes.object,
     loadItemsForFilter: PropTypes.func.isRequired,
     onUpdateQueryState: PropTypes.func.isRequired,
@@ -104,7 +110,7 @@ export default class JobsFilters extends Component {
   }
 
   getAllFilters() {
-    const { queryState, intl, isQVJobs } = this.props;
+    const { queryState, intl, isQVJobs, dataWithItemsForFilters, dataFromUserFilter } = this.props;
     const {
       admin: isAdmin,
       permissions: { canViewAllJobs } = {}
@@ -114,6 +120,7 @@ export default class JobsFilters extends Component {
     const selectedJst = queryState.getIn(['filters', 'jst']);
     const selectedQt = queryState.getIn(['filters', 'qt']);
     const selectedUsr = queryState.getIn(['filters', 'usr']);
+    const userList = dataFromUserFilter ? dataFromUserFilter : dataWithItemsForFilters.get('users');
 
     const ellipsedTextClass = isQVJobs ? 'ellipsedTextClass' : '';
 
@@ -179,8 +186,7 @@ export default class JobsFilters extends Component {
       },
       {
         value: 'usr',
-        isVisible: this.props.dataWithItemsForFilters.get('users') &&
-          this.props.dataWithItemsForFilters.get('users').length,
+        isVisible: true,
         node: (
           <FilterSelectMenu
             iconStyle={styles.arrow}
@@ -191,12 +197,14 @@ export default class JobsFilters extends Component {
             onItemSelect={this.addInfoToFilter.bind(this, 'usr')}
             onItemUnselect={this.removeInfoFromFilter.bind(this, 'usr')}
             selectedValues={selectedUsr}
-            items={this.props.dataWithItemsForFilters.get('users')}
+            items={userList}
             loadItemsForFilter={this.props.loadItemsForFilter.bind(this, 'users')}
             label={intl.formatMessage({ id: 'Common.User' })}
             name='usr'
             checkBoxClass='jobsFilters__checkBox margin-right'
             className='jobsFilters__label'
+            cellCache={cellCache}
+            wrapWithCellMeasurer
           />
         )
       }

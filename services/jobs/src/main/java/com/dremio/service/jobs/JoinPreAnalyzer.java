@@ -35,6 +35,7 @@ import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
 import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
 import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
@@ -168,6 +169,13 @@ public final class JoinPreAnalyzer extends BasePrelVisitor<Prel, Map<Prel, OpId>
     public RelNode visit(RelNode other) {
       if ((other instanceof ContainerRel)) {
         ((ContainerRel) other).getSubTree().accept(this);
+      }
+      if ((other instanceof TableFunctionPrel)) {
+        TableFunctionPrel tableFunctionPrel = ((TableFunctionPrel) other);
+        if (tableFunctionPrel.getTable() != null) {
+          List<String> table = tableFunctionPrel.getTable().getQualifiedName();
+          tables.put(table, counter.value++);
+        }
       }
       return super.visit(other);
     }

@@ -39,6 +39,7 @@ describe('TableControls', () => {
       sqlSize: 300,
       exploreViewState: Immutable.Map(),
       collapseExploreSql: sinon.stub(),
+      tableColumns: Immutable.List(),
       location: {
         pathname: 'loc'
       }

@@ -60,8 +60,8 @@ public class CustomGeneratorWithSV2 implements Generator {
   public static final Field BITF = CompleteType.BIT.toField("BIT");
   public static final Field INTF = CompleteType.INT.toField("INT");
   public static final Field BIGINTF = CompleteType.BIGINT.toField("BIGINT");
-  public static final Field DECIMALF = new Field("DECIMAL", true,
-    new Decimal(38, 0), null);
+  public static final Field DECIMALF = new Field("DECIMAL", new FieldType(true,
+    new Decimal(38, 0, 128), null), null);
   public static final Field STRINGF = CompleteType.VARCHAR.toField("STRING");
   private static final Field LISTF = CompleteType.BIGINT.asList().toField("LIST");
 

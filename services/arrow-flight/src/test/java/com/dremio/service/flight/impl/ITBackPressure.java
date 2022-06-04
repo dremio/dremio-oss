@@ -140,11 +140,12 @@ public class ITBackPressure extends BaseFlightQueryTest {
                                           Provider<UserWorker> workerProvider,
                                           Provider<OptionManager> optionManagerProvider,
                                           ServerStreamListener clientListener,
-                                          BufferAllocator allocator) {
+                                          BufferAllocator allocator,
+                                          Runnable queryCompletionCallback) {
       if (!hasOneHandlerBeenCreated) {
         hasOneHandlerBeenCreated = true;
         return new DelegatingWaitCountingResponseHandler(runExternalId, userSession, workerProvider,
-          clientListener, allocator, waitMSCounter, releasesWhenClientNotReadyOrQueryComplete, wasClientNotReady);
+          clientListener, allocator, queryCompletionCallback, waitMSCounter, releasesWhenClientNotReadyOrQueryComplete, wasClientNotReady);
       } else {
         throw new RuntimeException("Test case is only valid for 1 sleep counter");
       }
@@ -173,10 +174,11 @@ public class ITBackPressure extends BaseFlightQueryTest {
                                             Provider<UserWorker> workerProvider,
                                             ServerStreamListener clientListener,
                                             BufferAllocator allocator,
+                                            Runnable queryCompletionCallback,
                                             AtomicLong waitMSCounter,
                                             CountDownLatch releasesWhenClientNotReadyOrQueryComplete,
                                             AtomicBoolean wasClientNotReady) {
-        super(runExternalId, userSession, workerProvider, clientListener, allocator);
+        super(runExternalId, userSession, workerProvider, clientListener, allocator, queryCompletionCallback);
         this.clientListener = clientListener;
         this.waitMSCounter = waitMSCounter;
         this.releasesWhenClientNotReadyOrQueryComplete = releasesWhenClientNotReadyOrQueryComplete;

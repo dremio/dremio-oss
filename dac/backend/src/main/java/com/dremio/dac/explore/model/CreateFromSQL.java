@@ -16,9 +16,11 @@
 package com.dremio.dac.explore.model;
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * To create a new dataset from sql
@@ -27,19 +29,27 @@ public class CreateFromSQL {
 
   private final String sql;
   private final List<String> context;
+  private final Map<String, VersionContextReq> references;
   private final String engineName;
 
   public CreateFromSQL(String sql, List<String> context) {
-    this.sql = sql;
-    this.context = context;
-    this.engineName = null;
+    this(sql, context, null, null);
+  }
+
+  @VisibleForTesting
+  public CreateFromSQL(String sql, List<String> context, Map<String, VersionContextReq> references) {
+    this(sql, context, references, null);
   }
 
   @JsonCreator
-  public CreateFromSQL(@JsonProperty("sql") String sql, @JsonProperty("context") List<String> context,
-                       @JsonProperty("engineName") String engineName) {
+  public CreateFromSQL(
+    @JsonProperty("sql") String sql,
+    @JsonProperty("context") List<String> context,
+    @JsonProperty("references") Map<String, VersionContextReq> references,
+    @JsonProperty("engineName") String engineName) {
     this.sql = sql;
     this.context = context;
+    this.references = references;
     this.engineName = engineName;
   }
 
@@ -53,5 +63,9 @@ public class CreateFromSQL {
 
   public String getEngineName() {
     return engineName;
+  }
+
+  public Map<String, VersionContextReq> getReferences() {
+    return references;
   }
 }

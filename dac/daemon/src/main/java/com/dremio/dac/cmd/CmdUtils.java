@@ -19,10 +19,20 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Optional;
 
+import javax.inject.Provider;
+
+import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
+import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 
 /**
  * cmd utils.
@@ -70,5 +80,39 @@ public final class CmdUtils {
 
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig) {
     return CmdUtils.getKVStoreProvider(dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()));
+  }
+
+  /**
+   * Returns an {@link OptionManager} provider that uses the provided {@link LocalKVStoreProvider}.
+   * @param storeProvider
+   * @param dremioConfig
+   * @return  {@link OptionManager} provider.
+   */
+  public static Optional<Provider<OptionManager>> getOptionManager(LocalKVStoreProvider storeProvider, DremioConfig dremioConfig) {
+    final ScanResult scanResult = ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig());
+    final LogicalPlanPersistence lpp = new LogicalPlanPersistence(dremioConfig.getSabotConfig(), scanResult);
+    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(scanResult);
+    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(optionValidatorListing);
+
+    final SystemOptionManager systemOptionManager;
+    final LegacyKVStoreProvider legacyKVStoreProvider = storeProvider.asLegacy();
+    systemOptionManager = new SystemOptionManager(optionValidatorListing,
+      lpp,
+      () -> legacyKVStoreProvider,
+      () -> null,
+      null,
+      false);
+    try {
+      systemOptionManager.start();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    final OptionManagerWrapper optionManagerWrapper = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionValidatorProvider(optionValidatorListing)
+      .withOptionManager(defaultOptionManager)
+      .withOptionManager(systemOptionManager)
+      .build();
+    return Optional.of(() -> optionManagerWrapper);
   }
 }

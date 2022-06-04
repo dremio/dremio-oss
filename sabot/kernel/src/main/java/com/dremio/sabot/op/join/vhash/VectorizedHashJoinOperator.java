@@ -49,6 +49,7 @@ import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.physical.config.HashJoinPOP;
+import com.dremio.exec.physical.config.RuntimeFilterProbeTarget;
 import com.dremio.exec.planner.physical.filter.RuntimeFilterInfo;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.CoordExecRPC.MajorFragmentAssignment;
@@ -64,7 +65,6 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.util.BloomFilter;
 import com.dremio.exec.util.RuntimeFilterManager;
-import com.dremio.exec.util.RuntimeFilterProbeTarget;
 import com.dremio.exec.util.ValueListFilter;
 import com.dremio.exec.util.ValueListFilterBuilder;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -74,6 +74,7 @@ import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
 import com.dremio.sabot.op.common.hashtable.Comparator;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 import com.dremio.sabot.op.common.ht2.FieldVectorPair;
+import com.dremio.sabot.op.common.ht2.NullComparator;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.join.JoinUtils;
@@ -102,9 +103,6 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
   // Constant to indicate index is empty.
   private static final int INDEX_EMPTY = -1;
-
-  // nodes to shift while obtaining batch index from SV4
-  private static final int SHIFT_SIZE = 16;
 
   // Join type, INNER, LEFT, RIGHT or OUTER
   private final JoinRelType joinType;
@@ -342,7 +340,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         // Create the hyper container with isKeyBits that indicates which field is key and will not be added to hyper container
         hyperContainer = new ExpandableHyperContainer(context.getAllocator(), right.getSchema(), isKeyBits);
         // Create generic hash table
-        this.table = new BlockJoinTable(buildPivot, probePivot, context.getAllocator(), comparator, (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE);
+        this.table = new BlockJoinTable(buildPivot, probePivot, context.getAllocator(), comparator,
+          (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE,
+          context.getConfig(), context.getOptions());
         break;
       default:
         throw new UnsupportedOperationException();
@@ -389,12 +389,6 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     BuildInfo info = new BuildInfo(newLinksBuffer(records), records);
     buildInfoList.add(info);
 
-    // ensure we have enough start indices space.
-    while(table.size() + records > startIndices.size() * HashTable.BATCH_SIZE){
-      startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
-      keyMatchBitVectors.add(new MatchBitSet(HashTable.BATCH_SIZE, context.getAllocator()));
-    }
-
     try(ArrowBuf offsets = context.getAllocator().buffer(records * 4);
         AutoCloseable traceBuf = debugInsertion ? table.traceStart(records) : AutoCloseables.noop()) {
       long findAddr = offsets.memoryAddress();
@@ -425,22 +419,17 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   }
 
   private void setLinks(long indexAddr, final int buildBatch, final int records){
-    for(int incomingRecordIndex = 0; incomingRecordIndex < records; incomingRecordIndex++, indexAddr+=4){
-
+    for (int incomingRecordIndex = 0; incomingRecordIndex < records; incomingRecordIndex++, indexAddr += 4) {
       final int hashTableIndex = PlatformDependent.getInt(indexAddr);
 
-      if(hashTableIndex == -1){
+      if (hashTableIndex == -1) {
         continue;
       }
 
-      if (hashTableIndex > maxHashTableIndex) {
-        maxHashTableIndex = hashTableIndex;
-      }
       /* Use the global index returned by the hash table, to store
        * the current record index and batch index. This will be used
        * later when we probe and find a match.
        */
-
 
       /* set the current record batch index and the index
        * within the batch at the specified keyIndex. The keyIndex
@@ -450,18 +439,16 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       int hashTableBatch  = hashTableIndex >>> 16;
       int hashTableOffset = hashTableIndex & BATCH_MASK;
 
-      ArrowBuf startIndex;
-      try {
-        startIndex = startIndices.get(hashTableBatch);
-      } catch (IndexOutOfBoundsException e){
-        UserException.Builder b = UserException.functionError()
-          .message("Index out of bounds in VectorizedHashJoin. Index = %d, size = %d", hashTableBatch, startIndices.size())
-          .addContext("incomingRecordIndex=%d, hashTableIndex=%d", incomingRecordIndex, hashTableIndex);
-        if (debugInsertion) {
-          b.addContext(table.traceReport());
+      if (hashTableIndex > maxHashTableIndex) {
+        maxHashTableIndex = hashTableIndex;
+        // ensure we have enough start indices space.
+        while (hashTableBatch >= startIndices.size()) {
+          startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
+          keyMatchBitVectors.add(new MatchBitSet(HashTable.BATCH_SIZE, context.getAllocator()));
         }
-        throw b.build(logger);
       }
+
+      ArrowBuf startIndex = startIndices.get(hashTableBatch);
       final long startIndexMemStart = startIndex.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
 
       // If head of the list is empty, insert current index at this position
@@ -681,7 +668,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     }
 
     final Stopwatch filterTime = Stopwatch.createStarted();
-    for (RuntimeFilterProbeTarget probeTarget : RuntimeFilterProbeTarget.getProbeTargets(config.getRuntimeFilterInfo())) {
+    for (RuntimeFilterProbeTarget probeTarget : getRuntimeFilterProbeTarget()) {
       try (RollbackCloseable closeOnErr = new RollbackCloseable()) {
         logger.debug("Processing filter for target {}", probeTarget);
         final RuntimeFilter.Builder runtimeFilterBuilder = RuntimeFilter.newBuilder()
@@ -746,8 +733,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   private List<UserBitShared.RunTimeFilterDetailsInfo> prepareRunTimeFilterDetailsInfos(RuntimeFilterProbeTarget probeTarget, RuntimeFilter runtimeFilter, long numberOfValuesInBloomFilter, int numberOfHashFuntions) {
     List<UserBitShared.RunTimeFilterDetailsInfo> runTimeFilterDetailsInfos = new ArrayList<>();
     String probe_target_scan_id = String.format("%02d-%02d", probeTarget.getProbeScanMajorFragmentId(), probeTarget.getProbeScanOperatorId() & 0xFF);;
-
-    if(!probeTarget.getPartitionProbeTableKeys().isEmpty()) {
+    if (!probeTarget.getPartitionProbeTableKeys().isEmpty()) {
       UserBitShared.RunTimeFilterDetailsInfo runTimeFilterDetailsInfo = UserBitShared.RunTimeFilterDetailsInfo.newBuilder()
         .setProbeTarget(probe_target_scan_id)
         .addAllProbeFieldNames(probeTarget.getPartitionProbeTableKeys())
@@ -759,8 +745,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       runTimeFilterDetailsInfos.add(runTimeFilterDetailsInfo);
     }
     if(isRuntimeFilterEnabledForNonPartitionedCols()) {
-      for (int i = 0; i < probeTarget.getNonPartitionProbeTableKeys().size(); i++) {
-        String probeField = probeTarget.getNonPartitionProbeTableKeys().get(i);
+      for (int i = 0; i < runtimeFilter.getNonPartitionColumnFilterCount(); i++) {
+        String probeField = runtimeFilter.getNonPartitionColumnFilter(i).getColumns(0);
         UserBitShared.RunTimeFilterDetailsInfo runTimeFilterDetailsInfo_for_NonPartitionColumn = UserBitShared.RunTimeFilterDetailsInfo.newBuilder()
           .setProbeTarget(probe_target_scan_id)
           .addAllProbeFieldNames(Arrays.asList(probeField))
@@ -813,7 +799,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
                                                           RollbackCloseable closeOnErr) {
     // Add non partition column filters
     if (!isRuntimeFilterEnabledForNonPartitionedCols() || CollectionUtils.isEmpty(probeTarget.getNonPartitionBuildTableKeys())) {
-      return Collections.EMPTY_LIST;
+      return Collections.emptyList();
     }
 
     final List<ValueListFilter> valueListFilters = new ArrayList<>(probeTarget.getNonPartitionBuildTableKeys().size());
@@ -938,7 +924,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       if (filterManagerEntry.isComplete() && !filterManagerEntry.isDropped()) {
         // composite filter is ready for further processing - no more pieces expected
         logger.debug("All pieces of runtime filter received. Sending to probe scan now. " + filterManagerEntry.getProbeScanCoordinates());
-        Optional<RuntimeFilterProbeTarget> probeNode = RuntimeFilterProbeTarget.getProbeTargets(config.getRuntimeFilterInfo())
+        Optional<RuntimeFilterProbeTarget> probeNode = getRuntimeFilterProbeTarget()
                 .stream()
                 .filter(pt -> pt.isSameProbeCoordinate(filterManagerEntry.getCompositeFilter().getProbeScanMajorFragmentId(), filterManagerEntry.getCompositeFilter().getProbeScanOperatorId()))
                 .findFirst();
@@ -1023,5 +1009,14 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     autoCloseables.addAll(startIndices);
     autoCloseables.addAll(keyMatchBitVectors);
     AutoCloseables.close(autoCloseables);
+  }
+
+  private List<RuntimeFilterProbeTarget> getRuntimeFilterProbeTarget() {
+    RuntimeFilterInfo runtimeFilterInfo = config.getRuntimeFilterInfo();
+    if(null == runtimeFilterInfo) {
+      return new ArrayList<>();
+    } else {
+      return runtimeFilterInfo.getRuntimeFilterProbeTargets();
+    }
   }
 }

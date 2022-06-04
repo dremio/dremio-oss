@@ -17,6 +17,7 @@ package com.dremio.dac.model.common;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.HashMap;
@@ -25,8 +26,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.dremio.datastore.Converter;
-
-import javassist.Modifier;
 
 /**
  * Generic implementation of the visitor pattern for protostuff generated classes

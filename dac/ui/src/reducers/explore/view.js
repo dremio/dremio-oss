@@ -27,6 +27,7 @@ import { LOAD_EXPLORE_ENTITIES_SUCCESS } from 'actions/explore/dataset/get';
 import { RUN_DATASET_SUCCESS } from 'actions/explore/dataset/run';
 import { isLoaded } from '@app/reducers/reducerFactories';
 import { combineReducers } from 'redux';
+import { SELECT_ACTIVE_SCRIPT, CLEAR_SCRIPT_STATE } from '@app/actions/resources/scripts';
 
 export const EXPLORE_VIEW_ID = 'EXPLORE_VIEW_ID';
 export const EXPLORE_TABLE_ID = 'EXPLORE_TABLE_ID';
@@ -74,6 +75,18 @@ const sqlEditorFocusKey = (state = 0, { type }) => {
   }
 };
 
+const activeScript = (state = {}, { type, script }) => {
+  switch (type) {
+  case SELECT_ACTIVE_SCRIPT:
+    return script.script;
+  case CLEAR_SCRIPT_STATE: {
+    return {};
+  }
+  default:
+    return state;
+  }
+};
+
 export default combineReducers({
   queryContext,
   currentSql,
@@ -82,5 +95,6 @@ export default combineReducers({
   // DX-14650 as of now this filed is used to indicate whether or not disable headers in the table
   // on explore page. Metadata here includes sql, query context, table columns, history. Data is not
   // included.
-  isDatasetMetadataLoaded: isLoaded(datasetMetadataActions)
+  isDatasetMetadataLoaded: isLoaded(datasetMetadataActions),
+  activeScript
 });

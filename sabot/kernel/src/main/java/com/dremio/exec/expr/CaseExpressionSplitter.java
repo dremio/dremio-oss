@@ -148,7 +148,7 @@ public class CaseExpressionSplitter {
     myTracker.addCaseBlock(prevWhenSplit, whenSplit, true);
     final int currIdx = whenSplit.getConditionStartIndex();
     final CodeGenContext convertedContext = CaseFunctions.convertCaseToIf(whenExpr);
-    final LogicalExpression splitWhenExpr = convertedContext.accept(ifSplitter, myTracker);
+    final CodeGenContext splitWhenExpr = convertedContext.accept(ifSplitter, myTracker);
     myTracker.removeLastCaseBlock();
     List<CaseExpression.CaseConditionNode> newConditions = new ArrayList<>();
     if (prevWhenSplit != null) {
@@ -163,6 +163,7 @@ public class CaseExpressionSplitter {
       .setCaseConditions(newConditions)
       .setElseExpr(elseExpr)
       .setOutputType(CompleteType.INT).build());
+    whenSplit.addEngineToContextMixed(splitWhenExpr, splitContext);
     return doCaseSplit(splitContext, whenSplit, prevWhenSplit, myTracker);
   }
 

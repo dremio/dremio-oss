@@ -35,7 +35,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
@@ -64,6 +66,7 @@ import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
 import com.dremio.dac.explore.model.ParentDatasetUI;
+import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobFilterItems;
@@ -132,7 +135,7 @@ public class TestServer extends BaseTestServer {
 
     doc("delete with missing version");
     final GenericErrorMessage errorDelete = expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path(sourceResource)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete, "missing version param");
+    assertErrorMessage(errorDelete, GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
 
     doc("delete with bad version");
     long badVersion = 1234L;
@@ -342,7 +345,7 @@ public class TestServer extends BaseTestServer {
 
     doc("delete with missing version");
     final GenericErrorMessage errorDelete = expectStatus(BAD_REQUEST, getBuilder(getAPIv2().path(spaceResource)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete, "missing version param");
+    assertErrorMessage(errorDelete, GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
 
     doc("delete with bad version");
     long badVersion = 1234L;
@@ -677,6 +680,21 @@ public class TestServer extends BaseTestServer {
     assertEquals(query, runResponse.getDataset().getSql());
     assertNull(runResponse.getDataset().getJobCount());
 
+  }
+
+  @Test
+  public void testNewUntitledFromSqlAndRunWithReferences() throws Exception {
+    final String query = "select * from sys.version";
+    final Map<String, VersionContextReq> references = new HashMap<>();
+    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    final Response invoke = getBuilder(
+      getAPIv2()
+        .path("datasets/new_untitled_sql_and_run")
+        .queryParam("newVersion", newVersion())
+    ).buildPost(Entity.entity(new CreateFromSQL(query, null, references, null), MediaType.APPLICATION_JSON_TYPE)).invoke();
+    assertEquals(200, invoke.getStatus());
   }
 
   @Test

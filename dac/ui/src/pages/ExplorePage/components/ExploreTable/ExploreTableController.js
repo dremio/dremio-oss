@@ -16,7 +16,6 @@
 import { PureComponent } from 'react';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
-import Radium from 'radium';
 
 import PropTypes from 'prop-types';
 
@@ -48,7 +47,8 @@ import ExploreTable from './ExploreTable';
 import ExploreCellLargeOverlay from './ExploreCellLargeOverlay';
 import DropdownForSelectedText from './DropdownForSelectedText';
 
-@Radium
+import './ExploreTableController.less';
+
 export class ExploreTableController extends PureComponent {
   static propTypes = {
     pageType: PropTypes.string,
@@ -342,7 +342,7 @@ export class ExploreTableController extends PureComponent {
     const { canSelect } = this.props;
 
     return (
-      <div style={styles.base}>
+      <div className='exploreTable'>
         <ExploreTable
           pageType={this.props.pageType}
           dataset={this.props.dataset}
@@ -432,23 +432,3 @@ export default connect(mapStateToProps, {
   performTransform,
   accessEntity
 })(ExploreTableController);
-
-const styles = {
-  base: {
-    position: 'relative',
-    overflowY: 'visible',
-    opacity: 1,
-    display: 'flex',
-    flexGrow: 1
-  },
-  buttons: {
-    display: 'flex',
-    justifyContent: 'space-around',
-    flexWrap: 'wrap'
-  },
-  modalTitle: {
-    textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 15
-  }
-};

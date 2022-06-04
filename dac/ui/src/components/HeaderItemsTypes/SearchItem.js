@@ -147,7 +147,6 @@ export class SearchItem extends Component {
             globalSearch
             searchData={search}
             searchViewState={searchViewState}
-            visible={searchVisible}
             inputValue={inputText}
             handleSearchHide={this.handleSearchHide}/>
         </Popover>

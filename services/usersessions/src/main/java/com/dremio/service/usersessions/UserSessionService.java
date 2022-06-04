@@ -24,13 +24,31 @@ import com.dremio.service.Service;
  */
 public interface UserSessionService extends Service {
   /**
-   * Object holding the UserSession and VersionOption
+   * Object holding UserSesssion, associated session id and VersionOption
    */
   class UserSessionData {
     private final UserSession session;
     private final VersionOption version;
+    private final String sessionId;
 
-    public UserSessionData (UserSession session, VersionOption version) {
+    public UserSessionData(UserSession session, VersionOption version, String sessionId)  {
+      this.session = session;
+      this.version = version;
+      this.sessionId = sessionId;
+    }
+    public UserSession getSession() { return this.session; }
+    public VersionOption getVersion() { return this.version; }
+    public String getSessionId() { return this.sessionId; }
+  }
+
+  /**
+   * Object holding the UserSession and VersionOption
+   */
+  class UserSessionAndVersion {
+    private final UserSession session;
+    private final VersionOption version;
+
+    public UserSessionAndVersion(UserSession session, VersionOption version) {
       this.session = session;
       this.version = version;
     }
@@ -68,7 +86,7 @@ public interface UserSessionService extends Service {
    * @param version the version of the session to update
    * @param newSession the user session to put in the store
    * @return the session version
-   * @throws java.util.ConcurrentModificationException if the currently stored session is different from @param oldSession
+   * @throws java.util.ConcurrentModificationException if the version is out of data and the @param newSession is not the same as the session currently stored
    */
   VersionOption updateSession(String sessionId, VersionOption version, UserSession newSession);
 
@@ -77,5 +95,5 @@ public interface UserSessionService extends Service {
    * @param sessionId the sessionId to retrieve
    * @return an object containing the data stored if sessionId exists and is valid and null if not
    */
-   UserSessionData getSession(String sessionId);
+   UserSessionAndVersion getSession(String sessionId);
 }

@@ -133,6 +133,12 @@ public class NamespaceServiceImpl implements NamespaceService {
       Preconditions.checkNotNull(userName, "requires userName"); // per method contract
       return new NamespaceServiceImpl(kvStoreProvider);
     }
+
+    @Override
+    public NamespaceService get(NamespaceIdentity identity) {
+      Preconditions.checkNotNull(identity, "requires identity"); // per method contract
+      return new NamespaceServiceImpl(kvStoreProvider);
+    }
   }
 
   @Inject
@@ -1289,27 +1295,29 @@ public class NamespaceServiceImpl implements NamespaceService {
    * @param container
    * @throws NamespaceException
    */
-  private void traverseAndDeleteChildren(final NamespaceInternalKey key, final NameSpaceContainer container)
-    throws NamespaceException {
+  private void traverseAndDeleteChildren(final NamespaceInternalKey key, final NameSpaceContainer container, DeleteCallback callback) throws NamespaceException {
     if (!NamespaceUtils.isListable(container.getType())) {
       return;
     }
 
     for (NameSpaceContainer child : listEntity(key.getPath())) {
-      doTraverseAndDeleteChildren(child);
+      doTraverseAndDeleteChildren(child, callback);
     }
   }
 
-  protected void doTraverseAndDeleteChildren(final NameSpaceContainer child) throws NamespaceException {
+  protected void doTraverseAndDeleteChildren(final NameSpaceContainer child, DeleteCallback callback) throws NamespaceException {
     final NamespaceInternalKey childKey =
       new NamespaceInternalKey(new NamespaceKey(child.getFullPathList()), keyNormalization);
-    traverseAndDeleteChildren(childKey, child);
+    traverseAndDeleteChildren(childKey, child, callback);
 
     switch (child.getType()) {
       case FOLDER:
         namespace.delete(childKey.getKey(), child.getFolder().getTag());
         break;
       case DATASET:
+        if (callback != null) {
+          callback.onDatasetDelete(child.getDataset());
+        }
         namespace.delete(childKey.getKey(), child.getDataset().getTag());
         break;
       default:
@@ -1319,20 +1327,21 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @VisibleForTesting
-  NameSpaceContainer deleteEntity(final NamespaceKey path, final Type type, String version, boolean deleteRoot) throws NamespaceException {
+  NameSpaceContainer deleteEntityWithCallback(final NamespaceKey path, final Type type, String version, boolean deleteRoot,
+                                              DeleteCallback callback) throws NamespaceException {
     final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(path);
     final NameSpaceContainer container = lastElement(entitiesOnPath);
     if (container == null) {
       throw new NamespaceNotFoundException(path, String.format("Entity %s not found", path));
     }
-    return doDeleteEntity(path, type, version, entitiesOnPath, deleteRoot);
+    return doDeleteEntity(path, type, version, entitiesOnPath, deleteRoot, callback);
   }
 
-  protected NameSpaceContainer doDeleteEntity(final NamespaceKey path, final Type type, String version, List<NameSpaceContainer> entitiesOnPath, boolean deleteRoot) throws NamespaceException {
+  protected NameSpaceContainer doDeleteEntity(final NamespaceKey path, final Type type, String version, List<NameSpaceContainer> entitiesOnPath, boolean deleteRoot, DeleteCallback callback) throws NamespaceException {
     final NamespaceInternalKey key = new NamespaceInternalKey(path, keyNormalization);
     final NameSpaceContainer container = lastElement(entitiesOnPath);
-    traverseAndDeleteChildren(key, container);
-    if(deleteRoot) {
+    traverseAndDeleteChildren(key, container, callback);
+    if (deleteRoot) {
       namespace.delete(key.getKey(), version);
     }
     return container;
@@ -1340,22 +1349,27 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void deleteHome(final NamespaceKey sourcePath, String version) throws NamespaceException {
-    deleteEntity(sourcePath, HOME, version, true);
+    deleteEntityWithCallback(sourcePath, HOME, version, true, null);
   }
 
   @Override
-  public void deleteSourceChildren(final NamespaceKey sourcePath, String version) throws NamespaceException {
-    deleteEntity(sourcePath, SOURCE, version, false);
+  public void deleteSourceChildren(final NamespaceKey sourcePath, String version, DeleteCallback callback) throws NamespaceException {
+    deleteEntityWithCallback(sourcePath, SOURCE, version, false, callback);
   }
 
   @Override
   public void deleteSource(final NamespaceKey sourcePath, String version) throws NamespaceException {
-    deleteEntity(sourcePath, SOURCE, version, true);
+    deleteEntityWithCallback(sourcePath, SOURCE, version, true, null);
+  }
+
+  @Override
+  public void deleteSourceWithCallBack(final NamespaceKey sourcePath, String version, DeleteCallback callback) throws NamespaceException {
+    deleteEntityWithCallback(sourcePath, SOURCE, version, true, callback);
   }
 
   @Override
   public void deleteSpace(final NamespaceKey spacePath, String version) throws NamespaceException {
-    deleteEntity(spacePath, SPACE, version, true);
+    deleteEntityWithCallback(spacePath, SPACE, version, true, null);
   }
 
   @Override
@@ -1365,7 +1379,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void deleteDataset(final NamespaceKey datasetPath, String version, final NamespaceAttribute... attributes) throws NamespaceException {
-    NameSpaceContainer container = deleteEntity(datasetPath, DATASET, version, true);
+    NameSpaceContainer container = deleteEntityWithCallback(datasetPath, DATASET, version, true, null);
     if (container.getDataset().getType() == PHYSICAL_DATASET_SOURCE_FOLDER) {
       // create a folder so that any existing datasets under the folder are now visible
       addOrUpdateFolder(datasetPath,
@@ -1379,7 +1393,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void deleteFolder(final NamespaceKey folderPath, String version) throws NamespaceException {
-    deleteEntity(folderPath, FOLDER, version, true);
+    deleteEntityWithCallback(folderPath, FOLDER, version, true, null);
   }
 
   @Override

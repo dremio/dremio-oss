@@ -56,7 +56,7 @@ public class ControlBlock implements AutoCloseable {
   @Override
   public void close() {
     if(buf != null){
-      buf.release();
+      buf.close();
       buf = null;
     }
   }

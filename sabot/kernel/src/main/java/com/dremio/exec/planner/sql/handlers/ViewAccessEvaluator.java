@@ -24,10 +24,13 @@ import java.util.stream.Collectors;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
 
+import com.dremio.exec.catalog.CatalogIdentity;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.users.UserNotFoundException;
@@ -92,10 +95,10 @@ public class ViewAccessEvaluator implements Runnable {
   private void validateViewAccess(List<DremioTable> tables, DremioCatalogReader catalogReader, String queryUser) {
     for (DremioTable table : tables) {
       DatasetConfig datasetConfig = table.getDatasetConfig();
-      if (datasetConfig != null) {
-        String owner = datasetConfig.getOwner();
-        final DremioCatalogReader catalogReaderWithUser = owner == null ? catalogReader :
-          catalogReader.withSchemaPathAndUser(table.getPath().getPathComponents(), owner, false);
+      if (datasetConfig != null && table instanceof ViewTable) {
+        final CatalogIdentity viewOwner = ((ViewTable) table).getViewOwner();
+        final DremioCatalogReader catalogReaderWithUser = viewOwner == null ? catalogReader :
+          catalogReader.withSchemaPathAndUser(table.getPath().getPathComponents(), viewOwner, false);
         VirtualDataset vds = datasetConfig.getVirtualDataset();
         if (vds != null && vds.getParentsList() != null) {
           validateViewAccess(
@@ -108,7 +111,7 @@ public class ViewAccessEvaluator implements Runnable {
                   if (!(ex.getCause() instanceof UserNotFoundException)) {
                     throw ex;
                   }
-                  dremioTable = catalogReader.withSchemaPathAndUser(table.getPath().getPathComponents(), queryUser, false)
+                  dremioTable = catalogReader.withSchemaPathAndUser(table.getPath().getPathComponents(), new CatalogUser(queryUser), false)
                     .getTable(parent.getDatasetPathList());
                 }
                 if (dremioTable != null) {

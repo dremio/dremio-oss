@@ -43,7 +43,7 @@ public class TestExcessiveSplits extends BaseTestOperator {
   private final ArrowType boolType = new ArrowType.Bool();
   private final ArrowType strType = new ArrowType.Utf8();
   private final ArrowType longType = new ArrowType.Int(64, false);
-  private final ArrowType decimalType = new ArrowType.Decimal(2,0);
+  private final ArrowType decimalType = new ArrowType.Decimal(2,0, 128);
 
   private final FunctionSignature equalFn = new FunctionSignature("equal", boolType, Lists.newArrayList(strType, strType));
   private final FunctionSignature isnullFn = new FunctionSignature("isnull", boolType, Lists.newArrayList(strType));

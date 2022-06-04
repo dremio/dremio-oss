@@ -36,7 +36,7 @@ const AccountPage = (props) => {
       <div className='page-content'>
         <SideNav />
         <UserNavigation
-          title={formatMessage({ id: 'Common.Settings' })}
+          title={formatMessage({ id: 'SideNav.AccountSettings' })}
           sections={[accountSection]}
         />
         <div className='main-content'>

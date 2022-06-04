@@ -16,14 +16,10 @@
 package com.dremio.exec.server.options;
 
 import static com.dremio.exec.server.options.SystemOptionManager.OPTIONS_KEY;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -105,7 +101,7 @@ public class TestSystemOptionManager extends DremioTest {
     assertEquals(optionValue, som.getOption(optionValue.getName()));
     verify(kvStore, times(1)).get(eq(OPTIONS_KEY));
 
-    assertNull(som.getOption("not-a-real-option"));
+    assertThat(som.getOption("not-a-real-option")).isNull();
   }
 
   @Test
@@ -133,10 +129,9 @@ public class TestSystemOptionManager extends DremioTest {
     som.setOption(toAddOption);
     ArgumentCaptor<OptionValueProtoList> argument = ArgumentCaptor.forClass(OptionValueProtoList.class);
     verify(kvStore, times(1)).put(eq(OPTIONS_KEY), argument.capture());
-    assertThat(argument.getValue().getOptionsList(),
-      containsInAnyOrder(OptionValueProtoUtils.toOptionValueProto(toAddOption),
-        OptionValueProtoUtils.toOptionValueProto(alreadyAddedOption))
-    );
+    assertThat(argument.getValue().getOptionsList())
+      .contains(OptionValueProtoUtils.toOptionValueProto(toAddOption),
+        OptionValueProtoUtils.toOptionValueProto(alreadyAddedOption));
 
     // Overriding an option
     OptionValue overridingOption = OptionValue.createLong(OptionValue.OptionType.SYSTEM, "already-added-option", 999);
@@ -213,7 +208,7 @@ public class TestSystemOptionManager extends DremioTest {
       .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
-    assertThat(som.getNonDefaultOptions(), containsInAnyOrder(optionValue0, optionValue1));
+    assertThat(som.getNonDefaultOptions()).contains(optionValue0, optionValue1);
   }
 
   @Test
@@ -231,7 +226,7 @@ public class TestSystemOptionManager extends DremioTest {
       .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
-    assertThat(Lists.from(som.iterator()), containsInAnyOrder(optionValue0, optionValue1));
+    assertThat(Lists.from(som.iterator())).contains(optionValue0, optionValue1);
   }
 
   @Test
@@ -245,8 +240,8 @@ public class TestSystemOptionManager extends DremioTest {
       .build();
     when(kvStore.get(OPTIONS_KEY)).thenReturn(optionList);
 
-    assertTrue(som.isSet("set-option"));
-    assertFalse(som.isSet("not-set-option"));
+    assertThat(som.isSet("set-option")).isTrue();
+    assertThat(som.isSet("not-set-option")).isFalse();
   }
 
   @Test
@@ -254,7 +249,7 @@ public class TestSystemOptionManager extends DremioTest {
     registerTestOption(OptionValue.Kind.LONG, "valid-option", "0");
     // invalid options should not be registered
 
-    assertTrue(som.isValid("valid-option"));
-    assertFalse(som.isValid("invalid-option"));
+    assertThat(som.isValid("valid-option")).isTrue();
+    assertThat(som.isValid("invalid-option")).isFalse();
   }
 }

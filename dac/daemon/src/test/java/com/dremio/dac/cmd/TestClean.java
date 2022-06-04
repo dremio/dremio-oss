@@ -15,54 +15,12 @@
  */
 package com.dremio.dac.cmd;
 
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.dremio.common.perf.Timer;
-import com.dremio.config.DremioConfig;
-import com.dremio.dac.daemon.DACDaemon;
-import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.server.DACConfig;
-import com.dremio.test.DremioTest;
 
 /**
  * Test for Clean command
  */
-public class TestClean extends BaseTestServer {
-
-  private static DACConfig dacConfig = DACConfig.newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG).autoPort(true).allowTestApis(true)
-      .addDefaultUser(true).serveUI(false).inMemoryStorage(false) // Need this to be a on-disk
-                                                                  // kvstore for tests.
-      .with(DremioConfig.FLIGHT_SERVICE_ENABLED_BOOLEAN, false)
-      .clusterMode(DACDaemon.ClusterMode.LOCAL);
-
-  protected static DACConfig getDACConfig() {
-    return dacConfig;
-  }
-
-  @BeforeClass
-  public static void init() throws Exception {
-    enableDefaultUser(false);
-    Assume.assumeFalse(BaseTestServer.isMultinode());
-    try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      dacConfig = dacConfig.writePath(folder1.newFolder().getAbsolutePath());
-      startDaemon();
-    }
-  }
-
-  @AfterClass
-  public static void shutdown() {
-    enableDefaultUser(true);
-  }
-
-  private static void startDaemon() throws Exception {
-    setCurrentDremioDaemon(DACDaemon.newDremioDaemon(dacConfig, DremioTest.CLASSPATH_SCAN_RESULT));
-    setMasterDremioDaemon(null);
-    getCurrentDremioDaemon().init();
-    initClient();
-  }
+public class TestClean extends CleanBaseTest {
 
   @Test
   public void runWithOptions() throws Exception {

@@ -100,6 +100,10 @@ public class SpillManager implements AutoCloseable {
     }
   }
 
+  public String getId() {
+    return id;
+  }
+
   public SpillFile getSpillFile(String fileName) throws RuntimeException {
     try {
       final SpillDirectory spillDirectory = spillService.getSpillSubdir(id);
@@ -201,12 +205,11 @@ public class SpillManager implements AutoCloseable {
 
   public class SpillOutputStream extends FilterOutputStream {
 
-    private final byte[] heapMoveBuffer = new byte[64*1024];
     private final ABOutputStreamWithStats top;
     private final ABOutputStreamWithStats base;
     private final SpillFile file;
-    private boolean compressed;
-    private boolean writeDirect;
+    private final boolean compressed;
+    private final boolean writeDirect;
 
     private SpillOutputStream(
         ABOutputStreamWithStats top,
@@ -255,6 +258,15 @@ public class SpillManager implements AutoCloseable {
       serializable.setWriteDirect(writeDirect);
       serializable.writeToStream(top);
       return serializable.getBytesWritten();
+    }
+
+    /*
+     * If this override is missing, the code falls back to the default implementation in FilterOutputStream which writes
+     * byte by byte and so, is very inefficient.
+     */
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+      out.write(b, off, len);
     }
 
     @Override

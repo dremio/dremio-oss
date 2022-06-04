@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.Optional;
+import java.util.Map;
 
 import org.immutables.value.Value;
 
@@ -35,12 +35,9 @@ public abstract class MetadataRequestOptions {
   @Value.Default
   public MetadataStatsCollector getStatsCollector() {
     return new MetadataStatsCollector();
-  };
-
-  @Value.Default
-  public Optional<VersionContext> getVersionContext() {
-    return Optional.empty();
   }
+
+  public abstract Map<String, VersionContext> getSourceVersionMapping();
 
   /**
    * Consider the metadata valid only if it is newer than the given time.
@@ -62,8 +59,8 @@ public abstract class MetadataRequestOptions {
     return true;
   }
 
-  MetadataRequestOptions cloneWith(String newUser, NamespaceKey newDefaultSchema, boolean checkValidity) {
-    final SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(newUser)
+  MetadataRequestOptions cloneWith(CatalogIdentity subject, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    final SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(subject)
         .defaultSchema(newDefaultSchema)
         .exposeInternalSources(getSchemaConfig().exposeInternalSources())
         .setIgnoreAuthErrors(getSchemaConfig().getIgnoreAuthErrors())
@@ -97,5 +94,9 @@ public abstract class MetadataRequestOptions {
     return newBuilder()
       .setSchemaConfig(schemaConfig)
       .build();
+  }
+
+  public VersionContext getVersionForSource(String sourceName) {
+    return getSourceVersionMapping().getOrDefault(sourceName.toLowerCase(), VersionContext.NOT_SPECIFIED);
   }
 }

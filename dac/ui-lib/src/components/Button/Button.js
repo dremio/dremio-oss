@@ -61,6 +61,7 @@ const Button = (props) => {
     { 'btn__default': color === ButtonTypes.DEFAULT },
     { '--contained': variant === ButtonTypes.CONTAINED },
     { '--outlined': variant === ButtonTypes.OUTLINED },
+    { '--text': variant === ButtonTypes.TEXT },
     { '--disabled': disabled },
     { 'margin-top--double margin-bottom--double': !disableMargin },
     className,

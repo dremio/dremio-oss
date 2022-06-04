@@ -15,9 +15,7 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.startsWith;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
 import java.util.List;
@@ -64,33 +62,33 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
       int count = 0;
       for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds1))) {
         PartitionChunkId splitId = entry.getKey();
-        assertThat(splitId.getDatasetId(), is("foo"));
-        assertThat(splitId.getSplitVersion(), is(Long.MIN_VALUE));
+        assertThat(splitId.getDatasetId()).isEqualTo("foo");
+        assertThat(splitId.getSplitVersion()).isEqualTo(Long.MIN_VALUE);
         count++;
       }
-      assertThat(count, is(10));
+      assertThat(count).isEqualTo(10);
 
       // Check that split ids are unescaped
       count = 0;
       for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds2))) {
         PartitionChunkId splitId = entry.getKey();
-        assertThat(splitId.getDatasetId(), startsWith("foo")); // unescaped dataset split id might generate invalid unicode when unescaped
-        assertThat(splitId.getSplitVersion(), is(42L));
+        assertThat(splitId.getDatasetId()).startsWith("foo"); // unescaped dataset split id might generate invalid unicode when unescaped
+        assertThat(splitId.getSplitVersion()).isEqualTo(42L);
         count++;
       }
-      assertThat(count, is(20));
+      assertThat(count).isEqualTo(20);
 
       // Check that split ids are unescaped
       count = 0;
       for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.unsafeGetSplitsRange(ds3))) {
         PartitionChunkId splitId = entry.getKey();
         // dataset split id should be a valid uuid
-        assertThat(splitId.getDatasetId(), is(ds3.getId().getId()));
-        assertThat(splitId.getSplitVersion(), is(42L));
+        assertThat(splitId.getDatasetId()).isEqualTo(ds3.getId().getId());
+        assertThat(splitId.getSplitVersion()).isEqualTo(42L);
         count++;
       }
-      assertThat(count, is(30));
-      assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count(), is(10L + 20L + 30L));
+      assertThat(count).isEqualTo(30);
+      assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count()).isEqualTo(10L + 20L + 30L);
 
       // Perform upgrade
       final UpgradeContext context = new UpgradeContext(kvStoreProvider, legacyKVStoreProvider, null, null, null);
@@ -101,32 +99,32 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
       count = 0;
       for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds1))) {
         PartitionChunkId splitId = entry.getKey();
-        assertThat(splitId.getDatasetId(), is("foo_bar"));
-        assertThat(splitId.getSplitVersion(), is(42L));
+        assertThat(splitId.getDatasetId()).isEqualTo("foo_bar");
+        assertThat(splitId.getSplitVersion()).isEqualTo(42L);
         count++;
       }
-      assertThat(count, is(10));
+      assertThat(count).isEqualTo(10);
 
       count = 0;
       for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds2))) {
         PartitionChunkId splitId = entry.getKey();
-        assertThat(splitId.getDatasetId(), startsWith("foo%bar")); // unescaped dataset split id might generate invalid unicode when unescaped
-        assertThat(splitId.getSplitVersion(), is(42L));
+        assertThat(splitId.getDatasetId()).startsWith("foo%bar"); // unescaped dataset split id might generate invalid unicode when unescaped
+        assertThat(splitId.getSplitVersion()).isEqualTo(42L);
         count++;
       }
-      assertThat(count, is(20));
+      assertThat(count).isEqualTo(20);
 
       count = 0;
       for(Map.Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(PartitionChunkId.getSplitsRange(ds3))) {
         PartitionChunkId splitId = entry.getKey();
-        assertThat(splitId.getDatasetId(), is(ds3.getId().getId()));
-        assertThat(splitId.getSplitVersion(), is(42L));
+        assertThat(splitId.getDatasetId()).isEqualTo(ds3.getId().getId());
+        assertThat(splitId.getSplitVersion()).isEqualTo(42L);
         count++;
       }
-      assertThat(count, is(30));
+      assertThat(count).isEqualTo(30);
 
 
-      assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count(), is(10L + 20L + 30L));
+      assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count()).isEqualTo(10L + 20L + 30L);
     }
 
 

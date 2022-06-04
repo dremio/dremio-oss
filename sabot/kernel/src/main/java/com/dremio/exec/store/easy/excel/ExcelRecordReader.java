@@ -74,7 +74,7 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
 
   @Override
   public String getFilePath() {
-    return path.toString();
+    return path != null ? path.toString() : "";
   }
 
   @Override

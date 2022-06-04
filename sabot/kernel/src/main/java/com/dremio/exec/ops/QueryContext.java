@@ -33,6 +33,7 @@ import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
+import org.projectnessie.client.api.NessieApiV1;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -42,6 +43,7 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.ImmutableMetadataRequestOptions;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.expr.ExpressionSplitCache;
@@ -140,6 +142,13 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   private boolean closed = false;
   private PlanCache planCache;
 
+  /*
+   * Flag to indicate query requires groups info
+   * (so that groups info needs to be available on executor).
+   * E.g. When query contains unresolvable "is_member()" function.
+   */
+  private boolean queryRequiresGroupsInfo = false;
+
   public QueryContext(
     final UserSession session,
     final SabotContext sabotContext,
@@ -223,8 +232,8 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     this.bufferManager = new BufferManagerImpl(allocator);
 
     final String queryUserName = session.getCredentials().getUserName();
-    final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(queryUserName);
-    final SchemaConfig schemaConfig = SchemaConfig.newBuilder(queryUserName)
+    final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(CatalogUser.from(queryUserName));
+    final SchemaConfig schemaConfig = SchemaConfig.newBuilder(CatalogUser.from(queryUserName))
         .defaultSchema(session.getDefaultSchemaPath())
         .optionManager(optionManager)
         .setViewExpansionContext(viewExpansionContext)
@@ -234,7 +243,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
     final ImmutableMetadataRequestOptions.Builder requestOptions = MetadataRequestOptions.newBuilder()
         .setSchemaConfig(schemaConfig)
-        .setVersionContext(session.getVersionContext());
+        .setSourceVersionMapping(session.getSourceVersionMapping());
     checkMetadataValidity.ifPresent(requestOptions::setCheckValidity);
     this.catalog = sabotContext.getCatalogService()
         .getCatalog(requestOptions.build());
@@ -519,5 +528,22 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
   public NamespaceService getNamespaceService(String userName) {
     return sabotContext.getNamespaceService(userName);
+  }
+
+  public boolean isCloud() {
+    return !sabotContext.getCoordinatorModeInfoProvider().get().isInSoftwareMode();
+  }
+
+  // TODO (DX-40379) : remove this method and use plugin to retrieve the Nessie client.
+  public Provider<NessieApiV1> getNessieClientProvider() {
+    return sabotContext.getNessieClientProvider();
+  }
+
+  public boolean isQueryRequiresGroupsInfo() {
+    return queryRequiresGroupsInfo;
+  }
+
+  public void setQueryRequiresGroupsInfo(boolean queryRequiresGroupsInfo) {
+    this.queryRequiresGroupsInfo = queryRequiresGroupsInfo;
   }
 }

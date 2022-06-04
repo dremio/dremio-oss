@@ -417,6 +417,13 @@ public class SimpleUserService implements UserService, Service {
   }
 
   private static final class UserConverter implements DocumentConverter<UID, UserInfo> {
+    private Integer version = 0;
+
+    @Override
+    public Integer getVersion() {
+      return version;
+    }
+
     @Override
     public void convert(DocumentWriter writer, UID key, UserInfo userInfo) {
       UserConfig userConfig = userInfo.getConfig();

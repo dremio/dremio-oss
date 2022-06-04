@@ -69,6 +69,6 @@ const styles = {
     }
   },
   tabActive: {
-    borderBottom: '3px solid #77818f'
+    borderBottom: '3px solid #196C79'
   }
 };

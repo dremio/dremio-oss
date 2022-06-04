@@ -21,10 +21,10 @@ import java.util.function.Supplier;
 import javax.inject.Provider;
 
 import org.projectnessie.model.CommitMeta;
-import org.projectnessie.model.Contents;
+import org.projectnessie.model.Content;
 import org.projectnessie.server.store.TableCommitMetaStoreWorker;
 import org.projectnessie.services.impl.ConfigApiImpl;
-import org.projectnessie.services.impl.ContentsApiImpl;
+import org.projectnessie.services.impl.ContentApiImpl;
 import org.projectnessie.services.impl.TreeApiImpl;
 import org.projectnessie.versioned.VersionStore;
 import org.projectnessie.versioned.persist.adapter.DatabaseAdapter;
@@ -37,9 +37,11 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.Service;
+import com.dremio.services.nessie.grpc.server.ConfigService;
+import com.dremio.services.nessie.grpc.server.ContentService;
+import com.dremio.services.nessie.grpc.server.TreeService;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 
 import io.grpc.BindableService;
 
@@ -48,45 +50,48 @@ import io.grpc.BindableService;
  */
 @Options
 public class NessieService implements Service {
-  private static final long NO_RETRY_LIMIT_OVERRIDE = 0L;
+  private static final long COMMIT_TIMEOUT_MS_DEFAULT = 600000L; // 10 min
 
-  // An support option to override the maximum number of retries at run time when using NessieKVVerssionStore.
-  // If this is set to NO_RETRY_LIMIT_OVERRIDE, use the limit supplied in the constructor.
-  public static final TypeValidators.PositiveLongValidator RETRY_LIMIT =
-    new TypeValidators.PositiveLongValidator("nessie.kvversionstore.max_retries", Integer.MAX_VALUE, NO_RETRY_LIMIT_OVERRIDE);
+  // A support option to override the maximum time when using NessieKVVersionStore.
+  // If this is not set, use the timeout supplied in the constructor.
+  public static final TypeValidators.PositiveLongValidator COMMIT_TIMEOUT_MS =
+    new TypeValidators.PositiveLongValidator("nessie.kvversionstore.commit_timeout_ms", Integer.MAX_VALUE, COMMIT_TIMEOUT_MS_DEFAULT);
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NessieService.class);
 
   private final Provider<KVStoreProvider> kvStoreProvider;
   private final NessieConfig serverConfig;
-  private final Supplier<VersionStore<Contents, CommitMeta, Contents.Type>> versionStoreSupplier;
-  private final TreeApiService treeApiService;
-  private final ContentsApiService contentsApiService;
-  private final ConfigApiService configApiService;
-  private final Supplier<Integer> kvStoreMaxCommitRetriesSupplier;
+  private final Supplier<VersionStore<Content, CommitMeta, Content.Type>> versionStoreSupplier;
+  private final Supplier<org.projectnessie.api.TreeApi> treeApi;
+  private final TreeService treeService;
+  private final ContentService contentService;
+  private final ConfigService configService;
+  private final Supplier<Long> kvStoreCommitTimeoutMsSupplier;
+  private final Supplier<Boolean> isMaster;
 
   public NessieService(Provider<KVStoreProvider> kvStoreProvider,
                        Provider<OptionManager> optionManagerProvider,
                        boolean inMemoryBackend,
-                       int defaultKvStoreMaxCommitRetries) {
+                       long defaultKvStoreCommitTimeoutMs,
+                       Supplier<Boolean> isMaster) {
     this.kvStoreProvider = kvStoreProvider;
     this.serverConfig = new NessieConfig();
-    this.kvStoreMaxCommitRetriesSupplier = () ->  {
-      final int overriddenLimit = Ints.saturatedCast(optionManagerProvider.get().getOption(RETRY_LIMIT));
-      return overriddenLimit != 0 ? overriddenLimit : defaultKvStoreMaxCommitRetries;
+    this.kvStoreCommitTimeoutMsSupplier = () ->  {
+      final long overriddenTimeout = optionManagerProvider.get().getOption(COMMIT_TIMEOUT_MS);
+      return overriddenTimeout != 0 ? overriddenTimeout : defaultKvStoreCommitTimeoutMs;
     };
 
     this.versionStoreSupplier = Suppliers.memoize(() -> getVersionStore(inMemoryBackend));
-    this.treeApiService = new TreeApiService(Suppliers.memoize(() ->
-      new TreeApiImpl(serverConfig, versionStoreSupplier.get(), null, null)));
-    this.contentsApiService = new ContentsApiService(Suppliers.memoize(() ->
-        new ContentsApiImpl(serverConfig, versionStoreSupplier.get(), null, null))
-    );
-    this.configApiService = new ConfigApiService(Suppliers.memoize(() -> new ConfigApiImpl(serverConfig)));
+    this.treeApi = Suppliers.memoize(() -> new TreeApiImpl(serverConfig, versionStoreSupplier.get(), null, null));
+    this.treeService = new TreeService(treeApi);
+    this.contentService = new ContentService(Suppliers.memoize(() -> new ContentApiImpl(serverConfig, versionStoreSupplier.get(), null, null)));
+    this.configService = new ConfigService(Suppliers.memoize(() -> new ConfigApiImpl(serverConfig)));
+
+    this.isMaster = isMaster;
   }
 
   public List<BindableService> getGrpcServices() {
-    return Lists.newArrayList(treeApiService, contentsApiService, configApiService);
+    return Lists.newArrayList(treeService, contentService, configService);
   }
 
   @Override
@@ -94,9 +99,8 @@ public class NessieService implements Service {
   public void start() throws Exception {
     logger.info("Starting Nessie gRPC Services.");
 
-    // Get the version store here so it is ready before the first request is received
+    // Get the version store here, so it is ready before the first request is received
     versionStoreSupplier.get();
-
     logger.info("Started Nessie gRPC Services.");
   }
 
@@ -105,9 +109,9 @@ public class NessieService implements Service {
     logger.info("Stopping Nessie gRPC Service: Nothing to do");
   }
 
-  private final VersionStore<Contents, CommitMeta, Contents.Type> getVersionStore(boolean inMemoryBackend) {
+  private VersionStore<Content, CommitMeta, Content.Type> getVersionStore(boolean inMemoryBackend) {
     final TableCommitMetaStoreWorker worker = new TableCommitMetaStoreWorker();
-    final NessieDatabaseAdapterConfig adapterCfg = new NessieDatabaseAdapterConfig(kvStoreMaxCommitRetriesSupplier.get());
+    final NessieDatabaseAdapterConfig adapterCfg = new ImmutableNessieDatabaseAdapterConfig.Builder().setCommitTimeout(kvStoreCommitTimeoutMsSupplier.get()).build();
     DatabaseAdapter adapter;
     if (inMemoryBackend) {
       logger.debug("Using in-memory backing store for nessie...");
@@ -115,7 +119,10 @@ public class NessieService implements Service {
         .withConnector(new InmemoryStore()).build();
     } else {
       logger.debug("Using persistent backing store for nessie...");
-      adapter = new DatastoreDatabaseAdapter(adapterCfg, new NessieDatastoreInstance(kvStoreProvider));
+      NessieDatastoreInstance store = new NessieDatastoreInstance();
+      store.configure(new ImmutableDatastoreDbConfig.Builder().setStoreProvider(kvStoreProvider).build());
+      store.initialize();
+      adapter = new DatastoreDatabaseAdapter(adapterCfg, store);
     }
     adapter.initializeRepo(serverConfig.getDefaultBranch());
     return new PersistVersionStore<>(adapter, worker);

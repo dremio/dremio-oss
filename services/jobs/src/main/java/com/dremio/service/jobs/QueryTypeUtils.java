@@ -48,7 +48,8 @@ final class QueryTypeUtils {
     case PREPARE_INTERNAL:
     case ACCELERATOR_EXPLAIN:
     case METADATA_REFRESH:
-      return true;
+    case INTERNAL_ICEBERG_METADATA_DROP:
+        return true;
 
     case UI_RUN:
     case UI_PREVIEW:
@@ -87,7 +88,8 @@ final class QueryTypeUtils {
     case ACCELERATOR_CREATE:
     case ACCELERATOR_DROP:
     case ACCELERATOR_EXPLAIN:
-      return WorkloadClass.BACKGROUND;
+    case INTERNAL_ICEBERG_METADATA_DROP:
+        return WorkloadClass.BACKGROUND;
 
     case PREPARE_INTERNAL:
     case UI_INTERNAL_PREVIEW:
@@ -186,9 +188,24 @@ final class QueryTypeUtils {
         return WorkloadType.FLIGHT;
       case METADATA_REFRESH:
         return WorkloadType.METADATA_REFRESH;
+      case INTERNAL_ICEBERG_METADATA_DROP:
+        return WorkloadType.INTERNAL_ICEBERG;
       case UNKNOWN:
       default:
         return WorkloadType.UNKNOWN;
+    }
+  }
+
+
+  static boolean isAccelerationType(final QueryType queryType) {
+    switch (queryType) {
+
+      case ACCELERATOR_CREATE:
+      case ACCELERATOR_DROP:
+      case ACCELERATOR_EXPLAIN:
+        return true;
+      default:
+        return false;
     }
   }
 }

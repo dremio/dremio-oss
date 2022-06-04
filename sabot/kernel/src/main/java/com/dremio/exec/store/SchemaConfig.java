@@ -17,6 +17,7 @@ package com.dremio.exec.store;
 
 import org.apache.calcite.schema.SchemaPlus;
 
+import com.dremio.exec.catalog.CatalogIdentity;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
@@ -55,14 +56,14 @@ public class SchemaConfig {
 
   /**
    * Create new builder.
-   * @param username Name of the user accessing the storage sources.
+   * @param subject Subject accessing the storage sources.
    */
-  public static Builder newBuilder(final String username) {
-    return new Builder(username);
+  public static Builder newBuilder(final CatalogIdentity subject) {
+    return new Builder(subject);
   }
 
   public static class Builder {
-    private final String username;
+    private final CatalogIdentity subject;
     private boolean ignoreAuthErrors;
     private boolean exposeInternalSources = false;
     private NamespaceKey defaultSchema;
@@ -70,8 +71,8 @@ public class SchemaConfig {
     private ViewExpansionContext viewExpansionContext;
     private Predicate<DatasetConfig> validityChecker = Predicates.alwaysTrue();
 
-    private Builder(final String username) {
-      this.username = Preconditions.checkNotNull(username);
+    private Builder(final CatalogIdentity subject) {
+      this.subject = Preconditions.checkNotNull(subject);
     }
 
     public Builder setViewExpansionContext(ViewExpansionContext viewExpansionContext) {
@@ -112,7 +113,7 @@ public class SchemaConfig {
 
     public SchemaConfig build() {
       return new SchemaConfig(
-          new AuthorizationContext(username, ignoreAuthErrors),
+          new AuthorizationContext(subject, ignoreAuthErrors),
           defaultSchema,
           optionManager,
           viewExpansionContext,
@@ -128,9 +129,11 @@ public class SchemaConfig {
   /**
    * @return User whom to impersonate as while creating {@link SchemaPlus} instances
    * interact with the underlying storage.
+   *
+   * TODO: move to passing subject around vs the username.
    */
   public String getUserName() {
-    return authContext.getUsername();
+    return authContext.getSubject().getName();
   }
 
   public NamespaceKey getDefaultSchema() {

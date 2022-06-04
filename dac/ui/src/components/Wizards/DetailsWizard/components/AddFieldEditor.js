@@ -46,7 +46,7 @@ export class AddFieldEditor extends PureComponent {
   };
   static defaultProps = {
     sqlHeight: 112,
-    blockHeight: 112
+    blockHeight: 159
   };
 
   constructor(props) {
@@ -92,12 +92,18 @@ export class AddFieldEditor extends PureComponent {
 
   showDropDown = () => this.setState({ dropDownVisible: true })
 
-  toggleFunctionsHelpPanel = () => this.setState({ funcHelpPanel: !this.state.funcHelpPanel })
+  toggleFunctionsHelpPanel() {
+    this.setState({
+      funcHelpPanel: !this.state.funcHelpPanel
+    });
+  }
 
 
   render() {
     const { name, onBlur, onFocus, onChange } = this.props;
+    const { funcHelpPanel } = this.state;
     const inputProps = { name, onBlur, onFocus, onChange };
+    const widthSqlEditor = funcHelpPanel ? styles.smallerSqlEditorWidth : {};
 
     return (
       <div style={styles.base}>
@@ -105,20 +111,23 @@ export class AddFieldEditor extends PureComponent {
           <div className='sql-part add-field-editor'
             onClick={this.hideDropDown}
             style={[styles.base, this.props.style]}>
-            <SqlAutoComplete
-              pageType={this.props.pageType}
-              onChange={inputProps.onChange}
-              tooltip={this.props.tooltip}
-              defaultValue={this.props.initialValue}
-              ref='editor'
-              hideDropDown={this.hideDropDown}
-              height={this.props.sqlHeight}
-              sqlSize={this.props.sqlHeight}
-              style={styles.sqlEditorStyle}
-              dragType={this.props.dragType}
-              autoCompleteEnabled={false}
-            />
-            {this.getFunctionsPanel()}
+            <div style={widthSqlEditor}>
+              <SqlAutoComplete
+                pageType={this.props.pageType}
+                onChange={inputProps.onChange}
+                tooltip={this.props.tooltip}
+                defaultValue={this.props.initialValue}
+                ref='editor'
+                hideDropDown={this.hideDropDown}
+                height={this.props.sqlHeight}
+                sqlSize={this.props.sqlHeight}
+                style={{...styles.sqlEditorStyle, ...styles.normalSqlEditorWidth}}
+                dragType={this.props.dragType}
+                autoCompleteEnabled={false}
+                onFunctionChange={this.toggleFunctionsHelpPanel}
+              />
+            </div>
+            {funcHelpPanel ? this.getFunctionsPanel() : null}
           </div>
         </div>
       </div>
@@ -139,8 +148,12 @@ const styles = {
     width: '100%'
   },
   sqlEditorStyle: {
-    marginLeft: 12,
-    width: 'calc(50% - 29px)',
-    borderRight: 'none'
+    marginLeft: 12
+  },
+  smallerSqlEditorWidth: {
+    width: '50%'
+  },
+  normalSqlEditorWidth: {
+    width: 'calc(100% - 27px)'
   }
 };

@@ -20,5 +20,7 @@ import com.dremio.sabot.op.receiver.RawFragmentBatchProvider;
 public interface BatchStreamProvider {
   public RawFragmentBatchProvider[] getBuffers(int senderMajorFragmentId);
 
+  public RawFragmentBatchProvider getBuffersFromFiles(String uniqueId, int readerMajorFragmentId);
+
   public boolean isPotentiallyBlocked();
 }

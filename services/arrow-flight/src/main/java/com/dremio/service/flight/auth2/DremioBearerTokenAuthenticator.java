@@ -108,10 +108,7 @@ public class DremioBearerTokenAuthenticator implements CallHeaderAuthenticator {
     final String username = authResult.getPeerIdentity();
     final String token = DremioFlightAuthUtils.createUserSessionWithTokenAndProperties(
       tokenManagerProvider,
-      dremioFlightSessionsManager,
-      incomingHeaders,
-      username,
-      LOGGER);
+      username);
 
     return createAuthResultWithBearerToken(token);
   }

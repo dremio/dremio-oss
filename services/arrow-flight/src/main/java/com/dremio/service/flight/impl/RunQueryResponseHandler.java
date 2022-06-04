@@ -63,21 +63,24 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
   private final Provider<UserWorker> workerProvider;
   private final FlightProducer.ServerStreamListener clientListener;
   private final BufferAllocator allocator;
+  private final Runnable queryCompletionCallback;
   private RecordBatchLoader recordBatchLoader;
-  private volatile VectorSchemaRoot vectorSchemaRoot;
 
+  private volatile VectorSchemaRoot vectorSchemaRoot;
   private volatile boolean completed;
 
   RunQueryResponseHandler(UserBitShared.ExternalId runExternalId,
                           UserSession userSession,
                           Provider<UserWorker> workerProvider,
                           FlightProducer.ServerStreamListener clientListener,
-                          BufferAllocator allocator) {
+                          BufferAllocator allocator,
+                          Runnable queryCompletionCallback) {
     this.runExternalId = runExternalId;
     this.userSession = userSession;
     this.workerProvider = workerProvider;
     this.clientListener = clientListener;
     this.allocator = allocator;
+    this.queryCompletionCallback = queryCompletionCallback;
     this.recordBatchLoader = new RecordBatchLoader(allocator);
     this.completed = false;
   }
@@ -93,7 +96,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
 
     final ByteBuf[] buffers = result.getBuffers();
 
-    /**
+    /*
      * RecordBatchLoader cannot reassemble ValueVectors for types which propagate more than one NettyArrowBuffer
      * (such as DataBuffers [1] and OffsetBuffers [2]) in calls to UserResponseHandler#sendData.
      * Because of this limitation, when {@link com.dremio.service.flight.impl.RunQueryResponseHandler#sendData}
@@ -113,7 +116,7 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
       loadFromCopyOfEntireResult(result, def);
     } else {
       final ByteBuf byteBuf = buffers[0];
-      /**
+      /*
        * The most optimistic approach from a buffer copying perspective is to use buffers as they
        * are provided to this method directly. When a NettyArrowBuf is provided, the underlying
        * Arrow Buffer gets used directly. Other implementations will require copying the data into
@@ -240,30 +243,33 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
    */
   @VisibleForTesting
   void handleUserResultState(UserResult result) {
-    switch (result.getState()) {
-      case FAILED:
-        if (result.hasException()) {
-          clientListener.error(DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
-        } else {
-          clientListener.error(CallStatus.UNKNOWN.withDescription("Query failed but no exception was thrown.").toRuntimeException());
-        }
-        break;
-      case CANCELED:
-        if (result.hasException()) {
-          clientListener.error(CallStatus.CANCELLED.withDescription(result.getException().getMessage()).withCause(result.getException()).toRuntimeException());
-        } else if (!Strings.isNullOrEmpty(result.getCancelReason())) {
-          clientListener.error(CallStatus.CANCELLED.withDescription(result.getCancelReason()).toRuntimeException());
-        } else {
-          clientListener.error(CallStatus.CANCELLED.withDescription("Query is cancelled by the server.").toRuntimeException());
-        }
-        break;
-      case COMPLETED:
-        clientListener.completed();
-        break;
-      default:
-        final IllegalStateException ex = new IllegalStateException("Invalid state returned from Dremio RPC request.");
-        clientListener.error(CallStatus.INTERNAL.withCause(ex).toRuntimeException());
-        throw ex;
+    try {
+      switch (result.getState()) {
+        case FAILED:
+          if (result.hasException()) {
+            clientListener.error(DremioFlightErrorMapper.toFlightRuntimeException(result.getException()));
+          } else {
+            clientListener.error(CallStatus.UNKNOWN.withDescription("Query failed but no exception was thrown.").toRuntimeException());
+          }
+          break;
+        case CANCELED:
+          if (result.hasException()) {
+            clientListener.error(CallStatus.CANCELLED.withDescription(result.getException().getMessage()).withCause(result.getException()).toRuntimeException());
+          } else if (!Strings.isNullOrEmpty(result.getCancelReason())) {
+            clientListener.error(CallStatus.CANCELLED.withDescription(result.getCancelReason()).toRuntimeException());
+          } else {
+            clientListener.error(CallStatus.CANCELLED.withDescription("Query is cancelled by the server.").toRuntimeException());
+          }
+          break;
+        case COMPLETED:
+          queryCompletionCallback.run();
+          clientListener.completed();
+          break;
+        default:
+          throw new IllegalStateException("Invalid state returned from Dremio RPC request.");
+      }
+    } catch (final Exception e) {
+      clientListener.error(CallStatus.INTERNAL.withCause(e).toRuntimeException());
     }
   }
 
@@ -313,8 +319,8 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
 
     BasicResponseHandler(UserBitShared.ExternalId runExternalId, UserSession userSession,
                          Provider<UserWorker> workerProvider, FlightProducer.ServerStreamListener clientListener,
-                         BufferAllocator allocator) {
-      super(runExternalId, userSession, workerProvider, clientListener, allocator);
+                         BufferAllocator allocator, Runnable queryCompletionCallback) {
+      super(runExternalId, userSession, workerProvider, clientListener, allocator, queryCompletionCallback);
       this.clientListener = clientListener;
       this.clientListener.setOnCancelHandler(this::serverStreamListenerOnCancelledCallback);
     }
@@ -335,8 +341,9 @@ public abstract class RunQueryResponseHandler implements UserResponseHandler {
 
     BackpressureHandlingResponseHandler(UserBitShared.ExternalId runExternalId, UserSession userSession,
                                         Provider<UserWorker> workerProvider,
-                                        FlightProducer.ServerStreamListener clientListener, BufferAllocator allocator) {
-      super(runExternalId, userSession, workerProvider, clientListener, allocator);
+                                        FlightProducer.ServerStreamListener clientListener, BufferAllocator allocator,
+                                        Runnable queryCompletionCallback) {
+      super(runExternalId, userSession, workerProvider, clientListener, allocator, queryCompletionCallback);
       this.runQueryBackpressureStrategy = new RunQueryBackpressureStrategy(this::serverStreamListenerOnCancelledCallback);
       runQueryBackpressureStrategy.register(clientListener);
       this.optionManager = workerProvider.get().getSystemOptions();

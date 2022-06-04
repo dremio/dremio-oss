@@ -97,7 +97,14 @@ export const getColorCode = (type) => {
 export const initialElements = [{
   id: '1234',
   data: { label: '' },
-  position: { x: 0, y: 0 }
+  position: { x: 0, y: 0 },
+  style: {
+    border: '1px solid #E5E5E5',
+    borderLeft: '8px solid #8CA4E9',
+    width: '156px',
+    height: '67px',
+    backgroundColor: '#FFF'
+  }
 }];
 
 export const getSortedReflectionsData = (reflectionData) => {

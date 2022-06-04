@@ -41,7 +41,6 @@ export default class HeaderDropdown extends Component {
     return (
       <DropdownMenu
         className={className}
-        hideDivider
         dataQa={dataQa}
         style={{...styles.base, ...style}}
         menu={menu}

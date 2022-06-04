@@ -28,6 +28,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Struct;
 import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
@@ -112,7 +113,7 @@ public class ComplexToJsonPrel extends SingleRel implements Prel, CustomPrel {
     }
 
     Field asVarchar(){
-      return new Field(field.getName(), true, Utf8.INSTANCE, Collections.<Field>emptyList());
+      return new Field(field.getName(), new FieldType(field.isNullable(), Utf8.INSTANCE, field.getDictionary()), Collections.<Field>emptyList());
     }
 
     @Override

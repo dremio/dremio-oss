@@ -19,7 +19,7 @@ import Immutable from 'immutable';
 import SelectContextForm from 'pages/ExplorePage/components/forms/SelectContextForm';
 import DragTarget from 'components/DragComponents/DragTarget';
 
-import SqlAutoComplete from './SqlAutoComplete';
+import { SqlAutoComplete } from './SqlAutoComplete';
 
 const fakeRange1 = {startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1};
 const fakeRange2 = {startLineNumber: 2, startColumn: 2, endLineNumber: 3, endColumn: 3};
@@ -30,10 +30,11 @@ describe('SqlAutoComplete', () => {
   let wrapper;
   let instance;
   let editor;
-  let sqlEditor;
+  let sqlAutoCompleteRef;
   beforeEach(() => {
     commonProps = {
       onChange: sinon.spy(),
+      onFunctionChange: sinon.spy(),
       defaultValue: 'select * from foo',
       isGrayed: false,
       onFocus: sinon.spy(),
@@ -41,7 +42,6 @@ describe('SqlAutoComplete', () => {
       context: Immutable.List(['my-space', 'my.folder']),
       name: 'name',
       sqlSize: 300,
-      datasetsPanel: false,
       funcHelpPanel: false,
       changeQueryContext: sinon.spy(),
       autoCompleteEnabled: true
@@ -64,7 +64,7 @@ describe('SqlAutoComplete', () => {
       }
     };
     instance.getMonacoEditorInstance = () => editor;
-    instance.sqlEditor = sqlEditor = { // mock sqlEditor ref
+    instance.sqlAutoCompleteRef = sqlAutoCompleteRef = { // mock sqlAutoCompleteRef ref
       focus: sinon.stub()
     };
   });
@@ -78,10 +78,10 @@ describe('SqlAutoComplete', () => {
 
   describe('edit query context', () => {
     it('should render edit context button', () => {
-      expect(wrapper.find('.context').text()).to.eql('Context: my-space.my.folder');
+      expect(wrapper.find('.sqlAutocomplete__contextText').text()).to.eql('my-space.my.folder');
 
       wrapper.setProps({context: null});
-      expect(wrapper.find('.context').text()).to.eql('Context: <none>');
+      expect(wrapper.find('.sqlAutocomplete__contextText').text()).to.eql('<none>');
     });
 
     it('should set showSelectContextModal when edit is clicked', () => {
@@ -111,14 +111,14 @@ describe('SqlAutoComplete', () => {
       instance.insertAtRanges('foo');
       expect(editor.executeEdits).to.have.been.calledWith('dremio', [{ identifier: 'dremio-inject', range: fakeRange1, text: 'foo' }, { identifier: 'dremio-inject', range: fakeRange2, text: 'foo' }]);
       expect(editor.pushUndoStop).to.have.been.called;
-      expect(sqlEditor.focus).to.have.been.called;
+      expect(sqlAutoCompleteRef.focus).to.have.been.called;
     });
 
     it('passing ranges', () => {
       instance.insertAtRanges('foo', [fakeRange2, fakeRange1]);
       expect(editor.executeEdits).to.have.been.calledWith('dremio', [{ identifier: 'dremio-inject', range: fakeRange2, text: 'foo' }, { identifier: 'dremio-inject', range: fakeRange1, text: 'foo' }]);
       expect(editor.pushUndoStop).to.have.been.called;
-      expect(sqlEditor.focus).to.have.been.called;
+      expect(sqlAutoCompleteRef.focus).to.have.been.called;
     });
   });
 
@@ -174,7 +174,7 @@ describe('SqlAutoComplete', () => {
 
   describe('#resetValue', () => {
     it('should handle invalid sqlEditor', () => {
-      instance.sqlEditor = null;
+      instance.sqlAutoCompleteRef = null;
       //should not give error
       instance.resetValue();
     });

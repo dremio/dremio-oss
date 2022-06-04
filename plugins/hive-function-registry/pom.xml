@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.2.0-202205262146080444-038d6d1b</version>
   </parent>
 
   <artifactId>dremio-hive-function-registry</artifactId>
@@ -225,7 +225,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <configuration>
           <configLocation>src/main/checkstyle/checkstyle-config.xml</configLocation>
@@ -251,7 +250,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
@@ -297,7 +295,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
           <execution>
@@ -313,36 +310,29 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>      
+      </plugin>
     </plugins>
   </build>
 
   <profiles>
     <profile>
-      <id>linux</id>
+      <id>jdk9-or-higher</id>
       <activation>
-        <os><name>linux</name></os>
+        <jdk>[9,)</jdk>
       </activation>
 
       <build>
         <plugins>
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
+            <artifactId>maven-failsafe-plugin</artifactId>
             <configuration>
-              <!-- java.library.path property can only be set using argLine -->
-              <argLine>
-                -Xms512M
-                -Xmx3G
-                -XX:MaxDirectMemorySize=5120M
-                -XX:+CMSClassUnloadingEnabled
-                @{argLine}
-              </argLine>
+              <jdkToolchain>
+                <version>1.8</version>
+              </jdkToolchain>
             </configuration>
           </plugin>
         </plugins>
       </build>
-
     </profile>
   </profiles>
 </project>

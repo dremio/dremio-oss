@@ -18,6 +18,7 @@ package com.dremio.plugins.elastic;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,6 +31,14 @@ import com.dremio.common.util.TestTools;
  */
 
 public class ITTestPredicatePushdown extends ElasticPredicatePushdownBase {
+
+  @Before
+  public void CleanAndSetup() throws Exception {
+    // Cleanup and data load will make sure no data from old test is present.
+    removeSource();
+    setupElastic();
+    super.before();
+  }
 
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);

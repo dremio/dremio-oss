@@ -33,7 +33,7 @@ import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.service.sysflight.SysFlightProducer;
 import com.dremio.service.sysflight.SystemTableManagerImpl;
 import com.dremio.test.DremioTest;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 import com.google.inject.AbstractModule;
 
 
@@ -80,9 +80,9 @@ public class TestOptions extends BaseTestQuery{
   }
 
   @Test
-  public void checkValidationException() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(VALIDATION));
-    test("ALTER session SET %s = '%s';", SLICE_TARGET, "fail");
+  public void checkValidationException() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("ALTER session SET %s = '%s';", SLICE_TARGET, "fail"))
+      .hasErrorType(VALIDATION);
   }
 
   @Test // DRILL-3122
@@ -316,9 +316,9 @@ public class TestOptions extends BaseTestQuery{
   }
 
   @Test
-  public void unsupportedLiteralValidation() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(VALIDATION,
-      "Dremio doesn't support assigning literals of type"));
-    test("ALTER session SET \"%s\" = DATE '1995-01-01';", ENABLE_VERBOSE_ERRORS_KEY);
+  public void unsupportedLiteralValidation() {
+    UserExceptionAssert.assertThatThrownBy(() -> test("ALTER session SET \"%s\" = DATE '1995-01-01';", ENABLE_VERBOSE_ERRORS_KEY))
+      .hasErrorType(VALIDATION)
+      .hasMessageContaining("Dremio doesn't support assigning literals of type");
   }
 }

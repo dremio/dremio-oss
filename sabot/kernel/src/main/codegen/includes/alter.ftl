@@ -48,11 +48,31 @@
         )
       )
       |
+      <SPACE>
+      (
+        tblName = SimpleIdentifier()
+        (
+          <ROUTE> (
+            (<ALL> <REFLECTIONS> | <REFLECTIONS>) { return SqlAlterDatasetReflectionRouting(pos, tblName, SqlLiteral.createSymbol(SqlAlterDatasetReflectionRouting.RoutingType.SPACE, pos)); }
+          )
+        )
+      )
+      |
+      <FOLDER>
+      (
+        tblName = CompoundIdentifier()
+        (
+          <ROUTE> (
+            (<ALL> <REFLECTIONS> | <REFLECTIONS>) { return SqlAlterDatasetReflectionRouting(pos, tblName, SqlLiteral.createSymbol(SqlAlterDatasetReflectionRouting.RoutingType.FOLDER, pos)); }
+          )
+        )
+      )
+      |
       (<TABLE> | <VDS> | <PDS> | <DATASET>)
         tblName = CompoundIdentifier()
         (
           <ROUTE> (
-            (<ALL> <REFLECTIONS> | <REFLECTIONS>)  { return SqlAlterDatasetReflectionRouting(pos, tblName);}
+            (<ALL> <REFLECTIONS> | <REFLECTIONS>)  { return SqlAlterDatasetReflectionRouting(pos, tblName, SqlLiteral.createSymbol(SqlAlterDatasetReflectionRouting.RoutingType.TABLE, pos)); }
           )
           |
           <ADD> <COLUMNS> { return new SqlAlterTableAddColumns(pos, tblName, TableElementList()); }
@@ -496,7 +516,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
 /**
  * ALTER TABLE tblname ROUTE ALL REFLECTIONS TO QUEUE queuename
  */
-SqlNode SqlAlterDatasetReflectionRouting(SqlParserPos pos, SqlIdentifier tblName) :
+SqlNode SqlAlterDatasetReflectionRouting(SqlParserPos pos, SqlIdentifier tblName, SqlLiteral type) :
 {
   SqlLiteral isDefault;
   SqlIdentifier queueOrEngineName;
@@ -518,11 +538,11 @@ SqlNode SqlAlterDatasetReflectionRouting(SqlParserPos pos, SqlIdentifier tblName
   )
   {
     if (isDefault.booleanValue())
-    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, isQueue, null);
+      return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, isQueue, null, type);
   }
   queueOrEngineName = SimpleIdentifier()
   {
-    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, isQueue, queueOrEngineName);
+    return new SqlAlterDatasetReflectionRouting(pos, tblName, isDefault, isQueue, queueOrEngineName, type);
   }
 }
 

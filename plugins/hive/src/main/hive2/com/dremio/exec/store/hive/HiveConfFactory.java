@@ -38,6 +38,9 @@ public class HiveConfFactory {
   public static final String HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE = "hive.cache.enabledForS3AndADLSG2";
   public static final String HIVE_ENABLE_CACHE_FOR_HDFS = "hive.cache.enabledForHDFS";
   public static final String HIVE_MAX_HIVE_CACHE_SPACE = "hive.cache.maxspace";
+  public static final String DEFAULT_WAREHOUSE_LOCATION = "default_warehouse_location";
+  // Config is only used in tests and should not be set to true in production.
+  public static final String ENABLE_DML_TESTS_WITHOUT_LOCKING = "enable.dml.tests.without.locking";
 
   // Hadoop properties reference: hadoop/hadoop-common-project/hadoop-common/src/main/resources/core-default.xml
 

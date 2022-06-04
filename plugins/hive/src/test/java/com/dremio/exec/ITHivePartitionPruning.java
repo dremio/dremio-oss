@@ -36,17 +36,24 @@ public class ITHivePartitionPruning extends HiveTestBase {
 
   protected static Boolean usesV2Flow = false;
 
+  private static AutoCloseable disableUnlimitedSplitsAndIcebergFlags;
+
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
     test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
-  // enable decimal data type
   @BeforeClass
-  public static void initialiseV2Details() {
+  public static void initialiseDetails() {
     usesV2Flow = false;
     queryPlanKeyword = "mode=[NATIVE_PARQUET]";
+    disableUnlimitedSplitsAndIcebergFlags = disableUnlimitedSplitsAndIcebergSupportFlags();
+  }
+
+  @AfterClass
+  public static void  resetFlags() throws Exception {
+    disableUnlimitedSplitsAndIcebergFlags.close();
   }
 
   //Currently we do not have a good way to test plans so using a crude string comparison

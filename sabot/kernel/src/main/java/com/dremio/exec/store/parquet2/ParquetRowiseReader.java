@@ -397,7 +397,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       "Field type in table and file should be decimals");
     int precision = ((LogicalTypeAnnotation.DecimalLogicalTypeAnnotation) fieldTypeInFile).getPrecision();
     int scale = ((LogicalTypeAnnotation.DecimalLogicalTypeAnnotation) fieldTypeInFile).getScale();
-    ArrowType decimalType = new ArrowType.Decimal(precision, scale);
+    ArrowType decimalType = new ArrowType.Decimal(precision, scale, 128);
     return decimalType.equals(fieldTypeInTable);
   }
 

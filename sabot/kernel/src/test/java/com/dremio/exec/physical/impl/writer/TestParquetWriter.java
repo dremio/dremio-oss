@@ -20,8 +20,8 @@ import static org.apache.parquet.format.converter.ParquetMetadataConverter.SKIP_
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.notNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -776,7 +776,7 @@ public class TestParquetWriter extends BaseTestQuery {
     when(writerConf.getProps().getUserName()).thenReturn("testuser");
 
     ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
-    FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
+    FileSystemPlugin fsPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     when(fsPlugin.createFS((String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
     when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
@@ -856,7 +856,7 @@ public class TestParquetWriter extends BaseTestQuery {
     when(writerConf.getProps().getUserName()).thenReturn("testuser");
 
     ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
-    FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
+    FileSystemPlugin fsPlugin = BaseTestQuery.getMockedFileSystemPlugin();
     when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
     when(fsPlugin.createFS((String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);

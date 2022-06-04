@@ -23,9 +23,9 @@ import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
+import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.copier.CopierTemplate4;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopier4;
 
 /**
  * Replacement class for vector copying that behaves the same as a compiled CoperTemplate4.
@@ -34,7 +34,7 @@ class VectorCopier4 extends CopierTemplate4 {
 
   private final List<FieldBufferCopier> copiers;
 
-  public VectorCopier4(VectorAccessible incoming, VectorAccessible outgoing) {
+  public VectorCopier4(VectorAccessible incoming, VectorAccessible outgoing, CopierFactory copierFactory) {
     this.sv4 = incoming.getSelectionVector4();
     this.outgoing = outgoing;
 
@@ -44,7 +44,7 @@ class VectorCopier4 extends CopierTemplate4 {
     @SuppressWarnings("unchecked")
     List<FieldVector> outputVectors = (List<FieldVector>) StreamSupport.stream(outgoing.spliterator(), false).map(w -> w.getValueVector()).collect(Collectors.toList());
 
-    copiers = FieldBufferCopier4.getFourByteCopiers(inputVectors, outputVectors);
+    copiers = copierFactory.getFourByteCopiers(inputVectors, outputVectors);
   }
 
   @Override

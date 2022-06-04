@@ -32,7 +32,7 @@ import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
-import com.dremio.exec.planner.physical.visitor.InsertLocalExchangeVisitor.RexNodeBasedHashExpressionCreatorHelper;
+import com.dremio.exec.planner.sql.SqlOperatorImpl;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -194,5 +194,20 @@ public class HashPrelUtil {
     }
 
     return createHashBasedPartitionExpression(expressions, HASH_HELPER_LOGICALEXPRESSION);
+  }
+
+  public static class RexNodeBasedHashExpressionCreatorHelper implements HashExpressionCreatorHelper<RexNode> {
+    private final RexBuilder rexBuilder;
+
+    public RexNodeBasedHashExpressionCreatorHelper(RexBuilder rexBuilder) {
+      this.rexBuilder = rexBuilder;
+    }
+
+    @Override
+    public RexNode createCall(String funcName, List<RexNode> inputFields) {
+      final SqlOperatorImpl op =
+        new SqlOperatorImpl(funcName, inputFields.size(), true);
+      return rexBuilder.makeCall(op, inputFields);
+    }
   }
 }

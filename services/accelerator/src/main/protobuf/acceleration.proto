@@ -59,6 +59,7 @@ message ReflectionRelationship {
     optional bool snowflake = 7 [default = false];
     optional double query_distance = 8 [default = nan];
     repeated ReflectionExplanation reflection_explanation = 9;
+    optional bool hideHint = 10 [default = false];
 }
 
 

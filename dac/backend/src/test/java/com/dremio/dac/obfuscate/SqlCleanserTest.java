@@ -46,7 +46,7 @@ public class SqlCleanserTest {
 
     String observedSql =
       RequestContext.current()
-        .with(SupportContext.CTX_KEY, new SupportContext("dummy", "dummy"))
+        .with(SupportContext.CTX_KEY, new SupportContext("dummy", "dummy", new String[]{ SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue() }))
         .call(() -> SqlCleanser.cleanseSql(sql));
     assertEquals("Obfuscating of sql failed.", expectedSql, observedSql);
   }
@@ -96,7 +96,7 @@ public class SqlCleanserTest {
 
     String observedSql =
       RequestContext.current()
-        .with(SupportContext.CTX_KEY, new SupportContext("dummy", "dummy"))
+        .with(SupportContext.CTX_KEY, new SupportContext("dummy", "dummy", new String[]{ SupportContext.SupportRole.BASIC_SUPPORT_ROLE.getValue() }))
         .call(() -> SqlCleanser.cleanseSql(sql));
     assertEquals("Obfuscating of sql failed.", expectedSql, observedSql);
   }

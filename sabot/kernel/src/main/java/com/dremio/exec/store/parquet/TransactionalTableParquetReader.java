@@ -23,6 +23,7 @@ import java.util.Optional;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.parquet.schema.Type;
 
@@ -141,8 +142,7 @@ public abstract class TransactionalTableParquetReader implements RecordReader {
               arrowField.add(groupField);
               List<Field> dremioField = CompleteType.convertToDremioFields(arrowField);
               Field dremioGroupField = dremioField.get(0);
-              Field field = new Field(columnResolver.getBatchSchemaColumnName(parquetField.getName()), true,
-                dremioGroupField.getType(), dremioGroupField.getChildren());
+              Field field = new Field(columnResolver.getBatchSchemaColumnName(parquetField.getName()), new FieldType(true,  dremioGroupField.getType(), null), dremioGroupField.getChildren());
               final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
               output.addField(field, clazz);
             } else {

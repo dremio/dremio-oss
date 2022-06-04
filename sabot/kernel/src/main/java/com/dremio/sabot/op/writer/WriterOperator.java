@@ -41,6 +41,7 @@ import com.dremio.exec.store.RecordWriter.WriteStatsListener;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.iceberg.IcebergPartitionData;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
+import com.dremio.exec.store.iceberg.model.IcebergCommandType;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -271,6 +272,22 @@ public class WriterOperator implements SingleInputOperator {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(recordWriter, output);
+    if(checkForIcebergRecordWriterAbort()) {
+      recordWriter.abort();
+    }
+  }
+
+  private boolean checkForIcebergRecordWriterAbort() throws Exception {
+    if (state != State.DONE && recordWriter != null &&
+      options != null && options.getIcebergTableProps() != null) {
+      IcebergCommandType command = options.getIcebergTableProps().getIcebergOpType();
+      if (command == IcebergCommandType.INCREMENTAL_METADATA_REFRESH
+        || command == IcebergCommandType.CREATE
+        || command == IcebergCommandType.INSERT) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void moveToCanProduceStateIfOutputExists() {

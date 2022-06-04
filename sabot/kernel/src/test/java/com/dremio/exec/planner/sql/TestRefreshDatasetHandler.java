@@ -17,7 +17,7 @@ package com.dremio.exec.planner.sql;
 
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.METADATA_STORAGE_PLUGIN_NAME;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -39,6 +39,7 @@ import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
+import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
@@ -70,7 +71,7 @@ public class TestRefreshDatasetHandler extends PlanTestBase {
                     new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
                     optionManager)
             .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-            .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+            .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
             .setSupportComplexTypes(true)
             .build();
     final QueryContext queryContext = spy(new QueryContext(session, context, UserBitShared.QueryId.getDefaultInstance()));

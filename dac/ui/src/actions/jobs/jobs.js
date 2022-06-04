@@ -234,8 +234,15 @@ const cancelJob = (jobId) => {
 };
 
 export const cancelJobAndShowNotification = (jobId) => (dispatch) => {
-  return dispatch(cancelJob(jobId))
-    .then(action => dispatch(addNotification(action.payload.message, 'success' )));
+  return dispatch(cancelJob(jobId)).then((action) => {
+    if (action.payload.response && action.payload.response.errorMessage) {
+      return dispatch(
+        addNotification(action.payload.response.errorMessage, 'error')
+      );
+    } else {
+      return dispatch(addNotification(action.payload.message, 'success'));
+    }
+  });
 };
 
 export const CANCEL_REFLECTION_JOB_REQUEST = 'CANCEL_REFLECTION_JOB_REQUEST';

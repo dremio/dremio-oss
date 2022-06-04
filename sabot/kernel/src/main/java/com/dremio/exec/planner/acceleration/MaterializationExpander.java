@@ -108,7 +108,7 @@ public class MaterializationExpander {
     }
 
     // if the row types don't match, ignoring the nullability, fail immediately
-    if (!areRowTypesEqual(tableRel.getRowType(), strippedQueryRowType)) {
+    if (!areRowTypesEqual(tableRel.getRowType(), strippedQueryRowType, true)) {
       throw new ExpansionException(String.format("Materialization %s have different row types for its table and query rels.%n" +
         "table row type %s%nquery row type %s", descriptor.getMaterializationId(), tableRel.getRowType(), strippedQueryRowType));
     }
@@ -155,10 +155,10 @@ public class MaterializationExpander {
   }
 
   /**
-   * Compare row types ignoring field names, nullability, ANY and CHAR/VARCHAR types
+   * Compare row types ignoring field names, nullability, ANY and CHAR/VARCHAR types.
+   * When allowNullMismatch boolean is set, it allows INTEGER and NULL type match.
    */
-  @VisibleForTesting
-  static boolean areRowTypesEqual(RelDataType rowType1, RelDataType rowType2) {
+  static boolean areRowTypesEqual(RelDataType rowType1, RelDataType rowType2, boolean allowNullMismatch) {
       if (rowType1 == rowType2) {
         return true;
       }
@@ -176,6 +176,10 @@ public class MaterializationExpander {
 
         // are types equal ?
         if (type1.equals(type2)) {
+          continue;
+        }
+
+        if (allowNullMismatch && type2.getSqlTypeName() == SqlTypeName.NULL && type1.getSqlTypeName() == SqlTypeName.INTEGER) {
           continue;
         }
 
@@ -200,6 +204,11 @@ public class MaterializationExpander {
       }
 
       return true;
+  }
+
+  @VisibleForTesting
+  static boolean areRowTypesEqual(RelDataType rowType1, RelDataType rowType2) {
+    return areRowTypesEqual(rowType1, rowType2, false);
   }
 
   private static boolean isSumAggOutput(RelDataType type1, RelDataType type2) {

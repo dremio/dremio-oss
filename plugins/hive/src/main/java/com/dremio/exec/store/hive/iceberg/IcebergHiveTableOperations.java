@@ -22,11 +22,11 @@ import org.apache.iceberg.io.FileIO;
 public class IcebergHiveTableOperations extends BaseMetastoreTableOperations {
 
   private final FileIO fileIO;
-  private final IcebergHiveTableIdentifier hiveTableIdentifier;
+  private final String metadataLocation;
 
-  public IcebergHiveTableOperations(FileIO fileIO, IcebergHiveTableIdentifier hiveTableIdentifier) {
+  public IcebergHiveTableOperations(FileIO fileIO, String metadataLocation) {
     this.fileIO = fileIO;
-    this.hiveTableIdentifier = hiveTableIdentifier;
+    this.metadataLocation = metadataLocation;
   }
 
   @Override
@@ -35,8 +35,12 @@ public class IcebergHiveTableOperations extends BaseMetastoreTableOperations {
   }
 
   @Override
+  protected String tableName() {
+    throw new UnsupportedOperationException("not supported");
+  }
+
+  @Override
   protected void doRefresh() {
-    String metadataLocation = this.hiveTableIdentifier.getMetadataLocation();
     refreshFromMetadataLocation(metadataLocation, 2);
   }
 }

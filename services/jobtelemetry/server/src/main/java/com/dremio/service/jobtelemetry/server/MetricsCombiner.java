@@ -15,6 +15,7 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
@@ -23,24 +24,30 @@ import com.dremio.exec.proto.CoordExecRPC.QueryProgressMetrics;
  * Combiner for all individual executor metrics.
  */
 final class MetricsCombiner {
-  private final Stream<QueryProgressMetrics> executorMetrics;
+  private final Supplier<Stream<QueryProgressMetrics>> executorMetrics;
 
-  private MetricsCombiner(Stream<QueryProgressMetrics> executorMetrics) {
+  private MetricsCombiner(Supplier<Stream<QueryProgressMetrics>> executorMetrics) {
     this.executorMetrics = executorMetrics;
   }
 
   private QueryProgressMetrics combine() {
     long rowsProcessed =
-        executorMetrics
-          .mapToLong(QueryProgressMetrics::getRowsProcessed)
-          .sum();
+      executorMetrics.get()
+        .mapToLong(QueryProgressMetrics::getRowsProcessed)
+        .sum();
+
+    long outputRecords =
+      executorMetrics.get()
+        .mapToLong(QueryProgressMetrics::getOutputRecords)
+        .sum();
 
     return QueryProgressMetrics.newBuilder()
       .setRowsProcessed(rowsProcessed)
+      .setOutputRecords(outputRecords)
       .build();
   }
 
-  static QueryProgressMetrics combine(Stream<QueryProgressMetrics> executorMetrics) {
+  static QueryProgressMetrics combine(Supplier<Stream<QueryProgressMetrics>> executorMetrics) {
     return new MetricsCombiner(executorMetrics).combine();
   }
 }

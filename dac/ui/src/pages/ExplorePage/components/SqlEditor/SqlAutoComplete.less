@@ -13,14 +13,74 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ @import '../../../../components/colors.less';
 
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .sqlAutocomplete {
+    border: .1rem solid @athensGray;
+    border-radius: .4rem;
+    min-height: 4rem;
+    margin-left: 1rem;
+    margin-top: .8rem;
 
-  .sql-autocomplete {
-    min-height: 40px;
-    margin-left: 10px;
-    margin-right: 16px;
-    margin-top: 0;
-    border: 1px solid #c2c2c2;
+    &.vs-dark {
+      background-color: #333333;
+
+      .sqlAutocomplete__actions {
+        border-color: #6F6F6F;
+
+        .sqlAutocomplete__context {
+          color: @white;
+        }
+      }
+    }
+
+    .sql__toggleIcon,
+    .function__toggleIcon {
+      align-items: center;
+      cursor: pointer;
+      display: flex;
+    }
+
+    .sql__toggleIcon {
+      transform: rotate(45deg);
+    }
+
+    .function__toggleIcon {
+      font-weight: 600;
+      right: 4.2rem;
+    }
+
+    .react-monaco-editor-container {
+      min-height: 4rem !important;
+      height: 17rem;
+    }
   }
+
+  .sqlAutocomplete__actions {
+    align-items: center;
+    border-bottom: 1px solid @athensGray;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1.2rem;
+    padding: .8rem 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .sqlAutocomplete__context {
+    display: flex;
+    align-items: center;
+  }
+
+  .sqlAutocomplete__contextText {
+      color: @teal;
+      cursor: pointer;
+      margin-left: .5rem;
+
+      &:hover {
+        color: @light-black;
+      }
+    
+  }
+
 }

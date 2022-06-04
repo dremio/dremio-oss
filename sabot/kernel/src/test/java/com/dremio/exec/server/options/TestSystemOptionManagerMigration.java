@@ -15,11 +15,8 @@
  */
 package com.dremio.exec.server.options;
 
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
@@ -92,8 +89,8 @@ public class TestSystemOptionManagerMigration extends DremioTest {
 
     // check options are deleted from legacy store
     assertEquals(0, getNumOptions(legacyStore)); // old store should have no options
-    assertNull(legacyStore.get(option1.getName()));
-    assertNull(legacyStore.get(option2.getName()));
+    assertThat(legacyStore.get(option1.getName())).isNull();
+    assertThat(legacyStore.get(option2.getName())).isNull();
 
     // check options match
     assertEquals(som.getOption(option1.getName()), option1);
@@ -120,8 +117,8 @@ public class TestSystemOptionManagerMigration extends DremioTest {
 
     // check options are deleted from legacy store
     assertEquals(0, getNumOptions(legacyStore)); // old store should have no options
-    assertNull(legacyStore.get(option1.getName()));
-    assertNull(legacyStore.get(option2.getName()));
+    assertThat(legacyStore.get(option1.getName())).isNull();
+    assertThat(legacyStore.get(option2.getName())).isNull();
 
     // check options match
     assertEquals(som.getOption(option1.getName()), option1);
@@ -140,8 +137,8 @@ public class TestSystemOptionManagerMigration extends DremioTest {
     // migrate
     som.start();
 
-    assertNull(som.getOption("invalid"));
-    assertThat(som.getNonDefaultOptions(), not(hasItem(option1)));
+    assertThat(som.getOption("invalid")).isNull();
+    assertThat(som.getNonDefaultOptions()).doesNotContain(option1);
   }
 
   /**
@@ -169,8 +166,8 @@ public class TestSystemOptionManagerMigration extends DremioTest {
 
     som.start();
 
-    assertThat(som.getNonDefaultOptions(), hasItem(validOption));
-    assertThat(som.getNonDefaultOptions(), not(hasItem(invalidOption)));
+    assertThat(som.getNonDefaultOptions()).contains(validOption);
+    assertThat(som.getNonDefaultOptions()).doesNotContain(invalidOption);
   }
 
   private int getNumOptions(OptionValueStore persistentStore) {

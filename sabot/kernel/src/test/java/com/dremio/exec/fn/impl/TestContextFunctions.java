@@ -15,6 +15,11 @@
  */
 package com.dremio.exec.fn.impl;
 
+import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_1;
+import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_1_PASSWORD;
+import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_2;
+import static com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl.TEST_USER_2_PASSWORD;
+
 import java.util.Properties;
 
 import org.junit.Test;
@@ -43,22 +48,20 @@ public class TestContextFunctions extends PlanTestBase {
 
   @Test
   public void userUDFForNamedConnection() throws Exception {
-    final String testUserName = "testUser1";
-    updateClient(testUserName);
+    updateClient(TEST_USER_1, TEST_USER_1_PASSWORD);
     testBuilder()
         .sqlQuery("select user, session_user, system_user, query_user() as query_user from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("user", "session_user", "system_user", "query_user")
-        .baselineValues(testUserName, testUserName, testUserName, testUserName)
+        .baselineValues(TEST_USER_1, TEST_USER_1, TEST_USER_1, TEST_USER_1)
         .go();
   }
 
   @Test
   public void userUDFInFilterCondition() throws Exception {
-    final String testUserName = "testUser2";
-    updateClient(testUserName);
+    updateClient(TEST_USER_2, TEST_USER_2_PASSWORD);
     final String query = String.format(
-        "select employee_id from cp.\"employee.json\" where '%s' = user order by employee_id limit 1", testUserName);
+        "select employee_id from cp.\"employee.json\" where '%s' = user order by employee_id limit 1", TEST_USER_2);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -69,8 +72,8 @@ public class TestContextFunctions extends PlanTestBase {
 
   @Test
   public void queryUserConstantReduction() throws Exception {
-    final String caSalesUser = "testUser1";
-    final String waSalesUser = "testUser2";
+    final String caSalesUser = TEST_USER_1;
+    final String waSalesUser = TEST_USER_2;
 
     final String query = String.format("SELECT sales_city " +
             "FROM cp.\"region.json\" t WHERE " +
@@ -78,7 +81,7 @@ public class TestContextFunctions extends PlanTestBase {
                 "(query_user() = '%s' and t.sales_state_province = 'WA')" +
             "ORDER BY sales_city LIMIT 2", caSalesUser, waSalesUser);
 
-    updateClient(caSalesUser);
+    updateClient(caSalesUser, TEST_USER_1_PASSWORD);
     testPhysicalPlan(query, "Filter(condition=[=($1, 'CA')])");
 
     testBuilder()
@@ -89,7 +92,7 @@ public class TestContextFunctions extends PlanTestBase {
         .baselineValues("Arcadia")
         .go();
 
-    updateClient(waSalesUser);
+    updateClient(waSalesUser, TEST_USER_2_PASSWORD);
     testPhysicalPlan(query, "Filter(condition=[=($1, 'WA')])");
 
     testBuilder()
@@ -145,7 +148,8 @@ public class TestContextFunctions extends PlanTestBase {
    */
   private static DremioClient createCleanClientHelper() throws Exception{
     final Properties props = new Properties();
-    props.setProperty(UserSession.USER, "testUser");
+    props.setProperty(UserSession.USER, TEST_USER_1);
+    props.setProperty(UserSession.PASSWORD, TEST_USER_1_PASSWORD);
     return QueryTestUtil.createCleanClient(config, clusterCoordinator, props);
   }
 

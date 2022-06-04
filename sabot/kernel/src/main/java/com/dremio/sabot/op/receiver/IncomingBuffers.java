@@ -40,6 +40,7 @@ import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.sabot.exec.cursors.FileCursorManagerFactory;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
@@ -80,12 +81,14 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
   private final BufferAllocator allocator;
   private final SharedResourceGroup resourceGroup;
   private final DeferredException deferredException;
+  private final FileCursorManagerFactory fileCursorManagerFactory;
 
   public IncomingBuffers(
       DeferredException exception,
       SharedResourceGroup resourceGroup,
       FragmentWorkQueue workQueue,
       TunnelProvider tunnelProvider,
+      FileCursorManagerFactory fileCursorManagerFactory,
       PlanFragmentFull fragment,
       BufferAllocator incomingAllocator,
       SabotConfig config,
@@ -95,6 +98,7 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
       ) {
     this.deferredException = exception;
     this.resourceGroup = resourceGroup;
+    this.fileCursorManagerFactory = fileCursorManagerFactory;
 
     final FragmentHandle handle = fragment.getMajor().getHandle();
     final String allocatorName = String.format("op:%s:incoming",
@@ -183,6 +187,11 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
     DataCollector collector = collectorMap.get(senderMajorFragmentId);
     Preconditions.checkNotNull(collector, "Invalid major fragment id %s. Expected a value in %s", senderMajorFragmentId, collectorMap.values().toString());
     return collector.getBuffers();
+  }
+
+  @Override
+  public RawFragmentBatchProvider getBuffersFromFiles(String uniqueId, int readerMajorFragId) {
+    return new BatchBufferFromFilesProvider(uniqueId, readerMajorFragId, resourceGroup, allocator, fileCursorManagerFactory);
   }
 
   @Override

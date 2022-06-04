@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.0529 11.2806C3.91245 11.14 3.83356 10.9494 3.83356 10.7506C3.83356 10.5519 3.91245 10.3613 4.0529 10.2206L6.32628 7.94717L4.07204 5.69291C3.99835 5.62425 3.93925 5.54145 3.89826 5.44945C3.85727 5.35745 3.83523 5.25814 3.83345 5.15744C3.83167 5.05673 3.8502 4.9567 3.88792 4.86332C3.92564 4.76993 3.98178 4.68509 4.053 4.61388C4.12422 4.54266 4.20905 4.48651 4.30244 4.44879C4.39583 4.41107 4.49586 4.39255 4.59656 4.39432C4.69727 4.3961 4.79658 4.41814 4.88858 4.45913C4.98058 4.50012 5.06338 4.55923 5.13204 4.63291L7.91629 7.41717C8.05674 7.5578 8.13563 7.74842 8.13563 7.94717C8.13563 8.14592 8.05674 8.33655 7.91629 8.47717L5.1129 11.2806C4.97227 11.4211 4.78165 11.5 4.5829 11.5C4.38415 11.5 4.19352 11.4211 4.0529 11.2806Z" fill="#EEEFF1"/>
+<path d="M9.41667 10.75C9.41667 10.3358 9.75245 10 10.1667 10H15.6667C16.0809 10 16.4167 10.3358 16.4167 10.75C16.4167 11.1642 16.0809 11.5 15.6667 11.5H10.1667C9.75245 11.5 9.41667 11.1642 9.41667 10.75Z" fill="#EEEFF1"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M2.25 0C1.00736 0 0 1.00736 0 2.25V13.75C0 14.9926 1.00736 16 2.25 16H17.75C18.9926 16 20 14.9926 20 13.75V2.25C20 1.00736 18.9926 0 17.75 0H2.25ZM1.5 2.25C1.5 1.83579 1.83579 1.5 2.25 1.5H17.75C18.1642 1.5 18.5 1.83579 18.5 2.25V13.75C18.5 14.1642 18.1642 14.5 17.75 14.5H2.25C1.83579 14.5 1.5 14.1642 1.5 13.75V2.25Z" fill="#EEEFF1"/>
+</svg>

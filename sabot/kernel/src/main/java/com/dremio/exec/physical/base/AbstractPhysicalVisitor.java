@@ -17,6 +17,8 @@ package com.dremio.exec.physical.base;
 
 import com.dremio.exec.physical.config.AbstractSort;
 import com.dremio.exec.physical.config.AbstractTableFunctionPOP;
+import com.dremio.exec.physical.config.BridgeExchange;
+import com.dremio.exec.physical.config.BridgeFileReader;
 import com.dremio.exec.physical.config.BroadcastSender;
 import com.dremio.exec.physical.config.DictionaryLookupPOP;
 import com.dremio.exec.physical.config.EmptyValues;
@@ -211,6 +213,11 @@ public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> impleme
   }
 
   @Override
+  public T visitBridgeExchange(BridgeExchange op, X value) throws E {
+    return visitExchange(op, value);
+  }
+
+  @Override
   public T visitValues(Values op, X value) throws E {
     return visitOp(op, value);
   }
@@ -223,6 +230,11 @@ public abstract class AbstractPhysicalVisitor<T, X, E extends Throwable> impleme
   @Override
   public T visitTableFunction(AbstractTableFunctionPOP op, X value) throws E {
     return visitOp(op, value);
+  }
+
+  @Override
+  public T visitBridgeFileReader(BridgeFileReader op, X value) throws E {
+    return visitSubScan(op, value);
   }
 
   @Override

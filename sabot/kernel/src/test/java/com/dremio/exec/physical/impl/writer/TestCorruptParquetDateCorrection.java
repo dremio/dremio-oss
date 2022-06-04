@@ -186,21 +186,19 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
 
   @Test
   public void testDatePartitionedReadWithCorruption() throws Exception {
-    try {
-      test(String.format("alter session set %s = true", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+    try (AutoCloseable c1 = disableUnlimitedSplitsSupportFlags();
+         AutoCloseable c2 = withSystemOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR, true)) {
       testBuilder()
-          .sqlQuery("select date_col from " +
-              "dfs.\"" + DATE_PARTITIONED + "\"" +
-              "where date_col = '1999-04-08'")
-          .baselineColumns("date_col")
-          .unOrdered()
-          .baselineValues(new LocalDateTime(1999, 4, 8, 0, 0))
-          .go();
+        .sqlQuery("select date_col from " +
+          "dfs.\"" + DATE_PARTITIONED + "\"" +
+          "where date_col = '1999-04-08'")
+        .baselineColumns("date_col")
+        .unOrdered()
+        .baselineValues(new LocalDateTime(1999, 4, 8, 0, 0))
+        .go();
 
       String sql = "select date_col from dfs.\"" + DATE_PARTITIONED + "\" where date_col > '1999-04-08'";
       testPlanMatchingPatterns(sql, new String[]{"splits=\\[6"}, null);
-    } finally {
-      test("alter session reset all");
     }
   }
 

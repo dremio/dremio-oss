@@ -24,6 +24,9 @@ describe('ResourceTreeController', () => {
     minimalProps = {
       loadResourceTree: sinon.stub().returns({
         then: (callback) => callback({})
+      }),
+      loadSourceListData: sinon.stub().returns({
+        then: (callback) => callback({})
       })
     };
     commonProps = {
@@ -68,7 +71,7 @@ describe('ResourceTreeController', () => {
   });
   describe('componentWillMount', () => {
     it(`should set selectedNodeId, call onChange, call expandPathToSelectedNode,
-      call loadResourceTree if has preselectedNodeId`, () => {
+      call loadResourceTree, call loadSourceListData if has preselectedNodeId`, () => {
       const props = {
         ...commonProps,
         preselectedNodeId: 'DG'
@@ -181,7 +184,7 @@ describe('ResourceTreeController', () => {
       sinon.spy(instance, 'loadResourceTree');
       wrapper.setState({ expandedNodes: Immutable.fromJS(['DG', 'DG.fold']) });
       instance.handleNodeClick(node);
-      expect(instance.loadResourceTree).to.not.be.called;
+      expect(instance.loadResourceTree).to.be.called;
       expect(wrapper.state('expandedNodes').size).to.be.equal(0);
     });
   });

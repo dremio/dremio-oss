@@ -114,12 +114,12 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
       return predicate.apply(path);
     }).collect(Collectors.toList());
 
-    return new ScanCrel(getCluster(), getTraitSet(), getPluginId(), getTableMetadata(), newProjection, observedRowcountAdjustment, false);
+    return new ScanCrel(getCluster(), getTraitSet(), getPluginId(), getTableMetadata(), newProjection, observedRowcountAdjustment, isDirectNamespaceDescendent);
   }
 
   @Override
   public ScanCrel cloneWithProject(List<SchemaPath> projection) {
-    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, projection, observedRowcountAdjustment, false);
+    return new ScanCrel(getCluster(), traitSet, pluginId, tableMetadata, projection, observedRowcountAdjustment, isDirectNamespaceDescendent);
   }
 
   @Override

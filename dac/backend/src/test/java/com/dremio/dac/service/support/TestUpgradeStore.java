@@ -16,6 +16,7 @@
 package com.dremio.dac.service.support;
 
 import static junit.framework.TestCase.assertFalse;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -26,9 +27,7 @@ import java.util.List;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskRun;
@@ -42,9 +41,6 @@ import com.dremio.test.DremioTest;
  * To test KVStore for Upgrade
  */
 public class TestUpgradeStore {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   private static final LegacyKVStoreProvider kvstore =
       LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
@@ -71,7 +67,7 @@ public class TestUpgradeStore {
   }
 
   @Test
-  public void testCreateAndUpdateUpgradeStoreTask() throws Exception {
+  public void testCreateAndUpdateUpgradeStoreTask() {
     String upgradeTaskName = "UpgradeTask1";
     String upgradeTaskID = "UpgradeTask1_ID";
     long startTime = System.currentTimeMillis();
@@ -111,7 +107,7 @@ public class TestUpgradeStore {
   }
 
   @Test
-  public void testAddUpgradeRun() throws Exception {
+  public void testAddUpgradeRun() {
     String upgradeTaskName = "UpgradeTask1";
     String upgradeTaskID = "UpgradeTask1_ID";
     long startTime = System.currentTimeMillis();
@@ -145,7 +141,7 @@ public class TestUpgradeStore {
   }
 
   @Test
-  public void testAddTerminalStateWOTime() throws Exception {
+  public void testAddTerminalStateWOTime() {
     String upgradeTaskName = "UpgradeTask1";
     String upgradeTaskID = "UpgradeTask1_ID";
     long startTime = System.currentTimeMillis();
@@ -155,23 +151,23 @@ public class TestUpgradeStore {
 
     upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun);
 
-    UpgradeTaskRun upgradeTaskRun2 = new UpgradeTaskRun()
+    final UpgradeTaskRun upgradeTaskRun2 = new UpgradeTaskRun()
       .setStatus(UpgradeStatus.COMPLETED)
       .setEndTime(startTime);
 
-    thrown.expect(IllegalStateException.class);
-    upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun2);
+    assertThatThrownBy(() -> upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun2))
+      .isInstanceOf(IllegalStateException.class);
 
-    upgradeTaskRun2 = new UpgradeTaskRun()
+    final UpgradeTaskRun upgradeTaskRun3 = new UpgradeTaskRun()
       .setStatus(UpgradeStatus.COMPLETED)
       .setStartTime(startTime);
 
-    thrown.expect(IllegalStateException.class);
-    upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun2);
+    assertThatThrownBy(() -> upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun3))
+      .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
-  public void updateRunInTermState() throws Exception {
+  public void updateRunInTermState() {
     String upgradeTaskName = "UpgradeTask1";
     String upgradeTaskID = "UpgradeTask1_ID";
     long startTime = System.currentTimeMillis();
@@ -185,7 +181,8 @@ public class TestUpgradeStore {
 
     upgradeTaskRun1.setStatus(UpgradeStatus.COMPLETED);
 
-    thrown.expect(IllegalStateException.class);
-    upgradeStore.updateLastUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun1);
+    assertThatThrownBy(() -> upgradeStore.updateLastUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun1))
+      .isInstanceOf(IllegalStateException.class);
+    upgradeStore.addUpgradeRun(upgradeTaskID, upgradeTaskName, upgradeTaskRun1);
   }
 }

@@ -45,7 +45,8 @@ import com.dremio.exec.planner.common.JdbcRelBase;
 import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.common.LimitRelBase;
 import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.planner.physical.AggPrelBase;
+import com.dremio.exec.planner.physical.AggregatePrel;
+import com.dremio.exec.planner.physical.BridgeReaderPrel;
 import com.dremio.exec.planner.physical.BroadcastExchangePrel;
 import com.dremio.exec.planner.physical.FlattenPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -64,6 +65,7 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
   private static final Logger logger = LoggerFactory.getLogger(RelMdRowCount.class);
   private static final RelMdRowCount INSTANCE = new RelMdRowCount(StatisticsService.NO_OP);
   private static final Double decreaseSelectivityForInexactFilters = 0.999;
+  private static final Double aggregateUpperBoundFactor = 0.9;
   public static final RelMetadataProvider SOURCE = ReflectiveRelMetadataProvider.reflectiveSource(BuiltInMethod.ROW_COUNT.method, INSTANCE);
 
   private final StatisticsService statisticsService;
@@ -79,30 +81,14 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
     ImmutableBitSet groupKey = rel.getGroupSet();
     if (groupKey.isEmpty()) {
       return 1.0;
-    } else if (!DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)) {
+    } else if (!DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp)
+    || !isDistinctCountStatCollected(mq, rel.getInput(), rel.getGroupSet())
+    ) {
       return rel.estimateRowCount(mq);
-    } else if (rel instanceof AggPrelBase && ((AggPrelBase) rel).getOperatorPhase() == AggPrelBase.OperatorPhase.PHASE_1of2) {
-      // Phase 1 Aggregate would return rows in the range [NDV, input_rows]. Hence, use the
-      // existing estimate of 1/10 * input_rows
-      double rowCount = mq.getRowCount(rel.getInput()) / 10;
-      try {
-        Double ndv = mq.getDistinctRowCount(rel.getInput(), groupKey, null);
-        // Use max of NDV and input_rows/10
-        if (ndv != null) {
-          rowCount = Math.max(ndv, rowCount);
-        }
-        // Grouping sets multiply
-        rowCount *= rel.getGroupSets().size();
+    }
 
-        if(rowCount >= mq.getRowCount(rel.getInput())){
-          // our estimation has failed completely
-          return rel.estimateRowCount(mq);
-        }
-        return rowCount;
-      } catch (Exception ex) {
-        logger.debug("Failed to get row count of aggregate. Fallback to default estimation", ex);
-        return rel.estimateRowCount(mq);
-      }
+    if (rel instanceof AggregatePrel && ((AggregatePrel) rel).getOperatorPhase() == AggregatePrel.OperatorPhase.PHASE_2of2){
+      return  mq.getRowCount(rel.getInput());
     }
 
     try {
@@ -112,7 +98,7 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
       }
 
       Double rowCount = (double) distinctRowCount * (double) rel.getGroupSets().size();
-      if(rowCount >= mq.getRowCount(rel.getInput())){
+      if(rowCount >= mq.getRowCount(rel.getInput())* aggregateUpperBoundFactor){
         // our estimation has failed completely
         return rel.estimateRowCount(mq);
       }
@@ -134,8 +120,27 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
     return estimateRowCount(rel, mq);
   }
 
+  public Double getRowCount(BridgeReaderPrel rel, RelMetadataQuery mq) {
+    return rel.estimateRowCount(mq);
+  }
+
   private Double getDistinctCountForJoinChild(RelMetadataQuery mq, RelNode rel, ImmutableBitSet cols) {
-    if (cols.asList().stream().anyMatch(col -> {
+    if (isDistinctCountStatCollected(mq, rel, cols)) {
+      return mq.getDistinctRowCount(rel, cols, null);
+    }
+    return null;
+  }
+
+  private boolean isRowCountStatCollected(RelMetadataQuery mq, RelNode rel){
+      RelOptTable tableOrigin = mq.getTableOrigin(rel);
+      if(tableOrigin == null || tableOrigin.getQualifiedName() == null || DremioRelMdUtil.isStatisticsEnabled(rel.getCluster().getPlanner(), isNoOp) ){
+        return  false;
+      }
+      return (statisticsService.getRowCount(new NamespaceKey(tableOrigin.getQualifiedName())) != null);
+  }
+
+  private boolean isDistinctCountStatCollected(RelMetadataQuery mq, RelNode rel,  ImmutableBitSet cols){
+    return cols.asList().stream().anyMatch(col -> {
       Set<RelColumnOrigin> columnOrigins = mq.getColumnOrigins(rel, col);
       if (columnOrigins != null) {
         for (RelColumnOrigin columnOrigin : columnOrigins) {
@@ -148,10 +153,7 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
         }
       }
       return false;
-    })) {
-      return mq.getDistinctRowCount(rel, cols, null);
-    }
-    return null;
+    });
   }
 
   public Double estimateJoinRowCountWithStatistics(Join rel, RelMetadataQuery mq) {
@@ -180,6 +182,9 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
     if (leftNdv == null || rightNdv == null
       || leftNdv == 0 || rightNdv == 0
       || leftRowCount == null || rightRowCount == null) {
+      if(!isRowCountStatCollected(mq, right) || !isRowCountStatCollected(mq, left)){
+        return estimateRowCount(rel, mq);
+      }
       // fallback to largest estimate
      return RelMdUtil.getJoinRowCount(mq, rel, condition);
     }
@@ -225,7 +230,9 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
     final PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(rel.getCluster().getPlanner());
     if (isSelfJoin(rel, mq) && plannerSettings!=null && plannerSettings.isNewSelfJoinCostEnabled()) {
       // Calcite's default implementation
-      return RelMdUtil.getJoinRowCount(mq, rel, rel.getCondition());
+      // factor to reduce rowCount of hash self joins so that they are still preferred over NLJ
+      double selfJoinFactor = plannerSettings.getSelfJoinRowCountFactor();
+      return Math.max(estimateForeignKeyJoinRowCount(rel, mq), selfJoinFactor * RelMdUtil.getJoinRowCount(mq, rel, rel.getCondition()));
     } else {
       // Dremio's default implementation
       return estimateForeignKeyJoinRowCount(rel, mq);
@@ -414,7 +421,18 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
       } else if (rel instanceof ScanPrelBase && ((ScanPrelBase) rel).hasFilter() && ((ScanPrelBase) rel).getFilter() != null) {
         selectivity = getSelectivityFromTableScanWithScanFilter(rel, mq, ((ScanPrelBase) rel).getFilter());
       }
-      return rowCount == null ? rel.getTable().getRowCount() : selectivity * rowCount;
+      if(rowCount == null){
+        // we do not have correct estimates so use the lowerBound value without stat
+        // ToDO : Because of FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR being different with stat on,
+        //  sometimes we underestimate with stats on and not collected
+        double filterReduction = 1;
+        if(rel instanceof ScanRelBase){
+          filterReduction = ((ScanRelBase)rel).getFilterReduction();
+        }
+        return rel.getTable().getRowCount() * filterReduction;
+      }else{
+        return selectivity * rowCount;
+      }
     }
     return ((TableScan) rel).estimateRowCount(mq);
   }

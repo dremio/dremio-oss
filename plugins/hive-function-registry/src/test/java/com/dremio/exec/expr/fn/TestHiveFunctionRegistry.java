@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.expr.fn;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.junit.Test;
 
 import com.dremio.test.DremioTest;
@@ -24,11 +27,10 @@ public class TestHiveFunctionRegistry extends DremioTest {
   @Test
   public void printHiveRegistryFunctions() {
     HiveFunctionRegistry registry = new HiveFunctionRegistry(CLASSPATH_SCAN_RESULT);
-    for (String fn_name : registry.getMethodsUDF().keySet()) {
-      System.out.println(fn_name);
-    }
-    for (String fn_name : registry.getMethodsGenericUDF().keySet()) {
-      System.out.println(fn_name);
-    }
+    Set<String> allFuncs = new HashSet<>(registry.getMethodsUDF().keySet());
+    allFuncs.addAll(registry.getMethodsGenericUDF().keySet());
+    allFuncs.stream().map(String::toLowerCase)
+      .sorted()
+      .forEach(System.out::println);
   }
 }

@@ -82,6 +82,6 @@ ReflectionsCreated.propTypes = {
   intl: PropTypes.object.isRequired,
   isAcceleration: PropTypes.bool,
   reflections: PropTypes.instanceOf(Immutable.List),
-  location: PropTypes.object.isRequired
+  location: PropTypes.object
 };
 export default injectIntl(ReflectionsCreated);

@@ -31,7 +31,6 @@ import prefixSection from 'components/Forms/prefixSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
 import { label, divider } from 'uiTheme/radium/forms';
-import { isIcebergEnabled } from '@inject/pages/HomePage/components/forms/fileFormatFormConfig';
 import { ExcelFormatForm, TextFormatForm, XLSFormatForm } from './FormatForms';
 
 function validate(values, props) {
@@ -135,7 +134,8 @@ export class FileFormatForm extends Component {
 
   getTableHeight(node) {
     const customWrapper = $(node).parents('.modal-form-wrapper')[0];
-    return $(customWrapper).height() - $(customWrapper).children()[1].offsetTop;
+    const customerWrapperFirstChild = $(customWrapper).children()[1];
+    return $(customWrapper).height() - (customerWrapperFirstChild && customerWrapperFirstChild.offsetTop);
   }
 
   mapFormatValues(values) {
@@ -163,7 +163,7 @@ export class FileFormatForm extends Component {
     const {fields, handleSubmit, onCancel, viewState, previewData, previewViewState, cancelText, intl} = this.props;
     const line = fields.type.value === 'Text' ? <hr style={divider}/> : null;
 
-    let formatOptions = [
+    const formatOptions = [
       {option: 'Unknown', label: intl.formatMessage({ id: 'File.Unknown' })},
       {option: 'Text', label: intl.formatMessage({ id: 'File.TextDelimited' })},
       {option: 'JSON', label: intl.formatMessage({ id: 'File.JSON' })},
@@ -173,10 +173,6 @@ export class FileFormatForm extends Component {
       {option: 'Delta',  label: intl.formatMessage({ id: 'File.Delta' })},
       {option: 'XLS', label: intl.formatMessage({ id: 'File.XLS' })}
     ];
-
-    formatOptions = isIcebergEnabled
-      ? formatOptions
-      : formatOptions.filter((formatOption) => formatOption.option !== 'Iceberg');
 
     return (
       <ModalForm

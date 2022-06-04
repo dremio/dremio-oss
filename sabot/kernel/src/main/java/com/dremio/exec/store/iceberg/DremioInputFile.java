@@ -23,10 +23,10 @@ import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.SeekableInputStream;
 
-import com.dremio.exec.hadoop.DremioHadoopUtils;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.google.common.base.Preconditions;
 
 /**
  * DremioInputFile is a dremio implementation of Iceberg InputFile interface.
@@ -42,34 +42,45 @@ public class DremioInputFile implements InputFile {
   private final List<String> dataset;
   private final String datasourcePluginUID; // this can be null if data files, metadata file can be accessed with same plugin
   private final String locationWithScheme;
-  private final HadoopInputFile hadoopInputFile;
+  private HadoopInputFile hadoopInputFile;
+  private final Configuration configuration;
+  private final org.apache.hadoop.fs.FileSystem hadoopFs;
+  private final String filePath;
 
   public DremioInputFile(FileSystem fs, Path path, Long fileSize, OperatorContext context, List<String> dataset,
-                         String datasourcePluginUID, Configuration conf) {
+                         String datasourcePluginUID, Configuration conf, org.apache.hadoop.fs.FileSystem hadoopFs) {
     this.fs = fs;
     this.path = path;
     this.fileSize = fileSize;
     this.context = context;
     this.dataset = dataset;
     this.datasourcePluginUID = datasourcePluginUID; // this can be null if it is same as the plugin which created fs
+    this.configuration = conf;
     String scheme;
-    String filePath;
     if (fs == null) {
+      Preconditions.checkArgument(hadoopFs != null, "HadoopFs can not be null");
       filePath = Path.getContainerSpecificRelativePath(path);
-      scheme = DremioHadoopUtils.getHadoopFSScheme(
-                  DremioHadoopUtils.toHadoopPath(filePath),
-                  conf);
+      scheme = hadoopFs.getScheme();
     } else {
       scheme = fs.getScheme();
       filePath = this.path.toString();
     }
     this.locationWithScheme = IcebergUtils.getValidIcebergPath(new org.apache.hadoop.fs.Path(filePath), conf, scheme);
-    this.hadoopInputFile = HadoopInputFile.fromLocation(filePath, conf);
+    this.hadoopFs = hadoopFs;
+  }
+
+  private HadoopInputFile getHadoopInputFile() {
+    if (hadoopInputFile != null) {
+      return hadoopInputFile;
+    }
+    Preconditions.checkState(hadoopFs != null, "Unexpected state");
+    this.hadoopInputFile = HadoopInputFile.fromPath(new org.apache.hadoop.fs.Path(filePath), hadoopFs, configuration);
+    return hadoopInputFile;
   }
 
   @Override
   public long getLength() {
-    return fileSize != null? fileSize : hadoopInputFile.getLength();
+    return fileSize != null? fileSize : getHadoopInputFile().getLength();
   }
 
   @Override
@@ -80,7 +91,7 @@ public class DremioInputFile implements InputFile {
         return factory.getStream(fs, context, path,
           fileSize, /* Since manifest avro files are immutable, we are passing 0 as mtime */ 0, dataset, datasourcePluginUID);
       } else {
-        return hadoopInputFile.newStream();
+        return getHadoopInputFile().newStream();
       }
     } catch (IOException e) {
       throw new RuntimeException(String.format("Failed to open a new stream for file : %s", path), e);
@@ -95,7 +106,7 @@ public class DremioInputFile implements InputFile {
   @Override
   public boolean exists() {
     try {
-      return fs != null? fs.exists(path) : hadoopInputFile.exists();
+      return fs != null? fs.exists(path) : getHadoopInputFile().exists();
     } catch (IOException e) {
       throw new RuntimeException(String.format("Failed to check existence of file %s", path.toString()), e);
     }

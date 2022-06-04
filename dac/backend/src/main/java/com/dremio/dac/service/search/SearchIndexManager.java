@@ -228,6 +228,13 @@ public class SearchIndexManager implements Runnable {
   * DocumentConverter for the search index
   */
   public static final class NamespaceSearchConverter implements DocumentConverter<String, SearchContainer> {
+    private Integer version = 0;
+
+    @Override
+    public Integer getVersion() {
+      return version;
+    }
+
     @Override
     public void convert(DocumentWriter writer, String id, SearchContainer record) {
       final NameSpaceContainer namespaceContainer = record.getNamespaceContainer();

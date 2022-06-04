@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -368,4 +367,103 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
     }
   }
 
+  @Test
+  public void addExistingColumnInStruct() throws Exception {
+    for (String testSchema : SCHEMAS_FOR_TEST) {
+      String tableName = "structcol";
+      try (AutoCloseable c = enableIcebergTables()) {
+
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
+
+        String query = String.format("ALTER TABLE %s.%s CHANGE COLUMN CATALOG_NAME CATALOG_NAME ROW(col1 int,COL1 double)", testSchema,
+          tableName);
+        errorMsgTestHelper(query, "Column [COL1] specified multiple times.");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+    }
+  }
+
+  @Test
+  public void addExistingColumnInListOfStruct() throws Exception {
+    for (String testSchema : SCHEMAS_FOR_TEST) {
+      String tableName = "listofstructcol";
+      try (AutoCloseable c = enableIcebergTables()) {
+
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
+
+        String query = String.format("ALTER TABLE %s.%s CHANGE COLUMN CATALOG_NAME CATALOG_NAME ARRAY(ROW(col1 int,COL1 double))", testSchema,
+          tableName);
+        errorMsgTestHelper(query, "Column [COL1] specified multiple times.");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+    }
+  }
+
+  @Test
+  public void addExistingColumnInListOfListOfStruct() throws Exception {
+    for (String testSchema : SCHEMAS_FOR_TEST) {
+      String tableName = "listoflistofstructcol";
+      try (AutoCloseable c = enableIcebergTables()) {
+
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
+
+        String query = String.format("ALTER TABLE %s.%s CHANGE COLUMN CATALOG_NAME CATALOG_NAME ARRAY(ARRAY(ROW(col1 int,COL1 double)))", testSchema,
+          tableName);
+        errorMsgTestHelper(query, "Column [COL1] specified multiple times.");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+    }
+  }
+
+  @Test
+  public void addExistingColumnInStructOfListOfStruct() throws Exception {
+    for (String testSchema : SCHEMAS_FOR_TEST) {
+      String tableName = "structoflistofstructcol";
+      try (AutoCloseable c = enableIcebergTables()) {
+
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
+
+        String query = String.format("ALTER TABLE %s.%s CHANGE COLUMN CATALOG_NAME CATALOG_NAME ROW(col ARRAY(ROW(col int, col1 int,COL1 double)))", testSchema,
+          tableName);
+        errorMsgTestHelper(query, "Column [COL1] specified multiple times.");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+    }
+  }
+
+  @Test
+  public void addExistingColumnInStructOfStruct() throws Exception {
+    for (String testSchema : SCHEMAS_FOR_TEST) {
+      String tableName = "structofstructcol";
+      try (AutoCloseable c = enableIcebergTables()) {
+
+        final String createTableQuery = String.format("CREATE TABLE %s.%s as select * from INFORMATION_SCHEMA.CATALOGS",
+          testSchema, tableName);
+        test(createTableQuery);
+        Thread.sleep(1001);
+
+        String query = String.format("ALTER TABLE %s.%s CHANGE COLUMN CATALOG_NAME CATALOG_NAME ROW(col ROW(col int, col1 int,COL1 double))", testSchema,
+          tableName);
+        errorMsgTestHelper(query, "Column [COL1] specified multiple times.");
+      } finally {
+        FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
+      }
+    }
+  }
 }

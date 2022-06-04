@@ -29,6 +29,9 @@
       white-space: nowrap;
       text-overflow: ellipsis;
     }
+    &__noDataCell {
+      min-height: 40px;
+    }
     &__columnTooltipText {
       color: @font-color1;
       font-size: 12px;
@@ -62,6 +65,11 @@
       overflow: hidden;
       text-overflow: ellipsis;
       color: @greyish-blue;
+
+      &::after {
+        content: '';
+        display: block;
+      }
     }
     &__tableHeaders {
     display: flex;

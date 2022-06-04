@@ -18,7 +18,7 @@ package com.dremio.exec.store.iceberg;
 import static com.dremio.exec.store.RecordReader.COL_IDS;
 import static com.dremio.exec.store.RecordReader.SPLIT_INFORMATION;
 import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants.PathGeneratingDataFileProcessor;
-import static org.mockito.Matchers.anyList;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.powermock.api.mockito.PowerMockito.when;

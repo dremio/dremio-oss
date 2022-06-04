@@ -17,8 +17,11 @@ package com.dremio.dac.explore;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -34,6 +37,8 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUIWithHistory;
 import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
+import com.dremio.dac.explore.model.NewUntitledFromParentRequest;
+import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.ApiErrorModel;
@@ -65,6 +70,104 @@ public class TestDatasetVersionResource extends BaseTestServer {
     NamespaceKey key = new NamespaceKey("dsvTest");
     SpaceConfig space = newNamespaceService().getSpace(key);
     newNamespaceService().deleteSpace(key, space.getTag());
+  }
+
+  @Test
+  public void testNewUntitledApiWithReferences() throws Exception {
+    Dataset newVDS = createVDS(Arrays.asList("dsvTest", "testVDS"), "select * from sys.version");
+    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {
+    });
+
+    // create a derivation of the VDS
+    String parentDataset = String.join(".", vds.getPath());
+    DatasetVersion datasetVersion = DatasetVersion.newVersion();
+
+    //set references payload
+    WebTarget target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", parentDataset)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 120);
+    Map<String, VersionContextReq> references = new HashMap<>();
+    references.put("source1", new VersionContextReq(VersionContextReq.VersionContextType.BRANCH, "branch"));
+    references.put("source2", new VersionContextReq(VersionContextReq.VersionContextType.TAG, "tag"));
+    references.put("source3", new VersionContextReq(VersionContextReq.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a"));
+    expectSuccess(getBuilder(target).buildPost(Entity.json(new NewUntitledFromParentRequest(references))), new GenericType<InitialPreviewResponse>() {});
+
+    //set empty references payload
+    datasetVersion = DatasetVersion.newVersion();
+    target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", parentDataset)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 120);
+    references = new HashMap<>();
+    expectSuccess(getBuilder(target).buildPost(Entity.json(new NewUntitledFromParentRequest(references))), new GenericType<InitialPreviewResponse>() {});
+  }
+
+  @Test
+  public void testTransformAndRunApiWithReferences() throws Exception {
+    Dataset newVDS = createVDS(Arrays.asList("dsvTest", "transformAndRunVDS"),"select * from sys.version");
+    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+
+    // create a derivation of the VDS
+    String parentDataset = String.join(".", vds.getPath());
+    DatasetVersion datasetVersion = DatasetVersion.newVersion();
+    WebTarget target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", parentDataset)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 120);
+    expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<InitialPreviewResponse>() {});
+
+    target = getAPIv2()
+      .path("dataset")
+      .path("tmp.UNTITLED")
+      .path("version")
+      .path(datasetVersion.getVersion())
+      .path("save")
+      .queryParam("as", "dsvTest.transformAndRunVDS2");
+    DatasetUIWithHistory dswh = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<DatasetUIWithHistory>() {});
+    String dsPath = String.join(".", dswh.getDataset().getFullPath());
+
+    //set references payload
+    datasetVersion = DatasetVersion.newVersion();
+    target = getAPIv2()
+      .path("dataset")
+      .path(dsPath)
+      .path("version")
+      .path(dswh.getDataset().getDatasetVersion().getVersion())
+      .path("transformAndRun")
+      .queryParam("newVersion", datasetVersion);
+    List<TransformUpdateSQL.SourceVersionReference> sourceVersionReferenceList = new ArrayList<>();
+    TransformUpdateSQL.VersionContext versionContext1 = new TransformUpdateSQL.VersionContext(TransformUpdateSQL.VersionContextType.BRANCH, "branch");
+    TransformUpdateSQL.VersionContext versionContext2 = new TransformUpdateSQL.VersionContext(TransformUpdateSQL.VersionContextType.TAG, "tag");
+    TransformUpdateSQL.VersionContext versionContext3 =
+      new TransformUpdateSQL.VersionContext(TransformUpdateSQL.VersionContextType.COMMIT, "d0628f078890fec234b98b873f9e1f3cd140988a");
+    sourceVersionReferenceList.add(new TransformUpdateSQL.SourceVersionReference("source1", versionContext1));
+    sourceVersionReferenceList.add(new TransformUpdateSQL.SourceVersionReference("source2", versionContext2));
+    sourceVersionReferenceList.add(new TransformUpdateSQL.SourceVersionReference("source3", versionContext3));
+
+    //set references payload
+    TransformUpdateSQL transformSql1 = new TransformUpdateSQL();
+    transformSql1.setSql("SELECT \"version\" FROM dsvTest.transformAndRunVDS");
+    transformSql1.setReferencesList(sourceVersionReferenceList);
+
+    expectSuccess(getBuilder(target).buildPost(Entity.json(transformSql1)), new GenericType<InitialPreviewResponse>() {});
+
+    //set null references payload
+    TransformUpdateSQL transformSql2 = new TransformUpdateSQL();
+    transformSql2.setSql("SELECT \"version\" FROM dsvTest.transformAndRunVDS");
+    expectSuccess(getBuilder(target).buildPost(Entity.json(transformSql2)), new GenericType<InitialPreviewResponse>() {});
+
+    //set empty references payload
+    TransformUpdateSQL transformSql3 = new TransformUpdateSQL();
+    transformSql3.setSql("SELECT \"version\" FROM dsvTest.transformAndRunVDS");
+    transformSql3.setReferencesList(new ArrayList<>());
+    expectSuccess(getBuilder(target).buildPost(Entity.json(transformSql3)), new GenericType<InitialPreviewResponse>() {});
   }
 
   @Test

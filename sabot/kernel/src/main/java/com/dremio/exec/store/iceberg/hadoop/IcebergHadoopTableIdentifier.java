@@ -20,7 +20,7 @@ import com.dremio.exec.store.iceberg.model.IcebergTableIdentifier;
 /**
  * Hadoop based iceberg table identifier
  */
-class IcebergHadoopTableIdentifier implements IcebergTableIdentifier {
+public class IcebergHadoopTableIdentifier implements IcebergTableIdentifier {
 
     private final String tableFolder;
     private final String namespace;

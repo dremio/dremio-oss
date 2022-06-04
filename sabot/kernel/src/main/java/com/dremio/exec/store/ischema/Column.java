@@ -101,9 +101,9 @@ public final class Column {
       //   MULTISET    -  " "
     case ARRAY:
     case MAP:
+    case ROW:
       //   DISTINCT    - Not seen/explicitly addressed.
       //   STRUCTURED  -  " "
-      //   ROW         -  " "
       //   OTHER       -  " "
       //   CURSOR      -  " "
       //   COLUMN_LIST -  " "
@@ -121,12 +121,10 @@ public final class Column {
       this.DATA_TYPE = "BINARY VARYING";
       break;
     case INTERVAL_YEAR:
-    case INTERVAL_YEAR_MONTH:
     case INTERVAL_MONTH:
     case INTERVAL_DAY:
     case INTERVAL_DAY_HOUR:
     case INTERVAL_DAY_MINUTE:
-    case INTERVAL_DAY_SECOND:
     case INTERVAL_HOUR:
     case INTERVAL_HOUR_MINUTE:
     case INTERVAL_HOUR_SECOND:
@@ -134,6 +132,12 @@ public final class Column {
     case INTERVAL_MINUTE_SECOND:
     case INTERVAL_SECOND:
       this.DATA_TYPE = "INTERVAL";
+      break;
+    case INTERVAL_YEAR_MONTH:
+      this.DATA_TYPE = "INTERVAL YEAR TO MONTH";
+      break;
+    case INTERVAL_DAY_SECOND:
+      this.DATA_TYPE = "INTERVAL DAY TO SECOND";
       break;
     // 3:  SqlTypeName enumerators not yet seen and confirmed or handled.
     default:

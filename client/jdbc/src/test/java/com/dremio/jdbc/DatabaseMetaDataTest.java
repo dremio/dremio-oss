@@ -20,11 +20,7 @@ import static java.sql.Connection.TRANSACTION_READ_COMMITTED;
 import static java.sql.Connection.TRANSACTION_READ_UNCOMMITTED;
 import static java.sql.Connection.TRANSACTION_REPEATABLE_READ;
 import static java.sql.Connection.TRANSACTION_SERIALIZABLE;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
@@ -58,14 +54,10 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testNullsAreSortedMethodsSaySortedHigh() throws SQLException {
-    assertThat( "DatabaseMetadata.nullsAreSortedHigh()",
-                dbmd.nullsAreSortedHigh(), equalTo( true ) );
-    assertThat( "DatabaseMetadata.nullsAreSortedLow()",
-                dbmd.nullsAreSortedLow(), equalTo( false ) );
-    assertThat( "DatabaseMetadata.nullsAreSortedAtEnd()",
-                dbmd.nullsAreSortedAtEnd(), equalTo( false ) );
-    assertThat( "DatabaseMetadata.nullsAreSortedAtStart()",
-                dbmd.nullsAreSortedAtStart(), equalTo( false ) );
+    assertThat(dbmd.nullsAreSortedHigh()).isTrue();
+    assertThat(dbmd.nullsAreSortedLow()).isFalse();
+    assertThat(dbmd.nullsAreSortedAtEnd()).isFalse();
+    assertThat(dbmd.nullsAreSortedAtStart()).isFalse();
   }
 
 
@@ -91,7 +83,7 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetIdentifierQuoteStringSaysDoublequote() throws SQLException {
-    assertThat( dbmd.getIdentifierQuoteString(), equalTo( "\"" ) );
+    assertThat(dbmd.getIdentifierQuoteString()).isEqualTo("\"");
   }
 
 
@@ -193,38 +185,38 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetDefaultTransactionIsolationSaysNone() throws SQLException {
-    assertThat( dbmd.getDefaultTransactionIsolation(), equalTo( TRANSACTION_NONE ) );
+    assertThat(dbmd.getDefaultTransactionIsolation()).isEqualTo(TRANSACTION_NONE);
   }
 
   @Test
   public void testSupportsTransactionsSaysNo() throws SQLException {
-    assertThat( dbmd.supportsTransactions(), equalTo( false ) );
+    assertThat(dbmd.supportsTransactions()).isFalse();
   }
 
   @Test
   public void testSupportsTransactionIsolationLevelNoneSaysYes()
-      throws SQLException {
-    assertTrue( dbmd.supportsTransactionIsolationLevel( TRANSACTION_NONE ) );
+    throws SQLException {
+    assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_NONE)).isTrue();
   }
 
   @Test
   public void testSupportsTransactionIsolationLevelOthersSayNo()
-      throws SQLException {
-    assertFalse( dbmd.supportsTransactionIsolationLevel( TRANSACTION_READ_UNCOMMITTED ) );
-    assertFalse( dbmd.supportsTransactionIsolationLevel( TRANSACTION_READ_COMMITTED ) );
-    assertFalse( dbmd.supportsTransactionIsolationLevel( TRANSACTION_REPEATABLE_READ ) );
-    assertFalse( dbmd.supportsTransactionIsolationLevel( TRANSACTION_SERIALIZABLE ) );
+    throws SQLException {
+    assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_READ_UNCOMMITTED)).isFalse();
+    assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_READ_COMMITTED)).isFalse();
+    assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_REPEATABLE_READ)).isFalse();
+    assertThat(dbmd.supportsTransactionIsolationLevel(TRANSACTION_SERIALIZABLE)).isFalse();
   }
 
   @Test
   public void testGetProceduresReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getProcedures( null, null, "%" ), notNullValue() );
+    assertThat(dbmd.getProcedures(null, null, "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetProcedureColumnsReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getProcedureColumns( null, null, "%", "%" ), notNullValue() );
+    assertThat(dbmd.getProcedureColumns(null, null, "%", "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
@@ -238,7 +230,7 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetTableTypesReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getTableTypes(), notNullValue() );
+    assertThat(dbmd.getTableTypes()).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
@@ -250,61 +242,62 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetColumnPrivilegesReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getColumnPrivileges( null, null, "%", "%" ), notNullValue() );
+    assertThat(dbmd.getColumnPrivileges(null, null, "%", "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetTablePrivilegesReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getTablePrivileges( null, null, "%" ), notNullValue() );
+    assertThat(dbmd.getTablePrivileges(null, null, "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetBestRowIdentifierReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getBestRowIdentifier( null, null, "%", DatabaseMetaData.bestRowTemporary, true ), notNullValue() );
+    assertThat(dbmd.getBestRowIdentifier(null, null, "%", DatabaseMetaData.bestRowTemporary,
+      true)).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetVersionColumnsReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getVersionColumns( null, null, "%" ), notNullValue() );
+    assertThat(dbmd.getVersionColumns(null, null, "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetPrimaryKeysReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getPrimaryKeys( null, null, "%" ), notNullValue() );
+    assertThat(dbmd.getPrimaryKeys(null, null, "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetImportedKeysReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getImportedKeys( null, null, "%" ), notNullValue() );
+    assertThat(dbmd.getImportedKeys(null, null, "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetExportedKeysReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getExportedKeys( null, null, "%" ), notNullValue() );
+    assertThat(dbmd.getExportedKeys(null, null, "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetCrossReferenceReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getCrossReference( null, null, "%", null, null, "%" ), notNullValue() );
+    assertThat(dbmd.getCrossReference(null, null, "%", null, null, "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetTypeInfoReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getTypeInfo(), notNullValue() );
+    assertThat(dbmd.getTypeInfo()).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetIndexInfoReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getIndexInfo( null, null, "%", false, true ), notNullValue() );
+    assertThat(dbmd.getIndexInfo(null, null, "%", false, true)).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
@@ -328,7 +321,7 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetUDTsReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getUDTs( null, null, "%", null ), notNullValue() );
+    assertThat(dbmd.getUDTs(null, null, "%", null)).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
@@ -344,19 +337,19 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetSuperTypesReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getSuperTypes( null, "%", "%" ), notNullValue() );
+    assertThat(dbmd.getSuperTypes(null, "%", "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetSuperTablesReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getSuperTables( null, "%", "%" ), notNullValue() );
+    assertThat(dbmd.getSuperTables(null, "%", "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetAttributesReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getAttributes( null, null, "%", "%" ), notNullValue() );
+    assertThat(dbmd.getAttributes(null, null, "%", "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
@@ -380,20 +373,20 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetClientInfoPropertiesReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getClientInfoProperties(), notNullValue() );
+    assertThat(dbmd.getClientInfoProperties()).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
 
   @Test
   public void testGetFunctionsReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getFunctions( null, "%", "%" ), notNullValue() );
+    assertThat(dbmd.getFunctions(null, "%", "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
   @Test
   public void testGetFunctionColumnsReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getFunctionColumns( null, null, "%", null ), notNullValue() );
+    assertThat(dbmd.getFunctionColumns(null, null, "%", null)).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 
@@ -407,7 +400,7 @@ public class DatabaseMetaDataTest extends JdbcWithServerTestBase {
 
   @Test
   public void testGetPseudoColumnsReturnsNonNull() throws SQLException {
-    assertThat( dbmd.getPseudoColumns( null, null, "%", "%" ), notNullValue() );
+    assertThat(dbmd.getPseudoColumns(null, null, "%", "%")).isNotNull();
   }
   // TODO:  Later, test more (e.g., right columns (even if/though zero rows)).
 

@@ -26,13 +26,13 @@ import com.dremio.BaseTestQuery.SilentListener;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.SqlUtils;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.client.PrintingResultsListener;
 import com.dremio.exec.client.QuerySubmitter.Format;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.util.VectorUtil;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
@@ -70,7 +70,7 @@ public class QueryTestUtil {
 
     final List<QueryDataBatch> results = dremioClient.runQuery(
         QueryType.SQL, String.format("alter session set %1$s%2$s%1$s = %3$d",
-            SqlUtils.QUOTE, ExecConstants.MAX_WIDTH_PER_NODE_KEY, maxWidth));
+            SqlUtils.QUOTE, GroupResourceInformation.MAX_WIDTH_PER_NODE_KEY, maxWidth));
     for (QueryDataBatch queryDataBatch : results) {
       queryDataBatch.release();
     }

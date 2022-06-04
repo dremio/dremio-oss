@@ -22,6 +22,8 @@ import FontIcon from 'components/Icon/FontIcon';
 import MaskedInput from './MaskedInput';
 
 const MAX_MONTH = 12;
+const MIN_YEAR = 1970;
+const MAX_YEAR = new Date().getFullYear();
 
 @Radium
 export default class DateTimeInput extends PureComponent {
@@ -35,18 +37,36 @@ export default class DateTimeInput extends PureComponent {
   static formatDate(inputType, inputValue, date) {
     const currentMoment = date.clone();
     if (inputType === 'timeInput') {
-      const [ hour, minute ] = inputValue.split(':');
+      let [ hour, minute ] = inputValue.split(':');
+      if (Number(hour) >= 23) {
+        hour = '23';
+        minute = Number(minute) > 59 ? '59' : minute;
+      }
       currentMoment.hour(hour);
       currentMoment.minute(minute);
     } else {
-      const inputArray = inputValue.split('/');
-      const month = inputArray[0] > MAX_MONTH ? MAX_MONTH : inputArray[0];
-      const day = inputArray[1] > currentMoment.daysInMonth() ? currentMoment.daysInMonth() : inputArray[1];
-      const year = inputArray[2];
-      if (month && month > 0) {
+      let [ month, day, year ] = inputValue.split('/');
+
+      if (year.length > 3 && Number(year).toString() === year) {
+        year = Math.min(MAX_YEAR, Math.max(MIN_YEAR, year));
+      }
+
+      if (day === '00') {
+        day = '1';
+      } else if (day > currentMoment.daysInMonth()) {
+        day = currentMoment.daysInMonth();
+      }
+
+      if (month === '00') {
+        month = '1';
+      } else if (Number(month) > MAX_MONTH) {
+        month = MAX_MONTH;
+      }
+
+      if (month && Number(month) > 0) {
         currentMoment.month(month - 1);
       }
-      if (day) {
+      if (day && Number(day) > 0) {
         currentMoment.date(day);
       }
       if (year) {
@@ -68,10 +88,29 @@ export default class DateTimeInput extends PureComponent {
   }
 
   onInputChange = (inputType, inputValue) => this.setState({
-    currentMoment: DateTimeInput.formatDate(inputType, inputValue, this.state.currentMoment)
+    currentMoment: DateTimeInput.formatDate(
+      inputType,
+      inputValue,
+      this.state.currentMoment
+    )
   });
 
-  onBlur = () => this.props.onChange(this.props.type, this.state.currentMoment);
+  onBlur = (inputValue, mask) => {
+    if (mask === 'dd/dd/dddd') {
+      const [ month, day, year ] = inputValue.split('/');
+      const correctedYear = Math.min(MAX_YEAR, Math.max(MIN_YEAR, year));
+      if (correctedYear !== Number(year)) {
+        this.setState({
+          currentMoment: DateTimeInput.formatDate(
+            'dateInput',
+            [month, day, correctedYear].join('/'),
+            this.state.currentMoment
+          )
+        });
+      }
+    }
+    this.props.onChange(this.props.type, this.state.currentMoment);
+  }
 
   render() {
     const { date, label } = this.props;

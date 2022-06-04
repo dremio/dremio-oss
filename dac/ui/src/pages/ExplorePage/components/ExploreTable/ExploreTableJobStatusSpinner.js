@@ -17,7 +17,6 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 
 import Spinner from '@app/components/Spinner';
-import FontIcon from '@app/components/Icon/FontIcon';
 import socket from '@inject/utils/socket';
 
 import { isWorking, JOB_STATUS } from './ExploreTableJobStatus';
@@ -25,7 +24,9 @@ import { isWorking, JOB_STATUS } from './ExploreTableJobStatus';
 export default class ExploreTableJobStatusSpinner extends Component {
   static propTypes = {
     jobProgress: PropTypes.object,
-    jobId: PropTypes.string
+    jobId: PropTypes.string,
+    action: PropTypes.string,
+    message: PropTypes.string
   };
 
   prevState = {
@@ -48,26 +49,21 @@ export default class ExploreTableJobStatusSpinner extends Component {
     }
   }
 
-  renderProgressIcon = (jobProgress) => {
+  renderProgressIcon = (jobProgress, action) => {
     if (!jobProgress || !isWorking(jobProgress.status)) {
       return null;
     }
-    const { status, recordCount } = jobProgress;
-    const isInProgress = status !== JOB_STATUS.running
-      || JOB_STATUS.running !== this.prevState.status
-      || recordCount !== this.prevState.recordCount;
 
-    if (isInProgress) {
-      this.prevState = {status, recordCount};
-      return <Spinner iconStyle={styles.iconSpinner} style={styles.spinnerBase}/>;
-    } else {
-      return <FontIcon type={'Loader'} iconStyle={styles.iconSpinner} />;
+    if (action === 'run') {
+      return <Spinner iconStyle={styles.iconSpinner} style={styles.spinnerBase} message={this.props.message} />;
     }
+
+    return null;
   };
 
   render() {
-    const { jobProgress } = this.props;
-    return this.renderProgressIcon(jobProgress);
+    const { jobProgress, action } = this.props;
+    return this.renderProgressIcon(jobProgress, action);
   }
 }
 

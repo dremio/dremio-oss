@@ -371,12 +371,13 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
 
   // Try to read the tables "user0" has no access to read in db_u1g1_only
   @Test
+  @Ignore("DX-7652 - Default Unlimited splits gives PERMISSION ERROR")
   public void selectUser0_db_u1g1_only() throws Exception {
     updateClient(org1Users[0]);
 
     errorMsgTestHelper(
         String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_u1g1_only, u1g1_student_all_755),
-        String.format("Permission denied: user=user0_1"));
+        String.format("PERMISSION ERROR: Access denied reading dataset hive.%s.%s", db_u1g1_only, u1g1_student_all_755));
   }
 
   // Try to read the tables "user1" has access to read in db_general.

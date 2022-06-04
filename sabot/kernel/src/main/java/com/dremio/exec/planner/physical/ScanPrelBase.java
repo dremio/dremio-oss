@@ -20,18 +20,21 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelWriter;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.planner.physical.filter.RuntimeFilteredRel;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.store.ScanFilter;
@@ -40,12 +43,16 @@ import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
+import com.google.common.collect.ImmutableList;
 
-public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel {
+public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel, RuntimeFilteredRel {
+
+  private List<Info> runtimeFilters = ImmutableList.of();
 
   public ScanPrelBase(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-      TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment) {
+      TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment, List<Info> runtimeFilters) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
+    this.runtimeFilters = runtimeFilters;
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) != Rel.LOGICAL;
   }
 
@@ -128,5 +135,30 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel {
       costForParallelization = Math.max(costForParallelization, minCostPerSplit * tableMetadata.getSplitCount());
     }
     return costForParallelization;
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw) {
+    super.explainTerms(pw);
+    if(!runtimeFilters.isEmpty()) {
+      pw.item("runtimeFilters", runtimeFilters.stream()
+        .map(Object::toString)
+        .collect(Collectors.joining(", ")));
+    }
+    return pw;
+  }
+
+  @Override
+  public List<Info> getRuntimeFilters() {
+    return runtimeFilters;
+  }
+
+  @Override
+  public void addRuntimeFilter(Info info) {
+    runtimeFilters = ImmutableList.<Info>builder()
+      .addAll(runtimeFilters)
+      .add(info)
+      .build();
+    recomputeDigest();
   }
 }

@@ -32,6 +32,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos.UserProperties;
+import com.dremio.exec.rpc.user.security.testing.UserServiceTestImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
@@ -46,7 +47,8 @@ public class TestExceptionInjection extends BaseTestQuery {
     .withSessionOptionManager(
       new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
       nodes[0].getContext().getOptionManager())
-    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1)
+      .build())
       .withUserProperties(UserProperties.getDefaultInstance())
       .build();
 
@@ -236,7 +238,7 @@ public class TestExceptionInjection extends BaseTestQuery {
         .withSessionOptionManager(
           new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
           nodeContext1.getOptionManager())
-        .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+        .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName(UserServiceTestImpl.TEST_USER_1).build())
         .withUserProperties(UserProperties.getDefaultInstance())
         .build();
 

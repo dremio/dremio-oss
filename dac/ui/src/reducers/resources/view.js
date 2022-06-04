@@ -125,19 +125,22 @@ export const getViewStateFromAction = (action) => {
     };
   }
 
-  // FAILURE
-  return {
-    isInProgress: false,
-    isFailed: true,
-    isWarning: false,
-    isAutoPeekFailed: false,
-    error: {
-      message: getErrorMessage(action),
-      details: getErrorDetails(action),
-      id: uuid.v4(),
-      dismissed: false
-    }
-  };
+  // FAILURE (but notification has not been triggered)
+  // isFailed will trigger a notification, so we cannot update state in this section without having two notifications simutaneously
+  if (action.meta && !action.meta.notification) {
+    return {
+      isInProgress: false,
+      isFailed: true,
+      isWarning: false,
+      isAutoPeekFailed: false,
+      error: {
+        message: getErrorMessage(action),
+        details: getErrorDetails(action),
+        id: uuid.v4(),
+        dismissed: false
+      }
+    };
+  }
 };
 
 function updateLoadingViewId(state, action) {

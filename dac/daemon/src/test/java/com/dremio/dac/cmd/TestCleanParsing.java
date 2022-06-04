@@ -15,13 +15,12 @@
  */
 package com.dremio.dac.cmd;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterException;
@@ -30,9 +29,6 @@ import com.beust.jcommander.ParameterException;
  * Tests Clean command parsing. Mostly pointless.
  */
 public class TestCleanParsing {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void parseCompact() {
@@ -64,36 +60,31 @@ public class TestCleanParsing {
 
   @Test
   public void parseWrongJobsAlpha() {
-    thrown.expect(ParameterException.class);
-    thrown.expectMessage("Parameter -j should be a positive integer (found abc)");
-
     Clean.Options args = new Clean.Options();
     JCommander jc = JCommander.newBuilder().addObject(args).build();
 
-    jc.parse(new String[] { "-j", "abc" } );
-
+    assertThatThrownBy(() -> jc.parse("-j", "abc"))
+      .isInstanceOf(ParameterException.class)
+      .hasMessageContaining("Parameter -j should be a positive integer (found abc)");
   }
 
   @Test
   public void parseWrongJobsNumeric() {
-    thrown.expect(ParameterException.class);
-    thrown.expectMessage("Parameter -j should be a positive integer (found -345)");
-
     Clean.Options args = new Clean.Options();
     JCommander jc = JCommander.newBuilder().addObject(args).build();
 
-    jc.parse(new String[] { "-j", "-345" } );
-
+    assertThatThrownBy(() -> jc.parse("-j", "-345"))
+      .isInstanceOf(ParameterException.class)
+      .hasMessageContaining("Parameter -j should be a positive integer (found -345)");
   }
 
   @Test
   public void reportInvalidParameter() {
-    thrown.expect(ParameterException.class);
-    thrown.expectMessage("no main parameter was defined");
-
     Clean.Options args = new Clean.Options();
     JCommander jc = JCommander.newBuilder().addObject(args).build();
 
-    jc.parse(new String[] { "--my-fake-parameter" } );
+    assertThatThrownBy(() -> jc.parse("--my-fake-parameter"))
+      .isInstanceOf(ParameterException.class)
+      .hasMessageContaining("no main parameter was defined");
   }
 }

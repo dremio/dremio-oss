@@ -41,6 +41,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -391,7 +392,7 @@ public class GlobalDictionaryBuilder {
   }
 
   private static VectorContainer buildIntegerGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
-    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.Int(32, true), null);
+    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), new FieldType(true, new ArrowType.Int(32, true), null), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
     final IntVector intVector = input.addOrGet(field);
     intVector.allocateNew();
@@ -419,7 +420,7 @@ public class GlobalDictionaryBuilder {
   }
 
   private static VectorContainer buildLongGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
-    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.Int(64, true), null);
+    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), new FieldType(true, new ArrowType.Int(64, true), null), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
     final BigIntVector longVector = input.addOrGet(field);
     longVector.allocateNew();
@@ -447,7 +448,7 @@ public class GlobalDictionaryBuilder {
   }
 
   private static VectorContainer buildDoubleGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
-    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null);
+    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), new FieldType(true, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
     final Float8Vector doubleVector = input.addOrGet(field);
     doubleVector.allocateNew();
@@ -475,7 +476,7 @@ public class GlobalDictionaryBuilder {
   }
 
   private static VectorContainer buildFloatGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
-    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE), null);
+    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), new FieldType(true, new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE), null), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
     final Float4Vector floatVector = input.addOrGet(field);
     floatVector.allocateNew();
@@ -503,7 +504,7 @@ public class GlobalDictionaryBuilder {
   }
 
   private static VectorContainer buildBinaryGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
-    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.Binary(), null);
+    final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), new FieldType(true, new ArrowType.Binary(), null), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
     final VarBinaryVector binaryVector = input.addOrGet(field);
     binaryVector.allocateNew();

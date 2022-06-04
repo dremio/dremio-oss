@@ -14,21 +14,91 @@
  * limitations under the License.
  */
 
+ @import "~@app/uiTheme/less/color-schema.less";
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
     
-  .node {
+  .treeNode {
+    cursor: pointer;
     &:hover {
-      background-color: #FFF5DC;
+      background: @PRIMARY_100;
+      border-radius: 4px;
     }
-
-    .node-text {
-      &:hover {
-        cursor: pointer;
-      }
+    .EllipsedText.node-text {
+      flex-grow: 0;
     }
   }
 
   .active-node {
-      background-color: #FFF5DC;
+    background: @PRIMARY_100;
+    border-radius: 4px;
+  }
+
+  .resourceTree {
+    height: 100%;
+    padding-top: .2rem;
+    max-height: 24.2rem;
+    min-height: 24rem;
+    overflow-y: auto;
+  }
+
+  .resourceTreeNode {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    min-width: 0;
+
+    &:hover {
+      .resourceTreeNode__add {
+        opacity: 1;
+        visibility: visible;
+      }
+    }
+
+    &__add {
+      filter: invert(33%) sepia(24%) saturate(269%) hue-rotate(173deg) brightness(91%) contrast(85%);
+      height: 1.6rem;
+      margin-right: .5rem;
+      opacity: 0;
+      transition: 300ms ease all;
+      width: 1.6rem;
+
+      &:hover {
+        cursor: pointer;
+        filter: invert(23%) sepia(91%) saturate(2296%) hue-rotate(165deg) brightness(99%) contrast(101%);
+      }
+    }
+    
+    // Fixed width for left panel items
+    .datasetItemLabel-item__content {
+      width: 90%;
+    }
+
+    .sources-branch-picker {
+      margin-left: 8px;
+      margin-right: 8px;
+      .branchPickerTag-labelDiv {
+        max-width: 100px;
+      }
+    }
+  }
+
+  .resourceTreeNodeWrap {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    width: 90%;
+
+    &:hover {
+      background: @PRIMARY_100;
+
+      .resourceTreeNode__add {
+        opacity: 1;
+      }  
+    }
+    
+    .resourceTreeNode__add {
+      opacity: 0;
+    }
   }
 }

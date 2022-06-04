@@ -53,11 +53,12 @@ export class DatasetOverlayContent extends PureComponent {
     onClose: PropTypes.func,
     showFullPath: PropTypes.bool,
     viewState: PropTypes.instanceOf(Immutable.Map),
-    style: PropTypes.object,
     typeIcon: PropTypes.string.isRequired,
     dragType: PropTypes.string,
     iconStyles: PropTypes.object,
-    onRef: PropTypes.func
+    onRef: PropTypes.func,
+    shouldAllowAdd: PropTypes.bool,
+    addtoEditor: PropTypes.func
   };
 
   static defaultProps = {
@@ -99,31 +100,30 @@ export class DatasetOverlayContent extends PureComponent {
   }
 
   renderColumn() {
-    const { summaryDataset } = this.props;
-    return summaryDataset.get('fields') && summaryDataset.get('fields').size
-      ? <div style={{minHeight: 80, flexShrink: 1}}>
-        <span style={styles.attributeLabel}>{la('Fields')}:</span>
-        <div style={{marginLeft: 10}}>
-          { summaryDataset.get('fields').map( (item, i) => {
-            return (
-              <ColumnMenuItem
-                key={i}
-                item={item}
-                dragType={this.props.dragType}
-                handleDragStart={this.props.toggleIsDragInProgress}
-                onDragEnd={this.props.toggleIsDragInProgress}
-                index={i}
-                fullPath={this.props.fullPath}
-                preventDrag={!this.props.dragType}
-                nativeDragData={{
-                  type: 'columnName',
-                  data: {
-                    name: item.get('name')
-                  }
-                }}/>
-            );
-          })}
-        </div>
+    const { summaryDataset, shouldAllowAdd, addtoEditor } = this.props;
+    return summaryDataset.get('fields') && summaryDataset.get('fields').size ?
+      <div>
+        { summaryDataset.get('fields').map( (item, i) => {
+          return (
+            <ColumnMenuItem
+              key={i}
+              item={item}
+              dragType={this.props.dragType}
+              handleDragStart={this.props.toggleIsDragInProgress}
+              onDragEnd={this.props.toggleIsDragInProgress}
+              index={i}
+              fullPath={this.props.fullPath}
+              preventDrag={!this.props.dragType}
+              nativeDragData={{
+                type: 'columnName',
+                data: {
+                  name: item.get('name')
+                }
+              }}
+              shouldAllowAdd={shouldAllowAdd}
+              addtoEditor={addtoEditor} />
+          );
+        })}
       </div>
       : null;
   }
@@ -136,7 +136,7 @@ export class DatasetOverlayContent extends PureComponent {
       <div
         data-qa='dataset-detail-popup'
         ref={onRef}
-        style={[styles.base, this.props.style]}
+        style={[styles.base]}
         className={`dataset-label-overlay ${position}`}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
@@ -145,22 +145,7 @@ export class DatasetOverlayContent extends PureComponent {
         <ViewStateWrapper viewState={viewState} onDismissError={onClose}>
           { summaryDataset.size > 0 &&
             <div>
-              { this.renderHeader() }
-              <div style={styles.attributesWrap}>
-                <div style={styles.attribute}>
-                  <div style={styles.attributeLabel}>{la('Jobs')}:</div>
-                  <div style={styles.attributeValue}>
-                    <Link to={summaryDataset.getIn(['links', 'jobs'])} onMouseDown={stopPropagation}>
-                      {summaryDataset.get('jobCount') || 0} »
-                    </Link>
-                  </div>
-                </div>
-                <div style={styles.attribute}>
-                  <div style={styles.attributeLabel}>{la('Descendants')}:</div>
-                  <div style={styles.attributeValue}>{summaryDataset.get('descendants') || 0}</div>
-                </div>
-                {this.renderColumn()}
-              </div>
+              {this.renderColumn()}
             </div>
           }
         </ViewStateWrapper>
@@ -181,13 +166,6 @@ export default connect(mapStateToProps, { loadSummaryDataset })(DatasetOverlayCo
 
 const styles = {
   base: {
-    height: 100,
-    marginTop: -1,
-    paddingLeft: 5,
-    paddingRight: 5,
-    position: 'absolute',
-    width: 220,
-    zIndex: 32000,
     display: 'flex',
     flexDirection: 'column'
   },

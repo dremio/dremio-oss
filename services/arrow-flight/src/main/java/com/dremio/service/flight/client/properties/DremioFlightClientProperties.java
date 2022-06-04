@@ -15,8 +15,9 @@
  */
 package com.dremio.service.flight.client.properties;
 
+import static com.dremio.common.utils.PathUtils.parseFullPath;
+
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -25,6 +26,7 @@ import org.apache.arrow.flight.CallHeaders;
 
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -33,9 +35,11 @@ import com.google.common.collect.ImmutableSet;
 public final class DremioFlightClientProperties {
   public static final Set<String> SUPPORTED_FLIGHT_CLIENT_USER_SESSION_PROPERTIES =
     ImmutableSet.of(
+      UserSession.QUOTING,
       UserSession.ROUTING_TAG,
       UserSession.ROUTING_QUEUE,
       UserSession.SCHEMA);
+  private static final String SUPPORTS_COMPLEX_TYPES = "supports_complex_types";
 
   /**
    * Apply supported client properties to the provided UserSession Builder.
@@ -55,6 +59,9 @@ public final class DremioFlightClientProperties {
         .contains(key.toLowerCase(Locale.ROOT))) {
         final String value = callHeaders.get(key);
         properties.add(DremioFlightClientProperties.createUserProperty(key, value));
+      }
+      if (callHeaders.containsKey(SUPPORTS_COMPLEX_TYPES)) {
+        builder.setSupportComplexTypes(Boolean.parseBoolean(callHeaders.get(SUPPORTS_COMPLEX_TYPES)));
       }
     });
 
@@ -76,9 +83,15 @@ public final class DremioFlightClientProperties {
     }
 
     callHeaders.keys().forEach(key -> {
-      if (key.toLowerCase(Locale.ROOT).equals(UserSession.SCHEMA)) {
+      final String keyLC = key.toLowerCase(Locale.ROOT);
+      if (keyLC.equals(UserSession.SCHEMA)) {
         final String value = callHeaders.get(key);
-        userSession.setDefaultSchemaPath(Arrays.asList(value.split("\\.")));
+        final NamespaceKey oldNamespaceKey = userSession.getDefaultSchemaPath();
+        final List<String> components = parseFullPath(value);
+        userSession.setDefaultSchemaPath(components);
+      } else if (keyLC.equals(UserSession.ROUTING_ENGINE)) {
+        final String oldRoutingEngine = userSession.getRoutingEngine();
+        userSession.setRoutingEngine(callHeaders.get(key));
       }
     });
   }

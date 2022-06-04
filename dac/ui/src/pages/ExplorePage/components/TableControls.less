@@ -23,12 +23,12 @@
   }
 
   .table-controls {
-    margin-top: 11px;
-    margin-left: 20px;
-    height: 50px;
-    flex-shrink: 0; // do not allow to reduce the height
+    align-items: center;
     display: flex;
-    justify-content: space-between;
+    height: 52px;
+    flex-shrink: 0; // do not allow to reduce the height
+    justify-content: flex-end;
+    padding: 0 10px;
     position: relative;
     user-select: none;
 
@@ -199,11 +199,14 @@
     .controls {
       display: flex;
       align-items: center; // make sure all the buttons line up nicely
+      flex: 1;
+      gap: 5px;
     }
 
     .left-controls {
       display: flex;
       align-items: center;
+      flex: 1;
     }
 
     .right-controls {

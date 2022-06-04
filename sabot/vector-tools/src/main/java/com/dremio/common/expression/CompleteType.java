@@ -107,6 +107,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Timestamp;
 import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.types.SchemaUpPromotionRules;
 import com.dremio.common.types.TypeCoercionRules;
@@ -160,7 +161,7 @@ public class CompleteType {
   public static final CompleteType STRUCT = new CompleteType(ArrowType.Struct.INSTANCE);
   public static final CompleteType FIXEDSIZEBINARY = new CompleteType(new ArrowType.FixedSizeBinary(128));
   public static final CompleteType DECIMAL = new CompleteType(new ArrowType.Decimal(MAX_DECIMAL_PRECISION,
-    MAX_DECIMAL_PRECISION));
+    MAX_DECIMAL_PRECISION, 128));
 
   private static final String LIST_DATA_NAME = ListVector.DATA_VECTOR_NAME;
   public static final boolean REJECT_MIXED_DECIMALS = false;
@@ -185,11 +186,11 @@ public class CompleteType {
   }
 
   public Field toField(String name) {
-    return new Field(name, true, type, children);
+    return new Field(name, new FieldType(true, type, null), children);
   }
 
   public Field toField(ProvidesUnescapedPath ref) {
-    return new Field(ref.getAsUnescapedPath(), true, type, children);
+    return new Field(ref.getAsUnescapedPath(), new FieldType(true, type, null), children);
   }
 
   private Field toInternalList() {
@@ -253,7 +254,7 @@ public class CompleteType {
     //  "must be >= 0");
     //Preconditions.checkArgument(precision > 0 && precision >= scale,
     //  "invalid precision " + precision + ", must be > 0 and >= scale " + scale);
-    return new CompleteType(new ArrowType.Decimal(precision, scale));
+    return new CompleteType(new ArrowType.Decimal(precision, scale, 128));
   }
 
 
@@ -1194,8 +1195,8 @@ public class CompleteType {
     }
     List<Field> dremioFields = new ArrayList<>();
     for (Field field : arrowFields) {
-      dremioFields.add(new Field(convertFieldName(field.getName()), true,
-        convertToSupportedArrowType(field.getType()), convertToDremioFields(field.getChildren())));
+      dremioFields.add(new Field(convertFieldName(field.getName()),
+        new FieldType(true, convertToSupportedArrowType(field.getType()), null), convertToDremioFields(field.getChildren())));
     }
     return dremioFields;
   }

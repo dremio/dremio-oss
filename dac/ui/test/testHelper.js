@@ -15,12 +15,22 @@
  */
 /* eslint react/prop-types: 0 */
 
+import { configure } from '@testing-library/dom';
 import './commonGlobalVariables';
 import en from 'dyn-load/locales/en.json';
 import 'url-search-params-polyfill';
 import mockCssModules from 'mock-css-modules';
-import { jsdom } from 'jsdom';
 import config from '../webpack.config';
+
+//data-testid = data-qa for get/queryByTestId in react-testing-library
+configure({ testIdAttribute: 'data-qa' });
+
+require('jsdom-global')(undefined, {
+  url: 'http://localhost/',
+  pretendToBeVisual: true
+});
+
+global.requestAnimationFrame = cb => cb();
 
 // Prevent compiling of .less
 mockCssModules.register(['.less']); // needed for css module
@@ -30,16 +40,9 @@ require.extensions['.svg'] = () => {};
 // Define user agent for Radium
 global.navigator = {
   userAgent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5)
-              AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.97 Safari/537.36`
+              AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.97 Safari/537.36`,
+  language: 'en-GB'
 };
-
-/* init jsdom  */
-
-const exposedProperties = ['navigator', 'document'];
-
-global.document = jsdom('');
-global.window = document.defaultView;
-
 
 const Module = require('module');
 // import of react and enzyme must be after jsdom initialization. See https://github.com/airbnb/enzyme/issues/395
@@ -61,29 +64,37 @@ global.window.config = { // will this it's FE-DEV, BE-DEV
   language: 'dataEN'
 };
 
-// jsdom has not getSelection https://github.com/tmpvar/jsdom/issues/321
-// https://github.com/tmpvar/jsdom/issues/317
-window.getSelection = function() {
-  return {
-    removeAllRanges: sinon.spy()
-  };
-};
-
 window.requestAnimationFrame = setTimeout;
 window.cancelAnimationFrame = clearTimeout;
 
-window.URL.createObjectURL = window.URL.createObjectURL || function() {
-  return 'blob:fake';
-};
-
-Object.keys(document.defaultView).forEach((property) => {
-  if (typeof global[property] === 'undefined') {
-    exposedProperties.push(property);
-    global[property] = document.defaultView[property];
+// jsDom does not implement offset* methods.  This will break tests
+// for components that use react-virtualized-auto-sizer
+// (https://github.com/jsdom/jsdom/issues/135#issuecomment-68191941)
+Object.defineProperties(window.HTMLElement.prototype, {
+  offsetLeft: {
+    get() {
+      return parseFloat(window.getComputedStyle(this).marginLeft) || 0;
+    }
+  },
+  offsetTop: {
+    get() {
+      return parseFloat(window.getComputedStyle(this).marginTop) || 0;
+    }
+  },
+  offsetHeight: {
+    get() {
+      return parseFloat(window.getComputedStyle(this).height) || 0;
+    }
+  },
+  offsetWidth: {
+    get() {
+      return parseFloat(window.getComputedStyle(this).width) || 0;
+    }
   }
 });
 
 global.navigator = {
+  ...global.navigator,
   userAgent: 'node.js'
 };
 global.localStorage = (() => {
@@ -175,6 +186,13 @@ Module.prototype.require = function(module) {
   // - make it so that our tests can check output strings without hardcoding to English (as the English can change for design reasons)
   // WARNING: this is partial - grow it as you use more APIs
   if (module === 'react-intl') {
+    const tmpIntl = {
+      formatMessage(desc) {
+        if (!desc.id) throw new Error('Missing `id` for formatMessage.');
+        checkIntlId(desc.id);
+        return JSON.stringify(arguments);
+      }
+    };
     return {
       FormattedMessage(...props) {
         if (!props.id) throw new Error('Missing `id` for FormattedMessage.');
@@ -184,16 +202,19 @@ Module.prototype.require = function(module) {
       injectIntl(Wrapped) {
         // hack in the intl props in a way that keeps the tests simple
         Wrapped.defaultProps = Wrapped.defaultProps || {};
-        Wrapped.defaultProps.intl = {
-          formatMessage(desc) {
-            if (!desc.id) throw new Error('Missing `id` for formatMessage.');
-            checkIntlId(desc.id);
-            return JSON.stringify(arguments);
-          }
-        };
+        Wrapped.defaultProps.intl = tmpIntl;
         return Wrapped;
+      },
+      createIntlCache() {
+        return;
+      },
+      createIntl() {
+        return tmpIntl;
       }
     };
+  }
+  if (module === 'react-lottie') {
+    return null;
   }
   module = applyAliases(module); // use webpack aliases for correct module resolving
 
@@ -211,6 +232,15 @@ Module.prototype.require = function(module) {
     }
 
     return fileFakes;
+  }
+
+  if (module.includes('.worker.js')) {
+    class LayoutWorker {
+      constructor() {
+        this.default = () => {};
+      }
+    }
+    return LayoutWorker;
   }
 
   return originalRequire.call(this, module);

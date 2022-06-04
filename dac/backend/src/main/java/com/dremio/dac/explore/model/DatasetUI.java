@@ -272,7 +272,7 @@ public class DatasetUI {
 
     Map<String, String> links = new HashMap<>();
     links.put("self", "/dataset/" + dottedFullPath + "/version/" + datasetVersion);
-    if (!isUnsaved || isDerivedDirectly) {
+    if ((!isUnsaved || isDerivedDirectly) && datasetType != null) {
       links.put("namespaceEntity", getNamespaceEntityUrlPath(displayFullPath, datasetType));
     }
 

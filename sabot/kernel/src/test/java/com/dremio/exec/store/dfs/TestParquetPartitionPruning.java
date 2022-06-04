@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 
 import org.joda.time.LocalDateTime;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -25,6 +28,16 @@ import com.dremio.common.util.JodaDateUtility;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestParquetPartitionPruning extends PlanTestBase {
+
+  @BeforeClass
+  public static void init() throws Exception {
+    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName(), "false");
+  }
+
+  @AfterClass
+  public static void reset() throws IOException {
+    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName(), PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
+  }
 
   private static final String DATE_PARTITION_TABLE =
           "[WORKING_PATH]/src/test/resources/parquet/parquet_datepartition";

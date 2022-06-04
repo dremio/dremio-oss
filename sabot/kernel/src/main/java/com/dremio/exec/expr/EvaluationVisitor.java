@@ -1213,8 +1213,16 @@ public class EvaluationVisitor {
     }
 
     private boolean shouldNestMethod() {
-      return ((caseConditionCount.isEmpty() && exprCount.peekLast() > newMethodThreshold)
-        || (!caseConditionCount.isEmpty() && caseConditionCount.peek() > newMethodThreshold)) && allowNewMethods;
+      if (!allowNewMethods) {
+        return false;
+      }
+      final Integer numExprs = exprCount.peek();
+      if (caseConditionCount.isEmpty()) {
+        return numExprs != null && numExprs > newMethodThreshold;
+      } else {
+        final Integer caseCount = caseConditionCount.peek();
+        return caseCount > newMethodThreshold || (numExprs != null && numExprs > newMethodThreshold);
+      }
     }
 
     private void addCaseDepth() {

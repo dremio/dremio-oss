@@ -16,10 +16,9 @@
 package com.dremio.datastore.indexed;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.hamcrest.CoreMatchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyList;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -108,8 +107,7 @@ public class TestCoreSearchIterable {
     final List<com.dremio.datastore.api.Document<KVStoreTuple<String>,  KVStoreTuple<String>>> results = new ArrayList<>();
     iterable.forEach(results::add);
 
-    assertThat(results.size(), is(1));
-    assertThat(results.get(0), is(foo1Doc));
+    assertThat(results).hasSize(1).containsExactly(foo1Doc);
 
     assertEquals(0, index.getNumCachedSearchers());
   }

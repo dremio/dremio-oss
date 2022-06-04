@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.store.iceberg.hadoop;
 
-import java.util.List;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.hadoop.HadoopTableOperations;
+import org.apache.iceberg.util.LockManagers;
 
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -28,10 +28,17 @@ import com.dremio.sabot.exec.context.OperatorContext;
 /**
  * Hadoop based iceberg table operations
  */
-class IcebergHadoopTableOperations extends HadoopTableOperations {
+public class IcebergHadoopTableOperations extends HadoopTableOperations {
+  private final MutablePlugin plugin;
 
-  public IcebergHadoopTableOperations(Path location, Configuration conf, FileSystem fs, OperatorContext context, List<String> dataset) {
-    super(location, new DremioFileIO(fs, context, dataset, null, null, conf), conf);
+  public IcebergHadoopTableOperations(Path location, Configuration conf, FileSystem fs, OperatorContext context, MutablePlugin plugin) {
+    super(location, new DremioFileIO(fs, context, null, null, null, conf, plugin), conf,
+      LockManagers.defaultLockManager());
+    this.plugin = plugin;
   }
 
+  @Override
+  protected org.apache.hadoop.fs.FileSystem getFileSystem(Path path, Configuration hadoopConf) {
+    return plugin.getHadoopFsSupplier(path.toString(), hadoopConf).get();
+  }
 }

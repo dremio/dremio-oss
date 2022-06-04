@@ -13,23 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { withRouter } from 'react-router';
+import { withRouter, Link } from 'react-router';
 import { injectIntl } from 'react-intl';
 
+import { addNotification } from '@app/actions/notification';
 import RealTimeTimer from '@app/components/RealTimeTimer';
 import SampleDataMessage from '@app/pages/ExplorePage/components/SampleDataMessage';
 import jobsUtils from '@app/utils/jobsUtils';
-import {getJobProgress, getRunStatus, getImmutableTable, getExploreJobId, getJobOutputRecords} from '@app/selectors/explore';
-import { cancelJobAndShowNotification } from '@app/actions/jobs/jobs';
-import TooltipEnabledLabel from '@app/components/TooltipEnabledLabel';
-import ExploreTableJobStatusMixin from 'dyn-load/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatusMixin';
-
+import {
+  getJobProgress,
+  getRunStatus,
+  getImmutableTable,
+  getExploreJobId,
+  getJobOutputRecords
+} from '@app/selectors/explore';
 import './ExploreTableJobStatus.less';
-import ExploreTableJobStatusDropdown from './ExploreTableJobStatusDropdown';
-import ExploreTableJobStatusSpinner from './ExploreTableJobStatusSpinner';
+import { compose } from 'redux';
 
 export const JOB_STATUS = {
   notSubmitted: 'NOT_SUBMITTED',
@@ -62,58 +64,64 @@ export const isWorking = (status) => {
     JOB_STATUS.executionPlanning].includes(status);
 };
 
-@injectIntl
-@ExploreTableJobStatusMixin
-export class ExploreTableJobStatus extends Component {
-  static propTypes = {
-    approximate: PropTypes.bool,
-    //connected
-    jobProgress: PropTypes.object,
-    runStatus: PropTypes.bool,
-    jobId: PropTypes.string,
-    haveRows: PropTypes.bool,
-    outputRecords: PropTypes.number,
-    cancelJob: PropTypes.func,
-    intl: PropTypes.object.isRequired,
-    //withRouter props
-    location: PropTypes.object.isRequired
+const ExploreTableJobStatus = (props) => {
+  const {
+    jobProgress,
+    jobId,
+    jobAttempts,
+    runStatus,
+    outputRecords,
+    approximate,
+    haveRows,
+    intl
+  } = props;
+
+  const jobStatusNames = {
+    [JOB_STATUS.notSubmitted]: intl.formatMessage({ id: 'JobStatus.NotSubmitted' }),
+    [JOB_STATUS.starting]: intl.formatMessage({ id: 'JobStatus.Starting' }),
+    [JOB_STATUS.running]: intl.formatMessage({ id: 'JobStatus.Running' }),
+    [JOB_STATUS.completed]: intl.formatMessage({ id: 'JobStatus.Completed' }),
+    [JOB_STATUS.canceled]: intl.formatMessage({ id: 'JobStatus.Canceled' }),
+    [JOB_STATUS.failed]: intl.formatMessage({ id: 'JobStatus.Failed' }),
+    [JOB_STATUS.cancellationRequested]: intl.formatMessage({ id: 'JobStatus.CancellationRequested' }),
+    [JOB_STATUS.enqueued]: intl.formatMessage({ id: 'JobStatus.Enqueued' }),
+    [JOB_STATUS.pending]: intl.formatMessage({ id: 'JobStatus.Pending' }),
+    [JOB_STATUS.metadataRetrieval]: intl.formatMessage({ id: 'JobStatus.MetadataRetrieval' }),
+    [JOB_STATUS.planning]: intl.formatMessage({ id: 'JobStatus.Planning' }),
+    [JOB_STATUS.engineStart]: intl.formatMessage({ id: 'JobStatus.EngineStart' }),
+    [JOB_STATUS.queued]: intl.formatMessage({ id: 'JobStatus.Queued' }),
+    [JOB_STATUS.executionPlanning]: intl.formatMessage({ id: 'JobStatus.ExecutionPlanning' })
   };
 
-  jobStatusNames = {
-    [JOB_STATUS.notSubmitted]: la('Not Submitted'),
-    [JOB_STATUS.starting]: la('Starting'),
-    [JOB_STATUS.running]: la('Running'),
-    [JOB_STATUS.completed]: la('Completed'),
-    [JOB_STATUS.canceled]: la('Canceled'),
-    [JOB_STATUS.failed]: la('Failed'),
-    [JOB_STATUS.cancellationRequested]: la('Cancellation Requested'),
-    [JOB_STATUS.enqueued]: la('Enqueued'),
-    [JOB_STATUS.pending]: la('Pending'),
-    [JOB_STATUS.metadataRetrieval]: la('Metadata Retrieval'),
-    [JOB_STATUS.planning]: la('Planning'),
-    [JOB_STATUS.engineStart]: la('Engine Start'),
-    [JOB_STATUS.queued]: la('Queued'),
-    [JOB_STATUS.executionPlanning]: la('Execution Planning')
-  };
+  const [ jobStatusLabel, setJobStatusLabel ] = useState('');
+  const [ jobStatusName, setJobStatusName ] = useState('');
+  const [ jobType, setJobType ] = useState(null);
+  const [ jobProgressId, setJobProgressId ] = useState(null);
 
-  constructor(props) {
-    super(props);
+  useEffect(() => {
+    if (jobProgress === null) {
+      renderPreviewWarning();
+      return;
+    }
 
-    this.state = {
-      displayJobTooltip: false
-    };
-  }
+    setJobProgressId(jobId);
+    setJobType(runStatus ? intl.formatMessage({ id: 'Explore.Run'}) : intl.formatMessage({ id: 'Explore.Preview'}));
 
-  doButtonAction = (actionType) => {
-    const {cancelJob, jobProgress: {jobId}} = this.props;
-    if (!jobId) return;
+    if (jobProgress.status === JOB_STATUS.completed) {
+      setJobStatusLabel(intl.formatMessage({ id: 'Explore.Records'}));
 
-    if (actionType === 'cancel') {
-      cancelJob(jobId);
-    } //else ignore
-  };
+      if (outputRecords != null) {
+        setJobStatusName(outputRecords.toLocaleString());
+      }
+    } else {
+      setJobStatusLabel(intl.formatMessage({ id: 'Explore.Status'}));
+      setJobStatusName(jobStatusNames[jobProgress.status]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobProgress]);
 
-  renderTime = jobProgress => {
+  const renderTime = () => {
+    if (!jobProgress) return null;
     // if not complete - show timer, else format end-start
     const { startTime, endTime } = jobProgress;
     if (isWorking(jobProgress.status)) {
@@ -129,94 +137,72 @@ export class ExploreTableJobStatus extends Component {
     }
   };
 
-  renderPreviewWarning = () => {
+  const renderPreviewWarning = () => {
     //in case there was no jobProgress, show "preview" warning once table data appears
-    const { approximate, haveRows } = this.props;
     if (approximate && haveRows) {
-      return <>
-        <SampleDataMessage />
-        {this.renderExtraStatus(true)}
-      </>;
+      return <SampleDataMessage />;
     }
-    return this.renderExtraStatus(true);
   };
 
-  getCancellable = jobStatus => {
-    return jobStatus === JOB_STATUS.running
-      || jobStatus === JOB_STATUS.starting
-      || jobStatus === JOB_STATUS.enqueued
-      || jobStatus === JOB_STATUS.pending
-      || jobStatus === JOB_STATUS.metadataRetrieval
-      || jobStatus === JOB_STATUS.planning
-      || jobStatus === JOB_STATUS.engineStart
-      || jobStatus === JOB_STATUS.queued
-      || jobStatus === JOB_STATUS.executionPlanning;
-  };
-
-  render() {
-    const { jobProgress, runStatus, jobId, outputRecords, intl, cancelJob } = this.props;
-
-    if (!jobProgress) {
-      return this.renderPreviewWarning();
-    }
-
-    const jobTypeLabel = runStatus ? la('Run') : la('Preview');
-    const isCompleteWithRecords = jobProgress.status === JOB_STATUS.completed && outputRecords;
-    const isJobCancellable = this.getCancellable(jobProgress.status);
-    const jobStatusLabel = (isCompleteWithRecords) ? la('Records: ') : la('Status: ');
-    const jobStatusName = (isCompleteWithRecords) ? outputRecords.toLocaleString() : this.jobStatusNames[jobProgress.status];
-
-    const helpContent = jobProgress.isRun ? intl.formatMessage({ id: 'Explore.run.warning' }) : intl.formatMessage({ id: 'Explore.preview.warning' });
-    const jobLabel = (
-      <span>
-        <span className='exploreJobStatus__label'>{la('Job: ')}</span>
-        <span style={styles.value}>{jobTypeLabel}</span>
-      </span>
-    );
-
+  if (jobProgress === null) {
+    return null;
+  } else {
     return (
       <div className='exploreJobStatus'>
-        <TooltipEnabledLabel
-          tooltip={helpContent}
-          toolTipPosition={'bottom-start'}
-          tooltipStyle={styles.helpTooltip}
-          tooltipInnerStyle={styles.helpInnerTooltip}
-          labelBefore
-          label={jobLabel}
-        />
-        <span style={styles.divider}> | </span>
+        <div className='exploreJobStatus__item'>
+          <span style={styles.label}>{intl.formatMessage({ id: 'Explore.Job' })}: </span>
 
-        <span className='exploreJobStatus__label'>{jobStatusLabel}</span>
-        {!jobId && <span className='exploreJobStatus__name'>{jobStatusName}</span>}
+          {jobProgressId &&
+            <Link
+              to={{
+                pathname: `/job/${jobId}`,
+                query: {
+                  attempts: jobAttempts
+                },
+                state: {
+                  isFromJobListing: false
+                }
+              }}
+              title={`Jobs Detail Page for #${jobProgressId}`}>
+              {jobType}
+            </Link>
+          }
+        </div>
 
-        <ExploreTableJobStatusDropdown
-          jobId ={jobId}
-          jobStatusName={jobStatusName}
-          isJobCancellable={isJobCancellable}
-          cancelJob={cancelJob} />
+        <div className='exploreJobStatus__item'>
+          {<span style={styles.label}>{jobStatusLabel}: </span>}
+          {jobStatusName}
+        </div>
 
-        <ExploreTableJobStatusSpinner jobProgress={jobProgress} jobId={jobId}/>
-
-        <span style={styles.divider}> | </span>
-        <span className='exploreJobStatus__label'>{la('Time: ')}</span>
-        <span style={styles.timeValue}>
-          {this.renderTime(jobProgress)}
-        </span>
-
-        {this.renderExtraStatus()}
+        <div className='exploreJobStatus__item'>
+          {renderTime()}
+        </div>
       </div>
     );
   }
+};
 
-}
+ExploreTableJobStatus.propTypes = {
+  approximate: PropTypes.bool,
+  //connected
+  jobProgress: PropTypes.object,
+  runStatus: PropTypes.bool,
+  jobId: PropTypes.string,
+  haveRows: PropTypes.bool,
+  outputRecords: PropTypes.number,
+  version: PropTypes.string,
+  intl: PropTypes.object.isRequired
+};
 
 function mapStateToProps(state, props) {
-  const {approximate, location = {}} = props;
-  const version = location.query && location.query.version;
+  const {approximate, version} = props;
   const jobProgress = getJobProgress(state, version);
-  const runStatus = getRunStatus(state).isRun;
   const jobId = getExploreJobId(state);
+
+  const jobDetails = state.resources.entities.getIn(['jobDetails', jobId]);
+  const jobAttempts = jobDetails && jobDetails.get('attemptDetails') && jobDetails.get('attemptDetails').size;
   const outputRecords = getJobOutputRecords(state, version);
+  const runStatus = getRunStatus(state).isRun;
 
   let haveRows = false;
   // get preview tableData for preview w/o jobProgress
@@ -227,17 +213,20 @@ function mapStateToProps(state, props) {
   }
 
   return {
-    jobProgress,
-    runStatus,
-    jobId,
     haveRows,
-    outputRecords
+    jobProgress,
+    jobId,
+    jobAttempts: jobAttempts || 1,
+    outputRecords,
+    runStatus
   };
 }
 
-export default withRouter(connect(mapStateToProps, {
-  cancelJob: cancelJobAndShowNotification
-})(ExploreTableJobStatus));
+export default compose(
+  connect(mapStateToProps, { addNotification }),
+  withRouter,
+  injectIntl
+)(ExploreTableJobStatus);
 
 export const styles = {
   wrapper: {

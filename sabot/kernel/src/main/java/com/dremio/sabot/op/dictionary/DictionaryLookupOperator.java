@@ -35,6 +35,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.TransferPair;
 import org.joda.time.DateTimeConstants;
 
@@ -111,8 +112,8 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final ValueVector vvIn = incoming.getValueAccessorById(TypeHelper.getValueVectorClass(field), typedFieldId.getFieldIds()).getValueVector();
 
       if (config.getDictionaryEncodedFields().containsKey(field.getName())) {
-        final ValueVector vvOut = outgoing.addOrGet(new Field(field.getName(), field.isNullable(),
-          config.getDictionaryEncodedFields().get(field.getName()).getArrowType(), field.getChildren()));
+        final ValueVector vvOut = outgoing.addOrGet(new Field(field.getName(), new FieldType(field.isNullable(),
+          config.getDictionaryEncodedFields().get(field.getName()).getArrowType(), field.getDictionary()), field.getChildren()));
         // load dictionary
         if (!dictionaries.containsKey(field.getName())) {
           final VectorContainer dictionary = loadDictionary(field.getName());
@@ -143,7 +144,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
 
   public VectorContainer loadDictionary(String fieldName) throws IOException, ExecutionSetupException {
     final StoragePluginId id = config.getDictionaryEncodedFields().get(fieldName).getStoragePluginId();
-    final StoragePlugin storagePlugin = config.getCatalogService().getSource(id);
+    final StoragePlugin storagePlugin = config.getStoragePluginResolver().getSource(id);
     if (storagePlugin instanceof FileSystemPlugin) {
       final FileSystemPlugin<?> fsPlugin = (FileSystemPlugin<?>) storagePlugin;
       final FileSystem fs = fsPlugin.createFS(config.getProps().getUserName(), context);

@@ -41,6 +41,8 @@ export const SALESFORCE = 'SALESFORCE';
 export const NETEZZA = 'NETEZZA';
 export const TERADATA = 'TERADATA';
 
+export const DATAPLANE = 'DATAPLANE';
+
 export const sourceProperties = [
   // todo: loc
   {label: 'Amazon Redshift', sourceType: REDSHIFT, beta: true},
@@ -73,7 +75,7 @@ export const externalSourceType = {
   [POSTGRESQL]: true
 };
 
-export const dataLakeSoureType = {
+export const dataLakeSourceType = {
   [S3]: true,
   [ADL]: true,
   [AZURE_STORAGE]: true,
@@ -87,7 +89,7 @@ export const dataLakeSoureType = {
 };
 
 export const isExternalSourceType = (sourceType) => {
-  return !dataLakeSoureType[sourceType];
+  return !dataLakeSourceType[sourceType];
 };
 
 export const isDatalakeTableSourceType = (sourceType) => {
@@ -98,6 +100,14 @@ export const dataLakeTableType = {
   [HIVE]: true,
   [HIVE3]: true,
   [AWSGLUE]: true
+};
+
+const dataPlaneSources = {
+  [DATAPLANE]: true
+};
+
+export const isDataPlaneSourceType = (sourceType) => {
+  return dataPlaneSources[sourceType];
 };
 
 export const SHARING_TAB_JSON_TEMPLATE = {};

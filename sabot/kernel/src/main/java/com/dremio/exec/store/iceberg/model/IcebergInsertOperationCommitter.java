@@ -39,12 +39,14 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
 
   private final IcebergCommand icebergCommand;
   private final OperatorStats operatorStats;
+  private final String prevMetadataRootPointer;
 
   public IcebergInsertOperationCommitter(IcebergCommand icebergCommand, OperatorStats operatorStats) {
     Preconditions.checkState(icebergCommand != null, "Unexpected state");
     this.icebergCommand = icebergCommand;
     this.icebergCommand.beginInsertTableTransaction();
     this.operatorStats = operatorStats;
+    this.prevMetadataRootPointer = icebergCommand.getRootPointer();;
   }
 
   @Override
@@ -84,5 +86,10 @@ public class IcebergInsertOperationCommitter implements IcebergOpCommitter {
   @Override
   public Map<Integer, PartitionSpec> getCurrentSpecMap() {
     return icebergCommand.getPartitionSpecMap();
+  }
+
+  @Override
+  public boolean isIcebergTableUpdated() {
+    return !icebergCommand.getRootPointer().equals(prevMetadataRootPointer);
   }
 }

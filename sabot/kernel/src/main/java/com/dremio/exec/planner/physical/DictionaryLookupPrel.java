@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -85,7 +86,7 @@ public class DictionaryLookupPrel extends SinglePrel {
     for (Field field : childSchema.getFields()) {
       // Revert back to original type
       if (dictionaryEncodedFields.containsKey(field.getName())) {
-        b.addField(new Field(field.getName(), field.isNullable(), dictionaryEncodedFields.get(field.getName()).getArrowType(), field.getChildren()));
+        b.addField(new Field(field.getName(), new FieldType(field.isNullable(), dictionaryEncodedFields.get(field.getName()).getArrowType(), field.getDictionary()), field.getChildren()));
       } else {
         b.addField(field);
       }

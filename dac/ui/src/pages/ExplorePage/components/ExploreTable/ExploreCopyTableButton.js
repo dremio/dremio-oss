@@ -162,6 +162,7 @@ export class ExploreCopyTableButton extends PureComponent {
         onClick={this.handleClick}
         disabled={isDisabled}
         showSpinner={this.state.isPreparing}
+        version={2}
       />
     );
   }

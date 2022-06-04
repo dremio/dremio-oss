@@ -22,12 +22,11 @@ import { injectIntl } from 'react-intl';
 
 import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
-import { unavailable } from 'uiTheme/radium/typography';
 import { typeToIconType } from '@app/constants/DataTypes';
 import { constructFullPath } from 'utils/pathUtils';
 
 import Art from '@app/components/Art';
-import { base, content, disabled as disabledCls, icon as iconCls } from '@app/uiTheme/less/DragComponents/ColumnMenuItem.less';
+import { itemContainer, base, content, disabled as disabledCls, icon as iconCls, datasetAdd } from '@app/uiTheme/less/DragComponents/ColumnMenuItem.less';
 import DragSource from './DragSource';
 
 @Radium
@@ -46,7 +45,9 @@ class ColumnMenuItem extends PureComponent {
     name: PropTypes.string,
     fieldType: PropTypes.string,
     className: PropTypes.string,
-    intl: PropTypes.any
+    intl: PropTypes.any,
+    shouldAllowAdd: PropTypes.bool,
+    addtoEditor: PropTypes.func
   }
   static defaultProps = {
     fullPath: Immutable.List()
@@ -70,16 +71,12 @@ class ColumnMenuItem extends PureComponent {
   }
 
   render() {
-    const { item, disabled, preventDrag, fieldType, className, intl: { formatMessage } } = this.props;
-    const font = disabled
-      ? unavailable
-      : {};
+    const { item, disabled, preventDrag, fieldType, className, shouldAllowAdd, addtoEditor, intl: { formatMessage } } = this.props;
     const markAsDisabled = preventDrag || disabled;
     const isGroupBy = this.props.dragType === 'groupBy';
     // full paths are not yet supported by dremio in SELECT clauses, so force this to always be the simple name for now
     const idForDrag = true || // eslint-disable-line no-constant-condition
       isGroupBy ? item.get('name') : constructFullPath(this.props.fullPath.concat(item.get('name')));
-
     return (
       <div
         className={classNames(['inner-join-left-menu-item', base, className])}
@@ -100,10 +97,12 @@ class ColumnMenuItem extends PureComponent {
             data-qa={`inner-join-field-${item.get('name')}-${fieldType}`}
           >
             <FontIcon type={typeToIconType[item.get('type')]} theme={styles.type}/>
-            <EllipsedText style={!preventDrag ? {paddingRight: 10} : {} /* leave space for knurling */}
-              text={item.get('name')} title={preventDrag ? formatMessage({ id: 'Read.Only'}) : item.get('name')}>
-              <span data-qa={item.get('name')} style={[styles.name, font]}>{item.get('name')}</span>
-            </EllipsedText>
+            <div className={itemContainer}>
+              <EllipsedText data-qa={item.get('name')} style={!preventDrag ? {paddingRight: 10} : {} /* leave space for knurling */}
+                text={item.get('name')} title={preventDrag ? formatMessage({ id: 'Read.Only'}) : item.get('name')}>
+                {item.get('name')}
+              </EllipsedText>
+            </div>
             {/*
               We need to put sort and partition icons to columns, i.e. ('S' and 'P' below represents
               the icons):
@@ -133,6 +132,17 @@ class ColumnMenuItem extends PureComponent {
               item.get('isSorted') && !item.get('isPartitioned') && <div className={iconCls}></div>
             }
             {/* {this.renderDraggableIcon()} */} {/* DX-37793: This currently built with wrong icon. Correct icon has not been designed yet. */}
+
+            {
+              shouldAllowAdd &&
+                <Art
+                  src='CirclePlus.svg'
+                  alt=''
+                  className={datasetAdd}
+                  onClick={() => addtoEditor(item.get('name'))}
+                  title='Add to SQL editor'
+                />
+            }
           </div>
         </DragSource>
       </div>

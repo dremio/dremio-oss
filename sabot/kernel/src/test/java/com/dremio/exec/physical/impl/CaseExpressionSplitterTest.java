@@ -53,6 +53,26 @@ public class CaseExpressionSplitterTest extends BaseExpressionSplitterTest {
       "when c2 <= c1 + 1 then c1 + c2 * 10 " +
       "when c3 >= c1 then c3 - c1 " +
       "when c4 <= c1 then (c1 + c4) / 2 else c4 - c0 end";
+  private final String mixedCaseQuery =
+    "case when c0 >= c1 then 'null' " +
+      "when c0 <= (c1 - c2) then 'Done' " +
+      "else 'Not Done' end";
+
+  final Fixtures.Table mixedCaseInput = Fixtures.split(
+    th("c0", "c1", "c2"),
+    3,
+    tr(12, 11, 23),
+    tr(11, 12, 6),
+    tr(4, 22, 14)
+  );
+
+  final Fixtures.Table mixedCaseOutput = t(
+    th("out"),
+    tr("null"),
+    tr("Not Done"),
+    tr("Done")
+  );
+
 
   private static final Fixtures.Table caseInputSimple = Fixtures.split(
     th("c0", "c1"),
@@ -242,6 +262,44 @@ public class CaseExpressionSplitterTest extends BaseExpressionSplitterTest {
   }
 
   @Test
+  public void testAlternateMixedSplitsGandivaLast() throws Exception {
+    final String xxx0 = "(case when (greater_than_or_equal_to(c0, c1)) then (0i) else (-1i) end)";
+    final String xxx1 = "(if (less_than(_xxx0, 0i)) then (subtract(c1, c2)) else (cast((__$INTERNAL_NULL$__) as INT)) end)";
+    final String xxx2 = "(case when (greater_than(_xxx0, -1i)) then (_xxx0) " +
+      "when (less_than_or_equal_to(c0, _xxx1)) then (1i) else (2i) end)";
+    final String xxx3 = "(case when (equal(_xxx2, 0i)) then ('null') when (equal(_xxx2, 1i)) then ('Done') " +
+      "else ('Not Done') end)";
+
+    GandivaAnnotator annotator = new GandivaAnnotatorCase("less_than_or_equal_to");
+    Split[] expSplits = new Split[] {
+      new Split(false, "_xxx0", xxx0, 1, 2),
+      new Split(false, "_xxx1", xxx1, 2, 1, "_xxx0"),
+      new Split(true, "_xxx2", xxx2, 3, 1, "_xxx0", "_xxx1"),
+      new Split(true, "out", xxx3, 4, 0, "_xxx2"),
+    };
+    splitAndVerifyCase(mixedCaseQuery, mixedCaseInput, mixedCaseOutput, expSplits, annotator);
+  }
+
+  @Test
+  public void testAlternateMixedSplitsJavaLast() throws Exception {
+    final String xxx0 = "(case when (greater_than_or_equal_to(c0, c1)) then (0i) else (-1i) end)";
+    final String xxx1 = "(if (less_than(_xxx0, 0i)) then (subtract(c1, c2)) else (cast((__$INTERNAL_NULL$__) as INT)) end)";
+    final String xxx2 = "(case when (greater_than(_xxx0, -1i)) then (_xxx0) " +
+      "when (less_than_or_equal_to(c0, _xxx1)) then (1i) else (2i) end)";
+    final String xxx3 = "(case when (equal(_xxx2, 0i)) then ('null') when (equal(_xxx2, 1i)) then ('Done') " +
+      "else ('Not Done') end)";
+
+    GandivaAnnotator annotator = new GandivaAnnotatorCase("subtract");
+    Split[] expSplits = new Split[] {
+      new Split(false, "_xxx0", xxx0, 1, 2),
+      new Split(true, "_xxx1", xxx1, 2, 1, "_xxx0"),
+      new Split(false, "_xxx2", xxx2, 3, 1, "_xxx0", "_xxx1"),
+      new Split(true, "out", xxx3, 4, 0, "_xxx2"),
+    };
+    splitAndVerifyCase(mixedCaseQuery, mixedCaseInput, mixedCaseOutput, expSplits, annotator);
+  }
+
+  @Test
   public void testAlternateThenSplits() throws Exception {
     final String xxx0 = "(case when (greater_than_or_equal_to(c0, c1)) then (0i) " +
       "when (less_than_or_equal_to(c2, add(c1,1i))) then (1i)  " +
@@ -346,7 +404,7 @@ public class CaseExpressionSplitterTest extends BaseExpressionSplitterTest {
     Split[] expSplits = new Split[] {
       new Split(false, "_xxx0", xxx0, 1, 2),
       new Split(false, "_xxx1", xxx1, 2, 1, "_xxx0"),
-      new Split(false, "_xxx2", xxx2, 3, 1, "_xxx0", "_xxx1"),
+      new Split(true, "_xxx2", xxx2, 3, 1, "_xxx0", "_xxx1"),
       new Split(false, "_xxx3", xxx3, 4, 1, "_xxx2"),
       new Split(true, "_xxx4", xxx4, 5, 3, "_xxx3"),
       new Split(false, "_xxx5", xxx5, 6, 1, "_xxx4"),

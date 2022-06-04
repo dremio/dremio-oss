@@ -17,10 +17,12 @@ package com.dremio.dac.service;
 
 import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET;
 import static com.dremio.service.namespace.dataset.proto.DatasetType.VIRTUAL_DATASET;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,11 +38,9 @@ import java.util.List;
 import javax.ws.rs.core.SecurityContext;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.mockito.Matchers;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.dac.api.CatalogEntity;
 import com.dremio.dac.api.CatalogItem;
 import com.dremio.dac.api.Dataset;
@@ -85,8 +85,6 @@ import com.google.common.collect.ImmutableList;
  * Test for CatalogServiceHelper
  */
 public class TestCatalogServiceHelper {
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   private CatalogServiceHelper catalogServiceHelper;
   private Catalog catalog;
@@ -240,7 +238,7 @@ public class TestCatalogServiceHelper {
   }
 
   @Test
-  public void testCreatePDSShouldFail() throws Exception {
+  public void testCreatePDSShouldFail() {
     // can only create VDS
     Dataset dataset = new Dataset(
       null,
@@ -255,12 +253,12 @@ public class TestCatalogServiceHelper {
       null,
       null
     );
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.createCatalogItem(dataset);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(dataset))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  public void testCreateVDSWithoutIdShouldFail() throws Exception {
+  public void testCreateVDSWithoutIdShouldFail() {
     // new VDS can't have an id
     Dataset dataset = new Dataset(
       "foo",
@@ -275,12 +273,12 @@ public class TestCatalogServiceHelper {
       null,
       null
     );
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.createCatalogItem(dataset);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(dataset))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  public void testCreateVDSWithoutSQLShouldFail() throws Exception {
+  public void testCreateVDSWithoutSQLShouldFail() {
     // VDS needs sql
     Dataset dataset = new Dataset(
       null,
@@ -295,12 +293,12 @@ public class TestCatalogServiceHelper {
       null,
       null
     );
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.createCatalogItem(dataset);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(dataset))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  public void testCreateVDSWithIdShouldFail() throws Exception {
+  public void testCreateVDSWithIdShouldFail() {
     // VDS needs sql
     Dataset dataset = new Dataset(
       "dataset-id",
@@ -315,8 +313,8 @@ public class TestCatalogServiceHelper {
       null,
       null
     );
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.createCatalogItem(dataset);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(dataset))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -327,7 +325,7 @@ public class TestCatalogServiceHelper {
     NameSpaceContainer namespaceContainer = new NameSpaceContainer();
     namespaceContainer.setType(NameSpaceContainer.Type.SOURCE);
 
-    when(namespaceService.getEntities(Matchers.anyList())).thenReturn(Collections.singletonList(namespaceContainer));
+    when(namespaceService.getEntities(anyList())).thenReturn(Collections.singletonList(namespaceContainer));
 
     // VDS needs sql
     Dataset dataset = new Dataset(
@@ -343,12 +341,12 @@ public class TestCatalogServiceHelper {
       null,
       null
     );
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.createCatalogItem(dataset);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(dataset))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  public void testCreateSpaceWithIdShouldFail() throws Exception {
+  public void testCreateSpaceWithIdShouldFail() {
     Space space = new Space(
       "space-id",
       "mySpace",
@@ -356,8 +354,8 @@ public class TestCatalogServiceHelper {
       0L,
       null
     );
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.createCatalogItem(space);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(space))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -369,12 +367,12 @@ public class TestCatalogServiceHelper {
       0L,
       null
     );
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.createCatalogItem(space);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(space))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  public void testCreateSpaceWithEmptyNameShouldFail() throws Exception {
+  public void testCreateSpaceWithEmptyNameShouldFail() {
     Space space = new Space(
       null,
       "",
@@ -382,12 +380,12 @@ public class TestCatalogServiceHelper {
       0L,
       null
     );
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.createCatalogItem(space);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(space))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  public void testCreateSpaceWithConflict() throws Exception {
+  public void testCreateSpaceWithConflict() {
     when(namespaceService.exists(any(NamespaceKey.class), eq(NameSpaceContainer.Type.SPACE))).thenReturn(true);
 
     // VDS
@@ -399,8 +397,8 @@ public class TestCatalogServiceHelper {
       null
     );
 
-    thrown.expect(ConcurrentModificationException.class);
-    catalogServiceHelper.createCatalogItem(space);
+    assertThatThrownBy(() -> catalogServiceHelper.createCatalogItem(space))
+      .isInstanceOf(ConcurrentModificationException.class);
   }
 
   @Test
@@ -414,8 +412,11 @@ public class TestCatalogServiceHelper {
       null
     );
 
-    when(namespaceService.exists(any(NamespaceKey.class))).thenReturn(false);
-    when(namespaceService.getSpace(any(NamespaceKey.class))).thenReturn(catalogServiceHelper.getSpaceConfig(space));
+    NameSpaceContainer container = new NameSpaceContainer();
+    container.setType(NameSpaceContainer.Type.SPACE);
+    container.setSpace(catalogServiceHelper.getSpaceConfig(space));
+
+    when(namespaceService.getEntityByPath(new NamespaceKey(space.getName()))).thenReturn(container);
 
     CatalogEntity catalogItem = catalogServiceHelper.createCatalogItem(space);
     assertTrue(catalogItem instanceof Space);
@@ -440,8 +441,8 @@ public class TestCatalogServiceHelper {
       null
     );
 
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.updateCatalogItem(dataset, "bad-id");
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(dataset, "bad-id"))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -472,14 +473,14 @@ public class TestCatalogServiceHelper {
     config.setType(PHYSICAL_DATASET);
     config.setVirtualDataset(virtualDataset);
 
-    when(namespaceService.findDatasetByUUID(dataset.getId())).thenReturn(config);
+    when(namespaceService.getEntityById(dataset.getId())).thenReturn(new NameSpaceContainer().setDataset(config));
 
     DremioTable dremioTable = mock(DremioTable.class);
     when(dremioTable.getDatasetConfig()).thenReturn(config);
     when(catalog.getTable(any(String.class))).thenReturn(dremioTable);
 
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.updateCatalogItem(dataset, dataset.getId());
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(dataset, dataset.getId()))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -498,8 +499,22 @@ public class TestCatalogServiceHelper {
       null
     );
 
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.updateCatalogItem(dataset, dataset.getId());
+    DatasetConfig config = new DatasetConfig();
+    config.setId(new EntityId(dataset.getId()));
+    config.setFullPathList(dataset.getPath());
+    config.setName(dataset.getPath().get(dataset.getPath().size() - 1));
+    config.setTag(dataset.getTag());
+    config.setCreatedAt(dataset.getCreatedAt());
+    VirtualDataset virtualDataset = new VirtualDataset();
+    virtualDataset.setSql(dataset.getSql());
+    virtualDataset.setContextList(dataset.getSqlContext());
+    config.setType(PHYSICAL_DATASET);
+    config.setVirtualDataset(virtualDataset);
+
+    when(namespaceService.getEntityById(dataset.getId())).thenReturn(new NameSpaceContainer().setDataset(config));
+
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(dataset, dataset.getId()))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -575,10 +590,10 @@ public class TestCatalogServiceHelper {
     config.setType(VIRTUAL_DATASET);
     config.setVirtualDataset(virtualDataset);
 
-    when(namespaceService.findDatasetByUUID(dataset.getId())).thenReturn(config);
+    when(namespaceService.getEntityById(dataset.getId())).thenReturn(new NameSpaceContainer().setDataset(config));
 
-    thrown.expect(IllegalArgumentException.class);
-    catalogServiceHelper.updateCatalogItem(dataset, dataset.getId());
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(dataset, dataset.getId()))
+      .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -632,19 +647,19 @@ public class TestCatalogServiceHelper {
   }
 
   @Test
-  public void testUpdateFileShouldFail() throws Exception {
+  public void testUpdateFileShouldFail() {
     File file = new File("file-id", Collections.singletonList("file"));
 
-    thrown.expect(UnsupportedOperationException.class);
-    catalogServiceHelper.updateCatalogItem(file, file.getId());
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(file, file.getId()))
+      .isInstanceOf(UnsupportedOperationException.class);
   }
 
   @Test
-  public void testUpdateHomeShouldFail() throws Exception {
+  public void testUpdateHomeShouldFail() {
     Home home = new Home("home-id", "home", null, null);
 
-    thrown.expect(UnsupportedOperationException.class);
-    catalogServiceHelper.updateCatalogItem(home, home.getId());
+    assertThatThrownBy(() -> catalogServiceHelper.updateCatalogItem(home, home.getId()))
+      .isInstanceOf(UnsupportedOperationException.class);
   }
 
   @Test
@@ -807,7 +822,7 @@ public class TestCatalogServiceHelper {
     namespaceContainer.setType(NameSpaceContainer.Type.SOURCE);
     when(namespaceService.getEntities(Collections.singletonList(new NamespaceKey(sourceConfig.getName())))).thenReturn(Collections.singletonList(namespaceContainer));
 
-    FileSystemPlugin storagePlugin = mock(FileSystemPlugin.class);
+    FileSystemPlugin storagePlugin = BaseTestQuery.getMockedFileSystemPlugin();
 
     when(catalog.getSource(sourceConfig.getName())).thenReturn(storagePlugin);
 

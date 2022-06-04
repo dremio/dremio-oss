@@ -33,7 +33,9 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PrelUtil;
 
-class DremioRelMetadataCache implements RelMetadataCache {
+public class DremioRelMetadataCache implements RelMetadataCache {
+  public static final String MAX_METADATA_CALL_ERROR_MESSAGE =
+      "Max Rel Metadata call count exceeded";
   private final AtomicLong putCallCount = new AtomicLong();
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
   private final Map<RelNode, Map<Object, Object>> map = new HashMap<>();
@@ -43,6 +45,15 @@ class DremioRelMetadataCache implements RelMetadataCache {
     lock.writeLock().lock();
     try {
       return map.remove(rel) != null;
+    } finally {
+      lock.writeLock().unlock();
+    }
+  }
+
+  public void clear() {
+    lock.writeLock().lock();
+    try {
+      map.clear();
     } finally {
       lock.writeLock().unlock();
     }
@@ -93,7 +104,7 @@ class DremioRelMetadataCache implements RelMetadataCache {
             long maxCallCount = settings.maxMetadataCallCount();
             if (pcc > maxCallCount) {
               throw UserException.planError()
-                  .message("Max Rel Metadata call count exceeded").buildSilently();
+                  .message(MAX_METADATA_CALL_ERROR_MESSAGE).buildSilently();
             }
             ((AbstractRelOptPlanner) planner).checkCancel();
           }

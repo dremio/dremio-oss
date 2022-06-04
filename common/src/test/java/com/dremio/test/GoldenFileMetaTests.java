@@ -70,7 +70,7 @@ public final class GoldenFileMetaTests  {
               + "\t`cp target/goldenfiles/actual/GoldenFileMetaTests.testFirstRun.yaml src/test/resources/goldenfiles/expected/GoldenFileMetaTests.testFirstRun.yaml`\n"
               + "To Diff:\n"
               + "\t`sdiff target/goldenfiles/actual/GoldenFileMetaTests.testFirstRun.yaml src/test/resources/goldenfiles/expected/GoldenFileMetaTests.testFirstRun.yaml`\n"
-              + " expected:<1> but was:<0>",
+              + " expected:<0> but was:<1>",
           error.getMessage());
       Assert.assertTrue("The actual file is still initialized even though the test fails",
           Files.exists(Paths.get("target/goldenfiles/actual/GoldenFileMetaTests.testFirstRun.yaml") ));

@@ -20,13 +20,11 @@ import static com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.Spliterators;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -46,12 +44,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.Pair;
-import org.apache.iceberg.BaseTable;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.PartitionStatsReader;
-import org.apache.iceberg.Snapshot;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.io.InputFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +75,6 @@ import com.dremio.exec.planner.physical.TableFunctionPrel;
 import com.dremio.exec.planner.physical.TableFunctionUtil;
 import com.dremio.exec.planner.physical.UnionExchangePrel;
 import com.dremio.exec.planner.physical.WriterCommitterPrel;
-import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.parser.SqlRefreshDataset;
@@ -94,28 +85,20 @@ import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.iceberg.DremioFileIO;
-import com.dremio.exec.store.iceberg.IcebergPartitionData;
-import com.dremio.exec.store.iceberg.IcebergSerDe;
-import com.dremio.exec.store.iceberg.IcebergUtils;
-import com.dremio.exec.store.iceberg.SchemaConverter;
+import com.dremio.exec.store.dfs.RepairKvstoreFromIcebergMetadata;
+import com.dremio.exec.store.iceberg.IcebergManifestWriterPrel;
 import com.dremio.exec.store.iceberg.SupportsInternalIcebergTable;
 import com.dremio.exec.store.iceberg.model.IcebergCommandType;
-import com.dremio.exec.store.iceberg.model.IcebergModel;
-import com.dremio.exec.store.iceberg.model.IcebergTableLoader;
 import com.dremio.exec.store.metadatarefresh.MetadataRefreshExecConstants;
 import com.dremio.exec.store.metadatarefresh.RefreshExecTableMetadata;
-import com.dremio.exec.store.metadatarefresh.committer.ReadSignatureProvider;
 import com.dremio.exec.store.metadatarefresh.dirlisting.DirListingScanPrel;
 import com.dremio.io.file.Path;
 import com.dremio.service.namespace.MetadataProtoUtils;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.PartitionChunkMetadataImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
@@ -127,11 +110,7 @@ import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
-
-import io.protostuff.ByteStringUtil;
-
 
 /**
  * Base plan builder class. Should be extended by all other plan builders.
@@ -215,102 +194,8 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
   public abstract boolean updateDatasetConfigWithIcebergMetadataIfNecessary();
 
   protected boolean repairAndSaveDatasetConfigIfNecessary() {
-    IcebergMetadata oldIcebergMetadata = datasetConfig.getPhysicalDataset().getIcebergMetadata();
-
-    IcebergModel icebergModel = metaStoragePlugin.getIcebergModel(metaStoragePlugin.getSystemUserFS());
-    Path icebergTableRootFolder = Path.of(metaStoragePlugin.getConfig().getPath().toString()).resolve(oldIcebergMetadata.getTableUuid());
-    final IcebergTableLoader icebergTableLoader = icebergModel.getIcebergTableLoader(icebergModel.getTableIdentifier(icebergTableRootFolder.toString()));
-    final Table currentIcebergTable = icebergTableLoader.getIcebergTable();
-    String currentRootPointerFileLocation = ((BaseTable) currentIcebergTable).operations().current().metadataFileLocation();
-
-    if (oldIcebergMetadata.getMetadataFileLocation().equals(currentRootPointerFileLocation)) {
-      logger.debug("DatasetConfig of table {} in catalog is up to date with Iceberg metadata.", datasetConfig.getFullPathList());
-      return false;
-    }
-
-    logger.info("DatasetConfig of table {} in catalog is not up to date with Iceberg metadata." +
-      "Current iceberg table version [Snapshot ID: {}, RootMetadataFile: {}], version in catalog [Snapshot ID: {}, RootMetadataFile: {}]. " +
-      "Tyring to restore catalog metadata from iceberg metadata..", datasetConfig.getFullPathList(), currentIcebergTable.currentSnapshot().snapshotId(), currentRootPointerFileLocation,
-      oldIcebergMetadata.getSnapshotId(), oldIcebergMetadata.getMetadataFileLocation());
-    Snapshot snapshot = currentIcebergTable.currentSnapshot();
-
-    // Update schema
-    BatchSchema newSchemaFromIceberg = new SchemaConverter().fromIceberg(currentIcebergTable.schema());
-    datasetConfig.setRecordSchema(ByteStringUtil.wrap(newSchemaFromIceberg.toByteArray()));
-
-    // update stats
-    long numRecords = Long.parseLong(snapshot.summary().getOrDefault("total-records", "0"));
-    datasetConfig.getReadDefinition().getScanStats().setRecordCount(numRecords);
-    long numDataFiles = Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0"));
-    datasetConfig.getReadDefinition().getManifestScanStats().setRecordCount(numDataFiles);
-
-    // update iceberg metadata
-    com.dremio.service.namespace.dataset.proto.IcebergMetadata newIcebergMetadata =
-      new com.dremio.service.namespace.dataset.proto.IcebergMetadata();
-    newIcebergMetadata.setMetadataFileLocation(currentRootPointerFileLocation);
-    newIcebergMetadata.setSnapshotId(snapshot.snapshotId());
-    newIcebergMetadata.setTableUuid(oldIcebergMetadata.getTableUuid());
-    byte[] specs = IcebergSerDe.serializePartitionSpecMap(currentIcebergTable.specs());
-    newIcebergMetadata.setPartitionSpecs(ByteStringUtil.wrap(specs));
-    String oldPartitionStatsFile = oldIcebergMetadata.getPartitionStatsFile();
-    if (oldPartitionStatsFile != null) {
-      String partitionStatsFile = IcebergUtils.getPartitionStatsFile(currentRootPointerFileLocation, snapshot.snapshotId(), metaStoragePlugin.getFsConfCopy());
-      if (partitionStatsFile != null) {
-        newIcebergMetadata.setPartitionStatsFile(partitionStatsFile);
-      }
-    }
-    datasetConfig.getPhysicalDataset().setIcebergMetadata(newIcebergMetadata);
-
-    // update read signature
-    if (datasetConfig.getReadDefinition().getReadSignature() != null &&
-      !datasetConfig.getReadDefinition().getReadSignature().isEmpty()) {
-      datasetConfig.getReadDefinition().setReadSignature(ByteStringUtil.wrap(
-        createReadSignatureFromPartitionStatsFiles(tableRootPath, currentIcebergTable, datasetConfig.getLastModified())));
-    }
-
-    try {
-      config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig);
-    } catch (NamespaceException e) {
-      logger.error("Failure while saving repaired DatasetConfig of table {} in catalog", datasetConfig.getFullPathList());
-      throw UserException.invalidMetadataError().message("Metadata of table %s is corrupted. Forget and re-promote the dataset.",
-        datasetConfig.getFullPathList()).build(logger);
-    }
-
-    return true; // datasetConfig is modified
-  }
-
-  private byte[] createReadSignatureFromPartitionStatsFiles(String dataTableRootFolder, Table table,
-                                                            long lastSuccessRefreshTime) {
-    PartitionSpec spec = table.spec();
-
-    Set<IcebergPartitionData> icebergPartitionDataSet = new HashSet<>();
-    if (!spec.isUnpartitioned()) {
-      PartitionStatsReader partitionStatsReader;
-      final String partitionStatsFile = table.currentSnapshot().partitionStatsMetadata().partitionStatsFiles().getFileForSpecId(spec.specId());
-
-      logger.info("Restoring read signature of table {} from partition stats file {} of snapshot {}", tableNSKey,
-        partitionStatsFile, table.currentSnapshot().snapshotId());
-
-      final InputFile inputFile = new DremioFileIO(metaStoragePlugin.getFsConfCopy()).newInputFile(partitionStatsFile);
-      partitionStatsReader = new PartitionStatsReader(inputFile, spec);
-
-      Streams.stream(partitionStatsReader)
-        .map(partitionStatsEntry -> IcebergPartitionData.fromStructLike(spec, partitionStatsEntry.getPartition()))
-        .forEach(icebergPartitionDataSet::add);
-    }
-
-    // creating full read signature provider
-    ReadSignatureProvider readSignatureProvider = plugin.createReadSignatureProvider(null,
-      dataTableRootFolder,
-      lastSuccessRefreshTime,
-      getAllPartitionPaths(),
-      ipd -> true, // unused
-      true, false);
-
-    // below returns ReadSignature(table root) if table is unpartitioned
-    return readSignatureProvider.compute(
-      icebergPartitionDataSet, // all partitions
-      Collections.emptySet()).toByteArray();
+    RepairKvstoreFromIcebergMetadata repairOperation = new RepairKvstoreFromIcebergMetadata(datasetConfig, metaStoragePlugin, config.getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME), catalog.getSource(tableNSKey.getRoot()));
+    return repairOperation.checkAndRepairDatasetWithoutQueryRetry();
   }
 
   /**
@@ -333,7 +218,9 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
 
   // Extended to calculate diff for incremental use-cases
   public Prel getDataFileListingPrel() {
-      Prel dirListingScanPrel =  new DirListingScanPrel(cluster, traitSet, table, storagePluginId, refreshExecTableMetadata, getRowCountAdjustment(), true, x -> getRowCountEstimates("DirList"));
+      Prel dirListingScanPrel =  new DirListingScanPrel(
+        cluster, traitSet, table, storagePluginId, refreshExecTableMetadata, getRowCountAdjustment(),
+        true, x -> getRowCountEstimates("DirList"), ImmutableList.of());
 
       RexBuilder rexBuilder = cluster.getRexBuilder();
       RexNode isRemoved = rexBuilder.makeLiteral(false);
@@ -379,20 +266,20 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
     protected Prel getWriterPrel(Prel childPrel) {
       IcebergTableProps icebergTableProps = getIcebergTableProps();
       final WriterOptions writerOptions = new WriterOptions(null, null, null, null,
-                null, false, Long.MAX_VALUE, null, null, icebergTableProps, readSignatureEnabled);
+          null, false, Long.MAX_VALUE, null, null, icebergTableProps, readSignatureEnabled);
       final FileSystemCreateTableEntry fsCreateTableEntry = new FileSystemCreateTableEntry(userName, metaStoragePlugin,
-                metaStoragePlugin.getFormatPlugin("iceberg"), icebergTableProps.getTableLocation(), icebergTableProps, writerOptions, tableNSKey);
+          null, icebergTableProps.getTableLocation(), icebergTableProps, writerOptions, tableNSKey, storagePluginId);
 
       final DistributionTrait childDist = childPrel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE);
       final RelTraitSet childTraitSet = traitSet.plus(childDist).plus(Prel.PHYSICAL);
 
-      final WriterPrel writerPrel = new WriterPrel(cluster, childTraitSet, childPrel, fsCreateTableEntry, childPrel.getRowType());
+      final IcebergManifestWriterPrel writerPrel = new IcebergManifestWriterPrel(cluster, childTraitSet, childPrel, fsCreateTableEntry);
 
       final RelTraitSet singletonTraitSet = traitSet.plus(DistributionTrait.SINGLETON).plus(Prel.PHYSICAL);
       UnionExchangePrel exchangePrel = new UnionExchangePrel(cluster, singletonTraitSet, writerPrel);
 
       return new WriterCommitterPrel(cluster, singletonTraitSet, exchangePrel, metaStoragePlugin,
-        null, icebergTableProps.getTableLocation(), userName, fsCreateTableEntry, Optional.of(datasetConfig), sqlNode.isPartialRefresh(), readSignatureEnabled);
+          null, icebergTableProps.getTableLocation(), userName, fsCreateTableEntry, Optional.of(datasetConfig), sqlNode.isPartialRefresh(), readSignatureEnabled, storagePluginId);
     }
 
     protected IcebergTableProps getIcebergTableProps() {
@@ -402,7 +289,7 @@ public abstract class AbstractRefreshPlanBuilder implements MetadataRefreshPlanB
 
       List<String> partitionPaths = readSignatureEnabled ? getPartitionPaths(() -> refreshExecTableMetadata.getSplits()) : new ArrayList<>(); // This is later used in the executors only when computing read signature
       final IcebergTableProps icebergTableProps = new IcebergTableProps(tableMappingPath, metadataProvider.getTableUUId(),
-        tableSchema, partitionCols, icebergCommandType, tableNSKey.getSchemaPath(), tableRootPath);
+        tableSchema, partitionCols, icebergCommandType, tableNSKey.getSchemaPath(), tableRootPath, null);
       icebergTableProps.setPartitionPaths(partitionPaths);
       icebergTableProps.setDetectSchema(!plugin.canGetDatasetMetadataInCoordinator());
       icebergTableProps.setMetadataRefresh(true);

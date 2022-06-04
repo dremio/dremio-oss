@@ -119,6 +119,13 @@ public class CollaborationWikiStore {
   }
 
   private static final class CollaborationWikiConverter implements DocumentConverter<String, CollaborationWiki> {
+    private Integer version = 0;
+
+    @Override
+    public Integer getVersion() {
+      return version;
+    }
+
     @Override
     public void convert(DocumentWriter writer, String id, CollaborationWiki record) {
       writer.write(ENTITY_ID, record.getEntityId());

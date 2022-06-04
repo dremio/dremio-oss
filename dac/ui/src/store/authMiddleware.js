@@ -26,28 +26,33 @@ export const isUnauthorisedReason = (nextLocation) => {
   return search && search.includes(UNAUTHORIZED_URL_PARAM);
 };
 
+export function handleUnauthorized(payload, next, action) {
+  // if the action is a login failure, we don't want to call logoutUser and instead let the login code handle the
+  // LOGIN_USER_FAILURE action
+  if (payload.status === 401 && (!action || action.type !== LOGIN_USER_FAILURE)) {
+    const atLogin = window.location.pathname === LOGIN_PATH;
+    if (!atLogin) { // avoid pushing twice, resulting in a redirect URL *to* /login (and multiple history entries)
+      next(push(`${getLoginUrl()}&${UNAUTHORIZED_URL_PARAM}`)); // eslint-disable-line callback-return
+    }
+    return next(unauthorizedError());
+  }
+
+  if (payload.status === 403 && payload.response && payload.response.errorMessage === 'No User Available') { // todo: use a key not a human message here
+    const atSignup = window.location.pathname === SIGNUP_PATH;
+    if (!atSignup) { // avoid multiple history entries
+      next(push(SIGNUP_PATH)); // eslint-disable-line callback-return
+    }
+    return next(noUsersError()); // stop further handling and signal socket closing, etc
+  }
+}
+
 function authMiddleware() {
   return () => next => action => {
     const payload = action.payload;
     // TODO put that logic to a saga
     if (action.error && payload) {
-      // if the action is a login failure, we don't want to call logoutUser and instead let the login code handle the
-      // LOGIN_USER_FAILURE action
-      if (payload.status === 401 && action.type !== LOGIN_USER_FAILURE) {
-        const atLogin = window.location.pathname === LOGIN_PATH;
-        if (!atLogin) { // avoid pushing twice, resulting in a redirect URL *to* /login (and multiple history entries)
-          next(push(`${getLoginUrl()}&${UNAUTHORIZED_URL_PARAM}`)); // eslint-disable-line callback-return
-        }
-        return next(unauthorizedError());
-      }
-
-      if (payload.status === 403 && payload.response && payload.response.errorMessage === 'No User Available') { // todo: use a key not a human message here
-        const atSignup = window.location.pathname === SIGNUP_PATH;
-        if (!atSignup) { // avoid multiple history entries
-          next(push(SIGNUP_PATH)); // eslint-disable-line callback-return
-        }
-        return next(noUsersError()); // stop further handling and signal socket closing, etc
-      }
+      const resultAction = handleUnauthorized(payload, next, action);
+      if (resultAction) return resultAction;
     }
     return next(action);
   };

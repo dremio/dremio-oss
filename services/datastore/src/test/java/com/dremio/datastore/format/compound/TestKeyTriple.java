@@ -15,6 +15,7 @@
  */
 package com.dremio.datastore.format.compound;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -23,9 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -46,9 +45,6 @@ public class TestKeyTriple {
     });
   }
 
-  @Rule
-  public final ExpectedException thrown = ExpectedException.none();
-
   private final List<Object> values;
   private final boolean valid;
 
@@ -59,17 +55,17 @@ public class TestKeyTriple {
 
   @Test
   public void testOf() {
-    //setup expected exception
     if (!valid) {
-      thrown.expect(IllegalArgumentException.class);
+      assertThatThrownBy(() -> KeyTriple.of(values))
+        .isInstanceOf(IllegalArgumentException.class);
+    } else {
+      final KeyTriple<String, String, String> keyPair = KeyTriple.of(values);
+
+      assertNotNull(keyPair);
+      assertEquals(values.get(0), keyPair.getKey1());
+      assertEquals(values.get(1), keyPair.getKey2());
+      assertEquals(values.get(2), keyPair.getKey3());
+      assertEquals(values, keyPair);
     }
-
-    final KeyTriple<String, String, String> keyPair = KeyTriple.of(values);
-
-    assertNotNull(keyPair);
-    assertEquals(values.get(0), keyPair.getKey1());
-    assertEquals(values.get(1), keyPair.getKey2());
-    assertEquals(values.get(2), keyPair.getKey3());
-    assertEquals(values, keyPair);
   }
 }

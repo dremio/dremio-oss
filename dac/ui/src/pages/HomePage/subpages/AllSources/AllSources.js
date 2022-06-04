@@ -25,7 +25,7 @@ import HomePage from 'pages/HomePage/HomePage';
 import { loadSourceListData } from 'actions/resources/sources';
 import { getSources } from 'selectors/home';
 
-import { isExternalSourceType } from '@app/constants/sourceTypes';
+import { isExternalSourceType, isDataPlaneSourceType } from '@app/constants/sourceTypes';
 import AllSourcesView from './AllSourcesView.js';
 
 @injectIntl
@@ -47,9 +47,21 @@ export class AllSources extends PureComponent {
   render() {
     const { location, sources, intl } = this.props;
     const isExternalSource = location.pathname === '/sources/external/list';
-    const title = intl.formatMessage({ id: isExternalSource ? 'Source.AllExternalSources' : 'Source.AllDataLakes' });
+    const isDataPlaneSource = location.pathname === '/sources/dataplane/list';
+    const isDataLakeSource = location.pathname === '/sources/datalake/list';
+
+    /*eslint no-nested-ternary: "off"*/
+    const headerId = isExternalSource ? 'Source.AllExternalSources' :
+      isDataLakeSource ? 'Source.AllDataLakes' : 'Source.AllDataPlanes';
+
+    const title = intl.formatMessage({ id: headerId });
     const dataLakeSources = sources.filter(source => !isExternalSourceType(source.get('type')));
     const externalSources = sources.filter(source => isExternalSourceType(source.get('type')));
+    const dataPlaneSources = sources.filter(source => isDataPlaneSourceType(source.get('type')));
+
+    /*eslint no-nested-ternary: "off"*/
+    const filteredSources = isExternalSource ? externalSources :
+      isDataLakeSource ? dataLakeSources : dataPlaneSources;
 
     return (
       <HomePage location={location}>
@@ -58,7 +70,8 @@ export class AllSources extends PureComponent {
           title={title}
           filters={this.filters}
           isExternalSource={isExternalSource}
-          sources={isExternalSource ? externalSources : dataLakeSources}
+          isDataPlaneSource={isDataPlaneSource}
+          sources={filteredSources}
         />
       </HomePage>
     );

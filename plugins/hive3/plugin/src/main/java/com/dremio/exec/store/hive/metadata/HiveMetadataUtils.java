@@ -36,6 +36,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -98,7 +99,9 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
 import com.dremio.exec.store.file.proto.FileProtobuf;
+import com.dremio.exec.store.hive.Hive3StoragePlugin;
 import com.dremio.exec.store.hive.HiveClient;
+import com.dremio.exec.store.hive.HiveConfFactory;
 import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveSchemaConverter;
 import com.dremio.exec.store.hive.HiveSettings;
@@ -106,10 +109,9 @@ import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.exec.store.hive.exec.apache.PathUtils;
 import com.dremio.exec.store.hive.exec.metadata.SchemaConverter;
-import com.dremio.exec.store.hive.file.HiveFileIO;
-import com.dremio.exec.store.hive.iceberg.IcebergHiveTableIdentifier;
 import com.dremio.exec.store.hive.iceberg.IcebergHiveTableOperations;
 import com.dremio.exec.store.hive.iceberg.IcebergInputFormat;
+import com.dremio.exec.store.iceberg.DremioFileIO;
 import com.dremio.exec.store.iceberg.IcebergSerDe;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
@@ -123,6 +125,7 @@ import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf;
 import com.dremio.service.namespace.dataset.proto.IcebergMetadata;
 import com.dremio.service.namespace.dirlist.proto.DirListInputSplitProto;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
@@ -195,6 +198,29 @@ public class HiveMetadataUtils {
           .message("Dataset path '{}' is invalid.", pathComponents)
           .build(logger);
     }
+  }
+
+  public static String resolveCreateTableLocation(HiveConf conf, SchemaComponents schemaComponents, String queryLocation) {
+    String warehouseLocation = conf.get(HiveConfFactory.DEFAULT_WAREHOUSE_LOCATION, "");
+    warehouseLocation = com.dremio.common.utils.PathUtils.removeTrailingSlash(warehouseLocation);
+    String tableLocation;
+    if (StringUtils.isNotEmpty(queryLocation)) {
+      tableLocation = String.format("%s/%s", warehouseLocation, queryLocation);
+    }
+    else {
+      tableLocation = String.format("%s/%s/%s", warehouseLocation, schemaComponents.getDbName(), schemaComponents.getTableName());
+    }
+    try {
+      URI uri = URI.create(tableLocation);
+      if (!uri.isAbsolute()){
+        throw new IllegalArgumentException("scheme is not present in " + tableLocation);
+      }
+    }
+    catch (IllegalArgumentException e) {
+      logger.error("Location given to create table {} is invalid {}.", schemaComponents.getTableName(), tableLocation);
+      throw e;
+    }
+    return tableLocation;
   }
 
   public static InputFormat<?, ?> getInputFormat(Table table, final HiveConf hiveConf) {
@@ -472,7 +498,8 @@ public class HiveMetadataUtils {
                                                final int maxMetadataLeafColumns,
                                                final int maxNestedLevels,
                                                final boolean includeComplexParquetCols,
-                                               final HiveConf hiveConf) throws ConnectorException {
+                                               final HiveConf hiveConf,
+                                               final Hive3StoragePlugin plugin) throws ConnectorException {
 
     try {
       final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
@@ -487,7 +514,7 @@ public class HiveMetadataUtils {
       final Properties tableProperties = MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table.getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
       TableMetadata tableMetadata;
       if (isIcebergTable(table)) {
-        tableMetadata = getTableMetadataFromIceberg(hiveConf, table, tableProperties);
+        tableMetadata = getTableMetadataFromIceberg(hiveConf, table, tableProperties, plugin);
       } else {
         tableMetadata = getTableMetadataFromHMS(table, tableProperties, datasetPath,
           ignoreAuthzErrors, maxMetadataLeafColumns, maxNestedLevels,
@@ -503,19 +530,29 @@ public class HiveMetadataUtils {
   }
 
   private static TableMetadata getTableMetadataFromIceberg(final HiveConf hiveConf, final Table table,
-                                                           final Properties tableProperties) {
+                                                           final Properties tableProperties, Hive3StoragePlugin plugin) throws IOException {
     JobConf jobConf = new JobConf(hiveConf);
 
     String metadataLocation = tableProperties.getProperty(METADATA_LOCATION, "");
-    IcebergHiveTableIdentifier hiveTableIdentifier = new IcebergHiveTableIdentifier(metadataLocation);
-    HiveFileIO fileIO = new HiveFileIO(jobConf);
-    IcebergHiveTableOperations hiveTableOperations = new IcebergHiveTableOperations(fileIO, hiveTableIdentifier);
+    com.dremio.io.file.FileSystem fs = plugin.createFS(metadataLocation, SystemUser.SYSTEM_USERNAME, null);
+    DremioFileIO fileIO = new DremioFileIO(fs, (Iterable<Map.Entry<String, String>>)jobConf, plugin);
+    IcebergHiveTableOperations hiveTableOperations = new IcebergHiveTableOperations(fileIO, metadataLocation);
     BaseTable icebergTable = new BaseTable(hiveTableOperations, new Path(metadataLocation).getName());
     icebergTable.refresh();
 
     final Snapshot snapshot = icebergTable.currentSnapshot();
+
     long numRecords = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-records", "0")) : 0L;
     long numDataFiles = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-data-files", "0")) : 0L;
+    long numDeleteFiles = snapshot != null ? Long.parseLong(snapshot.summary().getOrDefault("total-delete-files", "0")) : 0L;
+
+    // DX-41522, throw exception when DeleteFiles are present.
+    // TODO: remove this throw when we get full support for handling the deletes correctly.
+    if (numDeleteFiles > 0) {
+      throw UserException.unsupportedError()
+        .message("Iceberg V2 tables with delete files are not supported")
+        .buildSilently();
+    }
 
     SchemaConverter schemaConverter = new SchemaConverter();
     BatchSchema batchSchema = schemaConverter.fromIceberg(icebergTable.schema());
@@ -523,7 +560,8 @@ public class HiveMetadataUtils {
 
     IcebergMetadata icebergMetadata = new IcebergMetadata()
       .setFileType(FileType.ICEBERG)
-      .setPartitionSpecs(ByteString.copyFrom(specs));
+      .setPartitionSpecs(ByteString.copyFrom(specs))
+      .setMetadataFileLocation(metadataLocation);;
 
     return TableMetadata.newBuilder()
       .table(table)
@@ -761,18 +799,7 @@ public class HiveMetadataUtils {
   }
 
   public static List<DatasetSplit> getDatasetSplitsForIcebergTables(TableMetadata tableMetadata) {
-    String metadataLocation = tableMetadata.getTableProperties().getProperty(METADATA_LOCATION, "");
-    EasyProtobuf.EasyDatasetSplitXAttr splitExtended = EasyProtobuf.EasyDatasetSplitXAttr.newBuilder()
-      .setPath(metadataLocation)
-      .setStart(0)
-      .setLength(0)
-      .setUpdateKey(FileProtobuf.FileSystemCachedEntity.newBuilder()
-        .setPath(metadataLocation)
-        .setLastModificationTime(0))
-      .build();
-    List<DatasetSplitAffinity> splitAffinities = new ArrayList<>();
-    return Arrays.asList(DatasetSplit.of(
-      splitAffinities, 0, 0, splitExtended::writeTo));
+    return Arrays.asList(DatasetSplit.of(Collections.emptyList(), 0, 0));
   }
 
   /**

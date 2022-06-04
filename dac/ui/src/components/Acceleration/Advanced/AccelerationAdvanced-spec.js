@@ -28,6 +28,7 @@ describe('AccelerationAdvanced', () => {
       dataset: Immutable.Map(),
       reflections: Immutable.Map(),
       updateFormDirtyState: sinon.spy(),
+      updateDirtyState: sinon.spy(),
       fields: {},
       initialValues: null,
       values: {

@@ -77,6 +77,7 @@ import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.dremio.exec.planner.logical.LimitRel;
+import com.dremio.exec.planner.logical.WindowRel;
 import com.dremio.exec.planner.logical.partition.PruneFilterCondition;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.service.Pointer;
@@ -685,7 +686,7 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     return result(newMultiJoin, mapping);
   }
 
-  public TrimResult trimFields(LogicalWindow window, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
+  public TrimResult trimFields(Window window, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
     // Fields:
     //
     // Window rowtype
@@ -898,8 +899,15 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     final RelDataType newRowType = RelOptUtil.permute(window.getCluster().getTypeFactory(), rowType, permutationMapping);
 
     // TODO: should there be a relbuilder for window?
-    final LogicalWindow newWindow = LogicalWindow.create(window.getTraitSet(), newInput, newConstants, newRowType, newGroups);
-    return result(newWindow, mapping);
+    if (window instanceof LogicalWindow) {
+      return result(LogicalWindow.create(window.getTraitSet(), newInput, newConstants, newRowType, newGroups), mapping);
+    }
+
+    if (window instanceof WindowRel) {
+      return result(WindowRel.create(window.getCluster(), window.getTraitSet(), newInput, newConstants, newRowType, newGroups), mapping);
+    }
+
+    return result(window, mapping);
   }
 
   private static RexWinAggCall permuteWinAggCall(RexWinAggCall call, RexPermuteInputsShuttle shuttle, int newOrdinal) {

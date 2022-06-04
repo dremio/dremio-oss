@@ -24,13 +24,13 @@ import PropTypes from 'prop-types';
 
 import { loadParents } from 'actions/resources/spaceDetails';
 import { getParentList, getViewState } from 'selectors/resources';
-import SearchDatasets from 'components/DatasetList/SearchDatasets';
 import ResourceTreeController from 'components/Tree/ResourceTreeController';
 import { datasetTitle } from 'uiTheme/radium/typography';
 import { PALE_GREY, SECONDARY_BORDER } from 'uiTheme/radium/colors';
 import DatasetList from 'components/DatasetList/DatasetList';
 import * as sqlEditorStyles from 'uiTheme/radium/sqlEditor';
 import datasetsPanelConfig from '@inject/pages/ExplorePage/components/SqlEditor/datasetsPanelConfig';
+import SearchDatasets from '@app/components/DatasetList/SearchDatasets';
 
 export const PARENTS_TAB = 'PARENTS_TAB';
 export const BROWSE_TAB = 'BROWSE_TAB';

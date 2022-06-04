@@ -264,6 +264,7 @@ void TableElement(List<SqlNode> list) :
  *       [ DISTRIBUTE BY (field1, field2, ..) ]
  *       [ LOCALSORT BY (field1, field2, ..) ]
  *       [ STORE AS (opt1 => val1, opt2 => val3, ...) ]
+ *       [ LOCATION location]
  *       [ WITH SINGLE WRITER ]
  *       [ AS select_statement. ]
  */
@@ -274,6 +275,7 @@ SqlNode SqlCreateTable() :
     SqlNodeList fieldList;
     List<SqlNode> formatList = new ArrayList();
     SqlNodeList formatOptions;
+    SqlNode location = null;
     PartitionDistributionStrategy partitionDistributionStrategy;
     SqlNodeList partitionFieldList;
     SqlNodeList distributeFieldList;
@@ -287,6 +289,7 @@ SqlNode SqlCreateTable() :
         distributeFieldList = SqlNodeList.EMPTY;
         sortFieldList =  SqlNodeList.EMPTY;
         formatOptions = SqlNodeList.EMPTY;
+        location = null;
         singleWriter = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
         fieldList = SqlNodeList.EMPTY;
@@ -317,7 +320,10 @@ SqlNode SqlCreateTable() :
     )?
     (   <LOCALSORT> <BY>
         sortFieldList = ParseRequiredFieldList("Sort")
-    )?    
+    )?
+    (
+            <LOCATION> { location = StringLiteral(); }
+    )?
     [
         <STORE> <AS>
         <LPAREN>
@@ -343,14 +349,14 @@ SqlNode SqlCreateTable() :
                 query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
                 {
                     return new SqlCreateTable(pos, tblName, fieldList, partitionDistributionStrategy, partitionFieldList,
-                    formatOptions, singleWriter, sortFieldList, distributeFieldList, query);
+                    formatOptions, location, singleWriter, sortFieldList, distributeFieldList, query);
                 }
             )
             |
             (
                 {
                     return new SqlCreateEmptyTable(pos, tblName, fieldList, partitionDistributionStrategy,
-                    partitionFieldList, formatOptions, singleWriter, sortFieldList, distributeFieldList);
+                    partitionFieldList, formatOptions, location, singleWriter, sortFieldList, distributeFieldList);
                 }
             )
         )
@@ -581,7 +587,7 @@ SqlNode SqlRefreshDataset() :
 
 
 /**
- * Parse a "name1 : type1 [NULL | NOT NULL], name2: type2 [NULL | NOT NULL] ..." list,
+ * Parse a "name1  type1 [NULL | NOT NULL], name2 type2 [NULL | NOT NULL] ..." list,
  * the field type default is nullable.
  */
  void FieldNameStructTypeCommaList(
@@ -594,7 +600,6 @@ SqlNode SqlRefreshDataset() :
  }
  {
      fName = SimpleIdentifier()
-     <COLON>
      fType = DataType()
      nullable = NullableOptDefaultTrue()
      {
@@ -604,7 +609,6 @@ SqlNode SqlRefreshDataset() :
      (
          <COMMA>
          fName = SimpleIdentifier()
-         <COLON>
          fType = DataType()
          nullable = NullableOptDefaultTrue()
          {
@@ -615,9 +619,9 @@ SqlNode SqlRefreshDataset() :
  }
 
  /**
- * Parse Row type with format: struct<name1 : type1, name2: type2>.
+ * Parse Row type with format: ROW(name1  type1, name2 type2).
  * Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
- * i.e. struct<name1 : type1 not null, name2: type2 null>.
+ * i.e. ROW(name1  type1 not null, name2 type2 null).
  */
  SqlIdentifier RowTypeName() :
  {
@@ -625,17 +629,17 @@ SqlNode SqlRefreshDataset() :
      List<SqlComplexDataTypeSpec> fieldTypes = new ArrayList<SqlComplexDataTypeSpec>();
  }
  {
-     <STRUCT>
-     <LT> FieldNameStructTypeCommaList(fieldNames, fieldTypes) <GT>
+     <ROW>
+     <LPAREN> FieldNameStructTypeCommaList(fieldNames, fieldTypes) <RPAREN>
      {
          return new SqlRowTypeSpec(getPos(), fieldNames, fieldTypes);
      }
  }
 
  /**
-  * Parse Array type with format: list<type1>.
+  * Parse Array type with format: ARRAY(data_type).
   * Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
-  * i.e. list<type1 not null>.
+  * i.e. col1 ARRAY(varchar NOT NULL).
   */
   SqlIdentifier ArrayTypeName() :
   {
@@ -643,11 +647,11 @@ SqlNode SqlRefreshDataset() :
       boolean nullable;
   }
   {
-      (<LIST> | <ARRAY>)
-      <LT>
+      <ARRAY>
+      <LPAREN>
        fType = DataType()
        nullable = NullableOptDefaultTrue()
-      <GT>
+      <RPAREN>
       {
           return new SqlArrayTypeSpec(getPos(), new SqlComplexDataTypeSpec(fType.withNullable(nullable)));
       }

@@ -49,9 +49,7 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.util.TestTools;
@@ -114,9 +112,6 @@ public class TestKVStoreReportService extends BaseTestServer {
 
   @ClassRule
   public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void init() throws Exception {

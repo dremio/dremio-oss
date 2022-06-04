@@ -74,8 +74,7 @@ import com.dremio.service.coordinator.CoordinatorModeInfo;
 import com.dremio.service.coordinator.ServiceSetDecorator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.nessieapi.ContentsApiGrpc;
-import com.dremio.service.nessieapi.TreeApiGrpc;
+import com.dremio.service.orphanage.Orphanage;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.users.UserService;
 import com.google.common.base.Preconditions;
@@ -102,6 +101,7 @@ public class SabotContext implements AutoCloseable {
   private final LogicalPlanPersistence lpPersistence;
   private final Provider<MaterializationDescriptorProvider> materializationProvider;
   private final NamespaceService.Factory namespaceServiceFactory;
+  private final Orphanage.Factory orphanageFactory;
   private final DatasetListingService datasetListing;
   private final LegacyKVStoreProvider kvStoreProvider;
   private final UserService userService;
@@ -127,8 +127,6 @@ public class SabotContext implements AutoCloseable {
   private final ExecutorService executorService;
   private final JdbcSchemaFetcherFactoryContext jdbcSchemaFetcherFactoryContext;
   private final Provider<CoordinatorModeInfo> coordinatorModeInfoProvider;
-  private final Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider;
-  private final Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider;
   private final Provider<NessieApiV1> nessieClientProvider;
   private final Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory;
   private final Provider<StatisticsListManager> statisticsListManagerProvider;
@@ -152,6 +150,7 @@ public class SabotContext implements AutoCloseable {
       Provider<WorkStats> workStatsProvider,
       LegacyKVStoreProvider kvStoreProvider,
       NamespaceService.Factory namespaceServiceFactory,
+      Orphanage.Factory orphanageFactory,
       DatasetListingService datasetListing,
       UserService userService,
       Provider<MaterializationDescriptorProvider> materializationProvider,
@@ -172,8 +171,6 @@ public class SabotContext implements AutoCloseable {
       OptionValidatorListing optionValidatorListing,
       ExecutorService executorService,
       Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
-      Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
-      Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
       Provider<NessieApiV1> nessieClientProvider,
       Provider<StatisticsService> statisticsService,
       Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
@@ -209,6 +206,7 @@ public class SabotContext implements AutoCloseable {
     this.compiler = new CodeCompiler(config, this.optionManager);
     this.kvStoreProvider = kvStoreProvider;
     this.namespaceServiceFactory = namespaceServiceFactory;
+    this.orphanageFactory = orphanageFactory;
     this.datasetListing = datasetListing;
     this.userService = userService;
     this.queryObserverFactory = queryObserverFactory;
@@ -235,8 +233,6 @@ public class SabotContext implements AutoCloseable {
     this.executorService = executorService;
     this.jdbcSchemaFetcherFactoryContext = new JdbcSchemaFetcherFactoryContext(optionManager, credentialsService);
     this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
-    this.nessieTreeApiBlockingStubProvider = nessieTreeApiBlockingStubProvider;
-    this.nessieContentsApiBlockingStuProvider = nessieContentsApiBlockingStuProvider;
     this.nessieClientProvider = nessieClientProvider;
     this.statisticsAdministrationFactory = statisticsAdministrationFactory;
     this.statisticsListManagerProvider = statisticsListManagerProvider;
@@ -274,6 +270,7 @@ public class SabotContext implements AutoCloseable {
     Provider<WorkStats> workStatsProvider,
     LegacyKVStoreProvider kvStoreProvider,
     NamespaceService.Factory namespaceServiceFactory,
+    Orphanage.Factory orphanageFactory,
     DatasetListingService datasetListing,
     UserService userService,
     Provider<MaterializationDescriptorProvider> materializationProvider,
@@ -300,8 +297,6 @@ public class SabotContext implements AutoCloseable {
     OptionValidatorListing optionValidatorListing,
     ExecutorService executorService,
     Provider<CoordinatorModeInfo> coordinatorModeInfoProvider,
-    Provider<TreeApiGrpc.TreeApiBlockingStub> nessieTreeApiBlockingStubProvider,
-    Provider<ContentsApiGrpc.ContentsApiBlockingStub> nessieContentsApiBlockingStuProvider,
     Provider<NessieApiV1> nessieClientProvider,
     Provider<StatisticsService> statisticsService,
     Provider<StatisticsAdministrationService.Factory> statisticsAdministrationFactory,
@@ -337,6 +332,7 @@ public class SabotContext implements AutoCloseable {
 
     this.kvStoreProvider = kvStoreProvider;
     this.namespaceServiceFactory = namespaceServiceFactory;
+    this.orphanageFactory = orphanageFactory;
     this.datasetListing = datasetListing;
     this.userService = userService;
     this.queryObserverFactory = queryObserverFactory;
@@ -356,8 +352,6 @@ public class SabotContext implements AutoCloseable {
     this.executorService = executorService;
     this.jdbcSchemaFetcherFactoryContext = new JdbcSchemaFetcherFactoryContext(optionManager, credentialsService);
     this.coordinatorModeInfoProvider = coordinatorModeInfoProvider;
-    this.nessieTreeApiBlockingStubProvider = nessieTreeApiBlockingStubProvider;
-    this.nessieContentsApiBlockingStuProvider = nessieContentsApiBlockingStuProvider;
     this.nessieClientProvider = nessieClientProvider;
     this.statisticsService = statisticsService;
     this.statisticsAdministrationFactory = statisticsAdministrationFactory;
@@ -379,6 +373,10 @@ public class SabotContext implements AutoCloseable {
   // TODO: rationalize which methods are executor only or coordinator only
   public NamespaceService.Factory getNamespaceServiceFactory() {
     return namespaceServiceFactory;
+  }
+
+  public Orphanage.Factory getOrphanageFactory() {
+    return orphanageFactory;
   }
 
   protected Provider<AccelerationManager> getAccelerationManagerProvider() {
@@ -644,22 +642,6 @@ public class SabotContext implements AutoCloseable {
 
   public AccessControlListingManager getAccessControlListingManager() {
     return null;
-  }
-
-  public Provider<TreeApiGrpc.TreeApiBlockingStub> getNessieTreeApiBlockingStubProvider() {
-    return nessieTreeApiBlockingStubProvider;
-  }
-
-  public TreeApiGrpc.TreeApiBlockingStub getNessieTreeApiBlockingStub() {
-    return nessieTreeApiBlockingStubProvider.get();
-  }
-
-  public Provider<ContentsApiGrpc.ContentsApiBlockingStub> getNessieContentsApiBlockingStubProvider() {
-    return nessieContentsApiBlockingStuProvider;
-  }
-
-  public ContentsApiGrpc.ContentsApiBlockingStub getNessieContentsApiBlockingStub() {
-    return nessieContentsApiBlockingStuProvider.get();
   }
 
   public Provider<NessieApiV1> getNessieClientProvider() {

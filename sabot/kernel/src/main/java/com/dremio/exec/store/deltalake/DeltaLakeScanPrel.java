@@ -229,7 +229,7 @@ public class DeltaLakeScanPrel extends ScanRelBase implements Prel, PrelFinaliza
      *               |                                                                              |
      *               |                                             +-------------------------------------------------------------------------------+
      *               |                                             |                              Project                                          |
-     *               |                                             |  case(isnotNull(remove_path) then remove_path else add_path), remove_version  |
+     *               |                                             |  case(isnotNull() then remove_path else add_path), remove_version  |
      *               |                                             +-------------------------------------------------------------------------------+
      *               |                                                                              |
      *               |                                                                              |

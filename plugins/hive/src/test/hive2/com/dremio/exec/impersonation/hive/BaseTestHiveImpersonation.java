@@ -42,12 +42,9 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.impersonation.BaseTestImpersonation;
-import com.dremio.exec.server.SimpleJobRunner;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
-import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.google.inject.AbstractModule;
 
 public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestHiveImpersonation.class);
@@ -69,25 +66,6 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   protected static final String partitionStudentDef = "CREATE TABLE %s.%s" +
       "(rownum INT, name STRING, gpa FLOAT, studentnum BIGINT) " +
       "partitioned by (age INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE";
-
-  @BeforeClass
-  public static void setJobRunner() throws Exception {
-    SimpleJobRunner jobRunner = (query, userName, queryType) -> {
-      try {
-        runSQL(query); // queries we get here are inner 'refresh dataset' queries
-      } catch (Exception e) {
-        throw new IllegalStateException(e);
-      }
-    };
-
-    SABOT_NODE_RULE.register(new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(SimpleJobRunner.class).toInstance(jobRunner);
-      }
-    });
-    setupDefaultTestCluster();
-  }
 
   protected static void prepHiveConfAndData() throws Exception {
     hiveConf = new HiveConf();

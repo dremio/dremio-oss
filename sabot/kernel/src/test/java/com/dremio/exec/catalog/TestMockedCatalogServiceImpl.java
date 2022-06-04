@@ -23,6 +23,8 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.EnumSet;
 
+import javax.inject.Provider;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Test;
 
@@ -58,7 +60,8 @@ public class TestMockedCatalogServiceImpl {
       () -> mock(MetadataRefreshInfoBroadcaster.class),
       mock(DremioConfig.class),
       mock(EnumSet.class),
-      mock(CatalogServiceMonitor.class)
+      mock(CatalogServiceMonitor.class),
+      mock(Provider.class)
       )
     );
     QueryContext queryContext = mock(QueryContext.class);

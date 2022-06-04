@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.physical;
 
-
 import java.util.Optional;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -33,6 +32,7 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
+import com.dremio.exec.store.iceberg.IcebergManifestWriterPrel;
 import com.dremio.io.file.Path;
 import com.google.common.collect.ImmutableList;
 
@@ -149,13 +149,12 @@ public class WriterPrule extends Prule {
         null);
 
       CreateTableEntry icebergCreateTableEntry = getCreateTableEntryForManifestWriter(fileEntry, plugin, fileEntry.getIcebergTableProps().getFullSchema(), fileEntry.getIcebergTableProps());
-      final WriterPrel manifestWriterPrel = new WriterPrel(writer.getCluster(),
+      final WriterPrel manifestWriterPrel = new IcebergManifestWriterPrel(writer.getCluster(),
         writer.getTraitSet()
           .plus(childDist)
           .plus(Prel.PHYSICAL),
-        newChild, icebergCreateTableEntry, writer.getRowType());
-      RelNode finalManifestWriterPrel = convert(manifestWriterPrel, oldTraits);
-      return finalManifestWriterPrel;
+        newChild, icebergCreateTableEntry);
+      return convert(manifestWriterPrel, oldTraits);
     }
   }
 
@@ -164,7 +163,6 @@ public class WriterPrule extends Prule {
     WriterOptions manifestWriterOption = new WriterOptions(null, null, null, null,
       null, false, oldOptions.getRecordLimit(), null, oldOptions.getExtendedProperty(), icebergTableProps, false);
     // IcebergTableProps is the only obj we need in manifestWriter
-    FileSystemCreateTableEntry icebergCreateTableEntry = fileEntry.cloneWithFields(plugin.getFormatPlugin("iceberg"), manifestWriterOption);
-    return icebergCreateTableEntry;
+    return fileEntry.cloneWithFields(plugin.getFormatPlugin("iceberg"), manifestWriterOption);
   }
 }

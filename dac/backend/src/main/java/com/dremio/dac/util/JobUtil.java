@@ -57,6 +57,7 @@ import com.google.common.base.Preconditions;
  * Util file for common methods in JobsListing and JobInfoDetails APIs
  */
 public class JobUtil {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobUtil.class);
 
   public static List<DataSet> getQueriedDatasets(JobInfo jobInfo, RequestType requestType) {
    return buildQueriedDatasets(jobInfo.getParentsList(), requestType, jobInfo.getDatasetPathList());
@@ -311,5 +312,14 @@ public class JobUtil {
     } catch (NullPointerException e) {
       return null;
     }
+  }
+
+  public static JobState computeJobState(JobState lastAttemptState, boolean isJobCompleted) {
+    // this is to avoid showing failed state for intermediate attempts when the job is being retried.
+    if (!isJobCompleted && lastAttemptState == JobState.FAILED) {
+      logger.debug("Changing jobState to RUNNING from {} as the job is being reattempted", lastAttemptState);
+      return JobState.RUNNING;
+    }
+    return lastAttemptState;
   }
 }

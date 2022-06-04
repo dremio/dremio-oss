@@ -17,9 +17,7 @@ package com.dremio.exec.impersonation;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.common.TestProfileHelper.isMaprProfile;
-import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
 
@@ -192,17 +190,11 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
     UserRemoteException ex = null;
 
     updateClient(user2);
-    try {
-      // Try show tables in schema "dremioTestGrp1_700" which is owned by "user1"
-      test(String.format("SHOW FILES IN %s.dremioTestGrp1_700", MINIDFS_STORAGE_PLUGIN_NAME));
-    } catch(UserRemoteException e) {
-      ex = e;
-    }
-
-    assertNotNull("UserRemoteException is expected", ex);
-    assertThat(ex.getMessage(),
-        containsString("Permission denied: user=dremioTestUser2, " +
-            "access=READ_EXECUTE, inode=\"/dremioTestGrp1_700\":dremioTestUser1:dremioTestGrp1:drwx------"));
+    // Try show tables in schema "dremioTestGrp1_700" which is owned by "user1"
+    assertThatThrownBy(() -> test(String.format("SHOW FILES IN %s.dremioTestGrp1_700", MINIDFS_STORAGE_PLUGIN_NAME)))
+      .isInstanceOf(UserRemoteException.class)
+      .hasMessageContaining("Permission denied: user=dremioTestUser2, " +
+        "access=READ_EXECUTE, inode=\"/dremioTestGrp1_700\":dremioTestUser1:dremioTestGrp1:drwx------");
   }
 
   @Test
@@ -367,21 +359,13 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
     final String tableWS = "dremioTestGrp0_755";
     final String tableName = "table1";
 
-    UserRemoteException ex = null;
+    updateClient(user2);
+    test("USE " + Joiner.on(".").join(MINIDFS_STORAGE_PLUGIN_NAME, tableWS));
 
-    try {
-      updateClient(user2);
-
-      test("USE " + Joiner.on(".").join(MINIDFS_STORAGE_PLUGIN_NAME, tableWS));
-
-      test("CREATE TABLE " + tableName + " AS SELECT " +
-          "c_custkey, c_nationkey FROM cp.\"tpch/customer.parquet\" ORDER BY c_custkey;");
-    } catch(UserRemoteException e) {
-      ex = e;
-    }
-
-    assertNotNull("UserRemoteException is expected", ex);
-    assertThat(ex.getMessage(),
-        containsString("SYSTEM ERROR: RemoteException: Permission denied: user=dremioTestUser2, access=WRITE, inode=\"/dremioTestGrp0_755/"));
+    assertThatThrownBy(() -> test("CREATE TABLE " + tableName + " AS SELECT " +
+      "c_custkey, c_nationkey FROM cp.\"tpch/customer.parquet\" ORDER BY c_custkey;"))
+      .isInstanceOf(UserRemoteException.class)
+      .hasMessageContaining(
+        "SYSTEM ERROR: RemoteException: Permission denied: user=dremioTestUser2, access=WRITE, inode=\"/dremioTestGrp0_755/");
   }
 }

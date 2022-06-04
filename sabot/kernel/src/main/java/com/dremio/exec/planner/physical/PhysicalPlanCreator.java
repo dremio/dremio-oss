@@ -71,7 +71,10 @@ public class PhysicalPlanCreator {
 
   private int getId(Prel originalPrel){
     return opIdMap.get(originalPrel).getAsSingleInt();
+  }
 
+  public OpId getOpId(Prel prel) {
+    return opIdMap.get(prel);
   }
 
   public OpProps props(int operatorId, Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {

@@ -39,15 +39,15 @@ import com.google.common.base.Predicate;
  * A pointer to a table exposed by the namespace service. May load lazily.
  */
 public class TableMetadataImpl implements TableMetadata {
-  private final StoragePluginId plugin;
+  private final StoragePluginId pluginId;
   private final DatasetConfig config;
   private final SplitsPointer splits;
   private final String user;
 
   private BatchSchema schema;
 
-  public TableMetadataImpl(StoragePluginId plugin, DatasetConfig config, String user, SplitsPointer splits) {
-    this.plugin = Preconditions.checkNotNull(plugin);
+  public TableMetadataImpl(StoragePluginId pluginId, DatasetConfig config, String user, SplitsPointer splits) {
+    this.pluginId = Preconditions.checkNotNull(pluginId);
     this.config = config;
     this.splits = splits;
     this.user = user;
@@ -64,7 +64,7 @@ public class TableMetadataImpl implements TableMetadata {
 
   @Override
   public StoragePluginId getStoragePluginId() {
-    return plugin;
+    return pluginId;
   }
 
   @Override
@@ -86,24 +86,24 @@ public class TableMetadataImpl implements TableMetadata {
   public TableMetadata prune(SearchQuery partitionFilterQuery) throws NamespaceException {
     SplitsPointer splits2 = splits.prune(partitionFilterQuery);
     if(splits2 != splits){
-      return new TableMetadataImpl(plugin, config, user, splits2);
+      return new TableMetadataImpl(pluginId, config, user, splits2);
     }
     return this;
   }
 
   @Override
   public TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) throws NamespaceException {
-    return new TableMetadataImpl(plugin, config, user, splits.prune(partitionPredicate));
+    return new TableMetadataImpl(pluginId, config, user, splits.prune(partitionPredicate));
   }
 
   @Override
   public TableMetadata prune(List<PartitionChunkMetadata> newPartitionChunks) throws NamespaceException {
-    return new TableMetadataImpl(plugin, config, user, MaterializedSplitsPointer.prune(splits, newPartitionChunks));
+    return new TableMetadataImpl(pluginId, config, user, MaterializedSplitsPointer.prune(splits, newPartitionChunks));
   }
 
   @Override
   public String computeDigest(){
-    return String.format("%s|%s|%s", splits.computeDigest(), plugin.getName(), config.getId().getId());
+    return String.format("%s|%s|%s", splits.computeDigest(), pluginId.getName(), config.getId().getId());
   }
 
   @Override
@@ -161,13 +161,13 @@ public class TableMetadataImpl implements TableMetadata {
       return false;
     }
     TableMetadataImpl castOther = (TableMetadataImpl) other;
-    return Objects.equal(schema, castOther.schema) && Objects.equal(plugin, castOther.plugin)
+    return Objects.equal(schema, castOther.schema) && Objects.equal(pluginId, castOther.pluginId)
         && Objects.equal(config, castOther.config) && Objects.equal(splits, castOther.splits);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(schema, plugin, config, splits);
+    return Objects.hashCode(schema, pluginId, config, splits);
   }
 
   @Override

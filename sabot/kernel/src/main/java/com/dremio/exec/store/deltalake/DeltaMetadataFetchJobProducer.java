@@ -98,11 +98,11 @@ public class DeltaMetadataFetchJobProducer {
   }
 
   private boolean getTryCheckpointReadFlag() {
-    if(version != 0 && version == startVersion && readLatest) {
+    if(version == startVersion && readLatest) {
       //While moving forward first file is always a checkpoint
       return true;
     }
-    else if((version == 0 || version > startVersion) && readLatest) {
+    else if(version > startVersion && readLatest) {
       //While moving forward all files other than the first are commit json/
       return false;
     }

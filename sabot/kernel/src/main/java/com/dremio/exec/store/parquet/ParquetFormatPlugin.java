@@ -35,6 +35,7 @@ import org.apache.parquet.hadoop.ParquetFileWriter;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.connector.metadata.options.TimeTravelOption;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.GroupScan;
@@ -350,12 +351,19 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
     return GlobalDictionaryBuilder.readDictionary(fs, dictionaryFilePath, bufferAllocator);
   }
 
-
-
   @Override
-  public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystem fs,
-      FileSelection fileSelection, FileSystemPlugin<?> fsPlugin, NamespaceKey tableSchemaPath, FileUpdateKey updateKey,
-      int maxLeafColumns) {
-    return new ParquetFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, this, previousInfo, maxLeafColumns);
+  public FileDatasetHandle getDatasetAccessor(
+      DatasetType type,
+      PreviousDatasetInfo previousInfo,
+      FileSystem fs,
+      FileSelection fileSelection,
+      FileSystemPlugin<?> fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      int maxLeafColumns,
+      TimeTravelOption.TimeTravelRequest timeTravelRequest
+  ) {
+    return new ParquetFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey,
+        this, previousInfo, maxLeafColumns);
   }
 }

@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.File;
 import java.util.List;
@@ -26,7 +26,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.io.FileUtils;
-import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -136,19 +135,19 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
     final Prel prel = convertToPrel.getKey();
     final String prePhysicaltextPlan = convertToPrel.getValue();
 
-    assertThat(prePhysicaltextPlan, CoreMatchers.containsString("HashToRandomExchange"));
-    assertThat(prePhysicaltextPlan, CoreMatchers.containsString("UnorderedMuxExchange"));
-    assertThat(prePhysicaltextPlan, CoreMatchers.containsString("Empty"));
-    assertThat(prePhysicaltextPlan, CoreMatchers.containsString("EasyScan"));
+    assertThat(prePhysicaltextPlan).contains("HashToRandomExchange");
+    assertThat(prePhysicaltextPlan).contains("UnorderedMuxExchange");
+    assertThat(prePhysicaltextPlan).contains("Empty");
+    assertThat(prePhysicaltextPlan).contains("EasyScan");
 
     final PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);
     final PhysicalPlan plan = PrelTransformer.convertToPlan(config, pop);
     final String postPhysicaltextPlan = plan.unparse(config.getContext().getLpPersistence().getMapper().writer());
 
-    assertThat(postPhysicaltextPlan, CoreMatchers.containsString("EmptyValues"));
-    assertThat(postPhysicaltextPlan, CoreMatchers.containsString("EasyGroupScan"));
-    assertThat(postPhysicaltextPlan, CoreMatchers.containsString("unordered-mux-exchange"));
-    assertThat(postPhysicaltextPlan, CoreMatchers.containsString("hash-to-random-exchange"));
+    assertThat(postPhysicaltextPlan).contains("EmptyValues");
+    assertThat(postPhysicaltextPlan).contains("EasyGroupScan");
+    assertThat(postPhysicaltextPlan).contains("unordered-mux-exchange");
+    assertThat(postPhysicaltextPlan).contains("hash-to-random-exchange");
 
 
     PhysicalPlanReader pPlanReader = new PhysicalPlanReader(

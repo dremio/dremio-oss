@@ -201,6 +201,7 @@ class SourceMetadataManager implements AutoCloseable {
 
     @Override
     public void run() {
+      logger.debug("Invoked WakeupWorker {}", sourceKey.getRoot());
       wakeup();
     }
 
@@ -639,6 +640,7 @@ class SourceMetadataManager implements AutoCloseable {
       }
 
       try {
+        CatalogUtil.addIcebergMetadataOrphan(currentConfig, bridge.getOrphanage());
         namespace.deleteDataset(datasetKey, currentConfig.getTag());
         logger.trace("Dataset '{}' deleted", datasetKey);
         return UpdateStatus.DELETED;

@@ -16,7 +16,7 @@
 package com.dremio.service.flight.auth2;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 
 import org.apache.arrow.flight.CallHeaders;

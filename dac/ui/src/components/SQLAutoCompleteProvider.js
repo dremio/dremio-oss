@@ -14,69 +14,20 @@
  * limitations under the License.
  */
 import debounce from 'lodash/debounce';
-import ApiUtils from 'utils/apiUtils/apiUtils';
+import { SQLAutoCompleteItems } from './SQLAutoCompleteLists';
 
-const errorHandler = () => {
-  //add loggin here if it is needed
-};
-
-const getItems = (monaco, sqlContextGetter) => {
+const getKeywords = (monaco, sqlContextGetter) => {
   if (typeof sqlContextGetter !== 'function') {
     throw new Error('sqlContextGetter must be specified and must be a function');
   }
 
-  const CompletionItemKind = monaco.languages.CompletionItemKind;
-  const typeMap = {
-    COLUMN: CompletionItemKind.Field,
-    TABLE: CompletionItemKind.Variable,
-    VIEW: CompletionItemKind.Reference,
-    SCHEMA: CompletionItemKind.File,
-    CATALOG: CompletionItemKind.Folder,
-    REPOSITORY: CompletionItemKind.Class,
-    FUNCTION: CompletionItemKind.Function,
-    KEYWORD: CompletionItemKind.Keyword
-  };
-
-  return (document, position) => {
-    const delimiter = '\n';
-    const content = document.getLinesContent();
-
-    let pos = position.column - 1; // -1 to convert to zero-base index
-    for (let i = 0; i < position.lineNumber - 1; i++) {
-      pos += content[i].length + delimiter.length;
-    }
-
-    const request = {
-      sql: content.join(delimiter),
-      context: sqlContextGetter() || [], // string[]
-      cursorPosition: pos
-    };
-
-    return ApiUtils.fetch('sql/analyze/suggest',
-      {
-        method: 'POST',
-        body: JSON.stringify(request)
-      }, 2).then((data) => {
-      const contentType = data.headers.get('content-type');
-      if (contentType && contentType.indexOf('application/json') !== -1) {
-        return data.json().then(({ suggestions }) => {
-          return suggestions.map(({
-            name,
-            type
-          }) => ({
-            label: name,
-            kind: typeMap[type],
-            detail: type
-          }));
-        }, errorHandler);
-      }
-      return [];
-    }, errorHandler);
+  return () => {
+    return SQLAutoCompleteItems(monaco);
   };
 };
 
 export const SQLAutoCompleteProvider = (monaco, sqlContextGetter) => ({
-  provideCompletionItems: debounce(getItems(monaco, sqlContextGetter), 100, {
+  provideCompletionItems: debounce(getKeywords(monaco, sqlContextGetter), 100, {
     leading: true,
     maxWait: 500
   })

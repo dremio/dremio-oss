@@ -26,10 +26,12 @@ import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.parser.StringAndPos;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,11 +49,13 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.service.autocomplete.ImmutableAutocompleteRequest;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -553,6 +557,45 @@ public class TestSQLResource extends BaseTestServer {
     assertEquals(new QueryError.Range(1,8,2,15), firstError.getRange());
   }
 
+  @Test
+  public void testBasicAutocomplete() throws Exception {
+    String query = "SELECT ";
+    String autocompleteResponse = testAutocomplete(query, query.length() - 1);
+    Assert.assertNotNull(autocompleteResponse);
+  }
+
+  @Test
+  public void testCatalogEntryCompletion() throws Exception {
+    String query = "SELECT * FROM ";
+    String autocompleteResponse = testAutocomplete(query, query.length() - 1);
+    Assert.assertNotNull(autocompleteResponse);
+    Assert.assertTrue(autocompleteResponse.contains("CatalogEntry"));
+  }
+
+  @Test
+  public void testColumnCompletion() throws Exception {
+    String query = "SELECT  FROM testSpace.supplier";
+    String autocompleteResponse = testAutocomplete(query, 6);
+    Assert.assertNotNull(autocompleteResponse);
+    Assert.assertTrue(autocompleteResponse.contains("Column"));
+  }
+
+  @Test
+  public void testFunctionCompletion() throws Exception {
+    String query = "SELECT * FROM testSpace.supplier WHERE AB";
+    String autocompleteResponse = testAutocomplete(query, query.length() - 1);
+    Assert.assertNotNull(autocompleteResponse);
+    Assert.assertTrue(autocompleteResponse.contains("Function"));
+  }
+
+  @Test
+  public void testFunctionCompletion2() throws Exception {
+    String query = "SELECT * FROM testSpace.supplier WHERE ABS(";
+    String autocompleteResponse = testAutocomplete(query, query.length() - 1);
+    Assert.assertNotNull(autocompleteResponse);
+    Assert.assertTrue(autocompleteResponse.contains("Column"));
+  }
+
   public SuggestionResponse testSuggestSQL(String queryString, int cursorPos, List<String> context) throws Exception {
     final String endpoint = "/sql/analyze/suggest";
 
@@ -570,4 +613,21 @@ public class TestSQLResource extends BaseTestServer {
       ValidationResponse.class
     );
   }
+
+  private String testAutocomplete(String queryString, int cursorPos) throws JsonProcessingException {
+    final String endpoint = "/sql/autocomplete";
+
+    Response response = expectSuccess(
+      getBuilder(getAPIv2().path(endpoint))
+          .buildPost(
+            Entity.entity(
+              ImmutableAutocompleteRequest.builder()
+                .query(queryString)
+                .cursor(cursorPos)
+                .build(),
+              MediaType.APPLICATION_JSON_TYPE)));
+    String json = response.readEntity(String.class);
+    return json;
+  }
 }
+

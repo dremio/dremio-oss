@@ -29,7 +29,6 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.CachedAccelDetails;
@@ -46,10 +45,7 @@ import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
-import com.dremio.exec.store.NamespaceTable;
 import com.dremio.options.OptionManager;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.cache.Cache;
 
 /**
  * The default handler for queries.
@@ -64,9 +60,8 @@ public class NormalHandler implements SqlToPlanHandler {
     try{
       final PlannerSettings plannerSettings = config.getContext().getPlannerSettings();
       final PlanCache planCache = config.getContext().getPlanCache();
-      final Cache<Long, CachedPlan> cachedPlans = (planCache != null) ? planCache.getCachePlans():null;
       final long cachedKey = planCache.generateCacheKey(sqlNode.toSqlString(CalciteSqlDialect.DEFAULT).getSql(),
-        config.getContext().getWorkloadType().name(), config.getContext().getContextInformation().getCurrentDefaultSchema());
+        config.getContext());
       config.getObserver().setCacheKey(cachedKey);
       final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, sqlNode);
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
@@ -78,9 +73,8 @@ public class NormalHandler implements SqlToPlanHandler {
         config.getContext().getExecutorService().submit(viewAccessEvaluator);
       }
       final Catalog catalog = config.getContext().getCatalog();
-      CachedPlan cachedPlan = (cachedPlans != null) ? planCache.getIfPresentAndValid(catalog, cachedKey) : null;
+      CachedPlan cachedPlan = (planCache != null) ? planCache.getIfPresentAndValid(catalog, cachedKey) : null;
       Prel prel;
-      boolean supportPlanCache = config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable();
       if (!plannerSettings.isPlanCacheEnabled() || cachedPlan == null) {
         final Rel drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
 
@@ -89,26 +83,21 @@ public class NormalHandler implements SqlToPlanHandler {
         textPlan = convertToPrel.getValue();
 
         //after we generate a physical plan, save it in the plan cache if plan cache is present
-        if(plannerSettings.isPlanCacheEnabled() && planCache!= null && cachedPlans!= null && supportPlanCache) {
-          boolean isPlanCacheable = false;
-          Iterable<DremioTable> datasets = catalog.getAllRequestedTables();
-          for (DremioTable dataset : datasets) {
-            if (dataset instanceof NamespaceTable) {
-              DatasetConfig datasetConfig = dataset.getDatasetConfig();
-              if (datasetConfig.getPhysicalDataset() != null) {
-                planCache.addCacheToDatasetMap(datasetConfig.getId().getId(), cachedKey);
-                isPlanCacheable = true;
-              }
-            }
-          }
-          if (isPlanCacheable) {
+        boolean supportPlanCache = config.getConverter().getFunctionContext().getContextInformation().isPlanCacheable();
+        if (plannerSettings.isPlanCacheEnabled() && planCache != null && supportPlanCache) {
+          if (planCache.addCacheToDatasetMap(catalog, cachedKey)) {
             CachedPlan newCachedPlan = CachedPlan.createCachedPlan(sql, prel, textPlan, prel.getEstimatedSize());
             config.getObserver().setCachedAccelDetails(newCachedPlan);
-            cachedPlans.put(cachedKey, newCachedPlan);
+            planCache.getCachePlans().put(cachedKey, newCachedPlan);
           }
         }
       } else {
         prel = cachedPlan.getPrel();
+
+        // After the plan has been cached during planning, the job could be canceled during execution.
+        // Reset the cancel flag in cached plan, otherwise the job will always be canceled.
+        prel.getCluster().getPlanner().getContext().unwrap(org.apache.calcite.util.CancelFlag.class).clearCancel();
+
         CachedAccelDetails accelDetails = cachedPlan.getAccelDetails();
         if (accelDetails != null && accelDetails.getSubstitutionInfo() != null) {
           config.getObserver().applyAccelDetails(accelDetails);

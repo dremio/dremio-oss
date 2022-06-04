@@ -49,7 +49,9 @@ public interface SystemTableManager extends AutoCloseable {
     ROLES("roles"),
     PRIVILEGES("privileges"),
     MEMBERSHIP("membership"),
-    USERS("users");
+    USERS("users"),
+    TABLES("tables"),
+    VIEWS("views");
 
     final String name;
     private TABLES(String name) {

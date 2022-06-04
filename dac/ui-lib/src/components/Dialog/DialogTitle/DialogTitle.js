@@ -20,15 +20,27 @@ import clsx from 'clsx';
 
 import MuiDialogTitle from '@material-ui/core/DialogTitle';
 
+import { ReactComponent as WarningIcon } from '../../../art/WarningCircle.svg';
+import { ReactComponent as ErrorIcon } from '../../../art/ErrorCircle.svg';
+import { ReactComponent as InfoIcon } from '../../../art/InfoCircle.svg';
 import { ReactComponent as CloseIcon } from '../../../art/XLarge.svg';
 
 import './dialogTitle.scss';
+
+const ICONS = {
+  default: null,
+  warning: WarningIcon,
+  info: InfoIcon,
+  error: ErrorIcon
+};
 
 const DialogTitle = (props) => {
   const {
     children,
     onClose,
-    classes
+    classes,
+    endChildren,
+    type
   } = props;
 
   const titleClasses = {
@@ -36,13 +48,26 @@ const DialogTitle = (props) => {
     ...classes
   };
 
+  const titleIconClasss = clsx([
+    'dialogTitle__content__icon',
+    { '--error': type === 'error' }
+  ]);
+
+  const TitleIcon = ICONS[type];
+
   return (
     <MuiDialogTitle
       classes={titleClasses}
       disableTypography
     >
-      <span className='dialogTitle__content'><h2>{children}</h2></span>
-      {onClose && <span className='dialogTitle__icon' onClick={onClose}><CloseIcon/></span>}
+      <span className='dialogTitle__content flex --alignCenter'>
+        {TitleIcon && <span className={titleIconClasss}><TitleIcon /></span>}
+        <h2>{children}</h2>
+      </span>
+      <div className='dialogTitle__endChildren'>
+        {endChildren && endChildren}
+        {onClose && <span className='dialogTitle__icon' onClick={onClose}><CloseIcon/></span>}
+      </div>
     </MuiDialogTitle>
   );
 };
@@ -51,11 +76,14 @@ DialogTitle.propTypes = {
   children: PropTypes.node,
   classes: PropTypes.object,
   onClose: PropTypes.func,
-  disableSpacing: PropTypes.bool
+  disableSpacing: PropTypes.bool,
+  endChildren: PropTypes.node,
+  type: PropTypes.oneOf(['default', 'info', 'warning', 'error'])
 };
 
 DialogTitle.defaultProps = {
-  classes: {}
+  classes: {},
+  type: 'default'
 };
 
 export default DialogTitle;

@@ -69,7 +69,7 @@ public class TestCTASPartitionFilter extends PlanTestBase {
     // need to rename dir0, dir1 else they conflict with dir0, dir1 when reading then new table
     test(String.format("create table orders_distribution HASH partition by (o_orderpriority) as select o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, dir0 as \"year\", dir1 as \"quarter\" from dfs.\"%s/multilevel/parquet\"", TEST_RES_PATH));
     String query = "select * from orders_distribution where o_orderpriority = '1-URGENT'";
-    testExcludeFilter(query, 1, "Filter", 24);
+    testIncludeFilter(query, 1, "Filter", 24);
   }
 
   @Test
@@ -77,7 +77,7 @@ public class TestCTASPartitionFilter extends PlanTestBase {
     // need to rename dir0, dir1 else they conflict with dir0, dir1 when reading then new table
     test(String.format("create table orders_no_distribution partition by (o_orderpriority) as select o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, dir0 as \"year\", dir1 as \"quarter\" from dfs.\"%s/multilevel/parquet\"", TEST_RES_PATH));
     String query = "select * from orders_no_distribution where o_orderpriority = '1-URGENT'";
-    testExcludeFilter(query, 2, "Filter", 24);
+    testIncludeFilter(query, 1, "Filter", 24);
   }
 
   @Test
@@ -85,9 +85,8 @@ public class TestCTASPartitionFilter extends PlanTestBase {
     // need to rename dir0, dir1 else they conflict with dir0, dir1 when reading then new table
     test(String.format("create table drill_3410 HASH partition by (o_orderpriority) as select o_orderkey, o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, dir0 as \"year\", dir1 as \"quarter\" from dfs.\"%s/multilevel/parquet\"", TEST_RES_PATH));
     String query = "select * from drill_3410 where (o_orderpriority = '1-URGENT' and o_orderkey = 10) or (o_orderpriority = '2-HIGH' or o_orderkey = 11)";
-    testIncludeFilter(query, 5, "Filter", 34);
+    testIncludeFilter(query, 1, "Filter", 34);
   }
-
 
   @Ignore("DX-4214")
   @Test

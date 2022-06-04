@@ -185,6 +185,7 @@ public class Types {
       case "INTERVAL":                      return java.sql.Types.OTHER;  // JDBC (4.1) has nothing for INTERVAL
       case "INTERVAL YEAR TO MONTH":        return java.sql.Types.OTHER;
       case "INTERVAL DAY TO SECOND":        return java.sql.Types.OTHER;
+      case "ROW":                           // fall through
       case "MAP":                           return java.sql.Types.OTHER; // Dremio doesn't support java.sql.Struct
       case "NATIONAL CHARACTER VARYING":    return java.sql.Types.NVARCHAR;
       case "NATIONAL CHARACTER":            return java.sql.Types.NCHAR;

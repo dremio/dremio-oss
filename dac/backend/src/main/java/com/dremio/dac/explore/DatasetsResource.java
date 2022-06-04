@@ -18,6 +18,7 @@ package com.dremio.dac.explore;
 import static com.dremio.dac.explore.DatasetTool.TMP_DATASET_PATH;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -32,6 +33,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.commons.collections4.MapUtils;
+
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -44,6 +47,8 @@ import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.explore.model.FromBase;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
+import com.dremio.dac.explore.model.NewUntitledFromParentRequest;
+import com.dremio.dac.explore.model.VersionContextReq;
 import com.dremio.dac.model.common.DACRuntimeException;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.namespace.DatasetContainer;
@@ -138,19 +143,32 @@ public class DatasetsResource extends BaseResourceWithAllocator {
     this.catalogServiceHelper = catalogServiceHelper;
   }
 
-  private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath, DatasetVersion newVersion, Integer limit, String engineName)
+  private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath,
+                                             DatasetVersion newVersion,
+                                             Integer limit,
+                                             String engineName,
+                                             String sessionId,
+                                             Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     FromTable from = new FromTable(fromDatasetPath.toPathString());
-    DatasetSummary summary = getDatasetSummary(fromDatasetPath);
 
-    return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit, engineName);
+    //TODO: DX-44147: Fix the initialization of the sourceVersion map in Catalog to get summary for dataplane sources.
+    // Allowing for other sources for backwards compatibility. Summary is only needed for providing the exception
+    DatasetSummary summary = null;
+    if (MapUtils.isEmpty(references)) {
+      summary = getDatasetSummary(fromDatasetPath);
+    }
+
+    return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit, engineName, sessionId, references);
   }
 
   private InitialPreviewResponse newUntitled(FromBase from, DatasetVersion newVersion, List<String> context,
-                                             DatasetSummary parentSummary, Integer limit, String engineName)
+                                             DatasetSummary parentSummary, Integer limit, String engineName,
+                                             String sessionId, Map<String, VersionContextReq> references)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
-    return tool.newUntitled(getOrCreateAllocator("newUntitled"), from, newVersion, context, parentSummary, false, limit, engineName);
+    return tool.newUntitled(getOrCreateAllocator("newUntitled"),
+      from, newVersion, context, parentSummary, false, limit, engineName, sessionId, references);
   }
 
   /**
@@ -166,49 +184,79 @@ public class DatasetsResource extends BaseResourceWithAllocator {
   @POST @Path("new_untitled_sql")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public InitialPreviewResponse newUnitledSql(
+  public InitialPreviewResponse newUntitledSql(
       @QueryParam("newVersion") DatasetVersion newVersion,
       @QueryParam("limit") Integer limit,
+      @QueryParam("sessionId") String sessionId,
       /* body */ CreateFromSQL sql)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
-    return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), null, limit, sql.getEngineName());
+    return newUntitled(
+      new FromSQL(
+        sql.getSql()).setAlias("nested_0"),
+        newVersion,
+        sql.getContext(),
+        null,
+        limit,
+        sql.getEngineName(),
+        sessionId,
+        sql.getReferences());
   }
 
   @POST @Path("new_untitled_sql_and_run")
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public InitialRunResponse newUnitledSqlAndRun(
+  public InitialRunResponse newUntitledSqlAndRun(
     @QueryParam("newVersion") DatasetVersion newVersion,
+    @QueryParam("sessionId") String sessionId,
       /* body */ CreateFromSQL sql)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, InterruptedException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
 
-    return tool.newUntitledAndRun(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), sql.getEngineName());
+    return tool.newUntitledAndRun(
+      new FromSQL(sql.getSql()).setAlias("nested_0"),
+      newVersion,
+      sql.getContext(),
+      sql.getEngineName(),
+      sessionId,
+      sql.getReferences());
   }
 
   /**
-   * Create a new query of SELECT * from [parentDataset].
+   * Create a new query of SELECT * from [parentDataset] which has a POST body.
    *
-   * @param parentDataset
+   * @param parentDataset Parent dataset path
+   * @param newVersion The version id we should use for the new version of dataset (generated by client)
+   * @param limit The number of records to return to the initial response
+   * @param engineName Engine name
+   * @param sessionId Session ID
+   *
    * @return
    * @throws DatasetNotFoundException
    * @throws NamespaceException
    */
-  @POST @Path("new_untitled") @Produces(MediaType.APPLICATION_JSON)
+  @POST @Path("new_untitled")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
   public InitialPreviewResponse newUntitledFromParent(
-      @QueryParam("parentDataset") DatasetPath parentDataset,
-      @QueryParam("newVersion") DatasetVersion newVersion,
-      @QueryParam("limit") Integer limit,
-      @QueryParam("engineName") String engineName)
+    @QueryParam("parentDataset") DatasetPath parentDataset,
+    @QueryParam("newVersion") DatasetVersion newVersion,
+    @QueryParam("limit") Integer limit,
+    @QueryParam("engineName") String engineName,
+    @QueryParam("sessionId") String sessionId,
+    /* body */ NewUntitledFromParentRequest reqBody)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
+    Map<String, VersionContextReq> sourceVersionMap = null;
+    if (reqBody != null) {
+      sourceVersionMap = reqBody.getReferences();
+    }
     try {
-      return newUntitled(parentDataset, newVersion, limit, engineName);
+      return newUntitled(parentDataset, newVersion, limit, engineName, sessionId, sourceVersionMap);
     } catch (DatasetNotFoundException | NamespaceException e) {
       // TODO: this should really be a separate API from the UI.
       // didn't find as virtual dataset, let's return as opaque sql (as this could be a source) .
-      return newUntitled(parentDataset, newVersion, limit, engineName);
+      return newUntitled(parentDataset, newVersion, limit, engineName, sessionId, sourceVersionMap);
     }
   }
 

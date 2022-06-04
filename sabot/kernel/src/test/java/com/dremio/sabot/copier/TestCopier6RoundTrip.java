@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -33,16 +32,15 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
 
 import com.dremio.common.expression.CompleteType;
-import com.dremio.sabot.BaseTestWithAllocator;
-import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6;
+import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopier6;
+import com.dremio.sabot.op.copier.FieldBufferCopierFactory;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 
 import io.netty.util.internal.PlatformDependent;
 
-public class TestCopier6RoundTrip extends BaseTestWithAllocator {
+public class TestCopier6RoundTrip extends BaseTestOperator {
   private static final int SV6_SIZE = 6;
 
   private static void copy(List<FieldBufferCopier> copiers, long offsetAddr, int count){
@@ -106,7 +104,7 @@ public class TestCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       int totalCount = count[0] + count[1];
-      List<FieldBufferCopier> copiers = FieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -151,7 +149,7 @@ public class TestCopier6RoundTrip extends BaseTestWithAllocator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = FieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -196,7 +194,7 @@ public class TestCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       int totalCount = count[0] + count[1];
-      List<FieldBufferCopier> copiers = FieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -241,7 +239,7 @@ public class TestCopier6RoundTrip extends BaseTestWithAllocator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = FieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -286,7 +284,7 @@ public class TestCopier6RoundTrip extends BaseTestWithAllocator {
 
       // set alternate elements.
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = ConditionalFieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteConditionalCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try(
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ){
@@ -349,7 +347,7 @@ public class TestCopier6RoundTrip extends BaseTestWithAllocator {
       }
 
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
-      List<FieldBufferCopier> copiers = FieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try (
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ) {
@@ -410,7 +408,7 @@ public class TestCopier6RoundTrip extends BaseTestWithAllocator {
 
       out.initializeChildrenFromFields(ImmutableList.of(stringField, intField));
       int totalCount = (count[0] + count[1]) / 2;
-      List<FieldBufferCopier> copiers = FieldBufferCopier6.getFourByteCopiers(ImmutableList.of(in), ImmutableList.<FieldVector>of(out));
+      List<FieldBufferCopier> copiers = new FieldBufferCopierFactory(testContext.getOptions()).getSixByteCopiers(ImmutableList.of(in), ImmutableList.of(out));
       try (
         final ArrowBuf sv6 = allocator.buffer(SV6_SIZE * totalCount);
       ) {

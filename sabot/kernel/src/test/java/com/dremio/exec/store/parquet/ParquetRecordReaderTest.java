@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType.FUNCTION;
 import static com.dremio.exec.store.parquet.TestFileGenerator.populateFieldInfoMap;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -44,12 +45,11 @@ import com.dremio.BaseTestQuery;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.FileUtils;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.dremio.test.UserExceptionMatcher;
+import com.dremio.test.UserExceptionAssert;
 import com.google.common.base.Charsets;
 import com.google.common.base.Stopwatch;
 import com.google.common.io.Files;
@@ -88,16 +88,18 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   }
 
   @Test
-  public void testExceedSplitLimit() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.FUNCTION,
-      "Too many splits encountered when processing parquet metadata at file /tmp/parquet_test_file_many_types, maximum is 1 but encountered 2 splits thus far."));
-    try (AutoCloseable option = withOption(Metadata.DFS_MAX_SPLITS, 1)) {
-      final int numRowGroups = 2;
-      final String splitFileName = "/tmp/parquet_test_file_too_many_splits";
-      final String planName = "/parquet/parquet_scan_screen.json";
-      generateFile(splitFileName, numRowGroups);
-      testParquetFullEngineLocalPath(planName, splitFileName, 2, numRowGroups, recordsPerRowGroup);
-    }
+  public void testExceedSplitLimit() {
+    UserExceptionAssert.assertThatThrownBy(() -> {
+      try (AutoCloseable option = withOption(Metadata.DFS_MAX_SPLITS, 1)) {
+        final int numRowGroups = 2;
+        final String splitFileName = "/tmp/parquet_test_file_too_many_splits";
+        final String planName = "/parquet/parquet_scan_screen.json";
+        generateFile(splitFileName, numRowGroups);
+        testParquetFullEngineLocalPath(planName, splitFileName, 2, numRowGroups, recordsPerRowGroup);
+      }
+    })
+      .hasErrorType(FUNCTION)
+      .hasMessageContaining("Too many splits encountered when processing parquet metadata at file /tmp/parquet_test_file_many_types, maximum is 1 but encountered 2 splits thus far.");
   }
 
   public String getPlanForFile(String pathFileName, String parquetFileName) throws IOException {

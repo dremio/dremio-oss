@@ -48,7 +48,10 @@ export default class ConfirmModal extends Component {
     promptFieldProps: PropTypes.object,
     dataQa: PropTypes.string,
     validatePromptText: PropTypes.func,
-    style: PropTypes.object
+    style: PropTypes.object,
+    closeButtonType: PropTypes.string,
+    className: PropTypes.string,
+    headerIcon: PropTypes.node
   };
 
   static defaultProps = {
@@ -194,7 +197,10 @@ export default class ConfirmModal extends Component {
       showOnlyConfirm,
       showPrompt,
       dataQa,
-      validatePromptText
+      validatePromptText,
+      closeButtonType,
+      className,
+      headerIcon
     } = this.props;
     const hideCancel = this.props.hideCancelButton || showOnlyConfirm;
     const onHide = showOnlyConfirm ? () => {} : onCancel;
@@ -225,6 +231,9 @@ export default class ConfirmModal extends Component {
         size='smallest'
         title={title || la('Confirm')}
         style={modalStyle}
+        className={className}
+        closeButtonType={closeButtonType}
+        headerIcon={headerIcon}
       >
         <div style={{...modalContent, ...confirmBodyText}}>
           {this.renderBody()}

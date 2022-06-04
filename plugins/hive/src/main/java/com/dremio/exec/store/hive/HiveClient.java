@@ -17,8 +17,18 @@ package com.dremio.exec.store.hive;
 
 import java.util.List;
 
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
+import org.apache.hadoop.hive.metastore.api.LockRequest;
+import org.apache.hadoop.hive.metastore.api.LockResponse;
+import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.NoSuchLockException;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.NoSuchTxnException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
+import org.apache.hadoop.hive.metastore.api.TxnOpenException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HivePrivilegeObject;
 
@@ -47,6 +57,14 @@ public interface HiveClient extends AutoCloseable {
 
   List<HivePrivilegeObject> getRowFilterAndColumnMasking(List<HivePrivilegeObject> inputHiveObjects) throws
     SemanticException;
+
+  void createTable(Table tbl) throws AlreadyExistsException, InvalidObjectException, MetaException, NoSuchObjectException, TException;
+
+  LockResponse lock(LockRequest request) throws NoSuchTxnException, TxnAbortedException, TException;
+
+  void unlock(long lockid) throws NoSuchLockException, TxnOpenException, TException;
+
+  LockResponse checkLock(long lockid) throws NoSuchTxnException, TxnAbortedException, NoSuchLockException, TException;
 
   @Override
   void close();

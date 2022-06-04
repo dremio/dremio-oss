@@ -39,8 +39,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.dremio.sabot.op.copier.FieldBufferCopier4;
+import com.dremio.sabot.op.copier.CopierFactory;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
@@ -84,6 +83,7 @@ public class NLJEOperator implements DualInputOperator {
   private List<FieldVector> probeOutputVectors;
   private List<FieldVector> buildOutputVectors;
   private List<TransferPair> probeOutputTransfers;
+  private CopierFactory copierFactory;
 
   public NLJEOperator(OperatorContext context, NestedLoopJoinPOP config) {
     this.context = context;
@@ -132,6 +132,7 @@ public class NLJEOperator implements DualInputOperator {
     probeOutputVectors.forEach(v -> output.add(v));
 
     this.output.buildSchema();
+    copierFactory = CopierFactory.getInstance(context.getConfig(), context.getOptions());
     state = State.CAN_CONSUME_R;
 
     return output;
@@ -194,8 +195,8 @@ public class NLJEOperator implements DualInputOperator {
       this.joinMatcher = new EvaluatingJoinMatcher(context, probeIncoming, build,
         targetGenerateAtOnce,
         getInitialMatchState(),
-        FieldBufferCopier.getCopiers(probeInputVectors, probeOutputVectors),
-        FieldBufferCopier4.getFourByteCopiers(buildInputVectors, buildOutputVectors),
+        copierFactory.getTwoByteCopiers(probeInputVectors, probeOutputVectors),
+        copierFactory.getFourByteCopiers(buildInputVectors, buildOutputVectors),
         joinType
       );
       context.getStats().setLongStat(Metric.COMPILE_NANOS, watch.elapsed(TimeUnit.NANOSECONDS));

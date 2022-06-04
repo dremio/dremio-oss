@@ -37,7 +37,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
-import org.apache.arrow.vector.util.ByteFunctionHelpers;
+import org.apache.arrow.memory.util.ByteFunctionHelpers;
 import org.apache.arrow.vector.holders.*;
 import javax.inject.Inject;
 
@@ -91,7 +91,7 @@ public static class ${type.inputType}${aggrtype.className} implements AggrFuncti
       swap = true;
     } else {
       // Compare the bytes
-      cmp = org.apache.arrow.vector.util.ByteFunctionHelpers.compare(in.buffer, in.start, in.end, tmp.getBytes(), 0, tmp.getLength());
+      cmp = org.apache.arrow.memory.util.ByteFunctionHelpers.compare(in.buffer, in.start, in.end, tmp.getBytes(), 0, tmp.getLength());
 
 
       <#if aggrtype.className == "Min">

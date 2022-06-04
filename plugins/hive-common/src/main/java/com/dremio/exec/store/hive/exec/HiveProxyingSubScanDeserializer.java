@@ -18,18 +18,15 @@ package com.dremio.exec.store.hive.exec;
 import java.io.IOException;
 
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePluginResolver;
 import com.dremio.exec.store.SupportsPF4JStoragePlugin;
+import com.dremio.exec.store.hive.HiveCommonUtilities;
 import com.dremio.exec.store.hive.StoragePluginCreator;
 import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.deser.ResolvableDeserializer;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 /**
@@ -48,34 +45,17 @@ public class HiveProxyingSubScanDeserializer extends StdDeserializer<HiveProxyin
   @Override
   public HiveProxyingSubScan deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
     final JsonNode node = jsonParser.getCodec().readTree(jsonParser);
-    final StoragePluginId pluginId = deserialize(jsonParser, deserializationContext,
+    final StoragePluginId pluginId = HiveCommonUtilities.deserialize(jsonParser, deserializationContext,
       node.get("pluginId"), StoragePluginId.class);
 
     // get subscan class type from plugin.
-    final CatalogService catalogService = (CatalogService) deserializationContext
-      .findInjectableValue(CatalogService.class.getName(), null, null);
-    final SupportsPF4JStoragePlugin pf4JStoragePlugin = catalogService.getSource(pluginId);
+    final StoragePluginResolver storagePluginResolver = (StoragePluginResolver) deserializationContext
+      .findInjectableValue(StoragePluginResolver.class.getName(), null, null);
+    final SupportsPF4JStoragePlugin pf4JStoragePlugin = storagePluginResolver.getSource(pluginId);
     final StoragePluginCreator.PF4JStoragePlugin plugin = pf4JStoragePlugin.getPF4JStoragePlugin();
     final Class<? extends HiveProxiedSubScan> scanClazz = plugin.getSubScanClass();
 
-    HiveProxiedSubScan scan = deserialize(jsonParser, deserializationContext, node.get("wrappedHiveScan"), scanClazz);
+    HiveProxiedSubScan scan = HiveCommonUtilities.deserialize(jsonParser, deserializationContext, node.get("wrappedHiveScan"), scanClazz);
     return new HiveProxyingSubScan(pluginId, scan);
-  }
-
-  private <T> T deserialize(JsonParser jsonParser, DeserializationContext context, JsonNode node,
-                            Class<? extends T> clazz) throws IOException, JsonProcessingException {
-    final JavaType javaType = context.getTypeFactory().constructType(clazz);
-    final BeanDescription description = context.getConfig().introspect(javaType);
-    final JsonDeserializer<Object> deserializer = context.getFactory().createBeanDeserializer(
-      context, javaType, description);
-    if (deserializer instanceof ResolvableDeserializer) {
-      ((ResolvableDeserializer) deserializer).resolve(context);
-    }
-    final JsonParser parser = jsonParser.getCodec().treeAsTokens(node);
-    context.getConfig().initialize(parser);
-    if (parser.getCurrentToken() == null) {
-      parser.nextToken();
-    }
-    return clazz.cast(deserializer.deserialize(parser, context));
   }
 }

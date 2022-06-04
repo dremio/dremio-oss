@@ -21,7 +21,7 @@ describe('APICall', () => {
       .paths('foo/bar')
       .apiVersion(2);
 
-    expect(apiCall.toString()).to.eql('///apiv2/foo/bar');
+    expect(apiCall.toString()).to.eql('//localhost/apiv2/foo/bar');
   });
 
   it('v3', () => {
@@ -29,7 +29,7 @@ describe('APICall', () => {
       .paths('foo/bar')
       .apiVersion(3);
 
-    expect(apiCall.toString()).to.eql('///api/v3/foo/bar');
+    expect(apiCall.toString()).to.eql('//localhost/api/v3/foo/bar');
   });
 
   it('path with many segments', () => {
@@ -38,7 +38,7 @@ describe('APICall', () => {
       .path('baz')
       .apiVersion(3);
 
-    expect(apiCall.toString()).to.eql('///api/v3/foo/bar/b%23az/baz');
+    expect(apiCall.toString()).to.eql('//localhost/api/v3/foo/bar/b%23az/baz');
   });
 
   it('path with multiple calls', () => {
@@ -48,7 +48,7 @@ describe('APICall', () => {
       .paths('/bar')
       .apiVersion(3);
 
-    expect(apiCall.toString()).to.eql('///api/v3/foo/bar/baz/boo/bar');
+    expect(apiCall.toString()).to.eql('//localhost/api/v3/foo/bar/baz/boo/bar');
   });
 
   it('params', () => {
@@ -57,7 +57,7 @@ describe('APICall', () => {
       .apiVersion(3)
       .params({a: 1, b: 'a/?.b'});
 
-    expect(apiCall.toString()).to.eql('///api/v3/foo/bar/?a=1&b=a%2F%3F.b');
+    expect(apiCall.toString()).to.eql('//localhost/api/v3/foo/bar/?a=1&b=a%2F%3F.b');
   });
 
   it('params with list', () => {
@@ -66,7 +66,7 @@ describe('APICall', () => {
       .apiVersion(3)
       .params({a: [1, 2, 3]});
 
-    expect(apiCall.toString()).to.eql('///api/v3/foo/bar/?a=1&a=2&a=3');
+    expect(apiCall.toString()).to.eql('//localhost/api/v3/foo/bar/?a=1&a=2&a=3');
   });
 
   it('APIV2Call', () => {
@@ -74,23 +74,23 @@ describe('APICall', () => {
       .paths('foo/bar')
       .params({a: 1, b: 'a/?.b'});
 
-    expect(apiCall.toString()).to.eql('///apiv2/foo/bar/?a=1&b=a%2F%3F.b');
+    expect(apiCall.toString()).to.eql('//localhost/apiv2/foo/bar/?a=1&b=a%2F%3F.b');
   });
 
   it('path should support leading / as well as missing', () => {
     const apiCall = new APIV2Call()
       .paths('foo/bar');
-    expect(apiCall.toString()).to.eql('///apiv2/foo/bar');
+    expect(apiCall.toString()).to.eql('//localhost/apiv2/foo/bar');
 
     const apiCall2 = new APIV2Call()
       .paths('/foo/bar');
-    expect(apiCall2.toString()).to.eql('///apiv2/foo/bar');
+    expect(apiCall2.toString()).to.eql('//localhost/apiv2/foo/bar');
   });
 
   it('toPath()', () => {
     const apiCall = new APIV2Call()
       .paths('foo/bar');
-    expect(apiCall.toString()).to.eql('///apiv2/foo/bar');
+    expect(apiCall.toString()).to.eql('//localhost/apiv2/foo/bar');
     expect(apiCall.toPath()).to.eql('/foo/bar');
   });
 

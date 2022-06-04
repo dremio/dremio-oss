@@ -20,6 +20,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.arrow.vector.ValueVector;
 import org.junit.Ignore;
@@ -49,7 +50,9 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
 
     // run query.
     bit.run();
-    client.connect();
+    client.connect(new Properties(){{
+      put("user", "anonymous");
+    }});
     final String path = "/physical_test2.json";
 //      String path = "/filter/test1.json";
     final List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL, Files.toString(FileUtils.getResourceAsFile(path), Charsets.UTF_8));

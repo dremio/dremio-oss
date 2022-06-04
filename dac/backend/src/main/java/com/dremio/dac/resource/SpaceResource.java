@@ -48,6 +48,7 @@ import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
@@ -121,8 +122,9 @@ public class SpaceResource {
   @Deprecated
   public void deleteSpace(@QueryParam("version") String version) throws NamespaceException, SpaceNotFoundException, UserException {
     if (version == null) {
-      throw new ClientErrorException("missing version parameter");
+      throw new ClientErrorException(GenericErrorMessage.MISSING_VERSION_PARAM_MSG);
     }
+
     try {
       namespaceService.deleteSpace(spacePath.toNamespaceKey(), version);
     } catch (NamespaceNotFoundException nfe) {

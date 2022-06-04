@@ -35,7 +35,7 @@ public class RawFragmentBatch implements AutoCloseable {
     this.sender = sender;
     this.body = body;
     if (body != null) {
-      body.retain(1);
+      body.getReferenceManager().retain(1);
     }
     // ACK has been sent when the batch was spilled
     ackSent.set(sender == null);
@@ -56,7 +56,7 @@ public class RawFragmentBatch implements AutoCloseable {
 
   public void close() {
     if (body != null) {
-      body.release();
+      body.close();
     }
   }
 

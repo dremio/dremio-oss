@@ -157,6 +157,10 @@ const rules = [
     include:  [__dirname, dynLoader.path, ...injectionPathAsList, ...dcsPathAsList],
     use: [babelLoader]
   },
+  {
+    test: /\.worker\.js$/,
+    use: { loader: 'worker-loader' }
+  },
   getStyleLoader(false),
   getStyleLoader(true),
   {

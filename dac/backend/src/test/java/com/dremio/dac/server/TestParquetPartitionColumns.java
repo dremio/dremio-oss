@@ -19,7 +19,9 @@ import java.io.File;
 import java.net.URL;
 import java.util.List;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -27,8 +29,10 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.QueryTestUtil;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogUser;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceService;
@@ -47,6 +51,19 @@ public class TestParquetPartitionColumns extends BaseTestServer {
 
   @ClassRule
   public static final TemporaryFolder temp = new TemporaryFolder();
+
+  @BeforeClass
+  public static void init() throws Exception {
+    BaseTestServer.init();
+    BaseTestServer.getPopulator().populateTestUsers();
+    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName(), "false");
+  }
+
+  @AfterClass
+  public static void resetUnlimitedSplits() {
+    setSystemOption(PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getOptionName(),
+            PlannerSettings.UNLIMITED_SPLITS_SUPPORT.getDefault().getBoolVal().toString());
+  }
 
   @Test
   public void testGroupScan() throws Exception {
@@ -98,7 +115,7 @@ public class TestParquetPartitionColumns extends BaseTestServer {
     DatasetConfig config = addDataSet(parquet);
 
     DremioTable table = p(CatalogService.class).get()
-        .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(DEFAULT_USERNAME).build()))
+        .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(CatalogUser.from(DEFAULT_USERNAME)).build()))
         .getTable(config.getId().getId());
 
     return table.getDatasetConfig().getReadDefinition()

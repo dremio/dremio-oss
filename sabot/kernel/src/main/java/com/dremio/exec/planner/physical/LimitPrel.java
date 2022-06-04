@@ -99,7 +99,7 @@ public class LimitPrel extends LimitRelBase implements Prel {
 
   @Override
   public <T, X, E extends Throwable> T accept(PrelVisitor<T, X, E> logicalVisitor, X value) throws E {
-    return logicalVisitor.visitPrel(this, value);
+    return logicalVisitor.visitLimit(this, value);
   }
 
   @Override

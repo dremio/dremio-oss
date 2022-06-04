@@ -23,7 +23,6 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.SelectionVectorRemover;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
@@ -49,8 +48,8 @@ public class VectorizedCopyOperator implements SingleInputOperator {
   private List<TransferPair> inToOutTransferPairs = new ArrayList<>();
   private List<TransferPair> bufferedToOutTransferPairs = new ArrayList<>();
   private boolean straightCopy;
-  private List<FieldBufferCopier> copiers = new ArrayList<FieldBufferCopier>();
-  private FieldBufferCopier.Cursor cursors[];
+  private List<FieldBufferCopier> copiers = new ArrayList<>();
+  private Cursor[] cursors;
   // incoming has been consumed upto this index.
   private int incomingIndex;
   // buffered container has these many records.
@@ -98,8 +97,8 @@ public class VectorizedCopyOperator implements SingleInputOperator {
     }
 
     // setup copiers from incoming to buffered.
-    copiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(incoming), VectorContainer.getFieldVectors(buffered),
-      context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_COMPLEX_COPIER));
+    copiers = CopierFactory.getInstance(context.getConfig(), context.getOptions())
+              .getTwoByteCopiers(VectorContainer.getFieldVectors(incoming), VectorContainer.getFieldVectors(buffered));
     if (straightCopy || randomVector == null) {
       shouldBufferOutput = false;
     }

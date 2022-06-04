@@ -31,12 +31,14 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
+import com.dremio.connector.impersonation.extensions.SupportsImpersonation;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.exec.catalog.CatalogImpl.IdentityResolver;
 import com.dremio.exec.catalog.ManagedStoragePlugin.MetadataAccessType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.dotfile.View;
@@ -88,17 +90,20 @@ class DatasetManager {
   private final NamespaceService userNamespaceService;
   private final OptionManager optionManager;
   private final String userName;
+  private IdentityResolver identityProvider;
 
   public DatasetManager(
       PluginRetriever plugins,
       NamespaceService userNamespaceService,
       OptionManager optionManager,
-      String userName
+      String userName,
+      IdentityResolver identityProvider
    ) {
     this.userNamespaceService = userNamespaceService;
     this.plugins = plugins;
     this.optionManager = optionManager;
     this.userName = userName;
+    this.identityProvider = identityProvider;
   }
 
   /**
@@ -185,28 +190,14 @@ class DatasetManager {
       ){
 
     final DatasetConfig config = getConfig(key);
+
     if(config != null) {
       // canonicalize the path.
       key = new NamespaceKey(config.getFullPathList());
     }
-    final ManagedStoragePlugin plugin;
-    if (CatalogUtil.isVersionedDDPEntity(key)) {
-      String pluginKey = getPluginNameFromDDPPrefixedKey(key);
-      plugin = plugins.getPlugin(pluginKey, false);
-      VersionedDatasetAdapter versionedDatasetAdapter = null;
 
-      versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
-        .setVersionedTableKey(key.toString())
-        .setVersionContext(options.getVersionContext())
-        .setStoragePlugin(plugin)
-        .setOptionManager(optionManager)
-        .build();
-
-      final String accessUserName = options.getSchemaConfig().getUserName();
-      return versionedDatasetAdapter.getTable(accessUserName);
-    }
-
-    plugin = plugins.getPlugin(key.getRoot(), false);
+    String pluginName = key.getRoot();
+    final ManagedStoragePlugin plugin = plugins.getPlugin(pluginName, false);
 
     if(plugin != null) {
 
@@ -227,12 +218,6 @@ class DatasetManager {
     }
 
     return createTableFromVirtualDataset(config, options);
-  }
-
-  private String getPluginNameFromDDPPrefixedKey(NamespaceKey key) {
-    String[] arrOfKeyComponents = key.toString().split("\\.", 3);
-    Preconditions.checkState(arrOfKeyComponents.length > 1);
-    return arrOfKeyComponents[1];
   }
 
   public DremioTable getTable(
@@ -270,6 +255,23 @@ class DatasetManager {
       MetadataRequestOptions options,
       boolean ignoreColumnCount
   ) {
+    final StoragePlugin underlyingPlugin = plugin.getPlugin();
+    if (underlyingPlugin instanceof VersionedPlugin) {
+      final String accessUserName = options.getSchemaConfig().getUserName();
+
+      final VersionedDatasetAdapter versionedDatasetAdapter = VersionedDatasetAdapter.newBuilder()
+        .setVersionedTableKey(key.toString())
+        .setVersionContext(options.getVersionForSource(plugin.getName().getRoot()))
+        .setStoragePlugin(underlyingPlugin)
+        .setStoragePluginId(plugin.getId())
+        .setOptionManager(optionManager)
+        .build();
+      if (versionedDatasetAdapter == null) {
+        return null;
+      }
+
+      return versionedDatasetAdapter.getTable(accessUserName);
+    }
 
     // Figure out the user we want to access the source with.  If the source supports impersonation we allow it to
     // override the delegated username.
@@ -408,9 +410,15 @@ class DatasetManager {
 
     ConnectionConf<?,?> conf = plugin.getConnectionConf();
     if (conf instanceof ImpersonationConf) {
+      if (plugin.getPlugin() instanceof SupportsImpersonation && !(schemaConfig.getAuthContext().getSubject() instanceof CatalogUser)) {
+        if (((SupportsImpersonation) plugin.getPlugin()).isImpersonationEnabled()) {
+          throw UserException.unsupportedError(new InvalidImpersonationTargetException("Only users can be used to connect to impersonation enabled sources.")).buildSilently();
+        }
+      }
+
       String queryUser = null;
       if (schemaConfig.getViewExpansionContext() != null) {
-        queryUser = schemaConfig.getViewExpansionContext().getQueryUser();
+        queryUser = schemaConfig.getViewExpansionContext().getQueryUser().getName();
       }
       accessUserName = ((ImpersonationConf) conf).getAccessUserName(schemaConfig.getUserName(), queryUser);
     } else {
@@ -433,7 +441,9 @@ class DatasetManager {
         options.getSchemaConfig().getOptions() != null && options.getSchemaConfig().getOptions().getOption(FULL_NESTED_SCHEMA_SUPPORT) ? schema : null
       );
 
-      return new ViewTable(new NamespaceKey(datasetConfig.getFullPathList()), view, datasetConfig, schema);
+      return new ViewTable(new NamespaceKey(datasetConfig.getFullPathList()), view,
+        identityProvider.getOwner(datasetConfig.getFullPathList()),
+        datasetConfig, schema);
     } catch (Exception e) {
       logger.warn("Failure parsing virtual dataset, not including in available schema.", e);
       return null;

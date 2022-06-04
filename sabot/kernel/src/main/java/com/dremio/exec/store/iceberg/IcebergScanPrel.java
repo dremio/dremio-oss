@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -59,6 +60,7 @@ import org.apache.iceberg.io.InputFile;
 
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -128,7 +130,7 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     this.icebergRootPointerPlugin = context.getCatalogService().getSource(pluginId);
     this.partitionStatsFile = partitionStatsFile;
     this.isConvertedIcebergDataset = isConvertedIcebergDataset;
-    this.isPruneConditionOnImplicitCol = pruneCondition != null && pruneCondition.getPartitionExpression() != null && isConditionOnImplicitCol();
+    this.isPruneConditionOnImplicitCol = pruneCondition != null && isConditionOnImplicitCol();
   }
 
   @Override
@@ -220,11 +222,14 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
     DistributionTrait distributionTrait = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, ImmutableList.of(distributionField));
     RelTraitSet relTraitSet = getCluster().getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distributionTrait);
 
-    IcebergExpGenVisitor icebergExpGenVisitor = new IcebergExpGenVisitor(getRowType());
+    IcebergExpGenVisitor icebergExpGenVisitor = new IcebergExpGenVisitor(getRowType(), getCluster());
     Expression icebergPartitionPruneExpression = null;
     List<RexNode> mfconditions = new ArrayList<>();
-    if (pruneCondition != null && pruneCondition.getPartitionRange() != null && specEvolTransEnabled) {
-      icebergPartitionPruneExpression = pruneCondition.getPartitionRange().accept(icebergExpGenVisitor);
+    if (pruneCondition != null &&
+            pruneCondition.getPartitionRange() != null &&
+            specEvolTransEnabled &&
+            !isPruneConditionOnImplicitCol) {
+      icebergPartitionPruneExpression = icebergExpGenVisitor.convertToIcebergExpression(pruneCondition.getPartitionRange());
       mfconditions.add(pruneCondition.getPartitionRange());
     }
 
@@ -251,10 +256,10 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
         mfconditions.add(pruneCondition.getNonPartitionRange());
       }
 
-      IcebergExpGenVisitor icebergExpGenVisitor2 = new IcebergExpGenVisitor(getRowType());
+      IcebergExpGenVisitor icebergExpGenVisitor2 = new IcebergExpGenVisitor(getRowType(), getCluster());
       if (mfconditions.size() > 0) {
         RexNode manifestFileAnyColCondition = mfconditions.size() == 1 ? mfconditions.get(0) : getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.AND, pruneCondition.getPartitionRange(), pruneCondition.getNonPartitionRange());
-        icebergManifestFileAnyColPruneExpression = manifestFileAnyColCondition.accept(icebergExpGenVisitor2);
+        icebergManifestFileAnyColPruneExpression = icebergExpGenVisitor2.convertToIcebergExpression(manifestFileAnyColCondition);
       }
     }
 
@@ -341,11 +346,17 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
       }
 
       PartitionSpec spec = IcebergUtils.getIcebergPartitionSpec(getBatchSchema(), partitionColumns, null);
-      InputFile inputFile = new DremioFileIO(icebergRootPointerPlugin.getFsConfCopy()).newInputFile(partitionStatsFile);
+      InputFile inputFile = new DremioFileIO(icebergRootPointerPlugin.getFsConfCopy(), (MutablePlugin) icebergRootPointerPlugin).newInputFile(partitionStatsFile);
       PartitionStatsReader partitionStatsReader = new PartitionStatsReader(inputFile, spec);
       try (RecordPruner pruner = new PartitionStatsBasedPruner(partitionStatsReader, context, spec)) {
+        RexNode finalPruneCondition = pruneCondition.getPartitionExpression();
+        boolean specEvolTransEnabled = context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
+        if (specEvolTransEnabled && pruneCondition.getPartitionRange() != null) {
+          finalPruneCondition = finalPruneCondition == null ? pruneCondition.getPartitionRange()
+            : getCluster().getRexBuilder().makeCall(SqlStdOperatorTable.AND, pruneCondition.getPartitionRange(), finalPruneCondition);
+        }
         survivingRecords = Optional.of(pruner.prune(inUseColIdToNameMap, partitionColToIdMap, getUsedIndices, projectedColumns,
-          tableMetadata, pruneCondition.getPartitionExpression(), getBatchSchema(), getRowType(), getCluster()));
+          tableMetadata, finalPruneCondition, getBatchSchema(), getRowType(), getCluster()));
       } catch (RuntimeException e) {
         logger.error("Encountered exception during row count estimation: ", e);
       }
@@ -354,14 +365,22 @@ public class IcebergScanPrel extends ScanRelBase implements Prel, PrelFinalizabl
   }
 
   private boolean shouldPrune(List<String> partitionColumns) {
-    return pruneCondition != null && pruneCondition.getPartitionExpression() != null
-      && partitionColumns != null && StringUtils.isNotEmpty(partitionStatsFile) && !isPruneConditionOnImplicitCol;
+    boolean specEvolTransEnabled = context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
+    boolean pruneConditionExists = pruneCondition != null && (pruneCondition.getPartitionExpression() != null
+      || specEvolTransEnabled && pruneCondition.getPartitionRange() != null);
+
+    return pruneConditionExists && partitionColumns != null && StringUtils.isNotEmpty(partitionStatsFile) && !isPruneConditionOnImplicitCol;
   }
 
   private boolean isConditionOnImplicitCol() {
+    boolean specEvolTransEnabled = context.getPlannerSettings().getOptions().getOption(ENABLE_ICEBERG_SPEC_EVOL_TRANFORMATION);
+    RexNode partitionExpression = specEvolTransEnabled ? pruneCondition.getPartitionRange() : pruneCondition.getPartitionExpression();
+    if (Objects.isNull(partitionExpression)) {
+      return false;
+    }
     int updateColIndex = projectedColumns.indexOf(SchemaPath.getSimplePath(IncrementalUpdateUtils.UPDATE_COLUMN));
     final AtomicBoolean isImplicit = new AtomicBoolean(false);
-    pruneCondition.getPartitionExpression().accept(new RexVisitorImpl<Void>(true) {
+    partitionExpression.accept(new RexVisitorImpl<Void>(true) {
       public Void visitInputRef(RexInputRef inputRef) {
         isImplicit.set(updateColIndex==inputRef.getIndex());
         return null;

@@ -107,7 +107,7 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
   public List<Property> propertyList;
 
   @Tag(6)
-  @DisplayMetadata(label = "Blob Containers & Filesystem Whitelist")
+  @DisplayMetadata(label = "Blob Containers & Filesystem Allowlist")
   public List<String> containers;
 
   @Tag(7)

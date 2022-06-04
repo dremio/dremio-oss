@@ -299,7 +299,7 @@ class DremioCursor implements Cursor {
         QueryDataBatch qdb = batchQueue.poll();
         // This correctly skips over the END_OF_STREAM_MESSAGE as it has null data.
         if (qdb != null && qdb.getData() != null) {
-          qdb.getData().release();
+          qdb.getData().close();
         }
       }
 

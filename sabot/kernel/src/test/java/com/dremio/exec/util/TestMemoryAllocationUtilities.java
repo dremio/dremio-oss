@@ -45,6 +45,7 @@ import com.dremio.exec.physical.config.SingleSender;
 import com.dremio.exec.physical.config.UnorderedReceiver;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.Wrapper;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
@@ -73,6 +74,7 @@ public class TestMemoryAllocationUtilities extends ExecTest {
   private OptionManager options;
   private SystemOptionManager systemOptionManager;
   private LegacyKVStoreProvider kvstoreprovider;
+  private long adjustReserve;
 
    @Before
    public void setup() throws Exception {
@@ -87,6 +89,9 @@ public class TestMemoryAllocationUtilities extends ExecTest {
        .withOptionManager(systemOptionManager)
        .build();
      systemOptionManager.start();
+
+     adjustReserve = options.getOption(PlannerSettings.ENABLE_AGGRESSIVE_MEMORY_CALCULATION) ?
+       options.getOption(PlannerSettings.ADJUST_RESERVED_WHEN_AGGRESSIVE) * 1024L * 1024L : 0L;
   }
 
    @After
@@ -105,7 +110,8 @@ public class TestMemoryAllocationUtilities extends ExecTest {
     f1.addOperator(cb);
     Wrapper w1 = new Wrapper(f1, 0);
     w1.overrideEndpoints(Collections.singletonList(N1));
-    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1), 10);
+
+    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1), 10 + adjustReserve);
     assertEquals(Long.MAX_VALUE, cnb.getProps().getMemLimit());
     assertEquals(3, cb.getProps().getMemLimit());
   }
@@ -118,7 +124,7 @@ public class TestMemoryAllocationUtilities extends ExecTest {
     f1.addOperator(es2);
     Wrapper wrapper = new Wrapper(f1, 0);
     wrapper.overrideEndpoints(Collections.singletonList(N1));
-    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, wrapper), 10);
+    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, wrapper), 10 + adjustReserve);
     assertEquals(4l, es1.getProps().getMemLimit());
     assertEquals(4l, es2.getProps().getMemLimit());
   }
@@ -141,7 +147,7 @@ public class TestMemoryAllocationUtilities extends ExecTest {
     w2.overrideEndpoints(Collections.singletonList(N1));
 
 
-    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10);
+    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10 + adjustReserve);
     assertEquals(3l, es1.getProps().getMemLimit());
     assertEquals(3l, es2.getProps().getMemLimit());
   }
@@ -167,7 +173,7 @@ public class TestMemoryAllocationUtilities extends ExecTest {
     w2.overrideEndpoints(Collections.singletonList(N1));
 
 
-    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10);
+    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10 + adjustReserve);
     assertEquals(3L, es1.getProps().getMemLimit());
     assertEquals(3L, es2.getProps().getMemLimit());
   }

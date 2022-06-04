@@ -16,19 +16,17 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.service.job.proto.QueryType.METADATA_REFRESH;
-import static org.hamcrest.CoreMatchers.isA;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 
-import java.util.Collection;
 import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.stubbing.Answer;
 
@@ -41,6 +39,7 @@ import com.dremio.exec.work.protector.ForemenTool;
 import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.job.JobEvent;
@@ -51,6 +50,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.usersessions.UserSessionService;
 
 import io.grpc.stub.StreamObserver;
 
@@ -59,6 +59,8 @@ import io.grpc.stub.StreamObserver;
  */
 public class TestLocalJobsService {
   private LocalJobsService localJobsService;
+  private final Set<CoordinationProtos.NodeEndpoint> nodeEndpoints = new HashSet<>();
+
   @Mock private LegacyKVStoreProvider kvStoreProvider;
   @Mock private BufferAllocator bufferAllocator;
   @Mock private JobResultsStoreConfig jobResultsStoreConfig;
@@ -67,7 +69,6 @@ public class TestLocalJobsService {
   @Mock private CoordTunnelCreator coordTunnelCreator;
   @Mock private ForemenTool foremenTool;
   @Mock private CoordinationProtos.NodeEndpoint nodeEndpoint;
-  private Collection<CoordinationProtos.NodeEndpoint> nodeEndpoints = new HashSet<>();
   @Mock private NamespaceService namespaceService;
   @Mock private OptionManager optionManager;
   @Mock private AccelerationManager accelerationManager;
@@ -76,9 +77,8 @@ public class TestLocalJobsService {
   @Mock private JobTelemetryClient jobTelemetryClient;
   @Mock private StructuredLogger<Job> jobResultLogger;
   @Mock private ConduitProvider conduitProvider;
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Mock private UserSessionService userSessionService;
+  @Mock private OptionValidatorListing optionValidatorProvider;
 
   @Before
   public void setup() {
@@ -100,7 +100,9 @@ public class TestLocalJobsService {
       () -> jobTelemetryClient,
       jobResultLogger,
       true,
-      () -> conduitProvider
+      () -> conduitProvider,
+      () -> userSessionService,
+      () -> optionValidatorProvider
     );
   }
 
@@ -110,7 +112,7 @@ public class TestLocalJobsService {
     JobSummary jobSummary = JobSummary.newBuilder().setJobState(JobState.COMPLETED).build();
     JobEvent jobEvent = JobEvent.newBuilder().setFinalJobSummary(jobSummary).build();
     doAnswer((Answer<JobId>) invocationOnMock -> {
-      invocationOnMock.getArgumentAt(1, StreamObserver.class).onNext(jobEvent);
+      invocationOnMock.getArgument(1, StreamObserver.class).onNext(jobEvent);
       return new JobId("foo");
     }).when(spy).submitJob(any(SubmitJobRequest.class), any(StreamObserver.class), any(PlanTransformationListener.class));
 
@@ -118,29 +120,29 @@ public class TestLocalJobsService {
   }
 
   @Test
-  public void runQueryAsJobCanceled() throws Exception {
+  public void runQueryAsJobCanceled() {
     final LocalJobsService spy = spy(localJobsService);
     JobSummary jobSummary = JobSummary.newBuilder().setJobState(JobState.CANCELED).build();
     JobEvent jobEvent = JobEvent.newBuilder().setFinalJobSummary(jobSummary).build();
     doAnswer((Answer<JobId>) invocationOnMock -> {
-      invocationOnMock.getArgumentAt(1, StreamObserver.class).onNext(jobEvent);
+      invocationOnMock.getArgument(1, StreamObserver.class).onNext(jobEvent);
       return new JobId("foo");
     }).when(spy).submitJob(any(SubmitJobRequest.class), any(StreamObserver.class), any(PlanTransformationListener.class));
 
-    thrown.expect(IllegalStateException.class);
-    spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name());
+    assertThatThrownBy(() -> spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name()))
+      .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
-  public void runQueryAsJobFailure() throws Exception {
+  public void runQueryAsJobFailure() {
     final LocalJobsService spy = spy(localJobsService);
     doAnswer((Answer<JobId>) invocationOnMock -> {
-      invocationOnMock.getArgumentAt(1, StreamObserver.class).onError(new NumberFormatException());
+      invocationOnMock.getArgument(1, StreamObserver.class).onError(new NumberFormatException());
       return null;
     }).when(spy).submitJob(any(SubmitJobRequest.class), any(StreamObserver.class), any(PlanTransformationListener.class));
 
-    thrown.expect(IllegalStateException.class);
-    thrown.expectCause(isA(NumberFormatException.class));
-    spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name());
+    assertThatThrownBy(() -> spy.runQueryAsJob("my query", "my_username", METADATA_REFRESH.name()))
+      .isInstanceOf(IllegalStateException.class)
+      .hasCauseInstanceOf(NumberFormatException.class);
   }
 }

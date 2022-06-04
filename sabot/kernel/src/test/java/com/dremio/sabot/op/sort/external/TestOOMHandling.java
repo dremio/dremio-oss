@@ -71,6 +71,10 @@ public class TestOOMHandling extends BaseTestQuery {
         AutoCloseable with = withOption(SortPrel.LIMIT, 10486784);
         AutoCloseable withres = withOption(SortPrel.RESERVE,10485760)){
 
+      // run metadata refresh first so that controls injection happens during below SELECT query
+      // instead of internal REFRESH DATASET query
+      runSQL("ALTER TABLE cp.\"tpch/lineitem.parquet\" REFRESH METADATA");
+
       ControlsInjectionUtil.setControls(client, controlsString);
 
       //query taken from TestSort

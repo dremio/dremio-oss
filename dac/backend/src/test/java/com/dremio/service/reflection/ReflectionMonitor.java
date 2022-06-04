@@ -18,6 +18,7 @@ package com.dremio.service.reflection;
 import static com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS.AVAILABLE;
 import static com.dremio.service.reflection.ReflectionUtils.isTerminal;
 import static com.dremio.service.reflection.proto.MaterializationState.DEPRECATED;
+import static com.dremio.service.reflection.proto.MaterializationState.DONE;
 import static com.dremio.service.reflection.proto.MaterializationState.FAILED;
 import static com.dremio.service.reflection.proto.ReflectionState.ACTIVE;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
@@ -120,17 +121,16 @@ public class ReflectionMonitor {
     final MaterializationId materializationId = (materialization == null) ? null : materialization.getId();
     Wait w = new Wait();
     while (w.loop()) {
-      // Get the last materialization done and return it if it's done after the specific materialization
-      final Materialization lastMaterializationDone = materializationStore.getLastMaterializationDone(reflectionId);
-      if (lastMaterializationDone != null && !Objects.equals(materializationId, lastMaterializationDone.getId())
-        && (materialization == null || lastMaterializationDone.getInitRefreshSubmit() > materialization.getInitRefreshSubmit())) {
-        return lastMaterializationDone;
-      }
-      // Throws materialization fail error if there is a failed materialization after the specific materialization
-      final Materialization lastMaterializationFailed = materializationStore.getLastMaterializationFailed(reflectionId);
-      if (lastMaterializationFailed != null && !Objects.equals(materializationId, lastMaterializationFailed.getId())
-        && (materialization == null || lastMaterializationFailed.getInitRefreshSubmit() > materialization.getInitRefreshSubmit())) {
-        throwMaterializationError(lastMaterializationFailed);
+      // Get the last materialization done and return it if it's done after the specific materialization.
+      // Throw materialization fail error if there is a failed materialization after the specific materialization.
+      final Materialization lastMaterialization = materializationStore.getLastMaterialization(reflectionId);
+      if (lastMaterialization != null && !Objects.equals(materializationId, lastMaterialization.getId())
+        && (materialization == null || lastMaterialization.getInitRefreshSubmit() > materialization.getInitRefreshSubmit())) {
+        if (lastMaterialization.getState() == DONE) {
+          return lastMaterialization;
+        } else if (lastMaterialization.getState() == FAILED) {
+          throwMaterializationError(lastMaterialization);
+        }
       }
     }
 

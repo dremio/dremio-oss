@@ -24,6 +24,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import javax.inject.Provider;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -38,15 +40,18 @@ public class TestModifiableThreadPoolExecutor {
   private final PositiveLongValidator option = new PositiveLongValidator("test-option", Integer.MAX_VALUE,1);
   private ThreadPoolExecutor threadPoolExecutor;
   private ModifiableThreadPoolExecutor modifiableThreadPoolExecutor;
+  private Provider<OptionManager> optionManagerProvider;
   private OptionManager optionManager;
 
   @Before
   public void setUp() throws Exception {
     threadPoolExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue<Runnable>());
+    optionManagerProvider = mock(Provider.class);
     optionManager = mock(OptionManager.class);
+    when(optionManagerProvider.get()).thenReturn(optionManager);
     when(optionManager.getOption(option)).thenReturn(1L);
-    modifiableThreadPoolExecutor = new ModifiableThreadPoolExecutor(threadPoolExecutor, option, optionManager);
+    modifiableThreadPoolExecutor = new ModifiableThreadPoolExecutor(threadPoolExecutor, option, optionManagerProvider);
   }
 
   @After

@@ -17,7 +17,7 @@ package com.dremio.plugins.s3.store;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -27,6 +27,7 @@ import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.amazonaws.services.s3.AmazonS3;
@@ -41,6 +42,7 @@ import com.google.common.collect.ImmutableSet;
  * Test the S3FSHealthChecker class.
  */
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({"org.apache.commons.*", "org.apache.xerces.*", "org.slf4j.*", "org.xml.*", "javax.xml.*"})
 public class TestS3FSHealthChecker {
 
   @Test

@@ -22,14 +22,9 @@ import static java.sql.Types.DOUBLE;
 import static java.sql.Types.INTEGER;
 import static java.sql.Types.TIMESTAMP;
 import static java.sql.Types.VARCHAR;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.sql.Clob;
 import java.sql.Date;
@@ -42,7 +37,6 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.List;
 
-import org.hamcrest.Matcher;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -62,13 +56,6 @@ import com.google.common.collect.ImmutableList;
 public class PreparedStatementTest extends JdbcWithServerTestBase {
   private static final String SAMPLE_SQL = "select * from INFORMATION_SCHEMA.CATALOGS";
 
-  /** Fuzzy matcher for parameters-not-supported message assertions.  (Based on
-   *  current "Prepared-statement dynamic parameters are not supported.") */
-  private static final Matcher<String> PARAMETERS_NOT_SUPPORTED_MSG_MATCHER =
-      allOf( containsString( "arameter" ),   // allows "Parameter"
-             containsString( "not" ),        // (could have false matches)
-             containsString( "support" ) );  // allows "supported"
-
   @BeforeClass
   public static void setUpConnection() throws SQLException {
     JdbcWithServerTestBase.setUpConnection();
@@ -84,14 +71,12 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   /** Tests that basic executeQuery() (with query statement) works. */
   @Test
   public void testExecuteQueryBasicCaseWorks() throws SQLException {
-    try (PreparedStatement stmt = getConnection().prepareStatement( "VALUES 11" )) {
-      try(ResultSet rs = stmt.executeQuery()) {
-        assertThat("Unexpected column count",
-            rs.getMetaData().getColumnCount(), equalTo(1)
-        );
-        assertTrue("No expected first row", rs.next());
-        assertThat(rs.getInt(1), equalTo(11));
-        assertFalse("Unexpected second row", rs.next());
+    try (PreparedStatement stmt = getConnection().prepareStatement("VALUES 11")) {
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertThat(rs.getMetaData().getColumnCount()).isEqualTo(1);
+        assertThat(rs.next()).isTrue();
+        assertThat(rs.getInt(1)).isEqualTo(11);
+        assertThat(rs.next()).isFalse();
       }
     }
   }
@@ -128,15 +113,15 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
         ResultSetMetaData executeMetadata = rs.getMetaData();
         verifyMetadata(executeMetadata, exp);
 
-        assertTrue("No expected first row", rs.next());
-        assertThat(rs.getInt(1), equalTo(1));
-        assertThat(rs.getLong(2), equalTo(12384729L));
-        assertThat(rs.getString(3), equalTo("varchar_value"));
-        assertThat(rs.getTimestamp(4), equalTo(Timestamp.valueOf("2008-2-23 10:00:20.123")));
-        assertThat(rs.getDate(5), equalTo(Date.valueOf("2008-2-23")));
-        //assertThat(rs.getBigDecimal(6), equalTo(new BigDecimal("99999912399.45670")));
-        assertThat(rs.getDouble(6), equalTo(99999912399.4567D));
-        assertFalse("Unexpected second row", rs.next());
+        assertThat(rs.next()).isTrue();
+        assertThat(rs.getInt(1)).isEqualTo(1);
+        assertThat(rs.getLong(2)).isEqualTo(12384729L);
+        assertThat(rs.getString(3)).isEqualTo("varchar_value");
+        assertThat(rs.getTimestamp(4)).isEqualTo(Timestamp.valueOf("2008-2-23 10:00:20.123"));
+        assertThat(rs.getDate(5)).isEqualTo(Date.valueOf("2008-2-23"));
+        //assertThat(rs.getBigDecimal(6)).isEqualTo(new BigDecimal("99999912399.45670"));
+        assertThat(rs.getDouble(6)).isEqualTo(99999912399.4567D);
+        assertThat(rs.next()).isFalse();
       }
     }
   }
@@ -146,7 +131,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
     int i = 0;
     for(ExpectedColumnResult e : exp) {
       ++i;
-      assertTrue("Failed to find the expected column metadata. Expected " + e + ". Was: " + toString(act, i), e.isEqualsTo(act, i));
+      assertThat(e.isEqualsTo(act, i)).isTrue();
     }
   }
 
@@ -228,51 +213,36 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   // Parameters-not-implemented tests:
 
   /** Tests that basic case of trying to create a prepare statement with parameters. */
-  @Test( expected = SQLException.class )
-  public void testSqlQueryWithParamNotSupported() throws SQLException {
-
-    try {
-      getConnection().prepareStatement( "VALUES ?, ?" );
-    }
-    catch ( final SQLException e ) {
-      assertThat(
-          "Check whether params.-unsupported wording changed or checks changed.",
-          e.toString(), containsString("Illegal use of dynamic parameter") );
-      throw e;
-    }
+  @Test
+  public void testSqlQueryWithParamNotSupported() {
+    assertThatThrownBy(() -> getConnection().prepareStatement("VALUES ?, ?"))
+      .isInstanceOf(SQLException.class)
+      .hasMessageContaining("Illegal use of dynamic parameter");
   }
 
   /** Tests that "not supported" has priority over possible "no parameters"
    *  check. */
-  @Test( expected = SQLFeatureNotSupportedException.class )
+  @Test
   public void testParamSettingWhenNoParametersIndexSaysUnsupported() throws SQLException {
-    try(PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
-      try {
-        prepStmt.setBytes(4, null);
-      } catch (final SQLFeatureNotSupportedException e) {
-        assertThat(
-            "Check whether params.-unsupported wording changed or checks changed.",
-            e.toString(), PARAMETERS_NOT_SUPPORTED_MSG_MATCHER
-        );
-        throw e;
-      }
+    try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
+      assertThatThrownBy(() -> prepStmt.setBytes(4, null))
+        .isInstanceOf(SQLFeatureNotSupportedException.class)
+        .hasMessageContaining("arameter")
+        .hasMessageContaining("not")
+        .hasMessageContaining("support");
     }
   }
 
   /** Tests that "not supported" has priority over possible "type not supported"
    *  check. */
-  @Test( expected = SQLFeatureNotSupportedException.class )
+  @Test
   public void testParamSettingWhenUnsupportedTypeSaysUnsupported() throws SQLException {
-    try(PreparedStatement prepStmt = getConnection().prepareStatement( "VALUES 1" )) {
-      try {
-        prepStmt.setClob(2, (Clob) null);
-      } catch (final SQLFeatureNotSupportedException e) {
-        assertThat(
-            "Check whether params.-unsupported wording changed or checks changed.",
-            e.toString(), PARAMETERS_NOT_SUPPORTED_MSG_MATCHER
-        );
-        throw e;
-      }
+    try (PreparedStatement prepStmt = getConnection().prepareStatement("VALUES 1")) {
+      assertThatThrownBy(() -> prepStmt.setClob(2, (Clob) null))
+        .isInstanceOf(SQLFeatureNotSupportedException.class)
+        .hasMessageContaining("arameter")
+        .hasMessageContaining("not")
+        .hasMessageContaining("support");
     }
   }
 
@@ -285,8 +255,8 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   /** Tests that getQueryTimeout() indicates no timeout set. */
   @Test
   public void testGetQueryTimeoutSaysNoTimeout() throws SQLException {
-    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
-      assertThat( statement.getQueryTimeout(), equalTo( 0 ) );
+    try (PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
+      assertThat(statement.getQueryTimeout()).isEqualTo(0);
     }
   }
 
@@ -297,22 +267,20 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
    *  no-timeout mode. */
   @Test
   public void testSetQueryTimeoutAcceptsNotimeoutRequest() throws SQLException {
-    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
-      statement.setQueryTimeout( 0 );
+    try (PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
+      statement.setQueryTimeout(0);
     }
   }
 
-
   @Test
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
-    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
-      statement.setQueryTimeout( -2 );
-    }
-    catch ( SQLException e ) {
-      // Check exception for some mention of parameter name or semantics:
-      assertThat( e.getMessage(), anyOf( containsString( "seconds" ),
-                                         containsString( "timeout" ),
-                                         containsString( "Timeout" ) ) );
+    try (PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
+      assertThatThrownBy(() -> statement.setQueryTimeout(-2))
+        .isInstanceOf(SQLException.class)
+        .satisfiesAnyOf(
+          e -> assertThat(e.getMessage()).contains("seconds"),
+          e -> assertThat(e.getMessage()).contains("timeout"),
+          e -> assertThat(e.getMessage()).contains("Timeout"));
     }
   }
 
@@ -321,11 +289,11 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
    */
   @Test
   public void testValidSetQueryTimeout() throws SQLException {
-    try(PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
+    try (PreparedStatement statement = getConnection().prepareStatement(SAMPLE_SQL)) {
       // Setting positive value
       statement.setQueryTimeout(1_000);
-      assertThat( statement.getQueryTimeout(), equalTo( 1_000 ) );
-    };
+      assertThat(statement.getQueryTimeout()).isEqualTo(1_000);
+    }
   }
 
   /**
@@ -347,8 +315,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
             controlStatement.execute(String.format(
                 "ALTER session SET \"%s\" = '%s'",
                 ExecConstants.NODE_CONTROL_INJECTIONS,
-                controls)),
-            equalTo(true));
+                controls))).isTrue();
       }
       int timeoutDuration = 3;
       //Setting to a very low value (3sec)

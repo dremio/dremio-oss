@@ -23,19 +23,12 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>20.1.0-202202061055110045-36733c65</version>
+    <version>21.2.0-202205262146080444-038d6d1b</version>
   </parent>
 
   <artifactId>dremio-common</artifactId>
   <packaging>jar</packaging>
   <name>Common</name>
-
-  <properties>
-    <flatc.download.skip>false</flatc.download.skip>
-    <flatc.executable>${project.build.directory}/flatc-${os.detected.classifier}-${fbs.version}.exe</flatc.executable>
-    <flatc.generated.files>${project.build.directory}/generated-sources/flatc</flatc.generated.files>
-    <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
-  </properties>
 
   <build>
     <resources>
@@ -53,7 +46,9 @@
           <execution>
             <id>generate-fmpp</id>
             <phase>generate-sources</phase>
-            <goals><goal>generate</goal></goals>
+            <goals>
+              <goal>generate</goal>
+            </goals>
             <configuration>
               <config>${project.basedir}/src/main/codegen/config.fmpp</config>
               <output>${project.build.directory}/generated-sources/fmpp</output>
@@ -73,7 +68,6 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0</version>
         <configuration>
           <validHeaders>
             <validHeader>src/main/licenses/io.protostuff.JsonIOUtils.license.txt</validHeader>
@@ -82,101 +76,6 @@
             <exclude>src/test/resources/maprtest/testconfig/login.conf</exclude> <!-- it needs Java style, was handedited -->
           </excludes>
         </configuration>
-      </plugin>
-
-      <plugin> <!-- download the flatbuffer compiler -->
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-flatc</id>
-            <phase>initialize</phase>
-            <goals>
-              <goal>copy</goal>
-            </goals>
-            <configuration>
-              <artifactItems>
-                <artifactItem>
-                  <groupId>com.github.icexelloss</groupId>
-                  <artifactId>flatc-${os.detected.classifier}</artifactId>
-                  <version>${fbs.version}</version>
-                  <type>exe</type>
-                  <overWrite>true</overWrite>
-                  <outputDirectory>${project.build.directory}</outputDirectory>
-                </artifactItem>
-              </artifactItems>
-              <skip>${flatc.download.skip}</skip>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <executions>
-          <execution> <!-- make the flatbuffer compiler executable -->
-            <id>script-chmod</id>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <executable>chmod</executable>
-              <arguments>
-                <argument>+x</argument>
-                <argument>${project.build.directory}/flatc-${os.detected.classifier}-${fbs.version}.exe</argument>
-              </arguments>
-              <skip>${flatc.download.skip}</skip>
-            </configuration>
-          </execution>
-          <execution> <!-- generate sources by executing the flatbuffer compiler -->
-            <id>gen-flatbuf</id>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <executable>${flatc.executable}</executable>
-              <arguments>
-                <argument>-j</argument>
-                <argument>-o</argument>
-                <argument>${flatc.generated.files}</argument>
-                <argument>${basedir}/src/main/flatbuf/OldSchema.fbs</argument>
-              </arguments>
-            </configuration>
-          </execution>
-          <execution>
-            <id>process</id>
-            <phase>process-classes</phase>
-            <goals>
-              <goal>java</goal>
-            </goals>
-            <configuration>
-              <mainClass>com.dremio.common.scanner.BuildTimeScan</mainClass>
-              <arguments>
-                <argument>${project.build.outputDirectory}</argument>
-              </arguments>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin> <!-- add generated sources to classpath -->
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>add-generated-sources-to-classpath</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${flatc.generated.files}</source>
-              </sources>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
@@ -207,16 +106,6 @@
       <artifactId>dremio-protocol</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.immutables</groupId>
-      <artifactId>value</artifactId>
-      <scope>provided</scope>
-    </dependency>    
-
-    <dependency>
-      <groupId>io.protostuff</groupId>
-      <artifactId>protostuff-api</artifactId>
-    </dependency>
     <dependency>
       <groupId>io.protostuff</groupId>
       <artifactId>protostuff-core</artifactId>
@@ -301,12 +190,6 @@
       <artifactId>commons-lang3</artifactId>
     </dependency>
     <dependency>
-      <!-- add as provided scope so that we can compile TestTools.  Should only be ever used in a test scenario where someone else is bringing Hamcrest in. -->
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-core</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>org.javassist</groupId>
       <artifactId>javassist</artifactId>
     </dependency>
@@ -358,6 +241,10 @@
       <artifactId>auth</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-format</artifactId>
+    </dependency>
+    <dependency>
       <groupId>net.logstash.logback</groupId>
       <artifactId>logstash-logback-encoder</artifactId>
     </dependency>
@@ -369,6 +256,12 @@
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- add as provided scope so that we can compile TestTools. Should only be ever used in a test scenario where someone else is bringing AssertJ in. -->
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 </project>

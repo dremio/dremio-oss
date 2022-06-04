@@ -89,4 +89,5 @@ public interface JsonOutput {
   void writeInterval(FieldReader reader) throws IOException;
   void writeLargeVarChar(FieldReader reader) throws IOException;
   void writeLargeVarBinary(FieldReader reader) throws IOException;
+  void writeIntervalMonthDayNano(FieldReader reader) throws IOException;
 }

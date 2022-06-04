@@ -63,7 +63,9 @@ import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.util.Optionality;
 import org.apache.calcite.util.Util;
 
+import com.dremio.exec.planner.sql.parser.SqlVersionedTableMacro;
 import com.dremio.exec.store.ColumnExtendedProperty;
+import com.dremio.exec.tablefunctions.VersionedTableMacro;
 import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
@@ -238,17 +240,16 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     return new DremioCatalogReader(catalog.resolveCatalog(withSchemaPath), typeFactory);
   }
 
-  public DremioCatalogReader withSchemaPathAndUser(List<String> newNamespacePath,
-    String username) {
+  public DremioCatalogReader withSchemaPathAndUser(List<String> newNamespacePath, CatalogIdentity identity) {
     NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
-    return new DremioCatalogReader(catalog.resolveCatalog(username, withSchemaPath), typeFactory);
+    return new DremioCatalogReader(catalog.resolveCatalog(identity, withSchemaPath), typeFactory);
   }
 
   public DremioCatalogReader withSchemaPathAndUser(List<String> newNamespacePath,
-    String username,
-    boolean checkValidity) {
+                                                   CatalogIdentity identity,
+                                                   boolean checkValidity) {
     NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
-    return new DremioCatalogReader(catalog.resolveCatalog(username, withSchemaPath, checkValidity), typeFactory);
+    return new DremioCatalogReader(catalog.resolveCatalog(identity, withSchemaPath, checkValidity), typeFactory);
   }
 
   public DremioCatalogReader withCheckValidity(boolean checkValidity) {
@@ -295,6 +296,10 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
       return new SqlUserDefinedAggFunction(name,
           infer((AggregateFunction) function), InferTypes.explicit(argTypes),
           typeChecker, (AggregateFunction) function, false, false, Optionality.FORBIDDEN, typeFactory);
+    } else if (function instanceof VersionedTableMacro) {
+      return new SqlVersionedTableMacro(name, ReturnTypes.CURSOR,
+          InferTypes.explicit(argTypes), typeChecker, paramTypes,
+          (VersionedTableMacro) function);
     } else if (function instanceof TableMacro) {
       return new SqlUserDefinedTableMacro(name, ReturnTypes.CURSOR,
           InferTypes.explicit(argTypes), typeChecker, paramTypes,

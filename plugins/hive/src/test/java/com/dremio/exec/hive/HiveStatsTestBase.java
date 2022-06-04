@@ -17,6 +17,7 @@ package com.dremio.exec.hive;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -66,7 +67,7 @@ public abstract class HiveStatsTestBase extends BaseTestServer {
     }
   }
 
-  protected UserBitShared.OperatorProfile getHiveReaderProfile(final String query) throws Exception {
+  protected UserBitShared.OperatorProfile getHiveReaderProfile(final String query, boolean datasetSupportsV2) throws Exception {
     final UserBitShared.QueryProfile queryProfile = getQueryProfile(
       JobRequest.newBuilder()
         .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
@@ -79,10 +80,18 @@ public abstract class HiveStatsTestBase extends BaseTestServer {
       .get(0)
       .getMinorFragmentProfileList().get(0)
       .getOperatorProfileList();
-    return operatorProfileList.stream()
-      .filter(profile -> profile.getOperatorType() ==
-        UserBitShared.CoreOperatorType.HIVE_SUB_SCAN_VALUE)
-      .findFirst().get();
+    if (datasetSupportsV2) {
+      List<UserBitShared.OperatorProfile> tableFunctions = operatorProfileList.stream()
+              .filter(profile -> profile.getOperatorType() ==
+                      UserBitShared.CoreOperatorType.TABLE_FUNCTION_VALUE)
+              .collect(Collectors.toList());
+      return tableFunctions.get(0);
+    } else {
+      return operatorProfileList.stream()
+              .filter(profile -> profile.getOperatorType() ==
+                      UserBitShared.CoreOperatorType.HIVE_SUB_SCAN_VALUE)
+              .findFirst().get();
+    }
   }
 
   protected long getMetricValue(final UserBitShared.OperatorProfile hiveReaderProfile, final ScanOperator.Metric metric) {

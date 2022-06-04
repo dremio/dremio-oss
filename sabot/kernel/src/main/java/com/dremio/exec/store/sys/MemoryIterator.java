@@ -65,6 +65,7 @@ public class MemoryIterator implements Iterator<Object> {
 
     memoryInfo.direct_current = dbContext.getAllocator().getAllocatedMemory();
     memoryInfo.direct_max = VM.getMaxDirectMemory();
+    memoryInfo.node_id = endpoint.getAddress() + ":" + endpoint.getFabricPort();
     return memoryInfo;
   }
 
@@ -87,6 +88,7 @@ public class MemoryIterator implements Iterator<Object> {
   }
 
   public static class MemoryInfo {
+    public String node_id;
     public String hostname;
     public long fabric_port;
     public long heap_current;

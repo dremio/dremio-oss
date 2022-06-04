@@ -33,6 +33,7 @@ import org.apache.arrow.vector.holders.ObjectHolder;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.CallBack;
 import org.apache.arrow.vector.util.TransferPair;
 
@@ -63,7 +64,7 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
 
   @Override
   public Field getField() {
-    return new Field(name, false, ObjectType.INTERNAL_OBJECT_TYPE, null);
+    return new Field(name, new FieldType(false, ObjectType.INTERNAL_OBJECT_TYPE, null), null);
   }
 
   @Override

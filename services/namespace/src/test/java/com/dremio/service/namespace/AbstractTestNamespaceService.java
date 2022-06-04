@@ -32,13 +32,12 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.ArrowType.Struct;
 import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
@@ -77,9 +76,6 @@ public abstract class AbstractTestNamespaceService {
     provider.close();
     closeResources();
   }
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSources() throws Exception {
@@ -471,9 +467,9 @@ public abstract class AbstractTestNamespaceService {
 
   @Test
   public void testDataSetSchema() throws Exception {
-    Field field1 = new Field("a", true, new Int(32, true), null);
-    Field child1 = new Field("c", true, Utf8.INSTANCE, null);
-    Field field2 = new Field("b", true, Struct.INSTANCE, ImmutableList.of(child1));
+    Field field1 = new Field("a", new FieldType(true, new Int(32, true), null), null);
+    Field child1 = new Field("c", new FieldType(true,  Utf8.INSTANCE, null), null);
+    Field field2 = new Field("b", new FieldType(true, Struct.INSTANCE, null), ImmutableList.of(child1));
     Schema schema = new Schema(ImmutableList.of(field1, field2));
     FlatBufferBuilder builder = new FlatBufferBuilder();
     schema.getSchema(builder);
@@ -678,7 +674,7 @@ public abstract class AbstractTestNamespaceService {
   @Test
   public void testDeleteEntityNotFound() throws Exception {
     try {
-      namespaceService.deleteEntity(new NamespaceKey(Arrays.asList("does", "not", "exist")), NameSpaceContainer.Type.FOLDER, "123", true);
+      namespaceService.deleteEntityWithCallback(new NamespaceKey(Arrays.asList("does", "not", "exist")), NameSpaceContainer.Type.FOLDER, "123", true, null);
       fail("deleteEntity should have failed.");
     } catch(NamespaceNotFoundException e) {
       // Expected

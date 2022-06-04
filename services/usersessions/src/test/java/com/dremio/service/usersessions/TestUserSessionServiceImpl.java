@@ -16,96 +16,45 @@
 package com.dremio.service.usersessions;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.calcite.avatica.util.Quoting;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.datastore.format.Format;
-import com.dremio.datastore.transientstore.InMemoryTransientStore;
-import com.dremio.datastore.transientstore.TransientStore;
-import com.dremio.datastore.transientstore.TransientStoreProvider;
+import com.dremio.exec.catalog.VersionContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.proto.UserSessionProtobuf.UserSessionRPC;
-import com.dremio.exec.server.options.OptionValidatorListingImpl;
-import com.dremio.exec.server.options.SessionOptionManager;
-import com.dremio.exec.server.options.SessionOptionManagerFactoryImpl;
-import com.dremio.exec.work.user.SubstitutionSettings;
-import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidatorListing;
 import com.dremio.sabot.rpc.user.UserRpcUtils;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.usersessions.store.UserSessionStoreProvider;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Test class for UserSessionStore.
  */
-public class TestUserSessionServiceImpl extends BaseTestQuery {
+public class TestUserSessionServiceImpl {
 
   private UserSession session;
   private UserSessionServiceImpl service;
-  private OptionValidatorListing optionValidatorListing;
 
   @Before
   public void setup() throws Exception {
     // set up the user session
-    final SubstitutionSettings substitutionSettings = new SubstitutionSettings(ImmutableList.of());
-    substitutionSettings.setInclusions(ImmutableList.of("incl1", "incl2"));
-
-    withOption(UserSessionServiceOptions.SESSION_TTL, 60);
-
-    optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
-    final SessionOptionManagerFactoryImpl sessionOptionManagerFactory = new SessionOptionManagerFactoryImpl(optionValidatorListing);
-    final SessionOptionManager sessionOptionManager = sessionOptionManagerFactory.getOrCreate("id");
-
-    setupSession(substitutionSettings);
+    setupSession();
 
     // set up the service
-    TransientStoreProvider provider = new TransientStoreProvider() {
-      @Override
-      public void close() {
-      }
+    UserSessionStoreProvider provider = new UserSessionStoreProvider();
 
-      @Override
-      public void start() {
-      }
-
-      @Override
-      public <K, V, T extends TransientStore<K, V>> T getStore(Format<K> keyFormat, Format<V> valueFormat) {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public <K, V, T extends TransientStore<K, V>> T getStore(Format<K> keyFormat, Format<V> valueFormat, int ttl) {
-        return (T) new InMemoryTransientStore<K, V>(ttl);
-      }
-    };
-
-    service = new UserSessionServiceImpl(getBindingProvider().provider(OptionManager.class), () -> sessionOptionManager, () -> provider);
+    service = new UserSessionServiceImpl(() -> provider, () -> 120 * 60);
     provider.start();
     service.start();
-  }
-
-  @Test
-  public void testToProtoBufWithExclusions() {
-    final SubstitutionSettings substitutionSettings = new SubstitutionSettings(ImmutableList.of("excl1", "excl2"));
-    setupSession(substitutionSettings);
-    verifyToProtoBuf();
-  }
-
-  @Test
-  public void testToProtoBufWithInclusions() {
-    final SubstitutionSettings substitutionSettings = new SubstitutionSettings(ImmutableList.of());
-    substitutionSettings.setInclusions(ImmutableList.of("incl1", "incl2"));
-    setupSession(substitutionSettings);
-    verifyToProtoBuf();
   }
 
   /**
@@ -116,7 +65,7 @@ public class TestUserSessionServiceImpl extends BaseTestQuery {
     final UserSessionService.SessionIdAndVersion sessionIdAndVersion = service.putSession(session);
 
     // check that the sessionId returns the correct result
-    final UserSessionService.UserSessionData actualSession = service.getSession(sessionIdAndVersion.getId());
+    final UserSessionService.UserSessionAndVersion actualSession = service.getSession(sessionIdAndVersion.getId());
     compareUserSessions(session, actualSession.getSession());
   }
 
@@ -135,7 +84,7 @@ public class TestUserSessionServiceImpl extends BaseTestQuery {
     service.updateSession(sessionId, sessionIdAndVersion.getVersion(), session);
 
     // ensure the session is updated
-    final UserSessionService.UserSessionData actualSession = service.getSession(sessionId);
+    final UserSessionService.UserSessionAndVersion actualSession = service.getSession(sessionId);
     compareUserSessions(session, actualSession.getSession());
   }
 
@@ -155,7 +104,24 @@ public class TestUserSessionServiceImpl extends BaseTestQuery {
     assertNull(service.getSession(invalidSessionId));
   }
 
-  private void setupSession(SubstitutionSettings substitutionSettings) {
+  @Test
+  public void verifyToProtoBuf() throws Exception {
+    final UserSessionRPC serialized = GrpcUserSessionConverter.toProtoBuf(session);
+
+    final UserSession newSession = GrpcUserSessionConverter.fromProtoBuf(serialized);
+    compareUserSessions(session, newSession);
+  }
+
+  @Test
+  public void verifyToFromProtoBufEmptySession() throws Exception {
+    final UserSession originalSession = UserSession.Builder.newBuilder().build();
+    final UserSessionRPC serialized = GrpcUserSessionConverter.toProtoBuf(originalSession);
+
+    final UserSession newSession = GrpcUserSessionConverter.fromProtoBuf(serialized);
+    compareUserSessions(originalSession, newSession);
+  }
+
+  private void setupSession() {
     final List<String> defaultSchema = ImmutableList.of("schema", "table");
     final UserProtos.UserProperties properties = UserProtos.UserProperties.newBuilder()
       .addProperties(UserProtos.Property.newBuilder().setKey(UserSession.ROUTING_QUEUE).setValue("queue").build())
@@ -164,6 +130,13 @@ public class TestUserSessionServiceImpl extends BaseTestQuery {
       .addProperties(UserProtos.Property.newBuilder().setKey(UserSession.IMPERSONATION_TARGET).setValue("target").build())
       .addProperties(UserProtos.Property.newBuilder().setKey(UserSession.TRACING_ENABLED).setValue("TRUE").build())
       .build();
+
+    final Map<String, VersionContext> sourceVersionMapping = ImmutableMap.of(
+        "test1", VersionContext.ofBranch("branch1"),
+        "test2", VersionContext.ofBareCommit("0123456789ABCDEFabcdef"),
+        "test3", VersionContext.ofRef("ref1"),
+        "test4", VersionContext.ofTag("tag")
+      );
 
     session = UserSession.Builder.newBuilder()
       .exposeInternalSources(true)
@@ -175,18 +148,11 @@ public class TestUserSessionServiceImpl extends BaseTestQuery {
       .withFullyQualifiedProjectsSupport(true)
       .withLegacyCatalog()
       .withRecordBatchFormat(UserProtos.RecordBatchFormat.DREMIO_1_4)
-      .withSubstitutionSettings(substitutionSettings)
       .setSupportComplexTypes(true)
       .withUserProperties(properties)
+      .withSourceVersionMapping(sourceVersionMapping)
       .build();
     session.setLastQueryId(UserBitShared.QueryId.newBuilder().setPart1(1).setPart2(2).build());
-  }
-
-  private void verifyToProtoBuf() {
-    final UserSessionRPC serialized = UserSessionServiceImpl.toProtoBuf(session);
-
-    final UserSession newSession = service.fromProtoBuf(serialized);
-    compareUserSessions(session, newSession);
   }
 
   private void compareUserSessions(UserSession session1, UserSession session2) {
@@ -205,8 +171,6 @@ public class TestUserSessionServiceImpl extends BaseTestQuery {
     assertEquals(session1.getRoutingEngine(), session2.getRoutingEngine());
     assertEquals(session1.getRoutingQueue(), session2.getRoutingQueue());
     assertEquals(session1.getRoutingTag(), session2.getRoutingTag());
-    assertNotNull(session2.getSessionOptionManager());
-    assertEquals(optionValidatorListing, session2.getSessionOptionManager().getOptionValidatorListing());
     assertEquals(session1.getSubstitutionSettings().getExclusions(), session2.getSubstitutionSettings().getExclusions());
     assertEquals(session1.getSubstitutionSettings().getInclusions(), session2.getSubstitutionSettings().getInclusions());
     assertEquals(session1.getTargetUserName(), session2.getTargetUserName());
@@ -215,6 +179,15 @@ public class TestUserSessionServiceImpl extends BaseTestQuery {
     assertEquals(session1.isTracingEnabled(), session2.isTracingEnabled());
     assertEquals(session1.supportFullyQualifiedProjections(), session2.supportFullyQualifiedProjections());
     assertEquals(session1.useLegacyCatalogName(), session2.useLegacyCatalogName());
+
+    assertEquals(session1.getSourceVersionMapping().size(), session2.getSourceVersionMapping().size());
+
+    final Map<String, VersionContext> session2SourceVersionMapping = session2.getSourceVersionMapping();
+    session1.getSourceVersionMapping()
+      .forEach((key, value1) -> {
+        final VersionContext value2 = session2SourceVersionMapping.get(key);
+        assertEquals(value1, value2);
+      });
   }
 
 }

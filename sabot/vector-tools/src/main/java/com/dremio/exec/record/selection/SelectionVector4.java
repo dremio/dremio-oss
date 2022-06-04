@@ -72,7 +72,7 @@ public class SelectionVector4 implements AutoCloseable {
    * @return Newly created single batch SelectionVector4.
    */
   public SelectionVector4 createNewWrapperCurrent(int batchRecordCount) {
-    data.retain();
+    data.getReferenceManager().retain();
     final SelectionVector4 sv4 = new SelectionVector4(data, recordCount, batchRecordCount);
     sv4.start = this.start;
     return sv4;
@@ -108,7 +108,7 @@ public class SelectionVector4 implements AutoCloseable {
     start = 0;
     length = 0;
     if (data != DeadBuf.DEAD_BUFFER) {
-      data.release();
+      data.close();
       data = DeadBuf.DEAD_BUFFER;
     }
   }

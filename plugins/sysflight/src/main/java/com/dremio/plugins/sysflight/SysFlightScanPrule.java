@@ -21,6 +21,7 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.store.StoragePlugin;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Rule that converts Flight logical to physical scan
@@ -45,7 +46,8 @@ public class SysFlightScanPrule extends RelOptRule {
         null,
         logicalScan.getProjectedColumns(),
         logicalScan.getObservedRowcountAdjustment(),
-        plugin
+        plugin,
+        ImmutableList.of()
         );
 
     call.transformTo(physicalScan);

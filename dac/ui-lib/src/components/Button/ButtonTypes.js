@@ -22,8 +22,9 @@ export const DEFAULT = 'default';
 // Variants
 export const CONTAINED = 'contained';
 export const OUTLINED = 'outlined';
+export const TEXT = 'text';
 
 
 export const COLORS_ARRAY = [PRIMARY, SECONDARY, DEFAULT, WARNING];
 
-export const VARIANTS_ARRAY = [OUTLINED, CONTAINED];
+export const VARIANTS_ARRAY = [OUTLINED, CONTAINED, TEXT];

@@ -20,9 +20,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -50,8 +50,11 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.config.DremioConfig;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.DefaultOptionManager;
@@ -73,6 +76,7 @@ import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceIdentity;
 import com.dremio.service.namespace.NamespaceInvalidStateException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -84,7 +88,10 @@ import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.dremio.service.namespace.file.proto.FileProtobuf;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.orphanage.Orphanage;
+import com.dremio.service.orphanage.OrphanageImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
+import com.dremio.service.scheduler.ModifiableLocalSchedulerService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
@@ -140,7 +147,9 @@ public class TestDatasetCatalogServiceImpl {
     private static TestCatalogServiceImpl.MockUpPlugin mockUpPlugin;
 
     private LegacyKVStoreProvider storeProvider;
+    private KVStoreProvider kvStoreProvider;
     private NamespaceService namespaceService;
+    private Orphanage orphanage;
     private DatasetListingService datasetListingService;
     private BufferAllocator allocator;
     private LocalClusterCoordinator clusterCoordinator;
@@ -164,12 +173,27 @@ public class TestDatasetCatalogServiceImpl {
       storeProvider =
         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
       storeProvider.start();
-
       namespaceService = new NamespaceServiceImpl(storeProvider);
+
+      kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+      kvStoreProvider.start();
+      orphanage = new OrphanageImpl(kvStoreProvider);
+
+      final Orphanage.Factory orphanageFactory = new Orphanage.Factory() {
+        @Override
+        public Orphanage get() {
+          return orphanage;
+        }
+      };
 
       final NamespaceService.Factory namespaceServiceFactory = new NamespaceService.Factory() {
         @Override
         public NamespaceService get(String userName) {
+          return namespaceService;
+        }
+
+        @Override
+        public NamespaceService get(NamespaceIdentity identity) {
           return namespaceService;
         }
       };
@@ -192,10 +216,12 @@ public class TestDatasetCatalogServiceImpl {
         .thenReturn(namespaceServiceFactory);
       when(sabotContext.getNamespaceService(anyString()))
         .thenReturn(namespaceService);
+      when(sabotContext.getOrphanageFactory())
+        .thenReturn(orphanageFactory);
       when(sabotContext.getViewCreatorFactoryProvider())
         .thenReturn(() -> viewCreatorFactory);
 
-      datasetListingService = new DatasetListingServiceImpl(DirectProvider.wrap(userName -> namespaceService));
+      datasetListingService = new DatasetListingServiceImpl(DirectProvider.wrap(namespaceServiceFactory));
       when(sabotContext.getDatasetListing())
         .thenReturn(datasetListingService);
 
@@ -262,7 +288,9 @@ public class TestDatasetCatalogServiceImpl {
         () -> optionManager,
         () -> broadcaster,
         dremioConfig,
-        EnumSet.allOf(ClusterCoordinator.Role.class)
+        EnumSet.allOf(ClusterCoordinator.Role.class),
+        () -> new ModifiableLocalSchedulerService(2, "modifiable-scheduler-",
+          ExecConstants.MAX_CONCURRENT_METADATA_REFRESHES, () -> optionManager)
       );
       catalogService.start();
 
@@ -295,7 +323,7 @@ public class TestDatasetCatalogServiceImpl {
       assertNotNull(dataset.getName());
 
       Catalog catalog = catalogService.getCatalog(MetadataRequestOptions.of(
-        SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()));
+        SchemaConfig.newBuilder(CatalogUser.from(SystemUser.SYSTEM_USERNAME)).build()));
       assertNotNull(catalog.getTable(MOCKUP_NEWDATASET));
     }
 

@@ -15,13 +15,12 @@
  */
 package com.dremio.datastore.indexed;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.datastore.api.DocumentWriter;
 
@@ -30,9 +29,6 @@ import com.dremio.datastore.api.DocumentWriter;
  */
 public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
   private D writer;
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void setup() {
@@ -107,8 +103,8 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
 
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
     // write multiple values to it.
-    thrown.expect(IllegalStateException.class);
-    writer.write(testKey, "foo", "bar");
+    assertThatThrownBy(() -> writer.write(testKey, "foo", "bar"))
+      .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -121,8 +117,8 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
     // write multiple values to it (by issuing multiple calls to write, rather than a single write call with
     // multiple values).
-    thrown.expect(IllegalStateException.class);
-    writer.write(testKey, "bar");
+    assertThatThrownBy(() -> writer.write(testKey, "bar"))
+      .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -146,8 +142,8 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
     // write multiple values to it (by issuing multiple calls to write, rather than a single write call with
     // multiple values).
-    thrown.expect(IllegalStateException.class);
-    writer.write(testKey, 2);
+    assertThatThrownBy(() -> writer.write(testKey, 2))
+      .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -174,8 +170,8 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
 
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
     // write multiple values to it.
-    thrown.expect(IllegalStateException.class);
-    writer.write(testKey, new byte[] {0x03}, new byte[] {0x04});
+    assertThatThrownBy(() -> writer.write(testKey, new byte[] {0x03}, new byte[] {0x04}))
+      .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -188,8 +184,8 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
     // Expect an IllegalStateException because testKey is a single key index and we are trying to
     // write multiple values to it (by issuing multiple calls to write, rather than a single write call with
     // multiple values).
-    thrown.expect(IllegalStateException.class);
-    writer.write(testKey, new byte[] {0x01});
+    assertThatThrownBy(() -> writer.write(testKey, new byte[] {0x01}))
+      .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

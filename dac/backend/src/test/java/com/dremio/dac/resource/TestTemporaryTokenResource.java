@@ -25,9 +25,7 @@ import javax.ws.rs.core.Response;
 import org.apache.http.HttpHeaders;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.resource.TemporaryTokenResource.TempTokenResponse;
 import com.dremio.dac.server.BaseTestServer;
@@ -41,8 +39,6 @@ import com.dremio.service.users.SystemUser;
  * Tests for TemporaryTokenResource and temporary token validation
  */
 public class TestTemporaryTokenResource extends BaseTestServer {
-  @Rule
-  public final ExpectedException thrown = ExpectedException.none();
   private JobId jobId;
 
   @BeforeClass

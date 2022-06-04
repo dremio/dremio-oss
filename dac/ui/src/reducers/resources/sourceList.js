@@ -53,7 +53,8 @@ export default function sourceList(state = getInitialState(), action) {
     return state.set('sources', newSpaces);
   }
   case AllSourcesActionTypes.SOURCES_LIST_LOAD_SUCCESS: {
-    return state.set('sources', action.payload.getIn(['result', 'sources']))
+    const sources = action.payload ? action.payload.getIn(['result', 'sources']) : new Immutable.List();
+    return state.set('sources', sources)
       .set('isInProgress', false);
   }
   case ActionTypes.LOAD_SOURCE_STARTED: {
