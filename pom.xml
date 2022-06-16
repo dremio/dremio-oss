@@ -3574,5 +3574,9 @@ limitations under the License.
       <id>dremio-public</id>
       <url>https://maven.dremio.com/public/</url>
     </repository>
+    <repository>
+      <id>dremio-free</id>
+      <url>https://maven.dremio.com/free/</url>
+    </repository>
   </repositories>
 </project>
